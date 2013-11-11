@@ -5,72 +5,43 @@ require 'image'
 require 'util'
 require 'util/file'
 
-TORCH_DIR = os.getenv('TORCH_DATA_PATH')
-DATA_DIR  = paths.concat(TORCH_DIR, 'data')
 
-dataset = {}
--- Check locally and download dataset if not found.  Returns the path to the
--- downloaded data file.
-function dataset.get_data(name, url, data_dir)
-   local dset_dir   = paths.concat(data_dir or DATA_DIR, name)
-   local data_file = paths.basename(url)
-   local data_path = paths.concat(dset_dir, data_file)
-
-   print("checking for file located at: ", data_path)
-
-   check_and_mkdir(TORCH_DIR)
-   check_and_mkdir(DATA_DIR)
-   check_and_mkdir(dset_dir)
-   check_and_download_file(data_path, url)
-
-   return data_path
-end
+------------------------------------------------------------------------
+--[[ dp ]]--
+-- dEEp learning library for torch 7, inspired by pylearn2.
+------------------------------------------------------------------------
 
 
--- Downloads the data if not available locally, and returns local path.
-function dataset.data_path(name, url, file, data_dir)
-    local data_path  = dataset.get_data(name, url, data_dir)
-    local data_dir   = paths.dirname(data_path)
-    local local_path = paths.concat(data_dir, file)
+dp = {}
 
-    if not is_file(local_path) then
-        do_with_cwd(data_dir,
-          function()
-              print("decompressing file: ", data_path)
-              decompress_file(data_path)
-          end)
-    end
+dp.TORCH_DIR = os.getenv('TORCH_DATA_PATH')
+dp.DATA_DIR  = paths.concat(TORCH_DIR, 'data')
 
-    return local_path
-end
+torch.include('dp', 'datatensor.lua')
+torch.include('dp', 'dataset.lua')
+torch.include('dp', 'datasource.lua')
+torch.include('dp', 'preprocess.lua')
+torch.include('dp', 'datasampler.lua')
+torch.include('dp', 'learn.lua')
 
 
-function dataset.scale(data, min, max)
-    local range = max - min
-    local dmin = data:min()
-    local dmax = data:max()
-    local drange = dmax - dmin
-
-    data:add(-dmin)
-    data:mul(range)
-    data:mul(1/drange)
-    data:add(min)
-end
 
 
-function dataset.rand_between(min, max)
+
+
+function dp.rand_between(min, max)
    return math.random() * (max - min) + min
 end
 
 
-function dataset.rand_pair(v_min, v_max)
-   local a = dataset.rand_between(v_min, v_max)
-   local b = dataset.rand_between(v_min, v_max)
+function dp.rand_pair(v_min, v_max)
+   local a = dp.rand_between(v_min, v_max)
+   local b = dp.rand_between(v_min, v_max)
    return a,b
 end
 
 
-function dataset.sort_by_class(samples, labels)
+function dp.sort_by_class(samples, labels)
     local size = labels:size()[1]
     local sorted_labels, sort_indices = torch.sort(labels)
     local sorted_samples = samples.new(samples:size())
@@ -83,7 +54,7 @@ function dataset.sort_by_class(samples, labels)
 end
 
 
-function dataset.rotator(start, delta)
+function dp.rotator(start, delta)
    local angle = start
    return function(src, dst)
       image.rotate(dst, src, angle)
@@ -92,7 +63,7 @@ function dataset.rotator(start, delta)
 end
 
 
-function dataset.translator(startx, starty, dx, dy)
+function dp.translator(startx, starty, dx, dy)
    local started = false
    local cx = startx
    local cy = starty
@@ -104,7 +75,7 @@ function dataset.translator(startx, starty, dx, dy)
 end
 
 
-function dataset.zoomer(start, dz)
+function dp.zoomer(start, dz)
    local factor = start
    return function(src, dst)
       local src_width  = src:size(2)

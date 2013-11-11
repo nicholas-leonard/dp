@@ -1,210 +1,223 @@
 require 'torch'
-require 'xlua'
+require 'dp'
+require 'utils'
 
-
-local Dataset = torch.class("data.Dataset")
 
 --[[
 TODO
+Create SIST, MIST, SIMT, and MIMT DataSets
 Iterators (shuffled, etc)
-Refactor preprocessing
 Eliminate non-standard dependencies
+Support multi-input, and target preprocessing
+Primary targets are the first ones (so what??)
 ]]--
 
+------------------------------------------------------------------------
+--[[ DataSet ]]--
+-- Contains inputs and optional targets. Used for training or testing
+-- (evaluating) a model. Inputs/targets are tables of DataTensors, which
+-- allows for multi-input / multi-target DataSets. This class can be 
+-- inherited to create specific DataSets like MNIST, SVHN, Newsgroups20,
+-- CIFAR-100, etc.
+------------------------------------------------------------------------
 
--- Wraps a table containing a dataset to make it easy to transform the dataset
--- and then sample from.  Each property in the data table must have a tensor or
--- table value, and then each sample will be retrieved by indexing these values
--- and returning a single instance from each one.
---
--- e.g.
---
---   -- a 'dataset' of random samples with random class labels
---   data_table = {
---     data  = torch.Tensor(10, 20, 20),
---     classes = torch.randperm(10)
---   }
---   metadata = { name = 'random', classes = {1,2,3,4,5,6,7,8,9,10} }
---   dataset = Dataset(data_table, metadata)
---
-function Dataset:__init()
-   local args
-   args, self.inputs, self.targets, self.topological, self.axes, 
-         self.view_converter
+local DataSet = torch.class("dp.DataSet")
+
+DataSet.isDataSet = true
+
+function DataSet:__init(...)
+   local args, which_set, inputs, targets, axes, sizes, classes
       = xlua.unpack(
       {...},
-      'Dataset constructor', nil,
-      {arg='inputs', type='table', 
-       help=[[Inputs of the dataset taking the form of torch.Tensor with
+      'DataSet', 
+      [[Constructs a DataSet.
+      ### Unsupervised Learning
+      If the DataSet is for unsupervised learning, only inputs need to 
+      be provided.
+      ### Multi-input/target DataSets
+      Inputs and targets should be provided as instances of 
+      dp.DataTensor to support conversions to other axes formats. 
+      Inputs and targets may also be provided as tables of 
+      dp.DataTensors. This is useful for multi-task learning, or 
+      learning from hints, in the case of multi-targets. In the case 
+      of multi-inputs, images can be combined with tags to provided 
+      for richer inputs, etc. 
+      Multi-inputs/targets are ready to be used with ParallelTable and 
+      ConcatTable nn.Modules.
+      ### Automatic dp.DataTensor construction
+      If the provided inputs or targets are torch.Tensors, an attempt is 
+      made to convert them to dp.DataTensor using the optionally 
+      provided axes and sizes (inputs), classes (outputs) ]],
+      {arg='which_set', type='string', req=true,
+       help=[['train', 'valid' or 'test' set]]
+      {arg='inputs', type='dp.DataTensor | torch.Tensor | table', 
+       help=[[Inputs of the DataSet taking the form of torch.Tensor with
             2 dimensions, or more if topological is true. Alternatively,
             inputs may take the form of a table of such torch.Tensors.
             The first dimension of the torch.Tensor(s) should be of size
             number of examples.
             ]], req=true},
-      {arg='targets', type='table', 
-       help=[[Targets of the dataset taking the form of torch.Tensor
+      {arg='targets', type='dp.DataTensor | torch.Tensor | table', 
+       help=[[Targets of the DataSet taking the form of torch.Tensor
             with 1-2 dimensions. Alternatively, targets may take the 
             form of a table of such torch.Tensors. The first dimension 
             of the torch.Tensor(s) should be of size number of examples.
             ]], default=nil},
-      {arg='topological', type='boolean', 
-       help=[[This should be true if the provided inputs are topological
-            ]], default=nil},
       {arg='axes', type='table', 
-       help=[[A table defining the order and nature of each dimension
-            of a batch of images. An example would be {'b', 0, 1,'c'}, 
-            where the dimensions represent a batch of examples :'b', 
-            the first horizontal axis of the image : 0, the vertical 
-            axis : 1, and the color channels : 'c'.
-            ]], default={'b','x','y','c'}},
+       help=[[Optional. Used when supplied inputs is a torch.Tensor, in
+            order to convert it to dp.DataTensor. In which case, it is 
+            a table defining the order and nature of each dimension
+            of a tensor. Two common examples would be the archtypical 
+            MLP input : {'b', 'f'}, or a common image representation : 
+            {'b', 'h', 'w', 'c'}. 
+            Possible axis symbols are :
+            1. Standard Axes:
+              'b' : Batch/Example
+              'f' : Feature
+              't' : Class
+            2. Image Axes
+              'c' : Color/Channel
+              'h' : Height
+              'w' : Width
+              'd' : Dept
+            Defaults to the dp.DataTensor default.]]},
+      {arg='sizes', type='table | torch.LongTensor', 
+       help=[[Optional. Used when supplied inputs is a torch.Tensor, in
+            order to convert it to dp.DataTensor. In which case, it is
+            a table or torch.LongTensor identifying the sizes of the 
+            commensurate dimensions in axes. This should be supplied 
+            if the dimensions of the data is different from the number
+            of elements in the axes table, in which case it will be used
+            to : data:resize(sizes). 
+            Defaults to the dp.DataTensor default.]]}
    )
-   
-   inputs, targets, axes, topo_view, 
-   self.inputs = inputs
-   self.targets = targets
-
-   global_metadata = global_metadata or {}
-
-   self._name = global_metadata.name
-   self._classes = global_metadata.classes or {}
+   self:setWhichSet(which_set)
+   self:setInputs(inputs, axes, size)  
+   self:setTargets(targets, classes)
+   --self:shuffle()
 end
 
-function Dataset:whichSet()
+function DataSet:setWhichSet(which_set)
+   self._which_set = which_set
+end
+
+function DataSet:whichSet()
    return self.which_set
 end
 
-function Dataset:isTrain()
+function DataSet:isTrain()
    if self.which_set == 'train' then
       return true
    end
    return false
 end
 
-function Dataset:setInputs(inputs)
-   self.inputs = inputs
+function DataSet:setInputs(inputs)
+   self._inputs = inputs
 end
 
-function Dataset:setTargets(targets)
-   self.targets = targets
+function DataSet:appendInput(input)
+   table.insert(self._inputs, input)
 end
 
-
--- Returns the number of samples in the dataset.
-function Dataset:size()
-   return self.dataset.data:size(1)
+function DataSet:appendTarget(target)
+   table.insert(self._targets, target)
 end
 
-function Dataset:inputs()
-   return self.dataset.data
+function DataSet:extendTargets(targets)
+   error("NotImplementedError")
 end
 
-function Dataset:targets()
-   return self.dataset.class
+--TODO: accept list of axes and sizes
+function DataSet:setInputs(inputs, axes, sizes)
+   if type(inputs) ~= 'table' then
+      if torch.Tensor.isinstance(inputs) then
+         --convert torch.Tensor to dp.DataTensor
+         inputs = dp.DataTensor{data=inputs, axes=axes, sizes=sizes)
+      end
+      assert(dp.DataTensor.isInstance(targets),
+         "Error : invalid inputs. Expecting type dp.DataTensor")
+      -- encapsulate inputs in a table
+      inputs = {inputs}
+   else
+      DataTensor.assertInstances(inputs)
+   end
+   self._inputs = inputs
 end
 
-
--- Returns the dimensions of a single sample as a table.
--- e.g.
---   mnist          => {1, 28, 28}
---   natural images => {3, 64, 64}
-function Dataset:dimensions()
-   local dims = self.dataset.data:size():totable()
-   table.remove(dims, 1)
-   return dims
-end
-
-
--- Returns the total number of dimensions of a sample.
--- e.g.
---   mnist => 1*28*28 => 784
-function Dataset:n_dimensions()
-   return fn.reduce(fn.mul, 1, self:dimensions())
-end
-
-
--- Returns the classes represented in this dataset (if available).
-function Dataset:classes()
-   return self._classes
-end
-
-
--- Returns the string name of this dataset.
-function Dataset:name()
-   return self._name
-end
-
-
--- Returns the specified sample (a table) by index.
---
---   sample = dataset:sample(100)
-function Dataset:sample(i)
-    local sample = {}
-
-    for key, v in pairs(self.dataset) do
-        sample[key] = v[i]
-    end
-
-    return sample
+function DataSet:setTargets(targets, classes)
+   if type(targets) ~= 'table' then
+      if torch.Tensor.isinstance(targets) then
+         --convert torch.Tensor to dp.DataTensor
+         if classes then
+            targets = dp.ClassTensor{data=targets, classes=classes}
+         else
+            targets = dp.DataTensor{data=targets}
+         end
+      end
+      assert(dp.DataTensor.isInstance(targets),
+         "Error : invalid targets. Expecting type dp.DataTensor")
+      -- encapsulate inputs in a table
+      targets = {targets}
+   else
+      DataTensor.assertInstances(targets)
+   end
+   self._targets = targets
 end
 
 
+-- Returns the number of samples in the DataSet.
+function DataSet:nSample()
+   --TODO what to do when DataTensors are of different size?
+   return self._inputs[1]:nSample()
+end
 
--- Returns an infinite sequence of data samples.  By default they
--- are shuffled samples, but you can turn shuffling off.
---
---   for sample in seq.take(1000, dataset:sampler()) do
---     net:forward(sample.data)
---   end
---
---   -- turn off shuffling
---   sampler = dataset:sampler({shuffled = false})
---
---   -- generate animations over 10 frames for each sample, which will
---   -- randomly rotate, translate, and/or zoom within the ranges passed.
---   local anim_options = {
---      frames      = 10,
---      rotation    = {-20, 20},
---      translation = {-5, 5, -5, 5},
---      zoom        = {0.6, 1.4}
---   }
---   s = dataset:sampler({animate = anim_options})
---
---   -- pass a custom pipeline for post-processing samples
---   s = dataset:sampler({pipeline = my_pipeline})
---
-function Dataset:sampler(options)
-   options = options or {}
-   local shuffled = arg.optional(options, 'shuffled', true)
-   local indices
-   local size = self:size()
+--Returns set of input dp.DataTensors
+function DataSet:inputs()
+   return self._inputs
+end
 
-   local pipeline, pipe_size = pipe.construct_pipeline(options)
+--Returns set of target dp.DataTensors
+function DataSet:targets()
+   return self._targets
+end
 
-   local function make_sampler()
-       if shuffled then
-           indices = torch.randperm(size)
-       else
-           indices = seq.range(size)
-       end
+--TODO : allow for examples with different weights (probabilities)
+--Returns set of probabilities torch.Tensor
+function DataSet:probabilities()
+   error"NotImplementedError"
+   return self._probabilities
+end
 
-       local sample_seq = seq.map(fn.partial(self.sample, self), indices)
-
-       if options.animate then
-          sample_seq = animate(options.animate, sample_seq)
-       end
-
-       if pipe_size > 0 then
-          sample_seq = seq.map(pipeline, sample_seq)
-       end
-
-       if options.pipeline then
-          sample_seq = seq.map(options.pipeline, sample_seq)
-       end
-
-       return sample_seq
-    end
-
-   return seq.flatten(seq.cycle(seq.repeatedly(make_sampler)))
+--Preprocesses are applied to DataTensors, which means that 
+--DataTensor:image(), :expandedAxes(), etc. can be used.
+function DataSet:preprocess(...)
+   local args, input_preprocess, target_preprocess, can_fit
+      = xlua.unpack(
+         'DataSet:preprocess',
+         'Preprocesses the DataSet.'
+         {arg='input_preprocess', type='dp.Preprocess', 
+          help='Preprocess applied to the input DataTensor(s) of ' .. 
+          'the DataSet'},
+         {arg='target_preprocess', type='dp.Preprocess',
+          help='Preprocess applied to the target DataTensor(s) of ' ..
+          'the DataSet'},
+         {arg='can_fit', type='boolean',
+          help='Allows measuring of statistics on the DataTensor(s) ' .. 
+          'of DataSet to initialize the preprocess. Should normally ' .. 
+          'only be done on the training set. Default is to fit the ' ..
+          'training set.'}
+   )
+   if can_fit == nil then
+      can_fit = self:isTrain()
+   end
+   --TODO support multi-input/target preprocessing
+   if input_preprocess.isPreprocess then
+      input_preprocess.apply(self._inputs[1], can_fit)
+   end
+   if target_preprocess.isPreprocess then
+      target_preprocess.apply(self._targets[1], can_fit)
+   end
 end
 
 

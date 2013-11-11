@@ -38,12 +38,10 @@ local Preprocess = torch.class("data.Preprocess")
 
 
 --[[
-dataset: The dataset to act on. An instance of data.Dataset.
+datatensor: The DataTensor to act upon. An instance of dp.DataTensor.
 
 can_fit: If True, the Preprocess can adapt internal parameters
-         based on the contents of dataset. Default is to fit 
-         the preprocessor to dataset:isTrain() set, and to reuse 
-         that fitting for the dataset:isTrain() == false.
+         based on the contents of dataset.
 
 Typical usage:
     # Learn PCA preprocessing and apply it to the training set
@@ -53,10 +51,11 @@ Typical usage:
     test_set = MyDataset{which_set='valid'}
     my_pca_preprocess:apply(test_set)
 ]]--
-function Preprocess:apply(dataset, can_fit)
+function Preprocess:apply(datatensor, can_fit)
    error("Preprocessor subclass does not implement an apply method.")
 end
 
+Preprocess.isPreprocess = true
 
 -----------------------------------------------------------------------
 -- Pipeline : A Preprocessor that sequentially applies a list
@@ -68,9 +67,9 @@ function Pipeline:__init(items)
    self.items = items or {}
 end
 
-function Pipeline:apply(dataset, can_fit)
+function Pipeline:apply(datatensor, can_fit)
    for item in self.items:
-      item.apply(dataset, can_fit)
+      item.apply(datatensor, can_fit)
 end
             
             
@@ -82,14 +81,14 @@ end
 local Binarize = torch.class("data.Binarize", "data.Preprocess")
 
 function Binarize:__init(threshold)
-   self.threshold = threshold
+   self._threshold = threshold
 end
 
-function Binarize:apply(dataset)
-   local inputs = dataset:inputs()
-   inputs[inputs:lt(threshold)] = 0;
-   inputs[inputs:ge(threshold)] = 1;
-   dataset:setInputs(inputs)
+function Binarize:apply(datatensor)
+   local data = datatensor:data()
+   inputs[data:lt(self._threshold)] = 0;
+   inputs[data:ge(self._threshold)] = 1;
+   datatensor:setData(data)
 end
 
 -----------------------------------------------------------------------
@@ -100,10 +99,10 @@ local Standardize = torch.class("data.Standardize", "data.Preprocess")
 
 function Standardize:__init(...)
    local args
-   args, self.global_mean, self.global_std, self.std_eps
+   args, self._global_mean, self._global_std, self._std_eps
       = xlua.unpack(
       {...},
-      'Standardize constructor', nil,
+      'Standardize', nil,
       {arg='global_mean', type='boolean', 
        help=[[If true, subtract the (scalar) mean over every element
             in the dataset. If false, subtract the mean from
@@ -120,22 +119,19 @@ function Standardize:__init(...)
             from causing the feature values to blow up too much.
             ]], default=1e-4},
    )
-   self.mean
-   self.std
+   self._mean
+   self._std
 end
     
-function Standardize:apply(dataset, can_fit)
-   local inputs = dataset:inputs()
-   if can_fit == nil then
-      can_fit == dataset:isTrain()
-   end
+function Standardize:apply(datatensor, can_fit)
+   local data = datatensor:feature()
    if can_fit then
-      self.mean = self.global_mean and inputs:mean() or inputs:mean(1)
-      self.std = self.global_std and inputs:std() or inputs:std(1)
-   elseif self.mean == nil or self.std == nil then
+      self._mean = self._global_mean and data:mean() or data:mean(1)
+      self._std = self._global_std and data:std() or data:std(1)
+   elseif self._mean == nil or self._std == nil then
           error([[can_fit is false, but Standardize object
                   has no stored mean or standard deviation]])
    end
-   inputs:add(-self.mean):div(self.std + self.std_eps)
-   dataset:setInputs(inputs)
+   data:add(-self._mean):div(self._std + self._std_eps)
+   datatensor:setData(data)
 end

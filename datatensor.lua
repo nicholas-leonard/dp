@@ -1,93 +1,47 @@
 require 'torch'
 require 'image'
-require 'xlua'
-_ = require 'underscore'
 
---http://lua-users.org/wiki/TableUtils
-function table.val_to_str ( v )
-  if "string" == type( v ) then
-    v = string.gsub( v, "\n", "\\n" )
-    if string.match( string.gsub(v,"[^'\"]",""), '^"+$' ) then
-      return "'" .. v .. "'"
-    end
-    return '"' .. string.gsub(v,'"', '\\"' ) .. '"'
-  else
-    return "table" == type( v ) and table.tostring( v ) or
-      tostring( v )
-  end
-end
-
-function table.key_to_str ( k )
-  if "string" == type( k ) and string.match( k, "^[_%a][_%a%d]*$" ) then
-    return k
-  else
-    return "[" .. table.val_to_str( k ) .. "]"
-  end
-end
-
-function table.tostring( tbl )
-  local result, done = {}, {}
-  for k, v in ipairs( tbl ) do
-    table.insert( result, table.val_to_str( v ) )
-    done[ k ] = true
-  end
-  for k, v in pairs( tbl ) do
-    if not done[ k ] then
-      table.insert( result,
-        table.key_to_str( k ) .. "=" .. table.val_to_str( v ) )
-    end
-  end
-  return "{" .. table.concat( result, "," ) .. "}"
-end
-
---http://stackoverflow.com/questions/8722620/comparing-two-index-tables-by-index-value-in-lua
-local function recursive_compare(t1,t2)
-  -- Use usual comparison first.
-  if t1==t2 then return true end
-  -- We only support non-default behavior for tables
-  if (type(t1)~="table") then return false end
-  -- They better have the same metatables
-  local mt1 = getmetatable(t1)
-  local mt2 = getmetatable(t2)
-  if( not recursive_compare(mt1,mt2) ) then return false end
-
-  -- Check each key-value pair
-  -- We have to do this both ways in case we miss some.
-  -- TODO: Could probably be smarter and not check those we've 
-  -- already checked though!
-  for k1,v1 in pairs(t1) do
-    local v2 = t2[k1]
-    if( not recursive_compare(v1,v2) ) then return false end
-  end
-  for k2,v2 in pairs(t2) do
-    local v1 = t1[k2]
-    if( not recursive_compare(v1,v2) ) then return false end
-  end
-
-  return true  
-end
-table.eq = recursive_compare
+require 'utils'
 
 
 -- TODO:
 --- Flatten images only (define permitted conversions)
---- Class are 1-D
 --- Allow construction from existing DataTensor.
 --- Transpose expanded_size 'b' dims when data's 'b' is transposed
 --- Default axes depends on size of sizes, or size of data.
 --- One-hot encoding
---- Target Tensor
---- Image Tensor
 --- Adapt doc to specific tensors
 --- Update doc (sizes and axis can be one dim less, sizes can be number)
 --- Make private members (_memberName)
 --- print sizes horizontally
+--- :b() should be optimized. You set it via a function. setB()
+--- type of tensor (:cuda(), :double(), etc. set in constructor)
 
 local DataTensor = torch.class("dp.DataTensor")
 
+DataTensor.isDataTensor = true
+
+--TODO Replace these with isDataTensor() return true...
+function DataTensor.isInstance(obj)
+   return typepattern(obj, "^dp[.]%a*Tensor$")
+end
+
+--returns true if all indices in obj_table are instances of DataTensor
+--else return false and index of first non-element
+function DataTensor.areInstances(obj_table)
+   local map = _.map(obj_table, DataTensor.isInstance)
+   return _.all(map), _.indexOf(map, false)
+end
+
+function DataTensor.assertInstances(obj_table)
+   local areInstances, index = DataTensor.areInstances(obj_table)
+   assert(areInstances, [[Error : object at index ]] .. index .. 
+      [[ is of wrong type. Expecting type dp.DataTensor.]])
+end
+
 function DataTensor:__init(...)
    local args
-   args, self.data, self.axes, sizes
+   args, self._data, self.axes, sizes
       = xlua.unpack(
       {... or {}},
       'DataTensor', 
@@ -130,7 +84,7 @@ function DataTensor:__init(...)
    -- Keeps track of the most expanded size (the one with more dims) of the
    -- data. An example would be {'b','h','w','c'} being the expanded_size
    -- of an set of images currently stored as {'b', 'f'}
-   self.expanded_size = torch.LongTensor(self.data:size())
+   self.expanded_size = torch.LongTensor(self._data:size())
    local b = _.indexOf(self.axes, 'b')
    if b == 0 then
       self.axes = _.concat({'b'},self.axes)
@@ -141,7 +95,7 @@ function DataTensor:__init(...)
    self.expanded_axes = self.axes
    
    if sizes == nil then
-      sizes = torch.LongTensor(self.data:size())
+      sizes = torch.LongTensor(self._data:size())
    else 
       if type(sizes) == 'number' then
          sizes = {sizes}
@@ -150,9 +104,9 @@ function DataTensor:__init(...)
          if (#sizes + 1) ==  #self.axes then
             -- The user only specified the size of the non-b dimensions
             if b == 1 then
-               sizes = {self.data:size(1), unpack(sizes)}
+               sizes = {self._data:size(1), unpack(sizes)}
             elseif b == #self.axes then
-               sizes = {unpack(sizes), self.data:size(-1)}
+               sizes = {unpack(sizes), self._data:size(-1)}
             else
                error([['b' is not in first or last axis, and provided 
                      sizes specifies one dim less than axes, such that  
@@ -165,24 +119,38 @@ function DataTensor:__init(...)
       end
       -- convert sizes to LongTensor
       sizes = torch.LongTensor(sizes)
-      assert(sizes:prod(1)[1] == self.data:nElement(),
+      assert(sizes:prod(1)[1] == self._data:nElement(),
             [[Error: sizes specify more elements than available in data.
             sizes:prod(1)[1]=]] .. sizes:prod(1)[1] .. [[, while 
-            data:nElement()=]] .. self.data:nElement())
+            data:nElement()=]] .. self._data:nElement())
       assert(sizes:size(1) == #(self.axes),
              "Error: sizes should specify as many dims as axes:" ..
              tostring(sizes) .. " " .. table.tostring(self.axes))
-      if self.data:dim() ~= #(self.axes) then
+      if self._data:dim() ~= #(self.axes) then
          print([[Warning: data:size() is different than sizes.
                Assuming data is appropriately contiguous. 
                Resizing data to sizes]])
-         self.data:resize(sizes:storage())
+         self._data:resize(sizes:storage())
       end
    end
    -- Keep track of the most expanded size
    self:storeExpandedSize(sizes)
-   assert(self.data:dim() == #(self.axes), 
+   assert(self._data:dim() == #(self.axes), 
          "Error: data should have as many dims as specified in axes" )
+end
+
+--Returns the axis of the batch/example index ('b') 
+function DataTensor:b()
+   local b = _.indexOf(self:storedAxes(), 'b')
+   assert(b ~= 0, "Error : no batch axis")
+   return b
+end
+
+-- Returns number of samples
+function DataTensor:nSample()
+   assert(#self:storedAxes() == self:storedSize():nElements(),
+      "Error : unequal number of axis for size and axes")
+   return self:storedSize()[self:b()]
 end
 
 
@@ -216,7 +184,7 @@ function DataTensor:storeExpandedAxes(new_axes)
 end
 
 function DataTensor:storedSize()
-   return self.data:size()
+   return self._data:size()
 end
 
 function DataTensor:storedAxes()
@@ -226,12 +194,12 @@ end
 -- Stores a new representation of the data, where new_axes specifies
 -- the format of this new data.
 function DataTensor:store(new_data, new_axes)
-   assert(new_data:nElement() == self.data:nElement(),
-          "new_data should have same number of elements as self.data")
+   assert(new_data:nElement() == self._data:nElement(),
+          "new_data should have same number of elements as self._data")
    self:storeExpandedAxes(new_axes)
    self:storeExpandedSize(new_data:size())
    self.axes = new_axes
-   self.data = new_data
+   self._data = new_data
 end
 
 function DataTensor:feature(...)
@@ -243,7 +211,7 @@ function DataTensor:feature(...)
       'DataTensor:feature',
       [[Returns a 2D-tensor of examples by features : {'b', 'f'}]],
       {arg='inplace', type='boolean', 
-       help=[[When true, makes self.data a contiguous view of axes 
+       help=[[When true, makes self._data a contiguous view of axes 
        {'b', 'f'} for future use.]], 
        default=true},
       {arg='contiguous', type='boolean', 
@@ -253,9 +221,9 @@ function DataTensor:feature(...)
        default=false}
    )
    --creates a new view of the same storage
-   local data = torch.Tensor(self.data)
-   if self.data:dim() == 2 and table.eq(self.axes, axes) then
-      return self.data
+   local data = torch.Tensor(self._data)
+   if self._data:dim() == 2 and table.eq(self.axes, axes) then
+      return self._data
    end
    local b = _.indexOf(self.axes, 'b')
    if b == 0 then
@@ -298,7 +266,7 @@ function DataTensor:image(...)
       'DataTensor:images',
       'Returns a 4D-tensor of axes format : ' .. table.tostring(axes),
       {arg='inplace', type='boolean', 
-       help=[[When true, makes self.data a contiguous view of axes 
+       help=[[When true, makes self._data a contiguous view of axes 
        ]] .. table.tostring(axes) .. [[ for future use.]], 
        default=true},
       {arg='contiguous', type='boolean', 
@@ -306,9 +274,9 @@ function DataTensor:image(...)
        default=false}
    )
    --creates a new view of the same storage
-   local data = torch.Tensor(self.data)
+   local data = torch.Tensor(self._data)
    if data:dim() == 4 and table.eq(self.axes, axes) then
-      return self.data
+      return self._data
    end
    local b = _.indexOf(self.axes, 'b')
    local new_b = _.indexOf(axes, 'b')
@@ -354,7 +322,7 @@ function DataTensor:multiclass(...)
       'DataTensor:multiclass',
       [[Returns a 2D-tensor of examples by classes: {'b', 't'}]],
       {arg='inplace', type='boolean', 
-       help=[[When true, makes self.data a contiguous view of axes 
+       help=[[When true, makes self._data a contiguous view of axes 
        {'b', 'f'} for future use.]], 
        default=true},
       {arg='contiguous', type='boolean', 
@@ -362,9 +330,9 @@ function DataTensor:multiclass(...)
        default=false}
    )
    --creates a new view of the same storage
-   local data = torch.Tensor(self.data)
+   local data = torch.Tensor(self._data)
    if data:dim() == 2 and table.eq(self.axes, axes) then
-      return self.data
+      return self._data
    end
    assert(table.eq(self.axes, {'b'}) or table.eq(self.axes, {'t', 'b'}),
           "Error: DataTensor doesn't support conversion to {'b', 't'}")
@@ -380,7 +348,7 @@ function DataTensor:multiclass(...)
    if data:dim() == 1 then
       if sizes:size(1) == 1 then
          print"Warning: Assuming one class per example."
-         sizes = torch.LongTensor({self.data:size(1), 1})
+         sizes = torch.LongTensor({self._data:size(1), 1})
       end
       --convert {'b'} to {'b','t'}
       data:resize(sizes:storage())
@@ -405,7 +373,7 @@ function DataTensor:class(...)
       'DataTensor:class',
       [[Returns a 1D-tensor of example classes: {'b'}]],
       {arg='inplace', type='boolean', 
-       help=[[When true, makes self.data is a contiguous view of axes 
+       help=[[When true, makes self._data is a contiguous view of axes 
        {'b'} for future use.]], 
        default=true},
       {arg='contiguous', type='boolean', 
@@ -435,7 +403,7 @@ function DataTensor:array(...)
       'DataTensor:b',
       'Returns a 1D-tensor of examples.',
       {arg='inplace', type='boolean', 
-       help=[[When true, makes self.data a contiguous view of axes 
+       help=[[When true, makes self._data a contiguous view of axes 
        {'b'} for future use.]], 
        default=true},
       {arg='contiguous', type='boolean', 
@@ -443,9 +411,9 @@ function DataTensor:array(...)
        default=false}
    )
    --creates a new view of the same storage
-   local data = torch.Tensor(self.data)
+   local data = torch.Tensor(self._data)
    if data:dim() == 1 and table.eq(self.axes, axes) then
-      return self.data
+      return self._data
    end
    local b = _.indexOf(self.axes, 'b')
    if b == 0 then
@@ -465,6 +433,21 @@ function DataTensor:array(...)
       self:store(data, axes)
    end
    return data
+end
+
+--Returns default view of data
+function DataTensor:data()
+   return self._data
+end
+
+function DataTensor:setData(data)
+   self._data = data
+end
+
+--Returns a batch of data. 
+--Note that the batch uses different storage (because of :index())
+function DataTensor:index(indices)
+   return self._data:index(self:b(), indices)
 end
 
 
@@ -512,7 +495,7 @@ function ImageTensor:__init(...)
             ]]}
    )   
    --TODO error when sizes is not provided for unknown axes.
-   parent.__init(self, args)
+   DataTensor.__init(self, args)
 end
 
 
@@ -549,7 +532,7 @@ function ClassTensor:__init(...)
               'h' : Height
               'w' : Width
               'd' : Dept
-            ]], default={'b','t'}},
+            ]], default={'b'}},
       {arg='sizes', type='table | torch.LongTensor', 
        help=[[A table or torch.LongTensor identifying the sizes of the 
             commensurate dimensions in axes. This should be supplied 
@@ -561,5 +544,13 @@ function ClassTensor:__init(...)
        help=[[A table containing class ids.]]} 
    )   
    self._classes = classes
-   parent.__init(self, args)
+   DataTensor.__init(self, args)
+end
+
+function ClassTensor:default()
+   return self:class()
+end
+
+function ClassTensor:classes()
+   return self._classes
 end

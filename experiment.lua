@@ -1,9 +1,42 @@
 require 'torch'
+require 'optim' --for logger
 
 require 'utils'
 
 ------------------------------------------------------------------------
+--[[ Observer ]]--
+-- An object that is called when events occur.
+-- Supported events are :
+-- doneBatch
+-- doneEpoch
+-- doneAll
+
+-- experiment:doneAll(caller, experiment)
+-- experiment:doneEpoch(caller, experiment)
+
+-- propagator:doneAll(caller, experiment)
+-- propagator:doneEpoch(caller, experiment)
+-- propagator:doneBatch(caller, experiment)
+
+-- Possible callers are:
+-- propagator
+-- experiment
+-- etc.
+--
+-- This isn't exactly the Subject-Objserver design pattern.
+-- By passing the experiment and the caller, we allow both to be 
+-- subjects, in a sense. The reason for passing the experiment is to 
+-- provide the observer with access to all methods of the experiment,
+-- which includes optimizer, validator, tester, epoch, and so on.
+-- This allows for great flexibility. 
+------------------------------------------------------------------------
+
+local Observer = torch.class("dp.Observer")
+
+------------------------------------------------------------------------
 --[[ LearningRateSchedule ]]--
+-- Epoch Observer
+-- Can be called from Propagator or Experiment
 ------------------------------------------------------------------------
 
 local LearningRateSchedule = torch.class("dp.LearningRateSchedule")
@@ -19,83 +52,106 @@ function LearningRateSchedule:__init(...)
    self._schedule = schedule
 end
 
-function LearningRateSchedule:onDoneEpoch(mediator)
-   local epoch = mediator:epoch()
+function LearningRateSchedule:onDoneEpoch(subject)
+   local experiment
+   if subject.isPropagator then
+      experiment = subject:experiment()
+   elseif subject.isExperiment then
+      experiment = subject
+   else
+      error"Observer error: unsupported subject."
+   end
+   local epoch = experiment:epoch()
    local learning_rate = self._schedule[epoch]
    if learning_rate then
-      mediator:trainer():setLearningRate(learning_rate)
+      experiment:optimizer():setLearningRate(learning_rate)
    end
 end
 
-------------------------------------------------------------------------
---[[ Mediator ]]--
-------------------------------------------------------------------------
-
-local Mediator = torch.class("dp.Mediator")
-
-Mediator.isMediator = true
-
-function Mediator:__init(...)
-   self._observers   
-   self._epoch_observers 
-      = _.where(self._observers, {isEpochObserver=true})
-end
-
-function Mediator:doneEpoch(colleague)
-   
-end
-
-function Mediator:doneExperimentEpoch(colleague)
-   for i = 1,#self._experiment_epoch_observers do
-      self._experiment_epoch_observers[i]:doneEpoch(self)
-   end
-end
-
-function Mediator:doneTrainerEpoch(colleague)
-   for i = 1,#self._train_epoch_observers do
-      self._train_epoch_observers[i]:doneEpoch(self)
-   end
-end
-
-function Mediator:doneValidatorEpoch(colleague)
-   for i = 1,#self._validator_epoch_observers do
-      self._valid_epoch_observers[i]:doneEpoch(self)
-   end
-end
-
-
-function Mediator:observers()
-   return self._observers
-end
 
 ------------------------------------------------------------------------
 --[[ Experiment ]]--
+-- Acts as a kind of Facade (Design Pattern) which inner objects can
+-- use to access inner objects, i.e. objects used within the experiment.
 ------------------------------------------------------------------------
 
-local Experiment = torch.class("dp.Experiment", "dp.Mediator")
+local Experiment = torch.class("dp.Experiment")
 
 Experiment.isExperiment = true
+Experiment.isMediator = true
 
 function Experiment:__init(...)
-   local args, trainer, validator, tester, terminator, logger,
-      observers, random_seed
+   local args, datasource, optimizer, validator, tester, logger, 
+      observers, random_seed, epoch, overwrite
       = xlua.unpack(
-         {... or {}}
-         'Experiment', nil
-         {arg='trainer', type='dp.Trainer'}
+         {... or {}},
+         'Experiment', nil,
+         {arg='name', type='string'},
+         {arg='datasource', type='dp.DataSource'},
+         {arg='optimizer', type='dp.Optimizer'},
+         {arg='validator', type='dp.Evaluator'},
+         {arg='tester', type='dp.Evaluator'},
+         {arg='logger', type='dp.Logger'},
+         {arg='observers', type='dp.Observer'},
+         {arg='random_seed', type='number', default=7},
+         {arg='epoch', type='number', default=0,
+          help='Epoch at which to start the experiment.'},
+         {arg='overwrite', type='boolean', default=false,
+          help='Overwrite existing values. For example, if a ' ..
+          'datasource is provided, and optimizer is already ' ..
+          'initialized with a dataset, and overwrite is true, ' ..
+          'then optimizer would be setup with datasource:trainSet()'}
    )
-   Mediator.__init(self, {observers=observers})
+   self._is_done_experiment = false
+   self:setEpoch(epoch)
+   self:setDatasource(datasource)
+   self:setObservers(observers)
+   if optimizer and datasource then
+      optimizer:setup{experiment=self, 
+                      dataset=datasource:trainSet(),
+                      logger=optim.Logger(paths.concat(opt.save, 'train.log')),
+                      overwrite=overwrite}
+   end
+   self:setOptimizer(optimizer)
+   if validator and datasource then
+      validator:setup{experiment=self, 
+                      dataset=datasource:validSet(),
+                      logger=optim.Logger(paths.concat(opt.save, 'valid.log')),
+                      overwrite=overwrite}
+   end
+   self:setValidator(validator)
+   if tester and datasource then
+      tester:setup{experiment=self, 
+                   dataset=datasource:testSet(),
+                   logger=optim.Logger(paths.concat(opt.save, 'test.log')),
+                   overwrite=overwrite}
+   end
+   self:setTester(tester)
 end
 
 function Experiment:run()
-   while self._terminate:doEpoch() do
-      self._trainer:doEpoch()
+   self._validator:doEpoch()
+   repeat
+      self._epoch = self._epoch + 1
+      self._optimizer:doEpoch()
       self._validator:doEpoch()
-   end
+      self:doneEpoch()
+   until self:isDoneExperiment()
+   --test at the end
+   self._tester:doEpoch()
 end
 
-function Experiment:trainer()
-   return self._trainer
+--an observer should call this when the experiment is complete
+function Experiment:doneExperiment()
+   self._is_done_experiment = true
+end
+
+function Experiment:isDoneExperiment()
+   return self._is_done_experiment
+end
+
+function Experiment:optimizer()
+   return self._optimizer
 end
 
 function Experiment:validator()
@@ -115,10 +171,35 @@ function Experiment:randomSeed()
 end
 
 
+function Experiment:doneEpoch()
+   for i = 1,#self._epoch_observers do
+      self._epoch_observers[i]:onDoneEpoch(self)
+   end
+end
 
---[[
-local Experiment = torch.class("dp.ExperimentLoader")
+function Experiment:setObservers(observers)
+   self._observers = observers
+   self._epoch_observers 
+      = _.where(self._observers, {isEpochObserver=true})
+end
 
-function ExperimentLoader:__init(...)
-   local args, 
-]]--
+function Experiment:observers()
+   return self._observers
+end
+
+function Experiment:setEpoch(epoch)
+   self._epoch = epoch
+end
+
+function Experiment:epoch()
+   return self._epoch
+end
+
+function Experiment:setDatasource(datasource)
+   self._datasource = datasource
+end
+
+function Experiment:datasource()
+   return self._datasource
+end
+

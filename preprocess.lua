@@ -64,12 +64,13 @@ Preprocess.isPreprocess = true
 local Pipeline = torch.class("data.Pipeline", "data.Preprocess")
 
 function Pipeline:__init(items)
-   self.items = items or {}
+   self._items = items or {}
 end
 
 function Pipeline:apply(datatensor, can_fit)
-   for item in self.items:
-      item.apply(datatensor, can_fit)
+   for i, item in ipairs(self._items) do
+      item:apply(datatensor, can_fit)
+   end
 end
             
             
@@ -117,10 +118,8 @@ function Standardize:__init(...)
        help=[[Stabilization factor added to the standard deviations before
             dividing, to prevent standard deviations very close to zero
             from causing the feature values to blow up too much.
-            ]], default=1e-4},
+            ]], default=1e-4}
    )
-   self._mean
-   self._std
 end
     
 function Standardize:apply(datatensor, can_fit)

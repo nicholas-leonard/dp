@@ -1,5 +1,4 @@
 require 'torch'
-require 'dp'
 require 'utils'
 
 
@@ -49,7 +48,7 @@ function DataSet:__init(...)
       made to convert them to dp.DataTensor using the optionally 
       provided axes and sizes (inputs), classes (outputs) ]],
       {arg='which_set', type='string', req=true,
-       help=[['train', 'valid' or 'test' set]]
+       help=[['train', 'valid' or 'test' set]]},
       {arg='inputs', type='dp.DataTensor | torch.Tensor | table', 
        help=[[Inputs of the DataSet taking the form of torch.Tensor with
             2 dimensions, or more if topological is true. Alternatively,
@@ -133,7 +132,7 @@ function DataSet:setInputs(inputs, axes, sizes)
    if type(inputs) ~= 'table' then
       if torch.Tensor.isinstance(inputs) then
          --convert torch.Tensor to dp.DataTensor
-         inputs = dp.DataTensor{data=inputs, axes=axes, sizes=sizes)
+         inputs = dp.DataTensor{data=inputs, axes=axes, sizes=sizes}
       end
       assert(dp.DataTensor.isInstance(targets),
          "Error : invalid inputs. Expecting type dp.DataTensor")
@@ -195,7 +194,7 @@ function DataSet:preprocess(...)
    local args, input_preprocess, target_preprocess, can_fit
       = xlua.unpack(
          'DataSet:preprocess',
-         'Preprocesses the DataSet.'
+         'Preprocesses the DataSet.',
          {arg='input_preprocess', type='dp.Preprocess', 
           help='Preprocess applied to the input DataTensor(s) of ' .. 
           'the DataSet'},

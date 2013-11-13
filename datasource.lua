@@ -130,9 +130,6 @@ function DataSource:preprocess()
    end
 end
 
-function DataSource:setTrainSampler(sampler)
-   self._train_sampler = 
-
 function DataSource:name()
    return self._name
 end
@@ -162,12 +159,12 @@ function DataSource.getDataPath(...)
           help='name of the DataSource (e.g. "mnist", "svhn", etc). ' ..
           'A directory with this name is created within ' ..
           'data_directory to contain the downloaded files. Or is ' ..
-          'expected to find the data files in this directory.'}
-         {arg='url', type='string', help='URL from which ' ..
-          'data can be downloaded in case it is not found in the path.'}
+          'expected to find the data files in this directory.'},
+         {arg='url', type='string', help='URL from which data ' ..
+          'can be downloaded in case it is not found in the path.'},
          {arg='data_dir', type='string', default=dp.DATA_DIR,
           help='path to directory where directory name is expected ' ..
-          'to contain the data, or where they will be downloaded.'}
+          'to contain the data, or where they will be downloaded.'},
          {arg='decompress_file', type='string', 
           help='When non-nil, decompresses the downloaded data if ' ..
           'data_dir/name/decompress_file is not found. In which ' ..

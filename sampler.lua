@@ -11,9 +11,39 @@ require 'utils'
 
 local Batch = torch.class("dp.Batch")
 
+function Batch:__init(...)
+   local args, inputs, targets
+      = xlua.unpack(
+      'Batch', nil,
+      {arg='inputs', type='torch.Tensor', req=true,
+       help='batch of inputs'},
+      {arg='targets', type='torch.Tensor',
+       help='batch of targets'}
+   )
+   self:setInputs(inputs)
+   self:setTargets(targets)
+end
+
+function Batch:setInputs(inputs)
+   self._inputs = inputs
+end
+
+function Batch:inputs()
+   return self._inputs
+end
+
+function Batch:setTargets(targets)
+   self._targets = targets
+end
+
+function Batch:targets()
+   return self._targets
+end
+
 ------------------------------------------------------------------------
 --[[ Sampler ]]--
--- Base Class that samples sequentially batches from a dataset.
+-- Base Class
+-- Sequentially samples batches from a dataset.
 ------------------------------------------------------------------------
 
 
@@ -33,13 +63,14 @@ function Sampler:__init(...)
    )
    if dataset then
       self:setDataset(dataset)
+   end
    self:setBatchSize(batch_size)
 end
 
 function Sampler:setup(...)
-   local args, dataset, batch_size, mediator = xlua.unpack(
+   local args, dataset, batch_size, experiment = xlua.unpack(
       {... or {}},
-      'Sampler:setup', .
+      'Sampler:setup', 
       'Samples batches from a set of examples in dataset. '..
       'Iteration ends after an epoch (sampler-dependent) ',
       {arg='dataset', type='dp.DataSet | dp.DataSource',
@@ -47,7 +78,8 @@ function Sampler:setup(...)
       {arg='batch_size', type='number', default='64',
        help='Number of examples per sampled batches'},
       {arg='overwrite', type='boolean', default=false,
-       help='overwrite existing values'}
+       help='overwrite existing values if not nil.' .. 
+       'If nil, initialize whatever the value of overwrite.'},
       {arg='experiment', type='dp.Experiment',
        help='Acts as a Mediator (design pattern). ' ..
        'Provides access to the experiment.'}
@@ -58,8 +90,8 @@ function Sampler:setup(...)
    if batch_size and (not self.batchSize() or overwrite) then
       self:setBatchSize(batch_size)
    end
-   if mediator then
-      self.setMediator(mediator)
+   if experiment then
+      self.setExperiment(experiment)
    end
 end
 
@@ -84,17 +116,17 @@ function Sampler:batchSize()
    return self._batch_size
 end
 
-function Sampler:setMediator(mediator)
-   self._mediator = mediator
+function Sampler:setExperiment(experiment)
+   self._experiment = experiment
 end
 
-function Sampler:mediator()
-   return self._mediator
+function Sampler:experiment()
+   return self._experiment
 end
 
 --Returns an iterator over samples for one epoch
 --Default is to iterate sequentially over all examples
-function Sampler:epoch(dataset)
+function Sampler:sampleEpoch(dataset)
    local dataset = dataset or self._dataset
    local nSample = dataset:nSample()
    local start = 1
@@ -154,10 +186,10 @@ function ShuffleSampler:setRandomSeed(random_seed)
 end
 
 function ShuffleSampler:randomSeed()
-   return self_random_seed
+   return self._random_seed
 end
    
-function ShuffleSampler:epoch(dataset)
+function ShuffleSampler:sampleEpoch(dataset)
    local dataset = dataset or self._dataset
    local nSample = dataset:nSample()
    local start = 1
@@ -195,7 +227,7 @@ end
 
 local FocusSampler = torch.class("dp.FocusSampler", "dp.Sampler")
    
-local FocusSampler.isEpochObserver = true
+FocusSampler.isEpochObserver = true
 
 function FocusSampler:__init(...)
    error("Error Not Implemented")
@@ -230,7 +262,7 @@ function FocusSampler:updateMultinomial(batch_errors)
    
 end
 
-function FocusSampler:epoch()
+function FocusSampler:sampleEpoch()
    
    self._last_indices = last_indices
 end

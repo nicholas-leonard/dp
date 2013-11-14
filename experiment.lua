@@ -78,7 +78,6 @@ end
 local Experiment = torch.class("dp.Experiment")
 
 Experiment.isExperiment = true
-Experiment.isMediator = true
 
 function Experiment:__init(...)
    local args, datasource, optimizer, validator, tester, logger, 

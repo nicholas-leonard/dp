@@ -137,14 +137,76 @@ Disadvantages:
  * Security risk (code injection)
  * Need to implement client-side caching/query analysis (i.e. set logic)
  
+# Memento
+A memento is used to reset an experiment to a particular state.
+Each object can have a memento. For example, a model could 
+have a memento that allows for the model to be reloaded. This could 
+be a torch.saved version of the model's nn.Module(s). As for 
+experiments, it is a little bit more complex since we don't want to 
+save everything, i.e. we don't want to save the datasource, only a 
+reference to it. The memento design pattern could be implemented using 
+the Builder (see builder.lua). To reset an object, you would need 
+the initial design, and a memento design that would use the initial 
+design as a metadesign. The memento design would differ from the 
+origin design in that it would be passed to constructors as 
+{memento=memento}, which would tell the constructor to build itself 
+from the memento... I don't like this, what else do you have?
+
+The main reason for this is to allow for saving and loading of entire 
+experiments. The use case is hyper-optimization. A set of experiments 
+are run for a very small amount of epochs and then their current state 
+is saved. The results are analysed to determine which experiments 
+should be allowed to continue (those that have more promissing results),
+and then these are continued for another x-epochs. We could also imagine
+a kind of genetic algorithm where the best experiments are mutuated 
+to create new experiments, etc. 
+
+The easiest solution is to create a hyper-experiment that manages 
+a bunch of experiments that run one at a time for x-epochs, makes
+a decisions, mutates, etc and moves on. So it never needs to load 
+experiments from disk/database. 
+
+An object is just a table with a metatable defining its class. 
+
+Another solution is to implement our own serialize/unserialize functions
+which make use of torch's File class, but set a file environment marking 
+some objects as written/loaded. But this solution wouldn't solve the 
+issue of loading a dataset by construction. 
+
+In any case, our solution 
+would seem to require use of Builder and designs. [Un]Serialization 
+can be performed differently for an object if it implements the 
+write/read functions. The class is then responsible to [un]serializing
+itself. Objects like datasource could be serialized as designs for 
+later reconstruction. This would only work for stateless objects... or
+objects that can be restored to a previous state through construction.
+
+Yet another solution would be to call a method like preserialize(), 
+which would remove and return all data that need not be serialized.
+It would then be serialized, followed by a call to postserialize(data)
+which would set the object back to its state before serialization. 
+To unserialize the object, it would need to be able to reconstruct 
+itself from the serialized data.
+
+ 
 TODO
- * Read up on Memento design patterns.
  * Test serialization of our objects.
- * Configuration (Experiment Structured-Constructor)
  * Epoch (Monitoring information at one epoch)
- * Snapshot (model and experiment parameters required to restart experiment)
+ * Snapshot (model and experiment parameters required to restart experiment from a previous state)
  * Analysis Module (queries, caching, etc)
  * Simple database schema
  * Experiment should be initializable from Snapshot
+
 ]]--
+
+local Logger = torch.class("dp.Logger")
+
+function Logger:__init()
+
+end
+
+function Logger:logEpoch(experiment)
+   elog = experiment:epochLog()
+   print(table.tostring(elog))
+end
 

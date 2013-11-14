@@ -5,51 +5,9 @@ require 'optim'
 
 --[[ TODO ]]--
 -- Logger (remove current logging)
--- Specify which values are default setup by Experiment
+-- Specify which values are default setup by Experiment in doc
+-- 
 
---[[ Discussion ]]--
---[[ 
-The EarlyStopper needs the validation error. More specifically, 
-it needs to early stop on some value that should be minimized.
-
-It is initialized with a function that is given the experiment as a 
-parameter in the hope that this will prove flexible enough that users 
-can early stop on any metric.
-
-We could create an object similar to pylearn2 costs, which takes 
-outputs (predictions) and targets as input and compares them to 
-generate a value. The ConfusionMatrix kind of does this through 
-batchAdd(outputs, targets). 
-
-So these Cost objects could be BatchObservers if the batch outputs
-and targets would be made available to them via the experiment.
-
-The experiment acts as a kind of host for all states of the experiment.
-By passing experiment to observers, these can acess all data made 
-available in the experiment's interface.
-
-The main issue is that observers could easily be implemented that 
-call validator:doEpoch(), optimizer:doEpoch(), etc. Therefore, 
-breaking the normal flow of learning. But then again, lua is not about
-protecting anything. And we want observers to be able to access and 
-even call anything. Users can then build very powerful observers. 
-
-Some Propagators or Experiments can become default initialized with 
-a set of commonly used observers to help new beginners.
-
-So what? Propagators, Experimentors, i.e. objects made accessible 
-to the observers should provide interfaces for all the state 
-information that they store. 
-
-Okay, but what about the information that observers store within 
-themselves, should we allow observers to access each other's states?
-The problem with this is that the order observers are updated is not 
-garanteed, such that some observers reading the state of another 
-observer may be acting on data not yet up-to-date.
-
-We could create an Epoch and Batch object that is passed to 
-all EpochObservers and BatchObservers respectively? Maybe later...
-]]--
 ------------------------------------------------------------------------
 --[[ EarlyStopper ]]--
 -- Epoch Observer.
@@ -154,6 +112,30 @@ function Propagator:__init(...)
    self:setPlot(plot)
    self:setProgress(progress)
    self:setName(name)
+end
+
+-- returns a log for the current epoch, in the format of a table
+-- or we could create an EpochLog class to help with this.
+-- But a table is more flexible. The advantage over pylearn2 is that 
+-- the log of an epoch is structured, as opposed to just a list of 
+-- channel names and values. Furthermore, values can be anything 
+-- serializable.
+function Propagator:epochLog()
+   local elog = {
+      name = self:name()
+      sampler = self:sampler:epochLog(),
+      observers = {},
+      loggers = {}
+   }
+   for observer in ipairs(self:observers()) do
+      observer_elog = observer:epochLog()
+      if observer_elog then
+         elog.observers[observer:name()] = observer_elog
+      end
+   end
+   for elogger in self:epochLoggers() do
+      elog.loggers[elogger:name()] = elogger:epochLog()
+   end      
 end
 
 function Propagator:setSampler(sampler)

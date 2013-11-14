@@ -14,7 +14,7 @@ require 'utils'
 local Mnist = torch.class("dp.Mnist", "dp.DataSource")
 
 Mnist._name = 'mnist'
-Mnist._image_size = {1, 28, 28}
+Mnist._image_size = {28, 28, 1}
 Mnist._image_axes = {'b', 'v', 'h', 'c'}
 Mnist._feature_size = 1*28*28
 Mnist._classes = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}

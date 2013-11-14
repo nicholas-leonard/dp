@@ -29,19 +29,31 @@ require 'utils'
 
 --[[ Example design and metadesign
 local metadesign = {
-   name='mlp2',
-   metadesign={},
-   require={'dp'},
-   experiment={'dp.Experiment',
-      optimizer={'dp.StochasticOptimizer'},
-      validator={'dp.Evaluator'},
-      tester={'dp.Evaluator'},
+   __name='mlp2',
+   __metadesign={},
+   __require={'dp'},
+   experiment={
+      __class='dp.Experiment',
+      optimizer={__class='dp.StochasticOptimizer'},
+      validator={__class='dp.Evaluator'},
+      tester={__class='dp.Evaluator'}
    }
 }
 
+-- These should be read-only after creation. Or at least, shouldn't mind
+-- being called by different models.
+
+local cacheable = {
+   __name='Mnist_Standardize',
+   __class='dp.Mnist'
+}
+
 local design = {
-   metadesign={'mlp2'},
+   __metadesign={'mlp2'},
    experiment={
+      datasource={
+         __cacheable='Mnist_Standardize'
+      }      
       model={
       optimizer={
          {
@@ -61,11 +73,14 @@ local design = {
 
 local Builder = torch.class("dp.Builder")
 
-function Builder:__init(loader)
+function Builder:__init(design_loader)
    -- loads designs into memory (the cache)
-   self._loader = loader
-   -- contains the loaded designs.
-   self._cache
+   self._design_loader = design_loader
+   -- a cache of loaded designs.
+   self._design_cache = {}
+   -- a cache of cacheable objects (like datasources, datasets)
+   -- these are indexed by a unique name
+   self._object_cache = {} 
 end
 
 -- A recursive function that builds Objects from a design.

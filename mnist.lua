@@ -1,8 +1,6 @@
 require 'torch'
 require 'image'
-require 'dok'
 
-require 'dp'
 require 'utils'
 
 ------------------------------------------------------------------------
@@ -11,7 +9,7 @@ require 'utils'
 -- A simple but widely used handwritten digits classification problem.
 ------------------------------------------------------------------------
 
-local Mnist = torch.class("dp.Mnist", "dp.DataSource")
+local Mnist, DataSource = torch.class("dp.Mnist", "dp.DataSource")
 
 Mnist._name = 'mnist'
 Mnist._image_size = {28, 28, 1}
@@ -22,15 +20,16 @@ Mnist._classes = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 function Mnist:__init(...) 
    local load_all, input_preprocess, target_preprocess
    self._args, self._valid_ratio, self._train_file, self._test_file, 
-         self._data_path, self._scale, self._binarize, self._sort,
-         self._download_url, load_all, input_preprocess, target_preprocess
+         self._data_path, self._scale, self._binarize, 
+         self._download_url, load_all, input_preprocess, 
+         target_preprocess
       = xlua.unpack(
       {... or {}},
       'Mnist', nil,
       {arg='valid_ratio', type='number', default=1/6,
        help='proportion of training set to use for cross-validation.'},
       {arg='train_file', type='string', default='mnist-th7/train.th7',
-       help='name of test_file'}
+       help='name of test_file'},
       {arg='test_file', type='string', default='mnist-th7/test.th7',
        help='name of test_file'},
       {arg='data_path', type='string', default=dp.DATA_PATH,
@@ -55,8 +54,8 @@ function Mnist:__init(...)
    )
    if load_all then
       self:loadTrain()
-      self.loadValid()
-      self.loadTest()
+      self:loadValid()
+      self:loadTest()
    end
    DataSource.__init(self, {train_set=self:trainSet(), 
                             valid_set=self:validSet(),
@@ -112,10 +111,10 @@ function Mnist:createDataSet(data, which_set)
    targets:resize(targets:size(1))
    -- construct inputs and targets datatensors 
    inputs = dp.ImageTensor{data=inputs, axes=self._image_axes, 
-                          sizes=self._image_sizes}
+                          sizes=self._image_size}
    targets = dp.ClassTensor{data=targets, classes=self._classes}
    -- construct dataset
-   return DataSet{inputs=inputs,targets=targets,which_set=which_set}
+   return dp.DataSet{inputs=inputs,targets=targets,which_set=which_set}
 end
 
 

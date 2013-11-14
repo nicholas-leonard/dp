@@ -105,10 +105,7 @@ function DataSet:whichSet()
 end
 
 function DataSet:isTrain()
-   if self.which_set == 'train' then
-      return true
-   end
-   return false
+   return (self.which_set == 'train')
 end
 
 function DataSet:setInputs(inputs)
@@ -129,24 +126,24 @@ end
 
 --TODO: accept list of axes and sizes
 function DataSet:setInputs(inputs, axes, sizes)
-   if type(inputs) ~= 'table' then
-      if torch.Tensor.isinstance(inputs) then
+   if type(inputs) ~= 'table' or inputs.isDataTensor then
+      if torch.Tensor.isInstance(inputs) then
          --convert torch.Tensor to dp.DataTensor
          inputs = dp.DataTensor{data=inputs, axes=axes, sizes=sizes}
       end
-      assert(dp.DataTensor.isInstance(targets),
+      assert(inputs.isDataTensor,
          "Error : invalid inputs. Expecting type dp.DataTensor")
       -- encapsulate inputs in a table
       inputs = {inputs}
    else
-      DataTensor.assertInstances(inputs)
+      dp.DataTensor.assertInstances(inputs)
    end
    self._inputs = inputs
 end
 
 function DataSet:setTargets(targets, classes)
-   if type(targets) ~= 'table' then
-      if torch.Tensor.isinstance(targets) then
+   if type(targets) ~= 'table' or targets.isDataTensor then
+      if torch.Tensor.isInstance(targets) then
          --convert torch.Tensor to dp.DataTensor
          if classes then
             targets = dp.ClassTensor{data=targets, classes=classes}
@@ -154,12 +151,12 @@ function DataSet:setTargets(targets, classes)
             targets = dp.DataTensor{data=targets}
          end
       end
-      assert(dp.DataTensor.isInstance(targets),
+      assert(targets.isDataTensor,
          "Error : invalid targets. Expecting type dp.DataTensor")
       -- encapsulate inputs in a table
       targets = {targets}
    else
-      DataTensor.assertInstances(targets)
+      dp.DataTensor.assertInstances(targets)
    end
    self._targets = targets
 end
@@ -193,6 +190,7 @@ end
 function DataSet:preprocess(...)
    local args, input_preprocess, target_preprocess, can_fit
       = xlua.unpack(
+         {... or {}},
          'DataSet:preprocess',
          'Preprocesses the DataSet.',
          {arg='input_preprocess', type='dp.Preprocess', 
@@ -207,15 +205,17 @@ function DataSet:preprocess(...)
           'only be done on the training set. Default is to fit the ' ..
           'training set.'}
    )
+   assert(input_preprocess or target_preprocess, 
+      "Error: no preprocess (neither input or target) provided)")
    if can_fit == nil then
       can_fit = self:isTrain()
    end
    --TODO support multi-input/target preprocessing
-   if input_preprocess.isPreprocess then
-      input_preprocess.apply(self._inputs[1], can_fit)
+   if input_preprocess and input_preprocess.isPreprocess then
+      input_preprocess:apply(self._inputs[1], can_fit)
    end
-   if target_preprocess.isPreprocess then
-      target_preprocess.apply(self._targets[1], can_fit)
+   if target_preprocess and target_preprocess.isPreprocess then
+      target_preprocess:apply(self._targets[1], can_fit)
    end
 end
 

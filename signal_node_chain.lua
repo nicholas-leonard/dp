@@ -12,7 +12,7 @@ require 'utils'
 local Signal = torch.class("dp.Signal")
 
 function Signal:__init(...)
-   self._task = 'setup'
+   self._task = 'Setup'
 end
 
 function Signal:task()

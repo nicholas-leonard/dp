@@ -21,22 +21,18 @@ local DataTensor = torch.class("dp.DataTensor")
 
 DataTensor.isDataTensor = true
 
---TODO Replace these with isDataTensor() return true...
-function DataTensor.isInstance(obj)
-   return typepattern(obj, "^dp[.]%a*Tensor$")
-end
 
 --returns true if all indices in obj_table are instances of DataTensor
 --else return false and index of first non-element
 function DataTensor.areInstances(obj_table)
-   local map = _.map(obj_table, DataTensor.isInstance)
+   local map = _.map(obj_table, function(obj) return obj.isDataTensor end)
    return _.all(map), _.indexOf(map, false)
 end
 
 function DataTensor.assertInstances(obj_table)
    local areInstances, index = DataTensor.areInstances(obj_table)
-   assert(areInstances, [[Error : object at index ]] .. index .. 
-      [[ is of wrong type. Expecting type dp.DataTensor.]])
+   assert(areInstances, "Error : object at index " .. index .. 
+      " is of wrong type. Expecting type dp.DataTensor.")
 end
 
 function DataTensor:__init(...)
@@ -89,7 +85,8 @@ function DataTensor:__init(...)
    if b == 0 then
       self.axes = _.concat({'b'},self.axes)
       local b = 1
-      print("Warning: no 'b' axis provided, assuming axes=" .. table.tostring(self.axes))
+      print("Warning: no 'b' axis provided, assuming axes=" .. 
+         table.tostring(self.axes))
    end
       
    self.expanded_axes = self.axes
@@ -113,23 +110,24 @@ function DataTensor:__init(...)
                      the mapping of sizes to axes cannot be determined. 
                      Please specify full size, or other axes.]])
             end
-            print([[Warning: sizes specifies one dim less than axes.
-                  Assuming sizes omits sizes =]] .. table.tostring(sizes))
+            print("Warning: sizes specifies one dim less than axes. " ..
+                  "Assuming sizes omits 'b' axis. Sizes =" .. 
+                  table.tostring(sizes))
          end
       end
       -- convert sizes to LongTensor
       sizes = torch.LongTensor(sizes)
       assert(sizes:prod(1)[1] == self._data:nElement(),
-            [[Error: sizes specify more elements than available in data.
-            sizes:prod(1)[1]=]] .. sizes:prod(1)[1] .. [[, while 
-            data:nElement()=]] .. self._data:nElement())
+            "Error: sizes specify more elements than available in " .. 
+            "data: sizes:prod(1)[1]=" .. sizes:prod(1)[1] .. 
+            ", while data:nElement()=" .. self._data:nElement())
       assert(sizes:size(1) == #(self.axes),
              "Error: sizes should specify as many dims as axes:" ..
              tostring(sizes) .. " " .. table.tostring(self.axes))
       if self._data:dim() ~= #(self.axes) then
-         print([[Warning: data:size() is different than sizes.
-               Assuming data is appropriately contiguous. 
-               Resizing data to sizes]])
+         print("Warning: data:size() is different than sizes. " ..
+               "Assuming data is appropriately contiguous. " ..
+               "Resizing data to sizes")
          self._data:resize(sizes:storage())
       end
    end
@@ -495,7 +493,7 @@ function ImageTensor:__init(...)
             ]]}
    )   
    --TODO error when sizes is not provided for unknown axes.
-   DataTensor.__init(self, args)
+   DataTensor.__init(self, {data=data, axes=axes, sizes=sizes})
 end
 
 
@@ -544,7 +542,7 @@ function ClassTensor:__init(...)
        help=[[A table containing class ids.]]} 
    )   
    self._classes = classes
-   DataTensor.__init(self, args)
+   DataTensor.__init(self, {data=data, axes=axes, sizes=sizes})
 end
 
 function ClassTensor:default()

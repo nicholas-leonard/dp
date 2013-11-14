@@ -17,7 +17,7 @@ require 'utils'
 ------------------------------------------------------------------------
 local DataSource = torch.class("dp.DataSource")
 
-function DataSource.__init(...)
+function DataSource:__init(...)
    local args, train_set, valid_set, test_set, 
          input_preprocess, output_preprocess
       = xlua.unpack(
@@ -67,7 +67,7 @@ function DataSource:setTrainSet(train_set)
    self._train_set = train_set
 end
 
-function DataSource.setValidSet(valid_set)
+function DataSource:setValidSet(valid_set)
    self._valid_set = valid_set
 end
 
@@ -105,6 +105,9 @@ end
 
 --preprocess datasets:
 function DataSource:preprocess()
+   if not (self:inputPreprocess() or self:targetPreprocess()) then
+      return
+   end
    train_set = self:trainSet()
    if train_set then
       train_set:preprocess{
@@ -148,7 +151,7 @@ end
 -- Check locally and download datasource if not found.  
 -- Returns the path to the resulting data file.
 function DataSource.getDataPath(...)
-   local name, url, data_dir, decompress_file
+   local args, name, url, data_dir, decompress_file
       = xlua.unpack(
          {... or {}},
          'getDataPath', 
@@ -170,7 +173,6 @@ function DataSource.getDataPath(...)
           'data_dir/name/decompress_file is not found. In which ' ..
           'case, returns data_dir/name/decompress_file.'}
    )
-          
    local datasrc_dir = paths.concat(data_dir, name)
    local data_file = paths.basename(url)
    local data_path = paths.concat(datasrc_dir, data_file)

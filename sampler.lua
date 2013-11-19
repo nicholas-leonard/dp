@@ -4,41 +4,6 @@ require 'utils'
 --[[TODO]]--
 --Random_seed
 
-------------------------------------------------------------------------
---[[ Batch ]]--
--- A batch of examples sampled from a dataset.
-------------------------------------------------------------------------
-
-local Batch = torch.class("dp.Batch")
-
-function Batch:__init(...)
-   local args, inputs, targets
-      = xlua.unpack(
-      'Batch', nil,
-      {arg='inputs', type='torch.Tensor', req=true,
-       help='batch of inputs'},
-      {arg='targets', type='torch.Tensor',
-       help='batch of targets'}
-   )
-   self:setInputs(inputs)
-   self:setTargets(targets)
-end
-
-function Batch:setInputs(inputs)
-   self._inputs = inputs
-end
-
-function Batch:inputs()
-   return self._inputs
-end
-
-function Batch:setTargets(targets)
-   self._targets = targets
-end
-
-function Batch:targets()
-   return self._targets
-end
 
 ------------------------------------------------------------------------
 --[[ Sampler ]]--
@@ -50,62 +15,35 @@ end
 local Sampler = torch.class("dp.Sampler")
 
 function Sampler:__init(...)
-   local args, dataset, batch_size = xlua.unpack(
+   local args, batch_size = xlua.unpack(
       {... or {}},
       'Sampler', 
       'Abstract class. ' ..
-      'Samples batches from a set of examples in dataset. '..
+      'Samples batches from a set of examples in a dataset. '..
       'Iteration ends after an epoch (sampler-dependent) ',
-      {arg='dataset', type='dp.DataSet | dp.DataSource',
-       help='dataset from which to sample batches of examples'},
       {arg='batch_size', type='number', default='64',
        help='Number of examples per sampled batches'}
    )
-   if dataset then
-      self:setDataset(dataset)
-   end
    self:setBatchSize(batch_size)
 end
 
 function Sampler:setup(...)
-   local args, dataset, batch_size, experiment = xlua.unpack(
+   local args, dataset, batch_size, xlua.unpack(
       {... or {}},
       'Sampler:setup', 
-      'Samples batches from a set of examples in dataset. '..
+      'Samples batches from a set of examples in a dataset. '..
       'Iteration ends after an epoch (sampler-dependent) ',
-      {arg='dataset', type='dp.DataSet | dp.DataSource',
-       help='dataset from which to sample batches of examples'},
       {arg='batch_size', type='number', default='64',
        help='Number of examples per sampled batches'},
       {arg='overwrite', type='boolean', default=false,
        help='overwrite existing values if not nil.' .. 
        'If nil, initialize whatever the value of overwrite.'},
-      {arg='experiment', type='dp.Experiment',
-       help='Acts as a Mediator (design pattern). ' ..
-       'Provides access to the experiment.'}
+      {arg='mediator', type='dp.Mediator'}
    )
-   if dataset and (not self.dataset() or overwrite) then
-      self:setDataset(dataset)
-   end
    if batch_size and (not self.batchSize() or overwrite) then
       self:setBatchSize(batch_size)
    end
-   if experiment then
-      self.setExperiment(experiment)
-   end
-end
-
-function Sampler:setDataset(dataset)
-   if dataset.isDataSource then
-      print"Sampler Warning: assuming dataset is DataSource:trainSet()"
-      dataset = dataset:trainSet()
-   end
-   assert(dataset.isDataSet, "Error : unsupported dataset type.")
-   self._dataset = dataset
-end
-
-function Sampler:dataset()
-   return self._dataset
+   self._mediator = mediator
 end
 
 function Sampler:setBatchSize(batch_size)
@@ -116,18 +54,20 @@ function Sampler:batchSize()
    return self._batch_size
 end
 
-function Sampler:setExperiment(experiment)
-   self._experiment = experiment
-end
-
-function Sampler:experiment()
-   return self._experiment
+--static function. Checks dataset type or gets dataset from datasource
+function Sampler.toDataset(dataset)
+   if dataset.isDataSource and not self._warning then
+      print"Sampler Warning: assuming dataset is DataSource:trainSet()"
+      dataset = dataset:trainSet()
+      self._warning = true
+   end
+   assert(dataset.isDataSet, "Error : unsupported dataset type.")
 end
 
 --Returns an iterator over samples for one epoch
 --Default is to iterate sequentially over all examples
-function Sampler:sampleEpoch(dataset)
-   local dataset = dataset or self._dataset
+function Sampler:sampleEpoch(data)
+   local dataset = Sample.toDataset(data)
    local nSample = dataset:nSample()
    local start = 1
    local stop
@@ -164,21 +104,19 @@ local ShuffleSampler
    = torch.class("dp.ShuffleSampler", "dp.Sampler")
 
 function ShuffleSampler:_init(...)
-   local args, dataset, batch_size, random_seed = xlua.unpack(
+   local args, batch_size, random_seed = xlua.unpack(
       {... or {}},
       'ShuffleSampler', 
       'Samples batches from a shuffled set of examples in dataset. '..
       'Iteration ends after all examples have been sampled once (for one epoch). '..
       'Examples are shuffled at the start of the iteration. ',
-      {arg='dataset', type='dp.DataSet', req=true,
-       help='dataset from which to sample batches of examples'},
       {arg='batch_size', type='number', default='64',
        help='Number of examples per sampled batches'},
       {arg='random_seed', type='number',
        help='Used to initialize the shuffle generator.' ..
        'Not yet supported'}
    )
-   parent.__init(self, args)
+   Sampler.__init(self, ...)
 end
 
 function ShuffleSampler:setRandomSeed(random_seed)
@@ -190,7 +128,7 @@ function ShuffleSampler:randomSeed()
 end
    
 function ShuffleSampler:sampleEpoch(dataset)
-   local dataset = dataset or self._dataset
+   local dataset = Sample.toDataset(dataset)
    local nSample = dataset:nSample()
    local start = 1
    local stop
@@ -223,23 +161,24 @@ end
 --[[ FocusSampler ]]--
 -- Samples from a multinomial distribution where each examples has a 
 -- sampling probability proportional to its error.
+-- TODO : is also an Observer or is also a Strategy
+-- if an observer, gets report and subject(criteria or batch) from 
+-- doneBatch mediator channel. If Strategy, is called with measureError
+-- on inputs, targets by propagator, or Cost (criteria Adapter).
 ------------------------------------------------------------------------
 
 local FocusSampler = torch.class("dp.FocusSampler", "dp.Sampler")
-   
-FocusSampler.isEpochObserver = true
+FocusSampler.isObserver = true
 
 function FocusSampler:__init(...)
    error("Error Not Implemented")
-   local args, dataset, batch_size, random_seed, prob_dist 
+   local args, batch_size, random_seed, prob_dist 
       = xlua.unpack(
          {... or {}},
          'FocusSampler', 
          'Samples batches from a shuffled set of examples in DataSet. '..
          'Iteration ends after all examples have been sampled once (for one epoch). '..
          'Examples are shuffled at the start of the iteration. ',
-         {arg='dataset', type='dp.DataSet',
-          help='dataset from which to sample batches of examples'},
          {arg='batch_size', type='number', default='512',
           help='Number of examples per sampled batches'},
          {arg='random_seed', type='number',
@@ -253,8 +192,8 @@ function FocusSampler:__init(...)
    )
 end
 
-function FocusSampler:onEpoch(mediator)
-   batch_errors = mediator:optimizer():criterion().batchOutputs
+function FocusSampler:doneEpoch(report)
+   batch_errors = self._mediator:optimizer():criterion().batchOutputs
    self:updateMultinomial(batch_errors)
 end
 

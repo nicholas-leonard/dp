@@ -2,77 +2,109 @@ require 'torch'
 require 'optim' --for logger
 
 require 'utils'
+require 'os'
 
 ------------------------------------------------------------------------
---[[ Observer ]]--
--- An object that is called when events occur.
--- Supported events are :
--- doneBatch
--- doneEpoch
--- doneAll
-
--- experiment:doneAll(caller, experiment)
--- experiment:doneEpoch(caller, experiment)
-
--- propagator:doneAll(caller, experiment)
--- propagator:doneEpoch(caller, experiment)
--- propagator:doneBatch(caller, experiment)
-
--- Possible callers are:
--- propagator
--- experiment
--- etc.
---
--- This isn't exactly the Subject-Objserver design pattern.
--- By passing the experiment and the caller, we allow both to be 
--- subjects, in a sense. The reason for passing the experiment is to 
--- provide the observer with access to all methods of the experiment,
--- which includes optimizer, validator, tester, epoch, and so on.
--- This allows for great flexibility. 
+--[[ ObjectID ]]--
+-- An identifier than can be used to save files, objects, etc.
+-- Provides a unique name.
 ------------------------------------------------------------------------
 
-local Observer = torch.class("dp.Observer")
+local ObjectID = torch.class("dp.ObjectID")
+ObjectID.isObjectID = true
 
-------------------------------------------------------------------------
---[[ LearningRateSchedule ]]--
--- Epoch Observer
--- Can be called from Propagator or Experiment
-------------------------------------------------------------------------
-
-local LearningRateSchedule = torch.class("dp.LearningRateSchedule")
-
-LearningRateSchedule.isEpochObserver = true
-
-function LearningRateSchedule:__init(...)
-   local args, schedule = xlua.unpack(
-      'LearningRateSchedule', nil,
-      {arg='schedule', type='table', req=true,
-       help='Epochs as keys, and learning rates as values'}
-   )
-   self._schedule = schedule
+function ObjectID:__init(name, parent)
+   self._parent = parent
+   self._name = name
 end
 
-function LearningRateSchedule:onDoneEpoch(subject)
-   local experiment
-   if subject.isPropagator then
-      experiment = subject:experiment()
-   elseif subject.isExperiment then
-      experiment = subject
-   else
-      error"Observer error: unsupported subject."
+function ObjectID:toList()
+   local obj_list = {}
+   if self._parent then 
+      obj_list = self._parent:toList()
    end
-   local epoch = experiment:epoch()
-   local learning_rate = self._schedule[epoch]
-   if learning_rate then
-      experiment:optimizer():setLearningRate(learning_rate)
-   end
+   table.insert(obj_list, self._name)
+   return obj_list
 end
 
+function ObjectID:toString(seperator)
+   seperator = seperator or ':'
+   local obj_string = ''
+   if self._parent then
+      obj_string = self._parent:toString()
+   end
+   return obj_string .. seperator .. self._name
+end
+
+function ObjectID:toPath()
+   return self:toString('/')
+end   
+
+function ObjectID:name()
+   return self._name
+end
+
+function ObjectID:create(name)
+   return ObjectID(name, self)
+end
+
+------------------------------------------------------------------------
+--[[ EIDGenerator ]]--
+-- Generates a unique identifier for the experiment.
+-- Default is to concatenate a provided namespace and 
+-- the time of the experiment, and the next value from a sequence
+-- as a unique name
+-- To ensure uniqueness across experiments, the namespace should 
+-- be associated to the process, and there should be but one 
+-- EIDGenerator instance per process.
+
+-- Like Builder, Mediator and Data*, this object exists in the 
+-- extra-experiment scope.
+------------------------------------------------------------------------
+
+local EIDGenerator = torch.class("dp.EIDGenerator")
+
+function EIDGenerator:__init(namespace, seperator)
+   self._namespace = namespace
+   self._index = 0
+   self._seperator = seperator or '.'
+end
+
+function EIDGenerator:nextID()
+   local eid = self._namespace .. os.time() .. 
+               self._seperator .. self._index
+   self._index = self._index + 1
+   return ObjectID(eid)
+end
 
 ------------------------------------------------------------------------
 --[[ Experiment ]]--
 -- Acts as a kind of Facade (Design Pattern) which inner objects can
 -- use to access inner objects, i.e. objects used within the experiment.
+-- An experiment propagates DataSets through Models. The specifics 
+-- such propagations are handled by Propagators. The propagation of 
+-- a DataSet is called an epoch. At the end of each epoch, a monitoring
+-- step is performed where.
+
+-- We keep datasource/datasets, and mediator in outer scope to allow for 
+-- experiment serialization. Serialization of an object requires 
+-- that it be an instance of a registered torch.class. Sadly, objects 
+-- which have references to functions (excluding those in their 
+-- metatables) cannot currently be serialized. This also implies that 
+-- the mediator cannot currently be serialized since it holds references
+-- to callback functions. The latter could be swapped for objects and 
+-- string function names to allow for mediator serialization. The data*
+-- are kept out of scope in order to reduce the size of serializations.
+-- Data* should therefore be reportless, i.e. restorable from 
+-- its constructor.
+
+-- The experiment keeps a log of the report of the experiment after 
+-- every epoch. This is done by calling the report() method of 
+-- every contained object, except Observers. The report is a read-only 
+-- table that is passed to Observers along with the Mediator through 
+-- Channels for which they are Subscribers. The report is also passed 
+-- to sub-objects during propagation in case they need to act upon 
+-- data found in other branches of the experiment tree.
 ------------------------------------------------------------------------
 
 local Experiment = torch.class("dp.Experiment")
@@ -80,21 +112,24 @@ local Experiment = torch.class("dp.Experiment")
 Experiment.isExperiment = true
 
 function Experiment:__init(...)
-   local args, datasource, optimizer, validator, tester, logger, 
-      observers, random_seed, epoch, overwrite
+   local args, id, id_gen, description, 
+      optimizer, validator, tester, logger, 
+      observers, random_seed, epoch, mediator, overwrite
       = xlua.unpack(
          {... or {}},
          'Experiment', nil,
-         {arg='name', type='string'},
-         {arg='datasource', type='dp.DataSource'},
+         {arg='id', type='dp.ObjectID'},
+         {arg='id_gen', type='dp.EIDGenerator'},
+         {arg='description', type='string'},
          {arg='optimizer', type='dp.Optimizer'},
          {arg='validator', type='dp.Evaluator'},
          {arg='tester', type='dp.Evaluator'},
          {arg='logger', type='dp.Logger'},
-         {arg='observers', type='dp.Observer'},
+         {arg='observer', type='dp.Observer'},
          {arg='random_seed', type='number', default=7},
          {arg='epoch', type='number', default=0,
           help='Epoch at which to start the experiment.'},
+         {arg='mediator', type='dp.Mediator', default='dp.Mediator()'},
          {arg='overwrite', type='boolean', default=false,
           help='Overwrite existing values. For example, if a ' ..
           'datasource is provided, and optimizer is already ' ..
@@ -102,42 +137,48 @@ function Experiment:__init(...)
           'then optimizer would be setup with datasource:trainSet()'}
    )
    self._is_done_experiment = false
-   self:setEpoch(epoch)
-   self:setDatasource(datasource)
-   self:setObservers(observers)
-   if optimizer and datasource then
-      optimizer:setup{experiment=self, 
-                      dataset=datasource:trainSet(),
-                      logger=optim.Logger(paths.concat(opt.save, 'train.log')),
-                      overwrite=overwrite}
-   end
-   self:setOptimizer(optimizer)
-   if validator and datasource then
-      validator:setup{experiment=self, 
-                      dataset=datasource:validSet(),
-                      logger=optim.Logger(paths.concat(opt.save, 'valid.log')),
-                      overwrite=overwrite}
-   end
-   self:setValidator(validator)
-   if tester and datasource then
-      tester:setup{experiment=self, 
-                   dataset=datasource:testSet(),
-                   logger=optim.Logger(paths.concat(opt.save, 'test.log')),
-                   overwrite=overwrite}
-   end
-   self:setTester(tester)
+   assert(id or id_gen)
+   self._id = id or id_gen:nextID()
+   assert(self._id.isObjectID)
+   self._epoch = epoch
+   self._observer = observer
+   self._optimizer = optimizer
+   self._validator = validator
+   self._tester = tester
+   self._mediator = mediator
 end
 
-function Experiment:run()
-   self._validator:doEpoch()
+function Experiment:setup()
+   --publishing to this channel will terminate the experimental loop
+   mediator:subscribe("doneExperiment", self, "doneExperiment")
+   self._optimizer:setup{mediator=self._mediator, id=self:id():create('optimizer')}
+   self._validator:setup{mediator=self._mediator, id=self:id():create('validator')}
+   self._validator:setup{mediator=self._mediator, id=self:id():create('validator')}
+   self._observer:setup{mediator=self._mediator}
+end
+
+--TODO : make this support explicit dataset specification (xlua.unpack)
+--loops through the propagators until a doneExperiment is received or
+--experiment reaches max_epochs
+function Experiment:run(datasource)
+   -- use mediator to publishes 'doneEpoch' for observers and allows
+   -- observers to communicate with each other. Should only be used 
+   -- during the monitoring phase
+   
+   -- gets a read-only copy of all experiment parameters
+   local report = self:report()
+   local train_set = datasource:trainSet()
+   local valid_set = datasource:validSet()
+   local test_set = datasource:testSet()
    repeat
       self._epoch = self._epoch + 1
-      self._optimizer:doEpoch()
-      self._validator:doEpoch()
-      self:doneEpoch()
+      self._optimizer:propagateEpoch(train_set, report)
+      self._validator:propagateEpoch(valid_set, report)
+      report = self:report()
+      self._mediator:publish("doneEpoch", report)
    until self:isDoneExperiment()
    --test at the end
-   self._tester:doEpoch()
+   self._tester:propagateEpoch(test_set)
 end
 
 --an observer should call this when the experiment is complete
@@ -147,6 +188,10 @@ end
 
 function Experiment:isDoneExperiment()
    return self._is_done_experiment
+end
+
+function Experiment:id()
+   return self._id
 end
 
 function Experiment:optimizer()
@@ -169,36 +214,21 @@ function Experiment:randomSeed()
    return self._random_seed
 end
 
-
-function Experiment:doneEpoch()
-   for i = 1,#self._epoch_observers do
-      self._epoch_observers[i]:onDoneEpoch(self)
-   end
+function Experiment:report()
+   local report = {
+      optimizer = self:optimizer():report(),
+      validator = self:validator():report(),
+      tester = self:tester():report(),
+      epoch = self:epoch()
+   }
 end
 
-function Experiment:setObservers(observers)
-   self._observers = observers
-   self._epoch_observers 
-      = _.where(self._observers, {isEpochObserver=true})
-end
 
 function Experiment:observers()
    return self._observers
 end
 
-function Experiment:setEpoch(epoch)
-   self._epoch = epoch
-end
-
 function Experiment:epoch()
    return self._epoch
-end
-
-function Experiment:setDatasource(datasource)
-   self._datasource = datasource
-end
-
-function Experiment:datasource()
-   return self._datasource
 end
 

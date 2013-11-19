@@ -6,62 +6,11 @@ require 'optim'
 --[[ TODO ]]--
 -- Logger (remove current logging)
 -- Specify which values are default setup by Experiment in doc
--- 
-
-------------------------------------------------------------------------
---[[ EarlyStopper ]]--
--- Epoch Observer.
--- Saves model with the lowest validation error (default). 
-------------------------------------------------------------------------
-
-local EarlyStopper = torch.class("dp.EarlyStopper")
-
-EarlyStopper.isEpochObserver = true
-
-function EarlyStopper:__init(...)
-   local valid_error = function(experiment)
-      return experiment:validator():error()
-   end
-   local args, start_epoch, error_func = xlua.unpack(
-      'EarlyStopper', nil,
-      {arg='start_epoch', type='number', default=5,
-       help='when to start saving models.'},
-      {arg='error_func', type='function', default=valid_error,
-       help='Function called on experiment. Returns and error.'}
-   )
-   self._start_epoch = start_epoch
-   self._error_func = error_func
-end
-
-function EarlyStopper:onDoneEpoch(subject)
-   error"Debug this"
-   local current_error = self._error_func(experiment)
-   local epoch = experiment:epoch()
-   if epoch >= start_epoch then
-      if (not self._minima) or (current_error > self._minima) then
-         self._minima = current_error
-         --TODO save model
-      end
-   end
-      
-   local epoch = experiment:epoch()
-   local learning_rate = self._schedule[epoch]
-   if learning_rate then
-      experiment:optimizer():setLearningRate(learning_rate)
-   end
-   -- save/log current net
-   local filename = paths.concat(opt.save, self._name .. '_model.net')
-   os.execute('mkdir -p ' .. sys.dirname(filename))
-   print('==> saving model to '..filename)
-   torch.save(filename, model)
-
-end
-
-------------------------------------------------------------------------
---[[ Model ]]--
--- Encapsulates a nn.Module such that it can be used for both 
--- optimzation and evaluation.
-------------------------------------------------------------------------
+-- Only one Observer per object
+-- Mediator is referenced by all objects, including observers (setup)
+-- Observers own concrete channels
+-- Batch object. is it really necessary?
+-- Propagator Strategies (Costs)
 
 ------------------------------------------------------------------------
 --[[ Propagator ]]--
@@ -73,8 +22,8 @@ end
 local Propagator = torch.class("dp.Propagator")
 
 function Propagator:__init(...)   
-   local args, dataset, model, batch_size, mem_type, logger, criterion,
-      observers, mem_type, plot, progress
+   local args, model, sampler, logger, criterion,
+      observer, mem_type, plot, progress
       = xlua.unpack(
       {... or {}},
       'Propagator', nil,
@@ -82,36 +31,28 @@ function Propagator:__init(...)
        help='the model that is to be trained or tested',},
       {arg='sampler', type='dp.Sampler', default=dp.Sampler(),
        help='used to iterate through the train set'},
-      {arg='dataset', type='dp.Dataset',
-       help='used to setup sampler if not done already'},
       {arg='logger', type='dp.Logger',
        help='an object implementing the Logger interface'},
       {arg='criterion', type='nn.Criterion', req=true,
        help='a neural network criterion to evaluate or minimize'},
-      {arg='observers', type='dp.Observer', 
+      {arg='observer', type='dp.Observer', 
        help='observers that are informed when an event occurs.'},
       {arg='mem_type', type='string', default='float',
        help='double | float | cuda'},
       {arg='plot', type='boolean', default=false,
        help='live plot of confusion matrix'},
       {arg='progress', type'boolean', default=true, 
-       help='display progress bar'},
-      {arg='name', type='string',
-       help='identifies the propagator. ' ..
-       'Common values: "train", "valid", "test"'}
+       help='display progress bar'}
    )
-   sampler:setup{dataset=dataset, 
-                 batch_size=batch_size, 
-                 overwrite=false}
+   sampler:setup{batch_size=batch_size, overwrite=false}
    self:setSampler(sampler)
    self:setModel(model)
    self:setMemType(mem_type)
    self:setCriterion(criterion)
-   self:setObservers(observers)
-   self:setLogger(logger)
+   self:setObserver(observer)
    self:setPlot(plot)
    self:setProgress(progress)
-   self:setName(name)
+   self._observer = observer
 end
 
 -- returns a log for the current epoch, in the format of a table
@@ -120,30 +61,18 @@ end
 -- the log of an epoch is structured, as opposed to just a list of 
 -- channel names and values. Furthermore, values can be anything 
 -- serializable.
-function Propagator:epochLog()
-   local elog = {
+function Propagator:report()
+   local report = {
       name = self:name()
-      sampler = self:sampler:epochLog(),
-      observers = {},
-      loggers = {}
+      sampler = self:sampler:report(),
+      extra = {},
    }
-   for observer in ipairs(self:observers()) do
-      observer_elog = observer:epochLog()
-      if observer_elog then
-         elog.observers[observer:name()] = observer_elog
-      end
-   end
-   for elogger in self:epochLoggers() do
-      elog.loggers[elogger:name()] = elogger:epochLog()
-   end      
 end
 
 function Propagator:setSampler(sampler)
    if self._sampler then
       -- initialize sampler with old sampler values without overwrite
-      sampler:setup{dataset=self._sampler:dataset(), 
-                    batch_size=self._sampler:batchSize(),
-                    overwrite=false}
+      sampler:setup{batch_size=self:batchSize(), overwrite=false}
    end
    self._sampler = sampler
 end
@@ -152,12 +81,12 @@ function Propagator:sampler()
    return self._sampler
 end
 
-function Propagator:setDataset(dataset, overwrite)
-   self._sampler:setDataset(dataset, overwrite)
+function Propagate:observer()
+   return self._observer
 end
 
-function Propagator:dataset()
-   return self._sampler:dataset()
+function Propagate:id()
+   return self._id
 end
 
 function Propagator:setModel(model)
@@ -174,19 +103,6 @@ end
 
 function Propagator:batchSize()
    return self._sampler:batchSize()
-end
-
-function Propagator:setExperiment(experiment)
-   self._sampler:setExperiment(experiment)
-   self._experiment = experiment
-end
-
-function Propagator:experiment()
-   return self._experiment
-end
-
-function Propagator:epoch()
-   return self:experiment():epoch()
 end
 
 function Propagator:setLogger(logger, overwrite)
@@ -217,84 +133,36 @@ function Propagator:memType()
    return self._mem_type
 end
 
---TODO : need a way to append/extend observers
-function Propagator:setObservers(observers, overwrite)
-   if (overwrite or not self._observers) and observers then
-      self._observers = observers
-      self._epoch_observers 
-         = _.where(self._observers, {isEpochObserver=true})
-      self._batch_observers
-         = _.where(self._observers, {isBatchObserver=true})
-   end
-end
-
-function Propagator:observers()
-   return self._observers
-end
-
-function Propagator:setName(name, overwrite)
-   if (overwrite or not self._name) and name then
-      self._name = name
-   end
-end
-
-function Propagator:name()
-   return self._name
-end
-
---should be called when batch is complete
-function Propagator:doneBatch()
-   for i = 1,#self._batch_observers do
-      self._batch_observers[i]:onDoneBatch(self)
-   end
-end
-
---should be called when epoch is complete
-function Propagator:doneEpoch()
-   for i = 1,#self._epoch_observers do
-      self._epoch_observers[i]:onDoneEpoch(self)
-   end
-end
 
 function Propagator:setup(...)
-   local args, experiment, model, dataset, logger, mem_type, overwrite
+   local args, id, model, logger, mem_type, overwrite
       = xlua.unpack(
       'Propagator:setup', nil,
-      {arg='experiment', type='dp.Experiment', req=true,
-       help='Acts as a Mediator (design pattern). ' ..
-       'Provides access to the experiment.'},
+      {arg='id', type='dp.ObjectID'},
       {arg='model', type='nn.Module',
        help='the model that is to be trained or tested',},
-      {arg='dataset', type='dp.Dataset',
-       help='used to setup sampler if not done already'},
+      {arg='mediator', type='dp.Mediator', req=true},
       {arg='logger', type='dp.Logger',
        help='an object implementing the Logger interface'},
-      {arg='observers', type='dp.Observer', 
-       help='observers that are informed when an event occurs.'},
       {arg='mem_type', type='string', default='float',
        help='double | float | cuda'},
       {arg='overwrite', type='boolean', default=false,
        help='Overwrite existing values. For example, if a ' ..
        'dataset is provided, and sampler is already ' ..
        'initialized with a dataset, and overwrite is true, ' ..
-       'then sampler would be setup with dataset'},
-      {arg='name', type='string',
-       help='identifies the propagator. ' ..
-       'Common values: "train", "valid", "test"'}
+       'then sampler would be setup with dataset'}
    )
-   self._sampler:setup{experiment=experiment, 
-                       dataset=dataset, 
-                       overwrite=overwrite}
-   self:setExperiment(experiment)
+   assert(id.isObjectID)
+   self._id = id
+   assert(mediator.isMediator)
+   self._mediator = mediator
    self:setModel(model)
    self:setMemType(mem_type, overwrite)
-   self:setObservers(observers, overwrite)
    self:setLogger(logger, overwrite)
-   self:setName(name, overwrite)
+   
 end
 
-function Propagator:doEpoch()
-   -- TODO refactor into default datasource:observers()?
+function Propagator:propagateEpoch()
    local confusion = optim.ConfusionMatrix2(self._experiment:datasource():classes())
    
    -- local vars
@@ -329,11 +197,10 @@ function Propagator:doEpoch()
 
    -- next epoch
    confusion:zero()
-   self:doneEpoch()
 end      
 
       
-function Propagator:doBatch(batch)
+function Propagator:propagateBatch(batch)
    local inputs = batch:inputs()
    local targets = batch:targets()
 
@@ -367,106 +234,24 @@ function Propagator:doBatch(batch)
      end
 
    optim.sgd(feval, parameters, optimState)
-   self:doneBatch()
+   self._mediator:publish("doneBatch", report)
 end
 
 ------------------------------------------------------------------------
---[[ Optimizer ]]--
--- Trains a model using a sampling distribution.
+--[[ PropagatorDecorator ]]--
+-- Maintains a reference to a Propagator object and defines an interface
+--- that conforms to Propagator's interface
 ------------------------------------------------------------------------
 
-local Optimizer = torch.class("dp.Optimizer", "dp.Propagator")
+local PropagatorDecorator = torch.class("PropagatorDecorator", "Propagator")
 
-function Optimizer:__init(...)
-   local args, sampler, learning_rate, weight_decay, momentum
-      = xlua.unpack(
-      {... or {}},
-      'Optimizer', 
-      'Optimizes a model on a training dataset',
-      {arg='sampler', type='dp.Sampler', default=dp.ShuffleSampler(),
-       help='used to iterate through the train set'},
-      {arg='learning_rate', type='number', req=true,
-       help='learning rate at start of learning'},
-      {arg='weight_decay', type='number', default=0,
-       help='weight decay coefficient'},
-      {arg='momentum', type='number', default=0,
-       help='momentum of the parameter gradients'}
-   )
-   self:setLearningRate(learning_rate)
-   self:setWeightDecay(weight_decay)
-   self:setMomentum(momentum)
-   Propagator.__init(self, ...)
-   self:setSampler(sampler)
+function PropagatorDecorator:propagateBatch(batch, mediator)
+   self._component:propagateBatch(batch, mediator)
 end
 
-function Optimizer:doBatch(batch)
-   local inputs = batch:inputs()
-   local targets = batch:targets()
-
-   -- create closure to evaluate f(X) and df/dX
-   local feval = function(x)
-        -- get new parameters
-        if x ~= parameters then
-           parameters:copy(x)
-        end
-
-        -- reset gradients
-        gradParameters:zero()
-
-        --[[feedforward]]--
-        -- evaluate function for complete mini batch
-        local outputs = self._model:forward(inputs)
-        -- average loss (a scalar)
-        local f = self._criterion:forward(outputs, targets)
-        
-        --[[backpropagate]]--
-        -- estimate df/do (o is for outputs), a tensor
-        local df_do = self._criterion:backward(outputs, targets)
-        self._model:backward(inputs, df_do)
-         
-        --[[measure error]]--
-        -- update confusion
-        confusion:batchAdd(outputs, targets)
-                       
-        -- return f and df/dX
-        return f, gradParameters
-     end
-
-   optim.sgd(feval, parameters, optimState)
-   self:doneBatch()
+function PropagatorDecorator:propagateEpoch(dataset, mediator)
+   self._component:propagateEpoch(dataset, mediator)
 end
 
-------------------------------------------------------------------------
---[[ Evaluator ]]--
--- Tests (evaluates) a model using a sampling distribution.
--- For evaluating the generalization of the model, seperate the 
--- training data from the test data. The Evaluator can also be used 
--- for early-stoping.
-------------------------------------------------------------------------
 
-
-local Evaluator = torch.class("dp.Evaluator", "dp.Propagator")
-
-function Evaluator:doBatch(batch)
-   local inputs = batch:inputs()
-   local targets = batch:targets()
-   -- get new parameters
-   if x ~= parameters then
-     parameters:copy(x)
-   end
-
-   -- reset gradients
-   gradParameters:zero()
-
-   --[[feedforward]]--
-   -- evaluate function for complete mini batch
-   local outputs = self._model:forward(inputs)
-   -- average loss (a scalar)
-   local f = self._criterion:forward(outputs, targets)
-
-   --[[measure error]]--
-   -- update confusion
-   confusion:batchAdd(outputs, targets)
-   self:doneBatch()
-end
 

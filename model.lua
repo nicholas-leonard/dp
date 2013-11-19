@@ -25,6 +25,8 @@ function Model:__init(module, filter)
    --a table controling which statistics get gathered.
    --default is to gather statistics for parameterized modules only
    self._filter = filter
+   --holds data used by ModelVisitor and this Model
+   self._state = state
 end
 
 function Model:setup(...)
@@ -47,9 +49,12 @@ function Model:doneEpoch(report, ...)
    self._report = {}
 end
 
-function Model:forward(batch)
+function Model:forward(inputs)
    --feed forward
-   local outputs = self._module:forward(batch:inputs())
+   local outputs = self._module:forward(inputs)
+   --modify state
+   self._state.inputs = inputs
+   self._state.outputs = outputs
    --statistics on outputs :
    
 end
@@ -85,6 +90,13 @@ end
 --Expect a report to be called every epoch.
 function Model:report()
    
+end
+
+function Model:state(namespace)
+   if namespace then
+      return self._state[namespace]
+   end
+   return self._state
 end
 
 ------------------------------------------------------------------------

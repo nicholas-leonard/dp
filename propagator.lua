@@ -4,13 +4,11 @@ require 'torch'
 require 'optim'
 
 --[[ TODO ]]--
--- Logger (remove current logging)
+-- Logger 
 -- Specify which values are default setup by Experiment in doc
--- Only one Observer per object
 -- Mediator is referenced by all objects, including observers (setup)
 -- Observers own concrete channels
--- Batch object. is it really necessary?
--- Propagator Strategies (Costs)
+
 
 ------------------------------------------------------------------------
 --[[ Propagator ]]--
@@ -23,7 +21,7 @@ local Propagator = torch.class("dp.Propagator")
 
 function Propagator:__init(...)   
    local args, model, sampler, logger, criterion,
-      observer, mem_type, plot, progress
+      visitor, observer, feedback, mem_type, plot, progress
       = xlua.unpack(
       {... or {}},
       'Propagator', nil,
@@ -35,8 +33,14 @@ function Propagator:__init(...)
        help='an object implementing the Logger interface'},
       {arg='criterion', type='nn.Criterion', req=true,
        help='a neural network criterion to evaluate or minimize'},
+      {arg='visitor', type='dp.Visitor', req=true,
+       help='visits models as chain links ' ..
+       'during setup, forward, backward and update phases'},
       {arg='observer', type='dp.Observer', 
-       help='observers that are informed when an event occurs.'},
+       help='observer that is informed when an event occurs.'},
+      {arg='feedback', type='dp.Feedback',
+       help='takes predictions, targets, model and visitor as input ' ..
+       'and provides feedback through report(), setState, or mediator'}
       {arg='mem_type', type='string', default='float',
        help='double | float | cuda'},
       {arg='plot', type='boolean', default=false,
@@ -53,6 +57,9 @@ function Propagator:__init(...)
    self:setPlot(plot)
    self:setProgress(progress)
    self._observer = observer
+   self._feedback = feedback
+   self._visitor = visitor
+   self:resetLoss()
 end
 
 -- returns a log for the current epoch, in the format of a table
@@ -62,10 +69,13 @@ end
 -- channel names and values. Furthermore, values can be anything 
 -- serializable.
 function Propagator:report()
-   local report = {
-      name = self:name()
+   return {
+      name = self:id():name(),
       sampler = self:sampler:report(),
-      extra = {},
+      feedback = self:feedback():report(),
+      visitor = self:visitor:report(),
+      model = self:model():report(),
+      loss = self:loss()
    }
 end
 
@@ -162,96 +172,54 @@ function Propagator:setup(...)
    
 end
 
-function Propagator:propagateEpoch()
-   local confusion = optim.ConfusionMatrix2(self._experiment:datasource():classes())
+function Propagator:propagateEpoch(dataset, report)
+   self._feedback:setup{dataset=dataset, report=report, 
+                        mediator=self._mediator, model=self._model,
+                        visitor = self._visitor}
+   self:resetLoss()
    
    -- local vars
    local time = sys.clock()
    -- do one epoch
-   print('==> doing epoch on training data:')
-   print('==> online epoch # ' .. self:epoch() .. 
+   print('==> doing epoch on ' .. self:id():name() .. ' data:')
+   print('==> online epoch # ' .. report.epoch .. 
          ' [batchSize = ' .. self:batchSize() .. ']')
          
-   for batch in self:sampler():sampleEpoch() do
+   for batch in self:sampler():sampleEpoch(dataset) do
       if self._progress then
          -- disp progress
-         xlua.progress(start, self:dataset():size())
+         xlua.progress(start, dataset:size())
       end
-      self:doBatch(batch)
+      self:propagateBatch(batch)
    end
    -- time taken
    time = sys.clock() - time
-   time = time / self:dataset():size()
+   time = time / dataset:size()
    print("\n==> time to learn 1 sample = " .. (time*1000) .. 'ms')
-
-   -- print confusion matrix
-   print(confusion)
    
-   local title = '% mean class accuracy ( ' .. self._name .. ' )'
-   -- update logger/plot
-   self._logger:add{[title] = confusion.totalValid * 100}
-   if self._plot then
-      self._logger:style{[title] = '-'}
-      self._logger:plot()
-   end
-
-   -- next epoch
-   confusion:zero()
+   --self._logger:add(report)
 end      
 
       
 function Propagator:propagateBatch(batch)
-   local inputs = batch:inputs()
-   local targets = batch:targets()
-
-   -- create closure to evaluate f(X) and df/dX
-   local feval = function(x)
-        -- get new parameters
-        if x ~= parameters then
-           parameters:copy(x)
-        end
-
-        -- reset gradients
-        gradParameters:zero()
-
-        --[[feedforward]]--
-        -- evaluate function for complete mini batch
-        local outputs = model:forward(inputs)
-        -- average loss (a scalar)
-        local f = criterion:forward(outputs, targets)
-        
-        --[[backpropagate]]--
-        -- estimate df/do (o is for outputs), a tensor
-        local df_do = criterion:backward(outputs, targets)
-        model:backward(inputs, df_do)
-         
-        --[[measure error]]--
-        -- update confusion
-        confusion:batchAdd(outputs, targets)
-                       
-        -- return f and df/dX
-        return f,gradParameters
-     end
-
-   optim.sgd(feval, parameters, optimState)
-   self._mediator:publish("doneBatch", report)
+   error"NotImplementedError"
 end
 
-------------------------------------------------------------------------
---[[ PropagatorDecorator ]]--
--- Maintains a reference to a Propagator object and defines an interface
---- that conforms to Propagator's interface
-------------------------------------------------------------------------
-
-local PropagatorDecorator = torch.class("PropagatorDecorator", "Propagator")
-
-function PropagatorDecorator:propagateBatch(batch, mediator)
-   self._component:propagateBatch(batch, mediator)
+function Propagate:updateLoss(batch)
+   self._loss = (
+                     ( self._samples_seen * self._loss ) 
+                     + 
+                     ( batch:nSample() * batch:loss() )
+                ) / self._samples_seen + batch:nSample()
+                
+   self._samples_seen = self._loss_samples + batch:nSample()
 end
 
-function PropagatorDecorator:propagateEpoch(dataset, mediator)
-   self._component:propagateEpoch(dataset, mediator)
+function Propagate:resetLoss()
+   self._loss = 0
+   self._samples_seen = 0
 end
 
-
-
+function Propagate:loss()
+   return self._loss
+end

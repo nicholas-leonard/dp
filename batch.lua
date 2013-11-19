@@ -1,6 +1,7 @@
 
 ------------------------------------------------------------------------
 --[[ Batch ]]--
+-- Visitor
 -- A batch of examples sampled from a dataset.
 ------------------------------------------------------------------------
 
@@ -34,3 +35,21 @@ end
 function Batch:targets()
    return self._targets
 end
+
+function Batch:setOutputs(outputs)
+   self._outputs = outputs
+end
+
+function Batch:outputs()
+   return self._outputs
+end
+
+function Batch:setOutputGradients(output_gradients)
+   self._output_gradients = output_gradients
+end
+
+function Batch:outputGradients(output_gradients)
+   return self._output_gradients
+end
+
+   

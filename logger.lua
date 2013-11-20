@@ -1,20 +1,12 @@
 
 ------------------------------------------------------------------------
 --[[ Logger ]]--
--- Responsible for keeping track of the experiment as it progresses
--- for later analysis.
+-- Observer
+-- Simple logger that prints a report every epoch
 ------------------------------------------------------------------------
 
-local Logger = torch.class("dp.Logger")
+local Logger = torch.class("dp.Logger", "dp.Observer")
 
-function Logger:__init()
-   self._experiment_log = {}
+function Logger:doneEpoch(report)
+   print(table.tostring(report))
 end
-
-function Logger:logEpoch(epoch_log)
-   self._epoch_log = epoch_log
-   self._experiment_log[epoch_log:epoch()] = epoch_log
-   print(table.tostring(epoch_log))
-end
-
-function Logger:channelValue(

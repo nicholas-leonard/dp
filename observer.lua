@@ -10,18 +10,32 @@ require 'utils'
 -- An object that is called when events occur.
 -- Based on the Subject-Objserver design pattern. 
 -- Uses a mediator to publish/subscribe to channels.
+-- Observers cannot publish reports (for now). 
+
+-- The reason for this is 
+-- that a report is required of observers to do their job, thus making
+-- it impossible for them to participate to report generation.
+-- The only possibility would be to allow for Observers to modify the 
+-- received report, but then the ordering of these modifications would
+-- be undefined, unless they make use of Mediator priorities.
 ------------------------------------------------------------------------
 
 local Observer = torch.class("dp.Observer")
 Observer.isObserver = true
 
-function Observer:__init(channels, mediator)
-   self._channels = channels
-   self._mediator = mediator
+function Observer:__init(channels, callbacks)
+   if type(channels) == 'string' then
+      channels = {channels}
+   end
+   if type(callbacks) == 'string' then
+      callbacks = {callbacks}
+   end
+   self._channels = channels or {}
+   self._callbacks = callbacks or channels
 end
 
-function Observer:subscribe(channel, subject)
-   self._mediator:subscribe(channel, self, channel)
+function Observer:subscribe(channel, callback)
+   self._mediator:subscribe(channel, self, callback or channel)
 end
 
 --should be reimplemented to validate subject
@@ -36,13 +50,11 @@ function Observer:setup(mediator, subject, ...)
    assert(mediator.isMediator)
    self._mediator = mediator
    self:setSubject(subject)
-   for _, channel in ipairs(self._channels) do
-      self:subscribe(channel, subject)
+   for i=1,#self._channels do
+      self:subscribe(self._channels[i], self._callbacks[i])
    end
 end
 
---An observer may return a report for use by other observers
---The report is build once per 
 function Observer:report()
    error"NotSupported : observers don't generate reports"
 end
@@ -57,7 +69,12 @@ local MultiObserver = torch.class("dp.MultiObserver", "dp.Observer")
 
 function MultiObserver:__init(observers)
    self._observers = observers
-   self._mediator
+   for name, observer in pairs(self._observers) do
+      assert(observer.isObserver)
+   end
+   for _, observer in ipairs(self._observers) do
+      assert(observer.isObserver)
+   end
 end
 
 function MultiObserver:setup(mediator, subject, ...)
@@ -66,18 +83,22 @@ function MultiObserver:setup(mediator, subject, ...)
    for name, observer in pairs(self._observers) do
       observer:setup(mediator, subject, ...)
    end
+   for _, observer in ipairs(self._observers) do
+      observer:setup(mediator, subject, ...)
+   end
 end
 
 function MultiObserver:report()
    error"NotSupported : observers don't generate reports"
-   local report = {}
+   --[[local report = {}
    for name, observer in pairs(self._observers) do
+      assert(observers)
       local observer_report = observer:report()
       if observer_report and not table.eq(observer_report, {})  then
          report[name] = observer_report
       end
    end
-   return report
+   return report]]--
 end
 
 ------------------------------------------------------------------------
@@ -86,7 +107,7 @@ end
 -- Can be called from Propagator or Experiment
 ------------------------------------------------------------------------
 
-local LearningRateSchedule
+local LearningRateSchedule, parent
    = torch.class("dp.LearningRateSchedule", "dp.Observer")
 
 function LearningRateSchedule:__init(...)
@@ -96,7 +117,7 @@ function LearningRateSchedule:__init(...)
        help='Epochs as keys, and learning rates as values'}
    )
    self._schedule = schedule
-   Observer.__init(self, "doneEpoch")
+   parent.__init(self, "doneEpoch")
 end
 
 function LearningRateSchedule:setSubject(subject)
@@ -146,12 +167,14 @@ end
 -- Should only be called on Experiment, Propagator or Model subjects.
 ------------------------------------------------------------------------
 
-local EarlyStopper = torch.class("dp.EarlyStopper", "dp.Observer")
+local EarlyStopper, parent 
+   = torch.class("dp.EarlyStopper", "dp.Observer")
 
-function EarlyStopper:__init(...) 
+function EarlyStopper:__init(config) 
    local args, start_epoch, error_report, error_channel, save_strategy,
          max_epochs 
       = xlua.unpack(
+      {config or {}},
       'EarlyStopper', 
       'Saves a model at each new minima of error. ' ..
       'Error can be obtained from experiment report or mediator ' ..
@@ -175,6 +198,7 @@ function EarlyStopper:__init(...)
        'to the mediator.'}
    )
    self._start_epoch = start_epoch
+   self._minima_epoch = start_epoch - 1
    self._error_report = error_report
    self._error_channel = error_channel
    self._save_strategy = save_strategy
@@ -182,8 +206,9 @@ function EarlyStopper:__init(...)
    assert(self._error_report or self._error_channel)
    assert(not(self._error_report and self._error_channel)
    if not (self._error_report or self._error_channel) then
-      self._error_report = {'validator','error'}
+      self._error_report = {'validator','loss'}
    end
+   parent.__init(self, "doneEpoch")
 end
 
 function EarlyStopper:setSubject(subject)
@@ -214,14 +239,17 @@ end
 
 function EarlyStopper:compareError(current_error, report)
    assert(type(report) == 'table')
-   local epoch = report.epoch
-   assert(type(epoch) == 'number')
-   if epoch >= start_epoch then
+   local current_epoch = report.epoch
+   assert(type(current_epoch) == 'number')
+   if current_epoch >= start_epoch then
       if (not self._minima) or (current_error > self._minima) then
          self._minima = current_error
+         self._minima_epoch = current_epoch
          self._save_strategy:save(subject)
       end
    end
-   if epoch >=
+   if self._max_epochs >= (current_epoch - self._minima_epoch) then
+      self._mediator:publish("doneExperiment")
+   end
 end
 

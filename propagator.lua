@@ -21,7 +21,7 @@ local Propagator = torch.class("dp.Propagator")
 
 function Propagator:__init(...)   
    local args, model, sampler, logger, criterion,
-      visitor, observer, feedback, mem_type, plot, progress
+      visitor, observer, feedback, mem_type, progress
       = xlua.unpack(
       {... or {}},
       'Propagator', nil,
@@ -29,8 +29,6 @@ function Propagator:__init(...)
        help='the model that is to be trained or tested',},
       {arg='sampler', type='dp.Sampler', default=dp.Sampler(),
        help='used to iterate through the train set'},
-      {arg='logger', type='dp.Logger',
-       help='an object implementing the Logger interface'},
       {arg='criterion', type='nn.Criterion', req=true,
        help='a neural network criterion to evaluate or minimize'},
       {arg='visitor', type='dp.Visitor', req=true,
@@ -43,8 +41,6 @@ function Propagator:__init(...)
        'and provides feedback through report(), setState, or mediator'}
       {arg='mem_type', type='string', default='float',
        help='double | float | cuda'},
-      {arg='plot', type='boolean', default=false,
-       help='live plot of confusion matrix'},
       {arg='progress', type'boolean', default=true, 
        help='display progress bar'}
    )
@@ -54,12 +50,82 @@ function Propagator:__init(...)
    self:setMemType(mem_type)
    self:setCriterion(criterion)
    self:setObserver(observer)
-   self:setPlot(plot)
    self:setProgress(progress)
    self._observer = observer
    self._feedback = feedback
    self._visitor = visitor
+   self._progress = progress
    self:resetLoss()
+end
+
+
+function Propagator:setup(...)
+   local args, id, model, logger, mem_type, overwrite
+      = xlua.unpack(
+      {... or {}},
+      'Propagator:setup', nil,
+      {arg='id', type='dp.ObjectID'},
+      {arg='model', type='nn.Module',
+       help='the model that is to be trained or tested',},
+      {arg='mediator', type='dp.Mediator', req=true},
+      {arg='mem_type', type='string', default='float',
+       help='double | float | cuda'},
+      {arg='overwrite', type='boolean', default=false,
+       help='Overwrite existing values. For example, if a ' ..
+       'dataset is provided, and sampler is already ' ..
+       'initialized with a dataset, and overwrite is true, ' ..
+       'then sampler would be setup with dataset'}
+   )
+   assert(id.isObjectID)
+   self._id = id
+   assert(mediator.isMediator)
+   self._mediator = mediator
+   self:setModel(model)
+   self:setMemType(mem_type, overwrite)
+   if self._observer then
+      self._observer:setup(self._mediator, self)
+   end
+end
+
+function Propagator:propagateEpoch(dataset, report)
+   self._feedback:setup{dataset=dataset, report=report, 
+                        mediator=self._mediator, model=self._model,
+                        visitor=self._visitor}
+   self:resetLoss()
+   
+   -- local vars
+   local time = sys.clock()
+   local batch
+   
+   print('==> doing epoch on ' .. self:id():name() .. ' data:')
+   print('==> online epoch # ' .. report.epoch )
+         
+   for batch in self:sampler():sampleEpoch(dataset) do
+      if self._progress then
+         -- disp progress
+         xlua.progress(batch:batchIter(), batch:epochSize())
+      end
+      self:propagateBatch(batch)
+   end
+   
+   -- time taken
+   self._epoch_duration = sys.clock() - time
+   self._batch_duration = epoch_time / batch:epochSize()
+   self._example_speed = batch:epochSize()/self._batch_durtion
+   self._num_batches = batch:epochSize()/self:batchSize()
+   self._batch_speed = (self._num_batches/self._batch_duration)
+   print("\n==> batch duration = " .. 
+         (self._batch_duration*1000) .. 'ms')
+   print("==> epoch duration = " .. 
+         (self._epoch_duration) .. 's')
+   print("==> example speed = " .. 
+         (self._example_speed) .. 'examples/second')
+   print("==> batch speed = " .. 
+         (self._batch_speed) .. 'batches/second')
+end      
+      
+function Propagator:propagateBatch(batch)
+   error"NotImplementedError"
 end
 
 -- returns a log for the current epoch, in the format of a table
@@ -75,7 +141,12 @@ function Propagator:report()
       feedback = self:feedback():report(),
       visitor = self:visitor:report(),
       model = self:model():report(),
-      loss = self:loss()
+      loss = self:loss(),
+      epoch_duration = self._epoch_duration,
+      batch_duration = self._batch_duration,
+      example_speed = self._example_speed
+      num_batches = self._num_batches
+      batch_speed = self._batch_speed
    }
 end
 
@@ -115,16 +186,6 @@ function Propagator:batchSize()
    return self._sampler:batchSize()
 end
 
-function Propagator:setLogger(logger, overwrite)
-   if (overwrite or not self._logger) and logger then
-      self._logger = logger
-   end
-end
-
-function Propagator:logger()
-   return self._logger
-end
-
 function Propagator:setCriterion(criterion)
    self._criterion = criterion
 end
@@ -141,68 +202,6 @@ end
 
 function Propagator:memType()
    return self._mem_type
-end
-
-
-function Propagator:setup(...)
-   local args, id, model, logger, mem_type, overwrite
-      = xlua.unpack(
-      'Propagator:setup', nil,
-      {arg='id', type='dp.ObjectID'},
-      {arg='model', type='nn.Module',
-       help='the model that is to be trained or tested',},
-      {arg='mediator', type='dp.Mediator', req=true},
-      {arg='logger', type='dp.Logger',
-       help='an object implementing the Logger interface'},
-      {arg='mem_type', type='string', default='float',
-       help='double | float | cuda'},
-      {arg='overwrite', type='boolean', default=false,
-       help='Overwrite existing values. For example, if a ' ..
-       'dataset is provided, and sampler is already ' ..
-       'initialized with a dataset, and overwrite is true, ' ..
-       'then sampler would be setup with dataset'}
-   )
-   assert(id.isObjectID)
-   self._id = id
-   assert(mediator.isMediator)
-   self._mediator = mediator
-   self:setModel(model)
-   self:setMemType(mem_type, overwrite)
-   self:setLogger(logger, overwrite)
-   
-end
-
-function Propagator:propagateEpoch(dataset, report)
-   self._feedback:setup{dataset=dataset, report=report, 
-                        mediator=self._mediator, model=self._model,
-                        visitor = self._visitor}
-   self:resetLoss()
-   
-   -- local vars
-   local time = sys.clock()
-   -- do one epoch
-   print('==> doing epoch on ' .. self:id():name() .. ' data:')
-   print('==> online epoch # ' .. report.epoch .. 
-         ' [batchSize = ' .. self:batchSize() .. ']')
-         
-   for batch in self:sampler():sampleEpoch(dataset) do
-      if self._progress then
-         -- disp progress
-         xlua.progress(start, dataset:size())
-      end
-      self:propagateBatch(batch)
-   end
-   -- time taken
-   time = sys.clock() - time
-   time = time / dataset:size()
-   print("\n==> time to learn 1 sample = " .. (time*1000) .. 'ms')
-   
-   --self._logger:add(report)
-end      
-
-      
-function Propagator:propagateBatch(batch)
-   error"NotImplementedError"
 end
 
 function Propagate:updateLoss(batch)

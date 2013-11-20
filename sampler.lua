@@ -140,7 +140,7 @@ function ShuffleSampler:sampleEpoch(dataset)
    -- build iterator
    local epochSamples = 
       function()
-         stop = math.min(start+batch_size,nSample)
+         stop = math.min(start+self._batch_size,nSample)
          batch_indices = dataset_indices:sub(start,stop):long()
          batch_function = 
             function(datatensor) 
@@ -152,7 +152,8 @@ function ShuffleSampler:sampleEpoch(dataset)
          if start >= nSample then
             return
          end
-         return inputs, targets
+         return Batch{inputs=inputs, targets=targets, batch_iter=stop, 
+                      epoch_size=nSample, batch_size=self._batch_size}
       end
    return epochSamples
 end

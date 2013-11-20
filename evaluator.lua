@@ -11,22 +11,6 @@
 
 local Evaluator = torch.class("dp.Evaluator", "dp.Propagator")
 
-function Evaluator:propogateBatch(batch)
-   local inputs = batch:inputs()
-   local targets = batch:targets()
-   -- get new parameters
-   
-   --[[feedforward]]--
-   -- evaluate function for complete mini batch
-   local outputs = self._model:forward(inputs)
-   -- average loss (a scalar)
-   local loss = self._criterion:forward(outputs, targets)
-
-   --[[measure error]]--
-   -- update confusion
-   self._feedback:batchAdd(outputs, targets)
-end
-
       
 function Evaluator:propagateBatch(batch)   
    --[[ feedforward ]]--

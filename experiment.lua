@@ -124,12 +124,11 @@ function Experiment:__init(...)
          {arg='optimizer', type='dp.Optimizer'},
          {arg='validator', type='dp.Evaluator'},
          {arg='tester', type='dp.Evaluator'},
-         {arg='logger', type='dp.Logger'},
          {arg='observer', type='dp.Observer'},
          {arg='random_seed', type='number', default=7},
          {arg='epoch', type='number', default=0,
           help='Epoch at which to start the experiment.'},
-         {arg='mediator', type='dp.Mediator', default='dp.Mediator()'},
+         {arg='mediator', type='dp.Mediator', default=dp.Mediator()},
          {arg='overwrite', type='boolean', default=false,
           help='Overwrite existing values. For example, if a ' ..
           'datasource is provided, and optimizer is already ' ..
@@ -146,15 +145,27 @@ function Experiment:__init(...)
    self._validator = validator
    self._tester = tester
    self._mediator = mediator
+   self:setup()
 end
 
 function Experiment:setup()
    --publishing to this channel will terminate the experimental loop
-   mediator:subscribe("doneExperiment", self, "doneExperiment")
-   self._optimizer:setup{mediator=self._mediator, id=self:id():create('optimizer')}
-   self._validator:setup{mediator=self._mediator, id=self:id():create('validator')}
-   self._validator:setup{mediator=self._mediator, id=self:id():create('validator')}
-   self._observer:setup{mediator=self._mediator}
+   self._mediator:subscribe("doneExperiment", self, "doneExperiment")
+   if self._optimizer then
+      self._optimizer:setup{mediator=self._mediator, 
+                            id=self:id():create('optimizer')}
+   end
+   if self._validator then
+      self._validator:setup{mediator=self._mediator, 
+                            id=self:id():create('validator')}
+   end
+   if self._tester then
+      self._tester:setup{mediator=self._mediator, 
+                            id=self:id():create('validator')}
+   end
+   if self._observer then
+      self._observer:setup(self._mediator, self)
+   end
 end
 
 --TODO : make this support explicit dataset specification (xlua.unpack)
@@ -206,10 +217,6 @@ function Experiment:tester()
    return self._tester
 end
 
-function Experiment:logger()
-   return self._logger
-end
-
 function Experiment:randomSeed()
    return self._random_seed
 end
@@ -219,7 +226,8 @@ function Experiment:report()
       optimizer = self:optimizer():report(),
       validator = self:validator():report(),
       tester = self:tester():report(),
-      epoch = self:epoch()
+      epoch = self:epoch(),
+      random_seed = self:randomSeed()
    }
 end
 

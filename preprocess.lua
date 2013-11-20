@@ -34,7 +34,7 @@ function Preprocess:__init(...)
    
 end
 ]]--
-local Preprocess = torch.class("data.Preprocess")
+local Preprocess = torch.class("dp.Preprocess")
 
 
 --[[
@@ -61,7 +61,7 @@ Preprocess.isPreprocess = true
 -- Pipeline : A Preprocessor that sequentially applies a list
 -- of other Preprocessors.
 -----------------------------------------------------------------------
-local Pipeline = torch.class("data.Pipeline", "data.Preprocess")
+local Pipeline = torch.class("dp.Pipeline", "dp.Preprocess")
 
 function Pipeline:__init(items)
    self._items = items or {}
@@ -79,7 +79,7 @@ end
 -- Binarize : A Preprocessor that set to 0 any pixel strictly below the 
 ---threshold, sets to 1 those above or equal to the threshold.
 -----------------------------------------------------------------------
-local Binarize = torch.class("data.Binarize", "data.Preprocess")
+local Binarize = torch.class("dp.Binarize", "dp.Preprocess")
 
 function Binarize:__init(threshold)
    self._threshold = threshold
@@ -96,13 +96,13 @@ end
 -- Standardize : A Preprocessor that subtracts the mean and divides 
 -- by the standard deviation.
 -----------------------------------------------------------------------
-local Standardize = torch.class("data.Standardize", "data.Preprocess")
+local Standardize = torch.class("dp.Standardize", "dp.Preprocess")
 
 function Standardize:__init(...)
    local args
    args, self._global_mean, self._global_std, self._std_eps
       = xlua.unpack(
-      {...},
+      {... or {}},
       'Standardize', nil,
       {arg='global_mean', type='boolean', 
        help=[[If true, subtract the (scalar) mean over every element
@@ -131,7 +131,17 @@ function Standardize:apply(datatensor, can_fit)
           error([[can_fit is false, but Standardize object
                   has no stored mean or standard deviation]])
    end
-   data:add(-self._mean):div(self._std + self._std_eps)
+   if self._global_mean then
+      data:add(-self._mean)
+   else
+      -- broadcast
+      data:add(-self._mean:expandAs(data))
+   end
+   if self._global_std then
+      data:cdiv(self._std + self._std_eps)
+   else
+      data:cdiv(self._std:expandAs(data) + self._std_eps)
+   end
    datatensor:setData(data)
 end
 

@@ -4,29 +4,46 @@ require 'torch'
 require 'optim'
 
 --[[ TODO ]]--
--- Logger 
--- Specify which values are default setup by Experiment in doc
--- Mediator is referenced by all objects, including observers (setup)
--- Observers own concrete channels
+-- Convolution (way later)
+-- torch.clip
 
+-- Specify which values are default setup by Experiment in doc
+-- Make reports read-only (everywhere)
+-- Observers and Feedback lists are automatically converted to composites
+-- All objects are setup with random seed and mediator and data*
+-- Input Model (minimum) Output, Feedback (bonus) or Feedback container (propagator...)
+-- Propagator takes gstate
+-- Model accepts observers?
+-- Tests are performed every early stop?
+-- 'Overwrite' arg for setup
+-- Experiment is just a composite Propagator?
+
+-- Optimizer requires visitor.
+-- Visitors require report names to make them accessible to other observers, etc. like feedback
+-- No need for visitor id. Ids are for serialization.
+-- Do visitors gather statistics stored in model statistics?
+-- In, out axes for model params
+-- Prop, Model, Visitor namespace for prop.mvstate_matrix
 
 ------------------------------------------------------------------------
 --[[ Propagator ]]--
 -- Abstract Class for propagating a sampling distribution (Sampler) 
 -- through a model in order to evaluate its criteria, train the model,
 -- etc.
+-- To make your own training algorithm, you can build your own 
+-- propagator. If you can reduce it to reusable components, you could 
+-- then refactor these into visitors, observers, etc.
 ------------------------------------------------------------------------
 
 local Propagator = torch.class("dp.Propagator")
+Propagator.isPropagator = true
 
 function Propagator:__init(...)   
-   local args, model, sampler, logger, criterion,
-      visitor, observer, feedback, mem_type, progress
+   local args, sampler, criterion, visitor, observer, feedback, 
+         mem_type, progress
       = xlua.unpack(
       {... or {}},
       'Propagator', nil,
-      {arg='model', type='nn.Module',
-       help='the model that is to be trained or tested',},
       {arg='sampler', type='dp.Sampler', default=dp.Sampler(),
        help='used to iterate through the train set'},
       {arg='criterion', type='nn.Criterion', req=true,
@@ -38,23 +55,21 @@ function Propagator:__init(...)
        help='observer that is informed when an event occurs.'},
       {arg='feedback', type='dp.Feedback',
        help='takes predictions, targets, model and visitor as input ' ..
-       'and provides feedback through report(), setState, or mediator'}
+       'and provides feedback through report(), setState, or mediator'},
       {arg='mem_type', type='string', default='float',
        help='double | float | cuda'},
       {arg='progress', type'boolean', default=true, 
        help='display progress bar'}
    )
-   sampler:setup{batch_size=batch_size, overwrite=false}
    self:setSampler(sampler)
-   self:setModel(model)
    self:setMemType(mem_type)
    self:setCriterion(criterion)
    self:setObserver(observer)
    self:setProgress(progress)
-   self._observer = observer
    self._feedback = feedback
-   self._visitor = visitor
+   self:setVisitor(visitor)
    self._progress = progress
+   
    self:resetLoss()
 end
 
@@ -83,7 +98,15 @@ function Propagator:setup(...)
    self:setModel(model)
    self:setMemType(mem_type, overwrite)
    if self._observer then
-      self._observer:setup(self._mediator, self)
+      self._observer:setup{mediator=mediator, subject=self}
+   end
+   if self._feedback then
+      self._feedback:setup{mediator=mediator, propagator=self}
+   end
+   if self._visitor then
+      self._visitor:setup{mediator=mediator, 
+                          model=self.model, 
+                          propagator=self}
    end
 end
 
@@ -135,25 +158,29 @@ end
 -- channel names and values. Furthermore, values can be anything 
 -- serializable.
 function Propagator:report()
-   return {
-      name = self:id():name(),
-      sampler = self:sampler:report(),
-      feedback = self:feedback():report(),
-      visitor = self:visitor:report(),
-      model = self:model():report(),
+   local report = {
+      name = self:id():name(),      
       loss = self:loss(),
+      sampler = self._sampler:report(),
       epoch_duration = self._epoch_duration,
       batch_duration = self._batch_duration,
-      example_speed = self._example_speed
-      num_batches = self._num_batches
+      example_speed = self._example_speed,
+      num_batches = self._num_batches,
       batch_speed = self._batch_speed
    }
+   if self._feedback then
+      report.feedback = self._feedback:report()
+   end
+   if self._visitor then
+      report.visitor = self._visitor:report()
+   end
+   return report
 end
 
 function Propagator:setSampler(sampler)
    if self._sampler then
       -- initialize sampler with old sampler values without overwrite
-      sampler:setup{batch_size=self:batchSize(), overwrite=false}
+      sampler:setup{batch_size=self._sampler:batchSize(), overwrite=false}
    end
    self._sampler = sampler
 end
@@ -162,11 +189,19 @@ function Propagator:sampler()
    return self._sampler
 end
 
-function Propagate:observer()
+function Propagator:setObserver(observer)
+   if not torch.typename(observer) and type(observer) == 'table' then
+      --if list, make composite observer
+      observer = CompositeObserver(observer)
+   end
+   self._observer = observer
+end
+
+function Propagator:observer()
    return self._observer
 end
 
-function Propagate:id()
+function Propagator:id()
    return self._id
 end
 
@@ -178,12 +213,18 @@ function Propagator:model()
    return self._model
 end
 
-function Propagator:setBatchSize(batch_size, overwrite)
-   self._sampler:setBatchSize(batch_size, overwrite)
+function Propagator:setVisitor(visitor)
+   if not torch.typename(visitor) and type(visitor) == 'table' then
+      --if list, make visitor_chain
+      visitor = VisitorChain{visitors=visitor}
+   end
+   self._visitor = visitor
 end
 
-function Propagator:batchSize()
-   return self._sampler:batchSize()
+
+
+function Propagator:visitor()
+   return self._visitor
 end
 
 function Propagator:setCriterion(criterion)
@@ -204,21 +245,21 @@ function Propagator:memType()
    return self._mem_type
 end
 
-function Propagate:updateLoss(batch)
+function Propagator:updateLoss(batch)
    self._loss = (
                      ( self._samples_seen * self._loss ) 
                      + 
                      ( batch:nSample() * batch:loss() )
                 ) / self._samples_seen + batch:nSample()
                 
-   self._samples_seen = self._loss_samples + batch:nSample()
+   self._samples_seen = self._samples_seen + batch:nSample()
 end
 
-function Propagate:resetLoss()
+function Propagator:resetLoss()
    self._loss = 0
    self._samples_seen = 0
 end
 
-function Propagate:loss()
+function Propagator:loss()
    return self._loss
 end

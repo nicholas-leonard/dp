@@ -48,6 +48,10 @@ function ObjectID:create(name)
    return ObjectID(name, self)
 end
 
+function ObjectID:parent()
+   return self._parent
+end
+
 ------------------------------------------------------------------------
 --[[ EIDGenerator ]]--
 -- Generates a unique identifier for the experiment.
@@ -63,6 +67,7 @@ end
 ------------------------------------------------------------------------
 
 local EIDGenerator = torch.class("dp.EIDGenerator")
+EIDGenerator.isEIDGenerator = true
 
 function EIDGenerator:__init(namespace, seperator)
    self._namespace = namespace
@@ -108,7 +113,6 @@ end
 ------------------------------------------------------------------------
 
 local Experiment = torch.class("dp.Experiment")
-
 Experiment.isExperiment = true
 
 function Experiment:__init(...)
@@ -121,6 +125,7 @@ function Experiment:__init(...)
          {arg='id', type='dp.ObjectID'},
          {arg='id_gen', type='dp.EIDGenerator'},
          {arg='description', type='string'},
+         {arg='model', type='dp.Model', req=true},
          {arg='optimizer', type='dp.Optimizer'},
          {arg='validator', type='dp.Evaluator'},
          {arg='tester', type='dp.Evaluator'},
@@ -139,39 +144,49 @@ function Experiment:__init(...)
    assert(id or id_gen)
    self._id = id or id_gen:nextID()
    assert(self._id.isObjectID)
+   self._model = model
    self._epoch = epoch
    self._observer = observer
    self._optimizer = optimizer
    self._validator = validator
    self._tester = tester
    self._mediator = mediator
-   self:setup()
 end
 
-function Experiment:setup()
+function Experiment:setup(datasource)
    --publishing to this channel will terminate the experimental loop
    self._mediator:subscribe("doneExperiment", self, "doneExperiment")
+   -- Even though the model is used by different propagators, the 
+   -- model uses the experiment's namespace:
+   self._model:setup{mediator=mediator, id=self:id():create('model')}
    if self._optimizer then
-      self._optimizer:setup{mediator=self._mediator, 
+      self._optimizer:setup{mediator=self._mediator, model=self._model,
                             id=self:id():create('optimizer')}
    end
    if self._validator then
-      self._validator:setup{mediator=self._mediator, 
+      self._validator:setup{mediator=self._mediator, model=self._model,
                             id=self:id():create('validator')}
    end
    if self._tester then
-      self._tester:setup{mediator=self._mediator, 
+      self._tester:setup{mediator=self._mediator, model=self._model,
                             id=self:id():create('validator')}
    end
    if self._observer then
       self._observer:setup(self._mediator, self)
    end
+   -- Datasource needs to be setup with model to determine its input 
+   -- views (image for convolution, imageCUDA for cuda-conv-net, etc)
+   datasource:setup{model=self._model}
+   self._setup = true
 end
 
 --TODO : make this support explicit dataset specification (xlua.unpack)
 --loops through the propagators until a doneExperiment is received or
 --experiment reaches max_epochs
 function Experiment:run(datasource)
+   if not self._setup then
+      self:setup(datasource)
+   end
    -- use mediator to publishes 'doneEpoch' for observers and allows
    -- observers to communicate with each other. Should only be used 
    -- during the monitoring phase
@@ -227,7 +242,8 @@ function Experiment:report()
       validator = self:validator():report(),
       tester = self:tester():report(),
       epoch = self:epoch(),
-      random_seed = self:randomSeed()
+      random_seed = self:randomSeed(),
+      model = self._model:report()
    }
 end
 

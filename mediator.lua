@@ -105,7 +105,11 @@ function Channel:publish(channelNamespace, ...)
    end
 end
 
--- Mediator class and functions --
+------------------------------------------------------------------------
+--[[ Mediator ]]--
+-- An object oriented mediator. Callbacks are methods specified by 
+-- an object and a method name. 
+------------------------------------------------------------------------
 
 local Mediator = torch.class("dp.Mediator")
 Mediator.isMediator = true
@@ -132,7 +136,7 @@ function Mediator:getChannel(channelNamespace)
    
    local channel = self.channel
 
-   for i=1, #channelNamespaces do
+   for i=1, #channelNamespace do
       channel = channel:getChannel(channelNamespace[i])
    end
 
@@ -140,7 +144,7 @@ function Mediator:getChannel(channelNamespace)
 end
 
 function Mediator:subscribe(channelNamespace, subscriber, func_name, options)
-   local id = self.nextId()
+   local id = self:nextId()
    return self:getChannel(channelNamespace):addSubscriber(subscriber, func_name, id, options)
 end
 
@@ -158,16 +162,6 @@ function Mediator:publish(channelNamespace, ...)
 end
 
 
---[[
-Observers are subscribers to onDoneEpoch channels.
-They are setup with experiment.
-Experiment, optimizer publish doneEpoch, doneBatch, etc.
-Observers may also publish their own channels.
-]]--
-
-m = dp.Mediator()
-m:subscribe("doneEpoch", function(data) print(data) end)
-m:publish("doneEpoch", "Hello, world")
 
 
 

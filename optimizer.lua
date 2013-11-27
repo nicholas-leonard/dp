@@ -13,38 +13,61 @@ function Optimizer:__init(config)
       'Optimizes a model on a training dataset',
       {arg='sampler', type='dp.Sampler', default=dp.ShuffleSampler(),
        help='used to iterate through the train set'},
-      {arg='learning_rate', type='number', req=true,
-       help='learning rate at start of learning'}
+      {arg='learning_rate', type='number',
+       help='learning rate at start of learning'},
+      {arg='visitor', type='dp.Visitor', req=true,
+       help='visits models after forward-backward phase. ' .. 
+       'Performs the parameter updates.'}
    )
-   self:setLearningRate(learning_rate)
+   self._learning_rate = learning_rate
    Propagator.__init(self, config)
    self:setSampler(sampler)
 end
       
 function Optimizer:propagateBatch(batch)   
+   local model = self._model
    --[[ feedforward ]]--
    -- evaluate function for complete mini batch
-   batch:setOutputs(model:forward(batch, visitor))
+   model.istate.act = batch:inputs()
+   model:forward()
    
    -- average loss (a scalar)
-   batch:setLoss(self._criterion:forward(outputs, targets))
+   batch:setLoss(
+      self._criterion:forward(batch:outputs(), batch:targets())
+   )
    
    self:updateLoss(batch)
    
    -- monitor error 
-   self._feedback:add(batch)
+   if self._feedback then
+      self._feedback:add(batch)
+   end
+   --publish report for this optimizer
+   self._mediator:publish(self:id():name() .. ':' .. "doneFeedback", 
+                          self:report(), batch)
    
    --[[ backpropagate ]]--
-   -- estimate df/do (o is for outputs), a tensor
-   batch:setOutputGradients(self._criterion:backward(outputs, targets))
-   self._model:backward(batch, visitor)
+   -- estimate df/do (f is for loss, o is for outputs), a tensor
+   batch:setOutputGradients(
+      self._criterion:backward(batch:outputs(), batch:targets())
+   )
+   model.ostate.grad = batch:outputGradients()
+   model:backward()
 
+   
    --[[ update parameters ]]--
-   self._model:update(batch, visitor)
+   model:accept(self._visitor)
+   model:doneBatch()
    
    --publish report for this optimizer
    self._mediator:publish(self:id():name() .. ':' .. "doneBatch", 
                           self:report(), batch)
+end
+
+function Optimizer:report()
+   local report = parent.report(self)
+   report.learning_rate = self._learning_rate 
+   return report
 end
 
 

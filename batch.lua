@@ -1,11 +1,18 @@
 
 ------------------------------------------------------------------------
 --[[ Batch ]]--
--- Visitor
+-- State
 -- A batch of examples sampled from a dataset.
+
+-- TODO :
+-- Make this inherit DataSet. This means that Feedback, Model and such
+-- will have to expect this new interface. Particularly the ability 
+-- to deal with tables of DataTensors, instead of torch.Tensors.
+-- Samples should create the Batch once every epoch, for speed?
 ------------------------------------------------------------------------
 
 local Batch = torch.class("dp.Batch")
+Batch.isBatch = true
 
 function Batch:__init(...)
    local args, inputs, targets, batch_iter, epoch_size, batch_size
@@ -17,13 +24,20 @@ function Batch:__init(...)
        help='batch of targets'},
       {arg='batch_iter', type='number'}, 
       {arg='epoch_size', type='number'},
-      {arg='batch_size', type='number'}
+      {arg='batch_size', type='number'},
+      {arg='n_sample', type='number'},
+      {arg='classes', type='table', 
+      help='temporary hack for confusion feedback worker until this ' ..
+      'class in made to inherit DataSet and spawned from a dataset ' ..
+      'via a Sampler.'}
    )
    self._inputs = inputs
    self._targets = targets
    self._batch_iter = batch_iter
    self._epoch_size = epoch_size
    self._batch_size = batch_size
+   self._n_sample = n_sample
+   self._classes = classes
 end
 
 function Batch:inputs()
@@ -32,6 +46,10 @@ end
 
 function Batch:targets()
    return self._targets
+end
+
+function Batch:classes()
+   return self._classes
 end
 
 function Batch:setOutputs(outputs)
@@ -52,6 +70,10 @@ end
 
 function Batch:batchSize()
    return self._batch_size
+end
+
+function Batch:nSample()
+   return self._n_sample
 end
 
 function Batch:epochSize()

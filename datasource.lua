@@ -63,6 +63,17 @@ function DataSource:__init(...)
    self:preprocess()
 end
 
+function DataSource:setup(...)
+   local args, model = xlua.unpack(
+      {... or {}},
+      'Datasource:setup', nil,
+      {arg='model', type='dp.Model', req=true}
+   )
+   --TODO :
+   -- Datasource needs to be setup with model to determine its input 
+   -- views (image for convolution, imageCUDA for cuda-conv-net, etc)
+end
+
 function DataSource:setTrainSet(train_set)
    self._train_set = train_set
 end

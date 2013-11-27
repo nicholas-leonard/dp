@@ -2,7 +2,9 @@ require 'torch'
 require 'utils'
 
 --[[TODO]]--
---Random_seed
+-- Use Random_seed
+-- Support multi-input/target datatensors
+-- Batch inherits DataSet
 
 
 ------------------------------------------------------------------------
@@ -28,7 +30,8 @@ function Sampler:__init(...)
 end
 
 function Sampler:setup(...)
-   local args, dataset, batch_size, xlua.unpack(
+   local args, batch_size, overwrite, mediator 
+      = xlua.unpack(
       {... or {}},
       'Sampler:setup', 
       'Samples batches from a set of examples in a dataset. '..
@@ -40,7 +43,7 @@ function Sampler:setup(...)
        'If nil, initialize whatever the value of overwrite.'},
       {arg='mediator', type='dp.Mediator'}
    )
-   if batch_size and (not self.batchSize() or overwrite) then
+   if batch_size and (not self._batch_size or overwrite) then
       self:setBatchSize(batch_size)
    end
    self._mediator = mediator
@@ -73,22 +76,28 @@ function Sampler:sampleEpoch(data)
    local stop
    local dataset_inputs = dataset:inputs()
    local dataset_targets = dataset:targets()
-   local batch_inputs, batch_targets, batch_function
+   local batch_inputs, batch_targets, batch_function, batch
    -- build iterator
    local epochSamples = 
       function()
          stop = math.min(start+batch_size,nSample)
          batch_function = 
             function(datatensor) 
-               return datatensor:sub(start, stop)
+               return datatensor:default():sub(start, stop)
             end
          batch_inputs = _.map(dataset_inputs, batch_function)
          batch_targets = _.map(dataset_targets, batch_function)
+         --TODO support multi-input/target datasets
+         --Dataset should be called with sub, index to generate Batch
+         batch = Batch{inputs=batch_inputs[1], targets=batch_targets[1], 
+                       batch_iter=stop, epoch_size=nSample, 
+                       batch_size=self._batch_size, n_sample=stop-start,
+                       classes=batch_targets[1]:classes()}
          start = start + batch_size
          if start >= nSample then
             return
          end
-         return inputs, targets
+         return batch
       end
    return epochSamples
 end
@@ -103,9 +112,9 @@ end
 local ShuffleSampler 
    = torch.class("dp.ShuffleSampler", "dp.Sampler")
 
-function ShuffleSampler:_init(...)
+function ShuffleSampler:_init(config)
    local args, batch_size, random_seed = xlua.unpack(
-      {... or {}},
+      {config or {}},
       'ShuffleSampler', 
       'Samples batches from a shuffled set of examples in dataset. '..
       'Iteration ends after all examples have been sampled once (for one epoch). '..
@@ -116,7 +125,29 @@ function ShuffleSampler:_init(...)
        help='Used to initialize the shuffle generator.' ..
        'Not yet supported'}
    )
-   Sampler.__init(self, ...)
+   self:setRandomSeed(random_seed)
+   config.batch_size = batch_size
+   Sampler.__init(self, config)
+end
+
+function ShuffleSampler:setup(config)
+   local args, random_seed, overwrite = xlua.unpack(
+      {config or {}},
+      'ShuffleSampler:setup', nil,
+      {arg='random_seed', type='number',
+       help='Used to initialize the shuffle generator.' ..
+       'Not yet supported'},
+      {arg='overwrite', type='boolean', default=false,
+       help='overwrite existing values if not nil.' .. 
+       'If nil, initialize whatever the value of overwrite.'}
+   )
+   if batch_size and ((not self._batch_size) or overwrite) then
+      self:setBatchSize(batch_size)
+   end
+   if random_seed and ((not self._random_seed) or overwrite) then
+      self:setRandomSeed(random_seed)
+   end
+   self._mediator = mediator
 end
 
 function ShuffleSampler:setRandomSeed(random_seed)
@@ -135,6 +166,7 @@ function ShuffleSampler:sampleEpoch(dataset)
    local dataset_inputs = dataset:inputs()
    local dataset_targets = dataset:targets()
    local batch_inputs, batch_targets, batch_indices, batch_function
+   local batch
    -- shuffle before each epoch
    local dataset_indices = torch.randperm(nSample)
    -- build iterator
@@ -148,12 +180,17 @@ function ShuffleSampler:sampleEpoch(dataset)
             end
          batch_inputs = _.map(dataset_inputs, batch_function)
          batch_targets = _.map(dataset_targets, batch_function)
+         --TODO support multi-input/target datasets
+         --Dataset should be called with sub, index to generate Batch
+         batch = Batch{inputs=batch_inputs[1], targets=batch_targets[1], 
+                       batch_iter=stop, epoch_size=nSample, 
+                       batch_size=self._batch_size, n_sample=stop-start,
+                       classes=batch_targets[1]:classes()}
          start = start + batch_size
          if start >= nSample then
             return
          end
-         return Batch{inputs=inputs, targets=targets, batch_iter=stop, 
-                      epoch_size=nSample, batch_size=self._batch_size}
+         return batch
       end
    return epochSamples
 end

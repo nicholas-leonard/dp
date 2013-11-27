@@ -46,7 +46,14 @@ end
 
 --An observer is setup with a mediator and a subject.
 --The subject is usually the object from which the observer is setup.
-function Observer:setup(mediator, subject, ...)
+function Observer:setup(...)
+   local args, mediator, subject = xlua.unpack(
+      {... or {}},
+      'Observer:setup', nil,
+      {arg='mediator', type='dp.Mediator'},
+      {arg='subject', type='dp.Experiment | dp.Propagator | ...',
+      help='object being observed.'}
+   )
    assert(mediator.isMediator)
    self._mediator = mediator
    self:setSubject(subject)
@@ -61,13 +68,13 @@ end
 
 
 ------------------------------------------------------------------------
---[[ MultiObserver ]]--
--- Is composed of multible observers
+--[[ CompositeObserver ]]--
+-- Is composed of multiple observers
 ------------------------------------------------------------------------
 
-local MultiObserver = torch.class("dp.MultiObserver", "dp.Observer")
+local CompositeObserver = torch.class("dp.CompositeObserver", "dp.Observer")
 
-function MultiObserver:__init(observers)
+function CompositeObserver:__init(observers)
    self._observers = observers
    for name, observer in pairs(self._observers) do
       assert(observer.isObserver)
@@ -77,7 +84,15 @@ function MultiObserver:__init(observers)
    end
 end
 
-function MultiObserver:setup(mediator, subject, ...)
+function CompositeObserver:setup(...)
+   local args, mediator, subject = xlua.unpack(
+      {... or {}},
+      'Observer:setup', nil,
+      {arg='mediator', type='dp.Mediator'},
+      {arg='subject', type='dp.Experiment | dp.Propagator | ...',
+      help='object being observed.'}
+   )
+   assert(mediator.isMediator)
    self._mediator = mediator
    self:setSubject(subject)
    for name, observer in pairs(self._observers) do
@@ -88,7 +103,7 @@ function MultiObserver:setup(mediator, subject, ...)
    end
 end
 
-function MultiObserver:report()
+function CompositeObserver:report()
    error"NotSupported : observers don't generate reports"
    --[[local report = {}
    for name, observer in pairs(self._observers) do
@@ -190,6 +205,10 @@ function EarlyStopper:__init(config)
        help='channel to subscribe to for early stopping. Should ' ..
        'return an error for which the models should be minimized, ' ..
        'and the report of the experiment.'},
+      {arg='maximize', type='boolean', default=false,
+       help='when true, the error channel or report is negated. ' ..
+       'This is useful when the channel returns an accuracy ' ..
+       'that should be maximized, instead of an error that should not'},
       {arg='save_strategy', type='object', default=SaveToFile(),
        help='a serializable object that has a :save(subject) method.'},
       {arg='max_epochs', type='number', default='30',
@@ -202,9 +221,13 @@ function EarlyStopper:__init(config)
    self._error_report = error_report
    self._error_channel = error_channel
    self._save_strategy = save_strategy
+   self._sign = 1
+   if maximize then
+      self._sign = -1
+   end
    self._max_epochs = max_epochs
    assert(self._error_report or self._error_channel)
-   assert(not(self._error_report and self._error_channel)
+   assert(not(self._error_report and self._error_channel))
    if not (self._error_report or self._error_channel) then
       self._error_report = {'validator','loss'}
    end
@@ -212,16 +235,20 @@ function EarlyStopper:__init(config)
 end
 
 function EarlyStopper:setSubject(subject)
-   assert(subject.isModel)
+   assert(subject.isModel 
+      or subject.isPropagator 
+      or subject.isExperiment)
+   self._subject = subject
 end
 
-function EarlyStopper:setup(mediator, subject, ...)
-   Observer.setup(self, mediator, subject, ...)
+function EarlyStopper:setup(config)
+   Observer.setup(self, config)
    if self._error_channel then
-      mediator:subscribe(self._error_channel, 
+      self._mediator:subscribe(self._error_channel, 
          function(current_error, report, ...)
             self:compareError(current_error, report, ...)
          end
+      )
    end
 end
 
@@ -238,6 +265,8 @@ function EarlyStopper:doneEpoch(report, ...)
 end
 
 function EarlyStopper:compareError(current_error, report)
+   -- if maximize is true, sign will be -1
+   current_error = current_error * self._sign
    assert(type(report) == 'table')
    local current_epoch = report.epoch
    assert(type(current_epoch) == 'number')

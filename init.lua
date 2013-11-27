@@ -29,13 +29,17 @@ torch.include('dp', 'preprocess.lua')
 torch.include('dp', 'sampler.lua')
 
 --[[ propagation ]]--
---torch.include('dp', 'mediator.lua')
---torch.include('dp', 'propagator.lua')
---torch.include('dp', 'experiment.lua')
---torch.include('dp', 'optimizer.lua')
---torch.include('dp', 'evaluator.lua')
---torch.include('dp', 'observer.lua')
+torch.include('dp', 'mediator.lua')
+torch.include('dp', 'propagator.lua')
+torch.include('dp', 'optimizer.lua')
+torch.include('dp', 'evaluator.lua')
+torch.include('dp', 'experiment.lua')
+torch.include('dp', 'observer.lua')
+torch.include('dp', 'logger.lua')
+torch.include('dp', 'feedback.lua')
+torch.include('dp', 'confusion.lua')
 
 --[[ model ]]--
---torch.include('dp', 'model.lua')
-
+torch.include('dp', 'model.lua')
+torch.include('dp', 'module.lua')
+torch.include('dp', 'sequential.lua')

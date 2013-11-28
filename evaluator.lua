@@ -1,5 +1,3 @@
-
-
 ------------------------------------------------------------------------
 --[[ Evaluator ]]--
 -- Tests (evaluates) a model using a sampling distribution.
@@ -12,18 +10,35 @@
 local Evaluator = torch.class("dp.Evaluator", "dp.Propagator")
 
       
-function Evaluator:propagateBatch(batch)   
+function Evaluator:propagateBatch(batch) 
+   local model = self._model
    --[[ feedforward ]]--
    -- evaluate function for complete mini batch
-   batch:setOutputs(model:forward(batch, visitor))
+   model.istate.act = batch:inputs()
+   model:forward()
+   batch:setOutputs(model.ostate.act)
    
    -- average loss (a scalar)
-   batch:setLoss(self._criterion:forward(outputs, targets))
+   batch:setLoss(
+      self._criterion:forward(batch:outputs(), batch:targets())
+   )
    
    self:updateLoss(batch)
    
    -- monitor error 
-   self._feedback:add(batch)
+   if self._feedback then
+      self._feedback:add(batch)
+   end
+   --publish report for this optimizer
+   self._mediator:publish(self:id():name() .. ':' .. "doneFeedback", 
+                          self:report(), batch)
+
+   
+   --[[ update parameters ]]--
+   if self._visitor then
+      model:accept(self._visitor)
+   end
+   model:doneBatch()
    
    --publish report for this optimizer
    self._mediator:publish(self:id():name() .. ':' .. "doneBatch", 

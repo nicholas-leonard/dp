@@ -31,7 +31,7 @@ function Module:__init(config)
          self._tags.hasParams = false
       else
          for i, param in ipairs(params) do
-            if param:dim() != 0
+            if param:dim() ~= 0 then
                self._tags.hasParams = true
                break
             end
@@ -66,9 +66,6 @@ function Module:reset()
 end
 
 function Module:parameters()
-   if not self.hasParams then
-      return false
-   end
    local params = self._params
    local module = self._module
    if module.weight and module.weight:dim() ~= 0 then
@@ -86,10 +83,6 @@ function Module:parameters()
       params.bias.grad=module.gradBias
    end
    return params
-end
-
-function Module:__call__()
-   return self._module:__call__(istate.act, ostate.grad)
 end
 
 
@@ -110,13 +103,18 @@ function Linear:__init(config)
       {arg='output_size', type='number', req=true,
        help='Number of output neurons'},
       {arg='typename', type='string', default='linear', 
-       help='identifies Model type in reports.'},
+       help='identifies Model type in reports.'}
    )
    self._input_size = input_size
    self._output_size = output_size
    config.typename = config.typename or typename
    config.module = nn.Linear(input_size, output_size)
    parent.__init(self, config)
+end
+
+function Linear:setup(config)
+   config.data_view = 'feature'
+   parent.setup(self, config)
 end
 
 function Linear:maxNorm(max_out_norm, max_in_norm)
@@ -134,44 +132,3 @@ function Linear:maxNorm(max_out_norm, max_in_norm)
       constrain_norms(max_in_norm, 1, weight)
    end
 end
-
-function Linear:zeroGradParameters()
-   return self._module:zeroGradParameters()
-end
-
-function Linear:type(type)
-   return self._module:type(type)
-end
-
-function Linear:reset()
-   return self._module:reset()
-end
-
-function Linear:parameters()
-   if not self.hasParams then
-      return false
-   end
-   local params = self._params
-   local module = self._module
-   if module.weight and module.weight:dim() ~= 0 then
-      if not params.weight then
-         params.weight = {}
-      end
-      params.weight.param=module.weight
-      params.weight.grad=module.gradWeight
-   end
-   if module.bias and module.bias:dim() ~= 0 then
-      if not params.bias then
-         params.bias = {}
-      end
-      params.bias.param=module.bias
-      params.bias.grad=module.gradBias
-   end
-   return params
-end
-
-function Linear:__call__()
-   return self._module:__call__(istate.act, ostate.grad)
-end
-
-

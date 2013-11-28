@@ -3,10 +3,15 @@
 --[[ Logger ]]--
 -- Observer
 -- Simple logger that prints a report every epoch
+-- TODO use TREPL to make nice reports
 ------------------------------------------------------------------------
 
-local Logger = torch.class("dp.Logger", "dp.Observer")
+local Logger, parent = torch.class("dp.Logger", "dp.Observer")
+
+function Logger:__init()
+   parent.__init(self, "doneEpoch")
+end
 
 function Logger:doneEpoch(report)
-   print(table.tostring(report))
+   --print(table.tostring(report))
 end

@@ -1,8 +1,6 @@
 require 'torch'
 require 'image'
 
-require 'utils'
-
 ------------------------------------------------------------------------
 --[[ Mnist ]]--
 -- http://yann.lecun.com/exdb/mnist/
@@ -97,7 +95,7 @@ end
 
 --Creates an Mnist Dataset out of data and which_set
 function Mnist:createDataSet(data, which_set)
-   inputs = data:narrow(2, 1, self._feature_size):clone()
+   local inputs = data:narrow(2, 1, self._feature_size):clone()
    if self._binarize then
       DataSource.binarize(inputs, 128)
    end
@@ -105,7 +103,7 @@ function Mnist:createDataSet(data, which_set)
       DataSource.rescale(inputs, self._scale[1], self._scale[2])
    end
    --inputs:resize(inputs:size(1), unpack(self._image_size))
-   targets = data:narrow(2, self._feature_size, 1):clone()
+   local targets = data:narrow(2, self._feature_size+1, 1):clone()
    -- class 0 will have index 1, class 1 index 2, and so on.
    targets:add(1)
    targets:resize(targets:size(1))

@@ -1,7 +1,6 @@
 require 'torch'
 require 'image'
 
-require 'utils'
 
 
 -- TODO:
@@ -36,7 +35,7 @@ function DataTensor.assertInstances(obj_table)
 end
 
 function DataTensor:__init(...)
-   local args
+   local args, sizes
    args, self._data, self.axes, sizes
       = xlua.unpack(
       {... or {}},
@@ -85,7 +84,7 @@ function DataTensor:__init(...)
    if b == 0 then
       self.axes = _.concat({'b'},self.axes)
       local b = 1
-      print("Warning: no 'b' axis provided, assuming axes=" .. 
+      print("DataTensor Warning: no 'b' axis provided, assuming axes=" .. 
          table.tostring(self.axes))
    end
       
@@ -110,7 +109,7 @@ function DataTensor:__init(...)
                      the mapping of sizes to axes cannot be determined. 
                      Please specify full size, or other axes.]])
             end
-            print("Warning: sizes specifies one dim less than axes. " ..
+            print("DataTensor Warning: sizes specifies one dim less than axes. " ..
                   "Assuming sizes omits 'b' axis. Sizes =" .. 
                   table.tostring(sizes))
          end
@@ -125,7 +124,7 @@ function DataTensor:__init(...)
              "Error: sizes should specify as many dims as axes:" ..
              tostring(sizes) .. " " .. table.tostring(self.axes))
       if self._data:dim() ~= #(self.axes) then
-         print("Warning: data:size() is different than sizes. " ..
+         print("DataTensor Warning: data:size() is different than sizes. " ..
                "Assuming data is appropriately contiguous. " ..
                "Resizing data to sizes")
          self._data:resize(sizes:storage())
@@ -146,7 +145,7 @@ end
 
 -- Returns number of samples
 function DataTensor:nSample()
-   assert(#self:storedAxes() == self:storedSize():nElements(),
+   assert(#self:storedAxes() == self:storedSize():nElement(),
       "Error : unequal number of axis for size and axes")
    return self:storedSize()[self:b()]
 end
@@ -182,7 +181,7 @@ function DataTensor:storeExpandedAxes(new_axes)
 end
 
 function DataTensor:storedSize()
-   return self._data:size()
+   return torch.LongTensor(self._data:size())
 end
 
 function DataTensor:storedAxes()
@@ -204,7 +203,7 @@ function DataTensor:feature(...)
    local axes = {'b','f'}
    local sizes = self:expandedSize()
    assert(sizes:size(1) > 1, "Error: cannot guess size of features")
-   local inplace, contiguous = xlua.unpack(
+   local args, inplace, contiguous = xlua.unpack(
       {... or {}},
       'DataTensor:feature',
       [[Returns a 2D-tensor of examples by features : {'b', 'f'}]],
@@ -255,11 +254,11 @@ function DataTensor:image(...)
    local axes = self:expandedAxes()
    local sizes = self:expandedSize()
    if #axes ~= 4 then
-      print"Warning: no image axis provided at construction, assuming {'b','h','w','c'}"
+      print"DataTensor Warning: no image axis provided at construction, assuming {'b','h','w','c'}"
       axes = {'b','h','w','c'}
    end
    assert((sizes:size(1) == 4), "Error: no image size provided at construction")
-   local inplace, contiguous = xlua.unpack(
+   local args, inplace, contiguous = xlua.unpack(
       {... or {}},
       'DataTensor:images',
       'Returns a 4D-tensor of axes format : ' .. table.tostring(axes),
@@ -315,7 +314,7 @@ end
 function DataTensor:multiclass(...)
    local axes = {'b', 't'} 
    local sizes = self:expandedSize()
-   local inplace, contiguous, sizes = xlua.unpack(
+   local args, inplace, contiguous = xlua.unpack(
       {... or {}},
       'DataTensor:multiclass',
       [[Returns a 2D-tensor of examples by classes: {'b', 't'}]],
@@ -345,7 +344,7 @@ function DataTensor:multiclass(...)
    end
    if data:dim() == 1 then
       if sizes:size(1) == 1 then
-         print"Warning: Assuming one class per example."
+         print"DataTensor Warning: Assuming one class per example."
          sizes = torch.LongTensor({self._data:size(1), 1})
       end
       --convert {'b'} to {'b','t'}
@@ -366,7 +365,7 @@ end
 function DataTensor:class(...)
    local axes = {'b'} 
    local sizes = self:expandedSize()
-   local inplace, contiguous, sizes = xlua.unpack(
+   local args, inplace, contiguous = xlua.unpack(
       {... or {}},
       'DataTensor:class',
       [[Returns a 1D-tensor of example classes: {'b'}]],
@@ -396,7 +395,7 @@ end
 function DataTensor:array(...)
    error("Not Implemented")
    local axes = {'b'} 
-   local inplace, contiguous, sizes = xlua.unpack(
+   local args, inplace, contiguous = xlua.unpack(
       {... or {}},
       'DataTensor:b',
       'Returns a 1D-tensor of examples.',

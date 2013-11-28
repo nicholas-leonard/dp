@@ -12,7 +12,7 @@
 local Visitor = torch.class("dp.Visitor")
 
 function Visitor:__init(...)
-   local args, name, include, exclude = xlua.unpack(
+   local args, name, include, exclude, observer = xlua.unpack(
       {... or {}},
       'Visitor', nil,
       {arg='name', type='string', req=true,
@@ -26,33 +26,67 @@ function Visitor:__init(...)
       {arg='exclude', type='table', default={},
        help='models having a member named in this table are not ' ..
        'visited, even if the member is in the include table, i.e. ' ..
-       'exclude has priority over include'}
+       'exclude has priority over include'},
+      {arg='observer', type='dp.Observer', 
+       help='observer that is informed when an event occurs.'}
    )
    self._name = name
    self._exclude = exclude
    self._include = include
+   self:setObserver(observer)
+end
+
+function Visitor:setup(...)
+   local args, mediator, model, propagator = xlua.unpack(
+      {... or {}},
+      'Visitor:setup', nil,
+      {arg='mediator', type='dp.Mediator'},
+      {arg='model', type='dp.Model'},
+      {arg='propagator', type='dp.Propagator'}
+   )
+   self._mediator = mediator
+   -- not sure including model is good idea...
+   self._model = model
+   self._propagator = propagator
+   self._id = propagator:id():create(self._name)
+   self._name = nil
+   if self._observer then
+      self._observer:setup{mediator=mediator, subject=self}
+   end
 end
 
 function Visitor:id()
-   return self:_id
+   return self._id
 end
 
 function Visitor:name()
    return self._id:name()
 end
 
+function Visitor:setObserver(observer)
+   if not torch.typename(observer) and type(observer) == 'table' then
+      --if list, make composite observer
+      observer = dp.CompositeObserver(observer)
+   end
+   self._observer = observer
+end
+
+function Visitor:observer()
+   return self._observer
+end
+
 -- compares model to filter to see if it can be visited
 function Visitor:canVisit(model)
    local model_tags = model:tags()
-   if not self._exclude or table.eq(self._exclude, {}) then
+   if self._exclude and not table.eq(self._exclude, {}) then
       for tag in ipairs(self._exclude) do
          if model_tags[tag] then
             return false
          end
       end
    end
-   if not self._include or table.eq(self._include, {}) then
-      for tag in ipairs(self._include) do
+   if self._include and not table.eq(self._include, {}) then
+      for i, tag in ipairs(self._include) do
          if model_tags[tag] then
             return true
          end
@@ -74,7 +108,7 @@ function Visitor:visitModel(model)
    if not model.mvstate[self:id():name()] then 
       model.mvstate[self:id():name()] = {}
    end
-   self._visitModel(model)
+   self:_visitModel(model)
 end
 
 function Visitor:_visitModel(model)
@@ -88,22 +122,6 @@ end
 
 function Visitor:report()
    return {[self:name()] = {}}
-end
-
-function Visitor:setup(...)
-   local args, mediator = xlua.unpack(
-      {... or {}},
-      'Visitor:setup', nil,
-      {arg='mediator', type='dp.Mediator'},
-      {arg='model', type='dp.Model'},
-      {arg='propagator', type='dp.Propagator'}
-   )
-   self._mediator = mediator
-   -- not sure including model is good idea...
-   self._model = model
-   self._propagator = propagator
-   self._id = propagator:id():create(self._name)
-   self._name = nil
 end
 
 
@@ -147,11 +165,11 @@ end
 -- Applies momentum to parameters
 ------------------------------------------------------------------------
 
-local Momentum, parent = torch.class("dp.Momentum", "Visitor")
+local Momentum, parent = torch.class("dp.Momentum", "dp.Visitor")
 
 function Momentum:__init(config)
    config = config or {}
-   local args, momentum_factor, dampling_vactor, nesterov, name
+   local args, momentum_factor, damping_factor, nesterov, name
       = xlua.unpack(
       {config},
       'Momentum', 'Applies momentum to parameters',
@@ -176,7 +194,6 @@ end
 
 function Momentum:_visitModel(model)
    local params = model:parameters()
-   
    for param_name, param_table in pairs(params) do
       if not param_table.past_grad then
          param_table.past_grad 
@@ -217,7 +234,7 @@ end
 -- Should occur after LearningRate in VisitorChain
 ------------------------------------------------------------------------
 
-local MaxNorm, parent = torch.class("dp.MaxNorm", "Visitor")
+local MaxNorm, parent = torch.class("dp.MaxNorm", "dp.Visitor")
 
 function MaxNorm:__init(config)
    config = config or {}
@@ -226,7 +243,7 @@ function MaxNorm:__init(config)
       'MaxNorm', 
       'Hard constraint on the upper bound of the norm of output ' ..
       'and input weights.',
-      {arg='max_out_norm', type='number', default=1
+      {arg='max_out_norm', type='number', default=1,
        help='max norm of output neuron weights'},
       {arg='max_in_norm', type='number', 
       help='max norm of input neuron weights'},
@@ -246,8 +263,11 @@ function MaxNorm:_visitModel(model)
       model:maxNorm(self._max_out_norm, self._max_in_norm)
       return
    else
-      print"Warning: MaxNorm not implemented for model " .. model ..
-      ". Ignoring model-visitor pair"
+      if not model.mvstate[self:id():name()].warned then
+         print("Warning: MaxNorm not implemented for model " .. 
+            torch.typename(model) .. ". Ignoring model-visitor pair")
+         model.mvstate[self:id():name()].warned = true
+      end
    end
    
    --[[
@@ -285,7 +305,7 @@ end
 --  learning scalers, etc.
 ------------------------------------------------------------------------
 local Learn, parent = torch.class("dp.Learn", "dp.Visitor")
-LearningRate.isLearningRate = true
+Learn.isLearn = true
 
 function Learn:__init(config)
    local args, learning_rate, name = xlua.unpack(
@@ -295,18 +315,17 @@ function Learn:__init(config)
       {arg='name', type='string', default='learn',
        help='identifies visitor in reports.'}
    )
-   self._learning_rate = learning_rate
+   self:setLearningRate(learning_rate)
    config.include = config.include or {}
    config.name = name
    table.insert(config.include, 'hasParams')
    parent.__init(self, config)
 end
 
-function Learn:visitModel(model)
+function Learn:_visitModel(model)
    if not self:canVisit(model) then return end
-   
    local params = model:parameters()
-   for param_name, param_table in pairs(param) do
+   for param_name, param_table in pairs(params) do
       -- parameter update with single or individual learning rates
       if param_table.learning_rate_scale then
          if not param_table.delta then
@@ -335,15 +354,23 @@ function Learn:visitModel(model)
    end
 end
 
+function Learn:setLearningRate(learning_rate)
+   self._learning_rate = learning_rate
+end
+
+function Learn:learningRate()
+   return self._learning_rate
+end
+
 ------------------------------------------------------------------------
 --[[ VisitorChain ]]--
 -- Composite, Visitor, Chain of Responsibility
 ------------------------------------------------------------------------
 local VisitorChain, parent = torch.class("dp.VisitorChain", "dp.Visitor")
 
-function VisiorChain:__init(config)
+function VisitorChain:__init(config)
    local args, visitors = xlua.unpack(
-      {config}
+      {config},
       'VisitorChain', nil,
       {arg='visitors', type='table', req=true}
    )

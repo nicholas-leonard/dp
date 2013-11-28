@@ -11,8 +11,8 @@ Model.isModel = true
 
 function Model:__init(...)
    local args, typename, tags, mvstate = xlua.unpack(
-      'Model', nil,
       {... or {}},
+      'Model', nil,
       {arg='typename', type='string', req=true, 
        help='identifies Model type in reports.'},
       {arg='tags', type='table', default={},
@@ -37,15 +37,22 @@ function Model:__init(...)
 end
 
 function Model:setup(...)
-   local args, mediator, id, predecessor, successor, container 
+   local args, mediator, id, predecessor, successor, container,
+      data_view
       = xlua.unpack(
+      {... or {}},
       'Model:setup', nil,
       {arg='mediator', type='dp.Mediator'},
       {arg='id', type='dp.ObjectID'},
       {arg='predecessor', type='dp.Model'},
       {arg='successor', type='dp.Model'},
-      {arg='container', type='dp.CompositeModel'}
+      {arg='container', type='dp.CompositeModel'},
+      {arg='data_view', type='string | table', 
+       help='Used by a Sampler during setup to determine the view of' ..
+       'input DataTensors.' ..
+       "Possible values include 'image', 'imageCUDA', 'feature'"}
    )
+   self._data_view = data_view
    self._mediator = mediator
    -- the id should be given by the experiment since the same 
    -- model is shared by all propagators.
@@ -73,6 +80,10 @@ function Model:tags()
    return self._tags
 end
 
+function Model:dataView()
+   return self._data_view
+end
+
 --returns a report of the Model.
 --if statistics were being gathered, this is the time to report them.
 --Expect a report to be called at least every epoch.
@@ -82,21 +93,17 @@ end
 
 function Model:doneEpoch(report, ...)
    --zeros statistics
-   self:zeroGradParameters()
    self:zeroStatistics()
 end
 
 
 function Model:parameters()
-   if self._params and not table.eq(self._params, {}) then
-      return self._params
-   end
-   return false
+   return self._params
 end
 
 function Model:forward(gstate)
    self.forwarded = true
-   return self._forward(gstate)
+   return self:_forward(gstate)
 end
 
 function Model:_forward(gstate)
@@ -132,7 +139,7 @@ function Model:update(gstate)
    --statistics on parameters
    
    --update parameters
-   self._update(gstate)
+   self:_update(gstate)
    self.updated = true
 end
 
@@ -142,7 +149,7 @@ end
 
 function Model:accept(visitor)
    self.visited = true
-   self._accept(visitor)
+   self:_accept(visitor)
 end
 
 function Model:_accept(visitor)
@@ -150,7 +157,7 @@ function Model:_accept(visitor)
 end
 
 function Model:doneBatch(...)
-   self._doneBatch(...)
+   self:_doneBatch(...)
    self:zeroGradParameters()
    self.forwarded = false
    self.backwarded = false
@@ -209,9 +216,6 @@ end
 function Model:reset()
 end
 
-function Module:__call__()
-   return self._module:__call__(self.istate.act, self.ostate.grad)
-end
 
 ------------------------------------------------------------------------
 --[[ dp.Container ]]--
@@ -220,9 +224,9 @@ end
 local Container, parent = torch.class("dp.Container", "dp.Model")
 Container.isContainer = true
 
-function Container:__init(typename)
+function Container:__init(config)
    self._models = {}
-   parent.__init(self, typename)
+   parent.__init(self, config)
 end
 
 function Container:type(type)
@@ -233,3 +237,4 @@ function Container:type(type)
       end
    end
 end
+

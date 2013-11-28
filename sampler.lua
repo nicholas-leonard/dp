@@ -1,6 +1,3 @@
-require 'torch'
-require 'utils'
-
 --[[TODO]]--
 -- Use Random_seed
 -- Support multi-input/target datatensors
@@ -17,20 +14,27 @@ require 'utils'
 local Sampler = torch.class("dp.Sampler")
 
 function Sampler:__init(...)
-   local args, batch_size = xlua.unpack(
+   local args, batch_size, data_view = xlua.unpack(
       {... or {}},
       'Sampler', 
       'Abstract class. ' ..
       'Samples batches from a set of examples in a dataset. '..
       'Iteration ends after an epoch (sampler-dependent) ',
       {arg='batch_size', type='number', default='64',
-       help='Number of examples per sampled batches'}
+       help='Number of examples per sampled batches'},
+      {arg='data_view', type='string | table',
+       help='Used to determine which view of the input DataTensors' ..
+       'to use. This is automatically setup using Model in ' ..
+       'Propagator, but can be manually entered for cases where ' ..
+       'it cannot be determined by the model. For example, '..
+       'when the first model is a transfer function like Tanh.' }
    )
    self:setBatchSize(batch_size)
+   if data_view then self:setDataView(data_view) end
 end
 
 function Sampler:setup(...)
-   local args, batch_size, overwrite, mediator 
+   local args, batch_size, overwrite, mediator, model
       = xlua.unpack(
       {... or {}},
       'Sampler:setup', 
@@ -41,20 +45,36 @@ function Sampler:setup(...)
       {arg='overwrite', type='boolean', default=false,
        help='overwrite existing values if not nil.' .. 
        'If nil, initialize whatever the value of overwrite.'},
-      {arg='mediator', type='dp.Mediator'}
+      {arg='mediator', type='dp.Mediator'},
+      {arg='model', type='dp.Model'}
    )
    if batch_size and (not self._batch_size or overwrite) then
       self:setBatchSize(batch_size)
    end
    self._mediator = mediator
+   assert(model or self._data_view)
+   if model and not self._data_view then
+      self:setDataView(model:dataView())
+   end
 end
 
 function Sampler:setBatchSize(batch_size)
    self._batch_size = batch_size
 end
 
+function Sampler:setDataView(data_view)
+   if type(data_view) == 'string' then
+      data_view = {data_view}
+   end
+   self._data_view = data_view
+end
+
 function Sampler:batchSize()
    return self._batch_size
+end
+
+function Sampler:report()
+   return {batch_size = self._batch_size}
 end
 
 --static function. Checks dataset type or gets dataset from datasource
@@ -65,13 +85,16 @@ function Sampler.toDataset(dataset)
       self._warning = true
    end
    assert(dataset.isDataSet, "Error : unsupported dataset type.")
+   return dataset
 end
 
 --Returns an iterator over samples for one epoch
 --Default is to iterate sequentially over all examples
 function Sampler:sampleEpoch(data)
-   local dataset = Sample.toDataset(data)
+   local dataset = dp.Sampler.toDataset(data)
    local nSample = dataset:nSample()
+   local batch_size = self._batch_size
+   local data_view = self._data_view
    local start = 1
    local stop
    local dataset_inputs = dataset:inputs()
@@ -80,19 +103,28 @@ function Sampler:sampleEpoch(data)
    -- build iterator
    local epochSamples = 
       function()
-         stop = math.min(start+batch_size,nSample)
+         stop = math.min(start+batch_size-1,nSample)
+         -- inputs
+         batch_inputs = {}
+         for i=1,#dataset_inputs do
+            local dv = data_view[i]
+            local dt = dataset_inputs[i]
+            -- we clone these so that they are not serialized
+            -- TODO : model:forwardActivate instead of ref.
+            batch_inputs[i] = dt[dv](dt):sub(start, stop):clone()
+         end
+         -- targets
          batch_function = 
             function(datatensor) 
-               return datatensor:default():sub(start, stop)
+               return datatensor:default():sub(start, stop):clone()
             end
-         batch_inputs = _.map(dataset_inputs, batch_function)
          batch_targets = _.map(dataset_targets, batch_function)
          --TODO support multi-input/target datasets
          --Dataset should be called with sub, index to generate Batch
-         batch = Batch{inputs=batch_inputs[1], targets=batch_targets[1], 
+         batch = dp.Batch{inputs=batch_inputs[1], targets=batch_targets[1], 
                        batch_iter=stop, epoch_size=nSample, 
-                       batch_size=self._batch_size, n_sample=stop-start,
-                       classes=batch_targets[1]:classes()}
+                       batch_size=batch_size, n_sample=stop-start,
+                       classes=dataset_targets[1]:classes()}
          start = start + batch_size
          if start >= nSample then
             return
@@ -109,7 +141,7 @@ end
 -- probability of being samples.
 ------------------------------------------------------------------------
 
-local ShuffleSampler 
+local ShuffleSampler, parent
    = torch.class("dp.ShuffleSampler", "dp.Sampler")
 
 function ShuffleSampler:_init(config)
@@ -131,8 +163,9 @@ function ShuffleSampler:_init(config)
 end
 
 function ShuffleSampler:setup(config)
+   config = config or {}
    local args, random_seed, overwrite = xlua.unpack(
-      {config or {}},
+      {config},
       'ShuffleSampler:setup', nil,
       {arg='random_seed', type='number',
        help='Used to initialize the shuffle generator.' ..
@@ -141,13 +174,11 @@ function ShuffleSampler:setup(config)
        help='overwrite existing values if not nil.' .. 
        'If nil, initialize whatever the value of overwrite.'}
    )
-   if batch_size and ((not self._batch_size) or overwrite) then
-      self:setBatchSize(batch_size)
-   end
+   config.overwrite = overwrite
+   parent.setup(self, config)
    if random_seed and ((not self._random_seed) or overwrite) then
       self:setRandomSeed(random_seed)
    end
-   self._mediator = mediator
 end
 
 function ShuffleSampler:setRandomSeed(random_seed)
@@ -159,10 +190,12 @@ function ShuffleSampler:randomSeed()
 end
    
 function ShuffleSampler:sampleEpoch(dataset)
-   local dataset = Sample.toDataset(dataset)
+   local dataset = dp.Sampler.toDataset(dataset)
    local nSample = dataset:nSample()
+   local batch_size = self._batch_size
    local start = 1
    local stop
+   local data_view = self._data_view
    local dataset_inputs = dataset:inputs()
    local dataset_targets = dataset:targets()
    local batch_inputs, batch_targets, batch_indices, batch_function
@@ -172,20 +205,27 @@ function ShuffleSampler:sampleEpoch(dataset)
    -- build iterator
    local epochSamples = 
       function()
-         stop = math.min(start+self._batch_size,nSample)
+         stop = math.min(start+batch_size-1,nSample)
          batch_indices = dataset_indices:sub(start,stop):long()
+         -- inputs
+         batch_inputs = {}
+         for i=1,#dataset_inputs do
+            local dv = data_view[i]
+            local dt = dataset_inputs[i]
+            batch_inputs[i] = dt[dv](dt):index(1, batch_indices)
+         end
+         -- targets
          batch_function = 
             function(datatensor) 
-               return datatensor:index(indices)
+               return datatensor:default():index(1, batch_indices)
             end
-         batch_inputs = _.map(dataset_inputs, batch_function)
          batch_targets = _.map(dataset_targets, batch_function)
          --TODO support multi-input/target datasets
          --Dataset should be called with sub, index to generate Batch
-         batch = Batch{inputs=batch_inputs[1], targets=batch_targets[1], 
+         batch = dp.Batch{inputs=batch_inputs[1], targets=batch_targets[1], 
                        batch_iter=stop, epoch_size=nSample, 
-                       batch_size=self._batch_size, n_sample=stop-start,
-                       classes=batch_targets[1]:classes()}
+                       batch_size=batch_size, n_sample=stop-start,
+                       classes=dataset_targets[1]:classes()}
          start = start + batch_size
          if start >= nSample then
             return

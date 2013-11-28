@@ -21,12 +21,15 @@ dp.LOG_DIR = os.getenv('DEEP_LOG_PATH')
    or paths.concat(dp.TORCH_DIR, 'log')
 
 --[[ data ]]--
+dofile("dp/utils.lua")
 torch.include('dp', 'datatensor.lua')
 torch.include('dp', 'dataset.lua')
 torch.include('dp', 'datasource.lua')
 torch.include('dp', 'mnist.lua')
 torch.include('dp', 'preprocess.lua')
+torch.include('dp', 'batch.lua')
 torch.include('dp', 'sampler.lua')
+
 
 --[[ propagation ]]--
 torch.include('dp', 'mediator.lua')
@@ -38,6 +41,7 @@ torch.include('dp', 'observer.lua')
 torch.include('dp', 'logger.lua')
 torch.include('dp', 'feedback.lua')
 torch.include('dp', 'confusion.lua')
+torch.include('dp', 'visitor.lua')
 
 --[[ model ]]--
 torch.include('dp', 'model.lua')

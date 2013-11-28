@@ -44,16 +44,23 @@ function Feedback:__init(...)
 end
 
 function Feedback:setup(...)
-   local args, mediator, propagator = xlua.unpack(
+   local args, mediator, propagator, dataset = xlua.unpack(
       {... or {}},
       'Feedback:setup', nil,
       {arg='mediator', type='dp.Mediator'},
       {arg='propagator', type='dp.Propagator'},
+      {arg='dataset', type='dp.DataSet', 
+       help='This might be useful to determine the type of targets. ' ..
+       'Feedback should not hold a reference to the dataset due to ' ..
+       "the feedback's possible serialization."}
    )
    self._mediator = mediator
    self._propagator = propagator
-   self._id = propagator:id():create(self._name)
+   if self._name then
+      self._id = propagator:id():create(self._name)
+   end
    self._name = nil
+   return dataset
 end
 
 function Feedback:id()
@@ -133,7 +140,7 @@ function Criteria:__init(config)
    local args, criteria, name, typename_pattern
       = xlua.unpack(
       {config},
-      'Criteria', nil
+      'Criteria', nil,
       {arg='criteria', type='nn.Criterion | table', req=true,
        help='list of criteria to monitor'},
       {arg='name', type='string', default='criteria'},

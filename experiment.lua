@@ -1,7 +1,6 @@
 require 'torch'
 require 'optim' --for logger
 
-require 'utils'
 require 'os'
 
 ------------------------------------------------------------------------
@@ -31,9 +30,9 @@ function ObjectID:toString(seperator)
    seperator = seperator or ':'
    local obj_string = ''
    if self._parent then
-      obj_string = self._parent:toString()
+      obj_string = self._parent:toString() .. seperator 
    end
-   return obj_string .. seperator .. self._name
+   return obj_string .. self._name
 end
 
 function ObjectID:toPath()
@@ -45,7 +44,7 @@ function ObjectID:name()
 end
 
 function ObjectID:create(name)
-   return ObjectID(name, self)
+   return dp.ObjectID(name, self)
 end
 
 function ObjectID:parent()
@@ -79,7 +78,7 @@ function EIDGenerator:nextID()
    local eid = self._namespace .. os.time() .. 
                self._seperator .. self._index
    self._index = self._index + 1
-   return ObjectID(eid)
+   return dp.ObjectID(eid)
 end
 
 ------------------------------------------------------------------------
@@ -116,9 +115,9 @@ local Experiment = torch.class("dp.Experiment")
 Experiment.isExperiment = true
 
 function Experiment:__init(...)
-   local args, id, id_gen, description, 
-      optimizer, validator, tester, logger, 
-      observers, random_seed, epoch, mediator, overwrite
+   local args, id, id_gen, description, model, optimizer, validator, 
+         tester, observer, random_seed, epoch, mediator, overwrite,
+         max_epoch
       = xlua.unpack(
          {... or {}},
          'Experiment', nil,
@@ -138,7 +137,9 @@ function Experiment:__init(...)
           help='Overwrite existing values. For example, if a ' ..
           'datasource is provided, and optimizer is already ' ..
           'initialized with a dataset, and overwrite is true, ' ..
-          'then optimizer would be setup with datasource:trainSet()'}
+          'then optimizer would be setup with datasource:trainSet()'},
+         {arg='max_epoch', type='number', default=1000, 
+          help='Maximum number of epochs allocated to the experiment'}
    )
    self._is_done_experiment = false
    assert(id or id_gen)
@@ -151,6 +152,7 @@ function Experiment:__init(...)
    self._validator = validator
    self._tester = tester
    self._mediator = mediator
+   self:setMaxEpoch(max_epoch)
 end
 
 function Experiment:setup(datasource)
@@ -158,25 +160,26 @@ function Experiment:setup(datasource)
    self._mediator:subscribe("doneExperiment", self, "doneExperiment")
    -- Even though the model is used by different propagators, the 
    -- model uses the experiment's namespace:
-   self._model:setup{mediator=mediator, id=self:id():create('model')}
+   self._model:setup{mediator=self._mediator, 
+                     id=self:id():create('model')}
    if self._optimizer then
       self._optimizer:setup{mediator=self._mediator, model=self._model,
-                            id=self:id():create('optimizer')}
+                            id=self:id():create('optimizer'),
+                            dataset=datasource:trainSet()}
    end
    if self._validator then
       self._validator:setup{mediator=self._mediator, model=self._model,
-                            id=self:id():create('validator')}
+                            id=self:id():create('validator'),
+                            dataset=datasource:validSet()}
    end
    if self._tester then
       self._tester:setup{mediator=self._mediator, model=self._model,
-                            id=self:id():create('validator')}
+                            id=self:id():create('tester'),
+                            dataset=datasource:testSet()}
    end
    if self._observer then
-      self._observer:setup(self._mediator, self)
+      self._observer:setup{mediator=self._mediator, subject=self}
    end
-   -- Datasource needs to be setup with model to determine its input 
-   -- views (image for convolution, imageCUDA for cuda-conv-net, etc)
-   datasource:setup{model=self._model}
    self._setup = true
 end
 
@@ -200,11 +203,10 @@ function Experiment:run(datasource)
       self._epoch = self._epoch + 1
       self._optimizer:propagateEpoch(train_set, report)
       self._validator:propagateEpoch(valid_set, report)
+      self._tester:propagateEpoch(test_set, report)
       report = self:report()
       self._mediator:publish("doneEpoch", report)
-   until self:isDoneExperiment()
-   --test at the end
-   self._tester:propagateEpoch(test_set)
+   until (self:isDoneExperiment() or self._epoch > self._max_epoch)
 end
 
 --an observer should call this when the experiment is complete
@@ -243,8 +245,11 @@ function Experiment:report()
       tester = self:tester():report(),
       epoch = self:epoch(),
       random_seed = self:randomSeed(),
-      model = self._model:report()
+      model = self._model:report(),
+      id = self._id,
+      description = description
    }
+   return report
 end
 
 
@@ -254,5 +259,9 @@ end
 
 function Experiment:epoch()
    return self._epoch
+end
+
+function Experiment:setMaxEpoch(max_epoch)
+   self._max_epoch = max_epoch
 end
 

@@ -1,5 +1,4 @@
 require 'torch'
-require 'utils'
 
 
 --[[
@@ -122,6 +121,10 @@ end
 
 function DataSet:extendTargets(targets)
    error("NotImplementedError")
+end
+
+function DataSet:write(...)
+   error"DataSet Error: Shouldn't serialize DataSet"
 end
 
 --TODO: accept list of axes and sizes

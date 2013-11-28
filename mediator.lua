@@ -1,5 +1,13 @@
 require 'torch'
 
+
+------------------------------------------------------------------------
+--[[ Subscriber ]]--
+-- Used by Mediator. Holds a subscriber object which will be called
+-- back via its func_name method name. Since no functions are being 
+-- pointed to directly, the object can be serialized...
+------------------------------------------------------------------------
+
 local Subscriber = torch.class("dp.Subscriber")
 
 function Subscriber:__init(subscriber, func_name, id, options)
@@ -18,15 +26,19 @@ function Subscriber:update(options)
    end
 end
 
--- Channel class and functions --
+------------------------------------------------------------------------
+--[[ Channel ]]--
+-- Used by Mediator. Can be published and subscribed to.
+------------------------------------------------------------------------
 
 local Channel = torch.class("dp.Channel")
 
-function Channel:__init(namespace)
+function Channel:__init(namespace, parent)
     self.stopped = false
     self.namespace = namespace
     self.callbacks = {}
     self.channels = {}
+    self.parent = parent
 end
 
 function Channel:addSubscriber(subscriber, func_name, id, options)
@@ -97,10 +109,10 @@ end
 function Channel:publish(channelNamespace, ...)
    for i = 1, #self.callbacks do
       local callback = self.callbacks[i]
-
       -- if it doesn't have a predicate, or it does and it's true then run it
       if not callback.options.predicate or callback.options.predicate(...) then
-         callback.subscriber[callback.func_name](...)
+         --print(torch.typename(callback.subscriber), callback.func_name)
+         callback.subscriber[callback.func_name](callback.subscriber, ...)
       end
    end
 end
@@ -145,7 +157,8 @@ end
 
 function Mediator:subscribe(channelNamespace, subscriber, func_name, options)
    local id = self:nextId()
-   return self:getChannel(channelNamespace):addSubscriber(subscriber, func_name, id, options)
+   local channel = self:getChannel(channelNamespace)
+   return channel:addSubscriber(subscriber, func_name, id, options)
 end
 
 function Mediator:getSubscriber(id, channelNamespace)

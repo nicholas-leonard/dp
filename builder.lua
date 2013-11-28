@@ -1,7 +1,5 @@
 require 'torch'
 
-require 'utils'
-
 ------------------------------------------------------------------------
 --[[ Builder ]]--
 -- Constructs dp/torch objects from a design table

@@ -1,27 +1,27 @@
-
 ------------------------------------------------------------------------
 --[[ Optimizer ]]--
 -- Trains a model using a sampling distribution.
 ------------------------------------------------------------------------
 
-local Optimizer = torch.class("dp.Optimizer", "dp.Propagator")
+local Optimizer, parent = torch.class("dp.Optimizer", "dp.Propagator")
 
 function Optimizer:__init(config)
-   local args, sampler, learning_rate = xlua.unpack(
-      {config or {}},
+   config = config or {}
+   local args, sampler, visitor, stats = xlua.unpack(
+      {config},
       'Optimizer', 
       'Optimizes a model on a training dataset',
       {arg='sampler', type='dp.Sampler', default=dp.ShuffleSampler(),
        help='used to iterate through the train set'},
-      {arg='learning_rate', type='number',
-       help='learning rate at start of learning'},
       {arg='visitor', type='dp.Visitor', req=true,
        help='visits models after forward-backward phase. ' .. 
-       'Performs the parameter updates.'}
+       'Performs the parameter updates.'},
+      {arg='stats', type='boolean', default=true,
+       help='display statistics'}
    )
-   self._learning_rate = learning_rate
-   Propagator.__init(self, config)
-   self:setSampler(sampler)
+   config.sampler = sampler
+   config.stats = stats
+   parent.__init(self, config)
 end
       
 function Optimizer:propagateBatch(batch)   
@@ -30,6 +30,7 @@ function Optimizer:propagateBatch(batch)
    -- evaluate function for complete mini batch
    model.istate.act = batch:inputs()
    model:forward()
+   batch:setOutputs(model.ostate.act)
    
    -- average loss (a scalar)
    batch:setLoss(
@@ -62,12 +63,6 @@ function Optimizer:propagateBatch(batch)
    --publish report for this optimizer
    self._mediator:publish(self:id():name() .. ':' .. "doneBatch", 
                           self:report(), batch)
-end
-
-function Optimizer:report()
-   local report = parent.report(self)
-   report.learning_rate = self._learning_rate 
-   return report
 end
 
 

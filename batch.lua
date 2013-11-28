@@ -9,14 +9,17 @@
 -- will have to expect this new interface. Particularly the ability 
 -- to deal with tables of DataTensors, instead of torch.Tensors.
 -- Samples should create the Batch once every epoch, for speed?
+-- Make this a table (gstate), or allow it a gstate table.
 ------------------------------------------------------------------------
 
 local Batch = torch.class("dp.Batch")
 Batch.isBatch = true
 
 function Batch:__init(...)
-   local args, inputs, targets, batch_iter, epoch_size, batch_size
+   local args, inputs, targets, batch_iter, epoch_size, batch_size, 
+      n_sample
       = xlua.unpack(
+      {... or {}},
       'Batch', nil,
       {arg='inputs', type='torch.Tensor', req=true,
        help='batch of inputs'},
@@ -58,6 +61,15 @@ end
 
 function Batch:outputs()
    return self._outputs
+end
+
+
+function Batch:setLoss(loss)
+   self._loss = loss
+end
+
+function Batch:loss()
+   return self._loss
 end
 
 function Batch:setOutputGradients(output_gradients)

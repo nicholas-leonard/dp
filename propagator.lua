@@ -1,5 +1,3 @@
-require 'xlua'
-require 'sys'
 require 'torch'
 require 'optim'
 
@@ -19,11 +17,12 @@ require 'optim'
 -- Experiment is just a composite Propagator?
 
 -- Optimizer requires visitor.
--- Visitors require report names to make them accessible to other observers, etc. like feedback
--- No need for visitor id. Ids are for serialization.
 -- Do visitors gather statistics stored in model statistics?
--- In, out axes for model params
 -- Prop, Model, Visitor namespace for prop.mvstate_matrix
+-- Model Wrapper integrated with Batch...
+
+-- Take out classes from Batch. Feedback is setup with dataset.
+-- ForwardAct(act, gstate) .. BackwardGrad
 
 ------------------------------------------------------------------------
 --[[ Propagator ]]--
@@ -40,7 +39,7 @@ Propagator.isPropagator = true
 
 function Propagator:__init(...)   
    local args, sampler, criterion, visitor, observer, feedback, 
-         mem_type, progress
+         mem_type, progress, stats
       = xlua.unpack(
       {... or {}},
       'Propagator', nil,
@@ -48,9 +47,9 @@ function Propagator:__init(...)
        help='used to iterate through the train set'},
       {arg='criterion', type='nn.Criterion', req=true,
        help='a neural network criterion to evaluate or minimize'},
-      {arg='visitor', type='dp.Visitor', req=true,
-       help='visits models as chain links ' ..
-       'during setup, forward, backward and update phases'},
+      {arg='visitor', type='dp.Visitor',
+       help='visits models at the end of each batch propagation to ' .. 
+       'perform parameter updates and/or gather statistics, etc.'},
       {arg='observer', type='dp.Observer', 
        help='observer that is informed when an event occurs.'},
       {arg='feedback', type='dp.Feedback',
@@ -58,24 +57,25 @@ function Propagator:__init(...)
        'and provides feedback through report(), setState, or mediator'},
       {arg='mem_type', type='string', default='float',
        help='double | float | cuda'},
-      {arg='progress', type'boolean', default=true, 
-       help='display progress bar'}
+      {arg='progress', type='boolean', default=false, 
+       help='display progress bar'},
+      {arg='stats', type='boolean', default=false,
+       help='display statistics'}
    )
    self:setSampler(sampler)
    self:setMemType(mem_type)
    self:setCriterion(criterion)
    self:setObserver(observer)
-   self:setProgress(progress)
-   self._feedback = feedback
+   self:setFeedback(feedback)
    self:setVisitor(visitor)
    self._progress = progress
-   
+   self._stats = stats
    self:resetLoss()
 end
 
 
 function Propagator:setup(...)
-   local args, id, model, logger, mem_type, overwrite
+   local args, id, model, mediator, mem_type, dataset, overwrite
       = xlua.unpack(
       {... or {}},
       'Propagator:setup', nil,
@@ -85,6 +85,10 @@ function Propagator:setup(...)
       {arg='mediator', type='dp.Mediator', req=true},
       {arg='mem_type', type='string', default='float',
        help='double | float | cuda'},
+      {arg='dataset', type='dp.DataSet', 
+       help='This might be useful to determine the type of targets. ' ..
+       'Propagator should not hold a reference to a dataset due to ' ..
+       "the propagator's possible serialization."},
       {arg='overwrite', type='boolean', default=false,
        help='Overwrite existing values. For example, if a ' ..
        'dataset is provided, and sampler is already ' ..
@@ -97,54 +101,64 @@ function Propagator:setup(...)
    self._mediator = mediator
    self:setModel(model)
    self:setMemType(mem_type, overwrite)
+   self._sampler:setup{mediator=mediator, model=model}
    if self._observer then
       self._observer:setup{mediator=mediator, subject=self}
    end
    if self._feedback then
-      self._feedback:setup{mediator=mediator, propagator=self}
+      self._feedback:setup{mediator=mediator, propagator=self, 
+                           dataset=dataset}
    end
    if self._visitor then
       self._visitor:setup{mediator=mediator, 
-                          model=self.model, 
+                          model=self._model, 
                           propagator=self}
    end
 end
 
 function Propagator:propagateEpoch(dataset, report)
-   self._feedback:setup{dataset=dataset, report=report, 
-                        mediator=self._mediator, model=self._model,
-                        visitor=self._visitor}
    self:resetLoss()
    
    -- local vars
-   local time = sys.clock()
-   local batch
+   local start_time = sys.clock()
+   local last_batch
    
-   print('==> doing epoch on ' .. self:id():name() .. ' data:')
-   print('==> online epoch # ' .. report.epoch )
-         
-   for batch in self:sampler():sampleEpoch(dataset) do
+   
+   if self._stats then
+      print('==> online epoch # ' .. (report.epoch + 1) .. 
+                        ' for ' .. self:id():name())
+   end
+   
+   for batch in self._sampler:sampleEpoch(dataset) do
+      self:propagateBatch(batch)
       if self._progress then
          -- disp progress
          xlua.progress(batch:batchIter(), batch:epochSize())
       end
-      self:propagateBatch(batch)
+      last_batch = batch
+   end
+   if self._progress and not self._stats then
+      print"\n"
    end
    
    -- time taken
-   self._epoch_duration = sys.clock() - time
-   self._batch_duration = epoch_time / batch:epochSize()
-   self._example_speed = batch:epochSize()/self._batch_durtion
-   self._num_batches = batch:epochSize()/self:batchSize()
-   self._batch_speed = (self._num_batches/self._batch_duration)
-   print("\n==> batch duration = " .. 
-         (self._batch_duration*1000) .. 'ms')
-   print("==> epoch duration = " .. 
-         (self._epoch_duration) .. 's')
-   print("==> example speed = " .. 
-         (self._example_speed) .. 'examples/second')
-   print("==> batch speed = " .. 
-         (self._batch_speed) .. 'batches/second')
+   self._epoch_duration = sys.clock() - start_time
+   self._batch_duration = self._epoch_duration / last_batch:epochSize()
+   self._example_speed = last_batch:epochSize() / self._epoch_duration
+   self._num_batches = last_batch:epochSize() / last_batch:batchSize()
+   self._batch_speed = (self._num_batches / self._epoch_duration)
+   if self._stats then
+      print("\n==> epoch size = " .. 
+            last_batch:epochSize() .. ' examples')
+      print("==> batch duration = " .. 
+            (self._batch_duration*1000) .. ' ms')
+      print("==> epoch duration = " .. 
+            (self._epoch_duration) .. ' s')
+      print("==> example speed = " .. 
+            (self._example_speed) .. ' examples/second')
+      print("==> batch speed = " .. 
+            (self._batch_speed) .. ' batches/second')
+   end
 end      
       
 function Propagator:propagateBatch(batch)
@@ -178,27 +192,11 @@ function Propagator:report()
 end
 
 function Propagator:setSampler(sampler)
-   if self._sampler then
-      -- initialize sampler with old sampler values without overwrite
-      sampler:setup{batch_size=self._sampler:batchSize(), overwrite=false}
-   end
    self._sampler = sampler
 end
 
 function Propagator:sampler()
    return self._sampler
-end
-
-function Propagator:setObserver(observer)
-   if not torch.typename(observer) and type(observer) == 'table' then
-      --if list, make composite observer
-      observer = CompositeObserver(observer)
-   end
-   self._observer = observer
-end
-
-function Propagator:observer()
-   return self._observer
 end
 
 function Propagator:id()
@@ -213,18 +211,40 @@ function Propagator:model()
    return self._model
 end
 
+function Propagator:setObserver(observer)
+   if not torch.typename(observer) and type(observer) == 'table' then
+      --if list, make composite observer
+      observer = dp.CompositeObserver(observer)
+   end
+   self._observer = observer
+end
+
+function Propagator:observer()
+   return self._observer
+end
+
 function Propagator:setVisitor(visitor)
    if not torch.typename(visitor) and type(visitor) == 'table' then
       --if list, make visitor_chain
-      visitor = VisitorChain{visitors=visitor}
+      visitor = dp.VisitorChain{visitors=visitor}
    end
    self._visitor = visitor
 end
 
-
-
 function Propagator:visitor()
    return self._visitor
+end
+
+function Propagator:setFeedback(feedback)
+   if not torch.typename(feedback) and type(feedback) == 'table' then
+      --if list, make visitor_chain
+      feedback = dp.CompositeFeedback{feedbacks=feedback}
+   end
+   self._feedback = feedback
+end
+
+function Propagator:feedback()
+   return self._feedback
 end
 
 function Propagator:setCriterion(criterion)

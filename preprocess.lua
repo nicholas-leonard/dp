@@ -1,8 +1,6 @@
 require 'torch'
 require 'image'
 require 'paths'
-require 'dok'
-require 'xlua'
 
 ------------------------------------------------------------------------
 -- TODO : 
@@ -150,8 +148,8 @@ end
 -- subtracting the mean across features and then normalizes by either the 
 -- vector norm or the standard deviation (across features, for each example).
 -----------------------------------------------------------------------
-local GlobalContrastNormalize = torch.class("data.GlobalContrastNormalize", 
-"data.Preprocess")
+local GlobalContrastNormalize 
+ = torch.class("dp.GlobalContrastNormalize", "dp.Preprocess")
 
 
 function GlobalContrastNormalize:__init(...)
@@ -196,21 +194,23 @@ end
 function GlobalContrastNormalize:apply(datatensor, can_fit)
    local data = datatensor:feature()
    if self._batch_size == 0 then
-	  data = self:_transform(data)
-	  datatensor.setData(data)    
+      data = self:_transform(data)
+      datatensor.setData(data)    
    else
-   	  local data_size = data:size(1)
-   	  local last = math.floor(data_size / self._batch_size) * self._batch_size
-   	  
-   	  for i = 0, data_size, self._batch_size do
-   	  	if i >= last then
-   	  		stop = i + math.mod(data_size, self._batch_size)
-   	  	else
-   	  		stop = i + self._batch_size
-   	  	end
-   	  	
-   	  	data = self:_transform(data:sub(1,stop))
-   	  	datatensor.setData(data)
+      local data_size = data:size(1)
+      local last = math.floor(data_size / self._batch_size) * self._batch_size
+
+      for i = 0, data_size, self._batch_size do
+         if i >= last then
+            stop = i + math.mod(data_size, self._batch_size)
+         else
+            stop = i + self._batch_size
+         end
+      end
+
+      data = self:_transform(data:sub(1,stop))
+      datatensor.setData(data)
+   end
 end
 
 function GlobalContrastNormalize:_transform(data)
@@ -238,15 +238,15 @@ end
 -- ZCA : Performs ZCA Whitening
 -----------------------------------------------------------------------
 
-local ZCA = torch.class("data.ZCA", "data.Preprocess")
+local ZCA = torch.class("dp.ZCA", "dp.Preprocess")
 
 
 function ZCA:__init(...)
    local args
-   args, self.n_components, self.n_drop_components, self.filter_bias, self.copy, 
-   self.has_fit_
+   args, self.n_components, self.n_drop_components, self.filter_bias, 
+   self.copy, self.has_fit
       = xlua.unpack(
-      {...},
+      {... or {}},
       'ZCA', nil,
       {arg='n_component', type='number', 
        help=[[
@@ -258,11 +258,11 @@ function ZCA:__init(...)
             
       {arg='filter_bias', type='number', 
        help=[[
-            ]], default=0.1}
+            ]], default=0.1},
             
       {arg='copy', type='boolean', 
        help=[[
-            ]], default=true}
+            ]], default=true},
             
       {arg='has_fit', type='boolean', 
        help=[[
@@ -272,49 +272,52 @@ end
 
 function ZCA:fit(X)
     
-    assert (X:dim() == 2)
-    local n_samples = X:size()[0]
-            
-    -- center data
-    self.mean_ = torch.mean(X, 0)
-    X = X - self.mean_
-    
-    if self.copy then
-        X = X:clone()
-    
-    print('computing ZCA')
-    local matrix = torch.mm(X:t(), X) / X:size()[0] + self.filter_bias * torch.eye(X:size()[1])
-    local eig_val, eig_vec = torch.eig(matrix, 'V')
-    eig_val = eig_val:sub(1,-1,1,1):reshape(eig_val:size()[1])
-    local sorted_eig_val, sorted_index = eig_val:sort(1)
-    local sorted_eig_vec = eig_vec:index(2, sorted_index)
-    
-    assert(eig_val:min() > 0)
-    if self.n_components then
-        sorted_eig_val = sorted_eig_val:sub(1, self.n_components)
-        sorted_eig_vec = sorted_eig_vec:sub(1, -1, 1, self.n_components)
-    end
-    if self.n_drop_components then
-        sorted_eig_val = sorted_eig_val:sub(self.n_drop_component, -1)
-        sorted_eig_vec = sorted_eig_vec:sub(1, -1, self.n_drop_component, -1)
-    
-    sorted_eig_val:apply(function(e) e = 1/e return e end)
-    eig_vec_T = sorted_eig_vec:clone().t()
-    local index = 0
-    sorted_eig_vec:apply(function(e) 
-                        e = e * sorted_eig_val[index+1]
-                        index = (index + 1) % sorted_eig_vec:size(2)
-                        return e
+   assert (X:dim() == 2)
+   local n_samples = X:size()[0]
+         
+   -- center data
+   self.mean_ = torch.mean(X, 0)
+   X = X - self.mean_
+
+   if self.copy then
+     X = X:clone()
+   end
+
+   print('computing ZCA')
+   local matrix = torch.mm(X:t(), X) / X:size()[0] + self.filter_bias * torch.eye(X:size()[1])
+   local eig_val, eig_vec = torch.eig(matrix, 'V')
+   eig_val = eig_val:sub(1,-1,1,1):reshape(eig_val:size()[1])
+   local sorted_eig_val, sorted_index = eig_val:sort(1)
+   local sorted_eig_vec = eig_vec:index(2, sorted_index)
+
+   assert(eig_val:min() > 0)
+   if self.n_components then
+     sorted_eig_val = sorted_eig_val:sub(1, self.n_components)
+     sorted_eig_vec = sorted_eig_vec:sub(1, -1, 1, self.n_components)
+   end
+   if self.n_drop_components then
+      sorted_eig_val = sorted_eig_val:sub(self.n_drop_component, -1)
+      sorted_eig_vec = sorted_eig_vec:sub(1, -1, self.n_drop_component, -1)
+   end
+
+   sorted_eig_val:apply(function(e) e = 1/e; return e; end)
+   eig_vec_T = sorted_eig_vec:clone().t()
+   local index = 0
+   sorted_eig_vec:apply(function(e) 
+                           e = e * sorted_eig_val[index+1];
+                           index = (index + 1) % sorted_eig_vec:size(2);
+                           return e;
                         end) 
-    
-    self.P_ = torch.mm(sorted_eig_vec, eig_vec_T)
-    self.has_fit_ = true
+
+   self.P_ = torch.mm(sorted_eig_vec, eig_vec_T)
+   self.has_fit_ = true
 end
 
 function ZCA:apply(datatensor, can_fit)
-    local X = datatensor:feature()
-    if self.has_fit_ == false then
-        self:fit(X)
-    new_X = torch.mm(X - self.mean_, self.P_)
-    datatensor.setData(new_X)
+   local X = datatensor:feature()
+   if self.has_fit_ == false then
+      self:fit(X)
+   end
+   new_X = torch.mm(X - self.mean_, self.P_)
+   datatensor.setData(new_X)
 end

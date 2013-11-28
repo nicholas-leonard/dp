@@ -1,4 +1,3 @@
-
 ------------------------------------------------------------------------
 --[[ Sequential ]]--
 -- Model, Adapter, Composite
@@ -7,9 +6,9 @@
 -- TODO : reimplement nn.Sequential to work with Models instead of modules.
 ------------------------------------------------------------------------
 
-local Sequential, parent = torch.cass("dp.Sequential", "dp.Container")
+local Sequential, parent = torch.class("dp.Sequential", "dp.Container")
 
-function Sequential.__init(config)
+function Sequential:__init(config)
    config = config or {}
    config.typename = 'sequential'
    parent.__init(self, config)
@@ -18,10 +17,16 @@ end
 
 function Sequential:setup(config)
    parent.setup(self, config)
+   local predecessor = self._predecessor
+   config.container = self
    for i, model in ipairs(self._models) do
       config.id = self:id():create('s'..i)
+      config.predecessor = predecessor
+      predecessor = model
+      config.successor = self._models[i+1] or self._successor
       model:setup(config)
    end
+   self._data_view = self._models[1]:dataView()
 end
 
 function Sequential:report()
@@ -88,6 +93,7 @@ function Sequential:reset(stdv)
 end
 
 function Sequential:parameters()
+   error"NotImplementedError"
    local function tinsert(to, from)
       if type(from) == 'table' then
          for i=1,#from do
@@ -97,10 +103,8 @@ function Sequential:parameters()
          table.insert(to,from)
       end
    end
-   local w = {}
-   local gw = {}
    for i=1,#self._models do
-      local mw,mgw = self._models[i]:parameters()
+      local params = self._models[i]:parameters()
       if mw then
          tinsert(w,mw)
          tinsert(gw,mgw)

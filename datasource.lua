@@ -1,7 +1,6 @@
 require 'torch'
 require 'paths'
 
-require 'utils'
 
 --[[ TODO ]]--
 -- Only the training set requires sampling?
@@ -63,15 +62,8 @@ function DataSource:__init(...)
    self:preprocess()
 end
 
-function DataSource:setup(...)
-   local args, model = xlua.unpack(
-      {... or {}},
-      'Datasource:setup', nil,
-      {arg='model', type='dp.Model', req=true}
-   )
-   --TODO :
-   -- Datasource needs to be setup with model to determine its input 
-   -- views (image for convolution, imageCUDA for cuda-conv-net, etc)
+function DataSource:write(...)
+   error"DataSource Error: Shouldn't serialize DataSource"
 end
 
 function DataSource:setTrainSet(train_set)

@@ -1,7 +1,5 @@
 require 'torch'
 
-require 'utils'
-
 --[[ TODO ]]--
 --Observer of channels mapped to function names?
 
@@ -50,7 +48,7 @@ function Observer:setup(...)
    local args, mediator, subject = xlua.unpack(
       {... or {}},
       'Observer:setup', nil,
-      {arg='mediator', type='dp.Mediator'},
+      {arg='mediator', type='dp.Mediator', req=true},
       {arg='subject', type='dp.Experiment | dp.Propagator | ...',
       help='object being observed.'}
    )
@@ -84,11 +82,11 @@ function CompositeObserver:__init(observers)
    end
 end
 
-function CompositeObserver:setup(...)
+function CompositeObserver:setup(config)
    local args, mediator, subject = xlua.unpack(
-      {... or {}},
+      {config or {}},
       'Observer:setup', nil,
-      {arg='mediator', type='dp.Mediator'},
+      {arg='mediator', type='dp.Mediator', req=true},
       {arg='subject', type='dp.Experiment | dp.Propagator | ...',
       help='object being observed.'}
    )
@@ -96,10 +94,7 @@ function CompositeObserver:setup(...)
    self._mediator = mediator
    self:setSubject(subject)
    for name, observer in pairs(self._observers) do
-      observer:setup(mediator, subject, ...)
-   end
-   for _, observer in ipairs(self._observers) do
-      observer:setup(mediator, subject, ...)
+      observer:setup(config)
    end
 end
 
@@ -127,6 +122,7 @@ local LearningRateSchedule, parent
 
 function LearningRateSchedule:__init(...)
    local args, schedule = xlua.unpack(
+      {... or {}},
       'LearningRateSchedule', nil,
       {arg='schedule', type='table', req=true,
        help='Epochs as keys, and learning rates as values'}
@@ -136,7 +132,7 @@ function LearningRateSchedule:__init(...)
 end
 
 function LearningRateSchedule:setSubject(subject)
-   assert(subject.isOptimizer)
+   assert(subject.isLearn)
    self._subject = subject
 end
 
@@ -164,7 +160,7 @@ end
 
 function SaveToFile:save(subject)
    --concatenate save directory with subject id
-   filename = paths.concat(self._save_dir, 
+   local filename = paths.concat(self._save_dir, 
                            subject:id():toPath() .. '.dat')
    --creates directories if required
    os.execute('mkdir -p ' .. sys.dirname(filename))
@@ -186,10 +182,11 @@ local EarlyStopper, parent
    = torch.class("dp.EarlyStopper", "dp.Observer")
 
 function EarlyStopper:__init(config) 
-   local args, start_epoch, error_report, error_channel, save_strategy,
-         max_epochs 
+   config = config or {}
+   local args, start_epoch, error_report, error_channel, maximize, 
+         save_strategy, max_epochs 
       = xlua.unpack(
-      {config or {}},
+      {config},
       'EarlyStopper', 
       'Saves a model at each new minima of error. ' ..
       'Error can be obtained from experiment report or mediator ' ..
@@ -209,7 +206,7 @@ function EarlyStopper:__init(config)
        help='when true, the error channel or report is negated. ' ..
        'This is useful when the channel returns an accuracy ' ..
        'that should be maximized, instead of an error that should not'},
-      {arg='save_strategy', type='object', default=SaveToFile(),
+      {arg='save_strategy', type='object', default=dp.SaveToFile(),
        help='a serializable object that has a :save(subject) method.'},
       {arg='max_epochs', type='number', default='30',
        help='maximum number of epochs to consider after a minima ' ..
@@ -242,42 +239,35 @@ function EarlyStopper:setSubject(subject)
 end
 
 function EarlyStopper:setup(config)
-   Observer.setup(self, config)
+   parent.setup(self, config)
    if self._error_channel then
-      self._mediator:subscribe(self._error_channel, 
-         function(current_error, report, ...)
-            self:compareError(current_error, report, ...)
-         end
-      )
+      self._mediator:subscribe(self._error_channel, self, "compareError")
    end
 end
 
 function EarlyStopper:doneEpoch(report, ...)
    assert(type(report) == 'table')
+   self._epoch = report.epoch
    if self._error_report then
       local report_cursor = report
       for _, name in ipairs(self._error_report) do
          report_cursor = report_cursor[name]
       end
-      local current_error = report_cursor
-      self:compareError(current_error, report, ...)
+      self:compareError(report_cursor, ...)
    end
 end
 
-function EarlyStopper:compareError(current_error, report)
+function EarlyStopper:compareError(current_error, ...)
    -- if maximize is true, sign will be -1
    current_error = current_error * self._sign
-   assert(type(report) == 'table')
-   local current_epoch = report.epoch
-   assert(type(current_epoch) == 'number')
-   if current_epoch >= start_epoch then
-      if (not self._minima) or (current_error > self._minima) then
+   if self._epoch >= self._start_epoch then
+      if (not self._minima) or (current_error < self._minima) then
          self._minima = current_error
-         self._minima_epoch = current_epoch
-         self._save_strategy:save(subject)
+         self._minima_epoch = self._epoch
+         self._save_strategy:save(self._subject)
       end
    end
-   if self._max_epochs >= (current_epoch - self._minima_epoch) then
+   if self._max_epochs < (self._epoch - self._minima_epoch) then
       self._mediator:publish("doneExperiment")
    end
 end

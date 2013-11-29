@@ -25,7 +25,7 @@ function typepattern(obj, pattern)
    return match
 end
 
-function torch.Tensor.isInstance(obj)
+function torch.isTensor(obj)
    return typepattern(obj, "^torch[.]%a*Tensor$")
 end
 
@@ -80,7 +80,7 @@ local function recursive_compare(t1,t2)
   -- Use usual comparison first.
   if t1==t2 then return true end
   -- We only support non-default behavior for tables
-  if (type(t1)~="table") then return false end
+  if (type(t1)~="table") and (type(t2)~="table") then return false end
   -- They better have the same metatables
   local mt1 = getmetatable(t1)
   local mt2 = getmetatable(t2)
@@ -184,4 +184,14 @@ function constrain_norms(max_norm, axis, matrix)
    new_norms[torch.gt(norms, max_norm)] = max_norm
    local div = torch.cdiv(new_norms, torch.add(norms,1e-7))
    matrix:cmul(div:expandAs(matrix))
+end
+
+function typeString_to_tensorType(type_string)
+   if type_string == 'cuda' then
+      return 'torch.CudaTensor'
+   elseif type_string == 'float' then
+      return 'torch.FloatTensor'
+   elseif type_string == 'double' then
+      return 'torch.DoubleTensor'
+   end
 end

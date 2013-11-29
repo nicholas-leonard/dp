@@ -17,7 +17,7 @@ Batch.isBatch = true
 
 function Batch:__init(...)
    local args, inputs, targets, batch_iter, epoch_size, batch_size, 
-      n_sample
+      n_sample, classes, grad_type
       = xlua.unpack(
       {... or {}},
       'Batch', nil,
@@ -32,7 +32,8 @@ function Batch:__init(...)
       {arg='classes', type='table', 
       help='temporary hack for confusion feedback worker until this ' ..
       'class in made to inherit DataSet and spawned from a dataset ' ..
-      'via a Sampler.'}
+      'via a Sampler.'},
+      {arg='grad_type', type='string'}
    )
    self._inputs = inputs
    self._targets = targets
@@ -41,6 +42,7 @@ function Batch:__init(...)
    self._batch_size = batch_size
    self._n_sample = n_sample
    self._classes = classes
+   self._grad_type = grad_type
 end
 
 function Batch:inputs()
@@ -60,7 +62,7 @@ function Batch:setOutputs(outputs)
 end
 
 function Batch:outputs()
-   return self._outputs
+   return self._outputs:double()
 end
 
 
@@ -76,8 +78,8 @@ function Batch:setOutputGradients(output_gradients)
    self._output_gradients = output_gradients
 end
 
-function Batch:outputGradients(output_gradients)
-   return self._output_gradients
+function Batch:outputGradients()
+   return self._output_gradients:type(self._grad_type)
 end
 
 function Batch:batchSize()

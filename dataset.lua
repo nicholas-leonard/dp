@@ -130,7 +130,7 @@ end
 --TODO: accept list of axes and sizes
 function DataSet:setInputs(inputs, axes, sizes)
    if type(inputs) ~= 'table' or inputs.isDataTensor then
-      if torch.Tensor.isInstance(inputs) then
+      if torch.isTensor(inputs) then
          --convert torch.Tensor to dp.DataTensor
          inputs = dp.DataTensor{data=inputs, axes=axes, sizes=sizes}
       end
@@ -146,7 +146,7 @@ end
 
 function DataSet:setTargets(targets, classes)
    if type(targets) ~= 'table' or targets.isDataTensor then
-      if torch.Tensor.isInstance(targets) then
+      if torch.isTensor(targets) then
          --convert torch.Tensor to dp.DataTensor
          if classes then
             targets = dp.ClassTensor{data=targets, classes=classes}

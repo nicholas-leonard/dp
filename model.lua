@@ -102,8 +102,8 @@ function Model:parameters()
 end
 
 function Model:forward(gstate)
+   self:_forward(gstate)
    self.forwarded = true
-   return self:_forward(gstate)
 end
 
 function Model:_forward(gstate)
@@ -191,8 +191,8 @@ end
 
 function Model:type(type)
    -- find all tensors and convert them
-   for i,param_table in ipairs(self._params) do
-      for key,tensor in pairs(param_table) do
+   for param_name, param_table in pairs(self._params) do
+      for key, tensor in pairs(param_table) do
          if torch.typename(tensor) and torch.typename(tensor):find('torch%..+Tensor') then
             param_table[key] = tensor:type(type)
          end
@@ -231,8 +231,8 @@ end
 
 function Container:type(type)
    -- find submodels in classic containers 'models'
-   if self._models then
-      for _,models in ipairs(self._models) do
+   if not _.isEmpty(self._models) then
+      for i, model in ipairs(self._models) do
          model:type(type)
       end
    end

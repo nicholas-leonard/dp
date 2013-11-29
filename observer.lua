@@ -104,7 +104,7 @@ function CompositeObserver:report()
    for name, observer in pairs(self._observers) do
       assert(observers)
       local observer_report = observer:report()
-      if observer_report and not table.eq(observer_report, {})  then
+      if observer_report and not _.isEmpty(observer_report)  then
          report[name] = observer_report
       end
    end

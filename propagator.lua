@@ -118,6 +118,9 @@ end
 
 function Propagator:propagateEpoch(dataset, report)
    self:resetLoss()
+   if self._feedback then
+      self._feedback:reset()
+   end
    
    -- local vars
    local start_time = sys.clock()

@@ -1,8 +1,4 @@
 require 'torch'
-require 'optim' --for logger
-
-require 'os'
-
 ------------------------------------------------------------------------
 --[[ ObjectID ]]--
 -- An identifier than can be used to save files, objects, etc.
@@ -119,27 +115,27 @@ function Experiment:__init(...)
          tester, observer, random_seed, epoch, mediator, overwrite,
          max_epoch
       = xlua.unpack(
-         {... or {}},
-         'Experiment', nil,
-         {arg='id', type='dp.ObjectID'},
-         {arg='id_gen', type='dp.EIDGenerator'},
-         {arg='description', type='string'},
-         {arg='model', type='dp.Model', req=true},
-         {arg='optimizer', type='dp.Optimizer'},
-         {arg='validator', type='dp.Evaluator'},
-         {arg='tester', type='dp.Evaluator'},
-         {arg='observer', type='dp.Observer'},
-         {arg='random_seed', type='number', default=7},
-         {arg='epoch', type='number', default=0,
-          help='Epoch at which to start the experiment.'},
-         {arg='mediator', type='dp.Mediator', default=dp.Mediator()},
-         {arg='overwrite', type='boolean', default=false,
-          help='Overwrite existing values. For example, if a ' ..
-          'datasource is provided, and optimizer is already ' ..
-          'initialized with a dataset, and overwrite is true, ' ..
-          'then optimizer would be setup with datasource:trainSet()'},
-         {arg='max_epoch', type='number', default=1000, 
-          help='Maximum number of epochs allocated to the experiment'}
+      {... or {}},
+      'Experiment', nil,
+      {arg='id', type='dp.ObjectID'},
+      {arg='id_gen', type='dp.EIDGenerator'},
+      {arg='description', type='string'},
+      {arg='model', type='dp.Model', req=true},
+      {arg='optimizer', type='dp.Optimizer'},
+      {arg='validator', type='dp.Evaluator'},
+      {arg='tester', type='dp.Evaluator'},
+      {arg='observer', type='dp.Observer'},
+      {arg='random_seed', type='number', default=7},
+      {arg='epoch', type='number', default=0,
+       help='Epoch at which to start the experiment.'},
+      {arg='mediator', type='dp.Mediator', default=dp.Mediator()},
+      {arg='overwrite', type='boolean', default=false,
+       help='Overwrite existing values. For example, if a ' ..
+       'datasource is provided, and optimizer is already ' ..
+       'initialized with a dataset, and overwrite is true, ' ..
+       'then optimizer would be setup with datasource:trainSet()'},
+      {arg='max_epoch', type='number', default=1000, 
+       help='Maximum number of epochs allocated to the experiment'}
    )
    self._is_done_experiment = false
    assert(id or id_gen)

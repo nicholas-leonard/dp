@@ -30,7 +30,7 @@ function Optimizer:propagateBatch(batch)
    -- evaluate function for complete mini batch
    model.istate.act = batch:inputs()
    model:forward()
-   batch:setOutputs(model.ostate.act)
+   batch:setOutputs(model.ostate.act:double())
    
    -- average loss (a scalar)
    batch:setLoss(
@@ -52,6 +52,7 @@ function Optimizer:propagateBatch(batch)
    batch:setOutputGradients(
       self._criterion:backward(batch:outputs(), batch:targets())
    )
+   
    model.ostate.grad = batch:outputGradients()
    model:backward()
 

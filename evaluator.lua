@@ -15,7 +15,7 @@ function Evaluator:propagateBatch(batch)
    --[[ feedforward ]]--
    -- evaluate function for complete mini batch
    model.istate.act = batch:inputs()
-   model:forward()
+   model:evaluate()
    batch:setOutputs(model.ostate.act)
    
    -- average loss (a scalar)

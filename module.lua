@@ -58,7 +58,8 @@ function Module:zeroGradParameters()
 end
 
 function Module:type(type)
-   return self._module:type(type)
+   self._module:type(type)
+   return parent.type(self, type)
 end
 
 function Module:reset()

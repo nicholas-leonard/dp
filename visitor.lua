@@ -78,14 +78,14 @@ end
 -- compares model to filter to see if it can be visited
 function Visitor:canVisit(model)
    local model_tags = model:tags()
-   if self._exclude and not table.eq(self._exclude, {}) then
+   if self._exclude and not _.isEmpty(self._exclude) then
       for tag in ipairs(self._exclude) do
          if model_tags[tag] then
             return false
          end
       end
    end
-   if self._include and not table.eq(self._include, {}) then
+   if self._include and not _.isEmpty(self._include) then
       for i, tag in ipairs(self._include) do
          if model_tags[tag] then
             return true

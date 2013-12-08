@@ -131,7 +131,7 @@ end
 -- Decays the weight of the visited parameterized models.
 ------------------------------------------------------------------------
 
-local WeightDecay, parent = torch.class("dp.WeightDecay", "Visitor")
+local WeightDecay, parent = torch.class("dp.WeightDecay", "dp.Visitor")
 
 function WeightDecay:__init(config)
    config = config or {}
@@ -174,7 +174,8 @@ function Momentum:__init(config)
       {config},
       'Momentum', 'Applies momentum to parameters',
       {arg='momentum_factor', type='number', req=true},
-      {arg='damping_factor', type='number', default=0},
+      {arg='damping_factor', type='number between 0 and 1', default=0, 
+       help='Reduces oscillations. Mostly useful for recurrent nets'},
       {arg='nesterov', type='boolean', default=false},
       {arg='name', type='string', default='momentum',
        help='identifies visitor in reports.'}
@@ -208,14 +209,12 @@ function Momentum:_visitModel(model)
          param_table.past_grad:mul(
                self._momentum_factor
             ):add(
-               1-self._damping_factor, 
-               param_table.grad
+               1-self._damping_factor, param_table.grad
             )
       end
       if self._nesterov then
          param_table.grad:add(
-               self._momentum_factor, 
-               param_table.past_grad
+               self._momentum_factor, param_table.past_grad
             )
       else
          param_table.grad = param_table.past_grad
@@ -269,25 +268,6 @@ function MaxNorm:_visitModel(model)
          model.mvstate[self:id():name()].warned = true
       end
    end
-   
-   --[[
-   local params = {}
-   local model_params = model:parameters()
-   local bias = model_params.bias
-   if not bias then
-      if not model.mvstate[self:id():name()].warned then
-         print"MaxNorm Warning: model " .. model .. 
-         " has no bias. " .. "Assuming columns of the weight " ..
-         "matrix are outgoing weights."
-      end
-      model.mvstate[self:id():name()].warned = true
-   else
-      bias
-   end
-   for param_name, param_table in pairs(model_params) do
-      
-   end
-   ]]--
 end
 
 
@@ -342,13 +322,11 @@ function Learn:_visitModel(model)
                param_table.grad
             )
          param_table.param:add(
-               -self._learning_rate, 
-               param_table.delta
+               -self._learning_rate, param_table.delta
             )
       else
          param_table.param:add(
-               -self._learning_rate, 
-               param_table.grad
+               -self._learning_rate, param_table.grad
             )
       end
    end
@@ -379,7 +357,6 @@ function VisitorChain:__init(config)
    self._visitors = visitors
 end
 
-
 function VisitorChain:setup(config)
    parent.setup(self, config)
    for i, visitor in ipairs(self._visitors) do
@@ -392,7 +369,6 @@ function VisitorChain:_visitModel(model)
       visitor:visitModel(model)
    end
 end
-
 
 function VisitorChain:report()
    -- merge reports

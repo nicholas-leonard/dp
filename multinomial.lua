@@ -1,18 +1,16 @@
 
-DEBUG = false
+local DEBUG = false
 
-function sum_to_one(prob_dist)
-    --Normalized each row of a matrix to sum to one
+-- Normalize each row of a matrix to sum to one
+local function sum_to_one(prob_dist)
     local sums = prob_dist:sum(2)
     local sums = torch.expand(sums, prob_dist:size())
     return prob_dist:cdiv(sums)
 end
 
-function cumulative(prob_dist, inplace)
-    --[[
-    Make cumulative probability distribution for each row of a matrix.
-    If inplace is True, use the prob_dist to store the cumulative dist.
-    --]]
+-- Make cumulative probability distribution for each row of a matrix.
+-- If inplace is True, use the prob_dist to store the cumulative dist.
+local function cumulative(prob_dist, inplace)
     cum_dist = prob_dist
     if not inplace then
         cum_dist = prob_dist:clone()
@@ -28,11 +26,8 @@ function cumulative(prob_dist, inplace)
     return cum_dist
 end
     
-function multinomial_with_replacement(prob_dist, num_samples)
-    --[[
-    Sample from multinomial matrix with replacement
-    --]]
-    
+-- Sample from multinomial matrix with replacement
+local function multinomial_with_replacement(prob_dist, num_samples)    
     --Make cumulative distribution out of multinomial (sum-to-one) dist:
     local cum_dist = cumulative(sum_to_one(prob_dist:clone()), true)
     
@@ -68,12 +63,9 @@ function multinomial_with_replacement(prob_dist, num_samples)
     return m_samples
 end
 
-function multinomial_without_replacement(prob_dist, num_samples)
-    --[[
-    Sample without replacement from multinomial probability distribution 
-    matrix, where each row is its own probability distribution.  
-    --]]
-    
+-- Sample without replacement from multinomial probability distribution 
+-- matrix, where each row is its own probability distribution. 
+local function multinomial_without_replacement(prob_dist, num_samples)
     --Used to store multinomial samples:
     local m_samples = torch.IntTensor(prob_dist:size(1), num_samples)
         
@@ -124,6 +116,42 @@ function multinomial_without_replacement(prob_dist, num_samples)
     end
     return multinomial(prob_dist:clone(), m_samples, num_samples)
 end
+
+------------------------------------------------------------------------
+--[[ dp.multinomial ]]--
+-- function
+-- Sample from a multinomial distribution with or without replacement
+-- Returns an index for each sample. 
+-- When input is a matrix, output is a matrix where each row contains 
+-- num_samples indices
+-- When input is a vector, output is a vector where each variable 
+-- contains num_samples indices
+------------------------------------------------------------------------
+
+function dp.multinomial(prob_dist, num_samples, without_replacement)
+   num_samples = num_samples or 1
+   local new_size, old_size
+   if prob_dist:dim() == 1 then
+      old_size = prob_dist:size()
+      new_size = _.concat({1}, old_size:totable())
+      prob_dist:resize(unpack(new_size))
+   end
+   assert(prob_dist:dim() == 2)
+   local res
+   if without_replacement then
+      res = multinomial_without_replacement(prob_dist, num_samples)
+   end
+   res = multinomial_with_replacement(prob_dist, num_samples)
+   if new_size then
+      prob_dist:resize(old_size)
+      res:resize(old_size)
+   end
+   return res
+end
+
+------------------------------------------------------------------------
+-- TEST --
+------------------------------------------------------------------------
 
 function test_multinomial()
     p_dist = torch.rand(4,5)

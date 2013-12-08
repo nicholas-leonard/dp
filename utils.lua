@@ -175,6 +175,7 @@ function merge(t1, t2)
     end
     return t1
 end
+table.merge = merge
 
 
 function constrain_norms(max_norm, axis, matrix)

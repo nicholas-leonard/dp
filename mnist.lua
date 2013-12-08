@@ -8,6 +8,7 @@ require 'image'
 ------------------------------------------------------------------------
 
 local Mnist, DataSource = torch.class("dp.Mnist", "dp.DataSource")
+Mnist.isMnist = true
 
 Mnist._name = 'mnist'
 Mnist._image_size = {28, 28, 1}

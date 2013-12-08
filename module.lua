@@ -19,7 +19,7 @@ function Module:__init(config)
    )
    self._module = module
    -- typename of this model
-   local typename = _.split(torch.typename(module), '.')
+   local typename = _.split(torch.typename(module), '[.]')
    typename = string.lower(typename[#typename]) .. 'Adapter'
    config.typename = config.typename or typename
    parent.__init(self, config)

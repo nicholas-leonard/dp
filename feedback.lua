@@ -166,7 +166,7 @@ function Criteria:__init(config)
    
    for i,v in ipairs(criteria) do
       -- for listed criteria, default name is derived from typename
-      local k = _.split(torch.typename(criteria), '.')
+      local k = _.split(torch.typename(criteria), '[.]')
       k = k[#k]
       -- remove suffix 'Criterion'
       if string.sub(k, -9) == 'Criterion' then

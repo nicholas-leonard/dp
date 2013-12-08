@@ -20,8 +20,13 @@ dp.SAVE_DIR = os.getenv('DEEP_SAVE_PATH')
 dp.LOG_DIR = os.getenv('DEEP_LOG_PATH') 
    or paths.concat(dp.TORCH_DIR, 'log')
 
---[[ data ]]--
+--[[ misc ]]--
 require "dp/utils"
+torch.include('dp', 'postgres.lua')
+torch.include('dp', 'multinomial.lua')
+torch.include('dp', 'choose.lua')
+
+--[[ data ]]--
 torch.include('dp', 'datatensor.lua')
 torch.include('dp', 'dataset.lua')
 torch.include('dp', 'datasource.lua')
@@ -29,7 +34,6 @@ torch.include('dp', 'mnist.lua')
 torch.include('dp', 'preprocess.lua')
 torch.include('dp', 'batch.lua')
 torch.include('dp', 'sampler.lua')
-torch.include('dp', 'postgres.lua')
 
 
 --[[ propagation ]]--
@@ -48,3 +52,6 @@ torch.include('dp', 'visitor.lua')
 torch.include('dp', 'model.lua')
 torch.include('dp', 'module.lua')
 torch.include('dp', 'sequential.lua')
+
+--[[ hyperparameter optimization ]]--
+torch.include('dp', 'hyperoptimizer.lua')

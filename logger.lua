@@ -7,6 +7,7 @@
 ------------------------------------------------------------------------
 
 local Logger, parent = torch.class("dp.Logger", "dp.Observer")
+Logger.isLogger = true
 
 function Logger:__init()
    parent.__init(self, "doneEpoch")

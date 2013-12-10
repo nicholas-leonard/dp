@@ -158,15 +158,22 @@ function SaveToFile:__init(save_dir)
    self._save_dir = save_dir or dp.SAVE_DIR
 end
 
-function SaveToFile:save(subject)
+function SaveToFile:setup(subject)
    --concatenate save directory with subject id
-   local filename = paths.concat(self._save_dir, 
+   self._filename = paths.concat(self._save_dir, 
                            subject:id():toPath() .. '.dat')
    --creates directories if required
-   os.execute('mkdir -p ' .. sys.dirname(filename))
-   print('SaveToFile: saving to '.. filename)
-   --saves subject to file
-   torch.save(filename, subject)
+   os.execute('mkdir -p ' .. sys.dirname(self._filename))
+end
+
+function SaveToFile:filename()
+   return self._filename
+end
+
+function SaveToFile:save(subject)
+   print('SaveToFile: saving to '.. self._filename)
+   --save subject to file
+   return torch.save(self._filename, subject)
 end
 
 
@@ -236,6 +243,7 @@ function EarlyStopper:setSubject(subject)
       or subject.isPropagator 
       or subject.isExperiment)
    self._subject = subject
+   self._save_strategy:setup(subject)
 end
 
 function EarlyStopper:setup(config)
@@ -259,16 +267,18 @@ end
 
 function EarlyStopper:compareError(current_error, ...)
    -- if maximize is true, sign will be -1
+   local found_minima = false
    current_error = current_error * self._sign
    if self._epoch >= self._start_epoch then
       if (not self._minima) or (current_error < self._minima) then
          self._minima = current_error
          self._minima_epoch = self._epoch
-         self._save_strategy:save(self._subject)
+         self._save_strategy:save(self._subject, current_error)
+         found_minima = true
       end
    end
    if self._max_epochs < (self._epoch - self._minima_epoch) then
       self._mediator:publish("doneExperiment")
    end
+   return found_minima
 end
-

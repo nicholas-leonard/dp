@@ -3,7 +3,7 @@ require 'torch'
 
 ------------------------------------------------------------------------
 --[[ dp ]]--
--- dEEp learning library for torch 7, inspired by pylearn2.
+-- deep learning library for torch 7, inspired by pylearn2.
 ------------------------------------------------------------------------
 
 
@@ -55,3 +55,12 @@ torch.include('dp', 'sequential.lua')
 
 --[[ hyperparameter optimization ]]--
 torch.include('dp', 'hyperoptimizer.lua')
+
+--[[ postgres ]]--
+torch.include('dp', 'postgres/postgres.lua')
+torch.include('dp', 'postgres/eidgenerator.lua')
+torch.include('dp', 'postgres/logger.lua')
+torch.include('dp', 'postgres/query.lua')
+torch.include('dp', 'postgres/savetofile.lua')
+torch.include('dp', 'postgres/earlystopper.lua')
+torch.include('dp', 'postgres/done.lua')

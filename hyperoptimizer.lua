@@ -174,7 +174,7 @@ function MLPFactory:build(opt, id)
          error("Unknown activation function : " .. activation)
       end
       if layer_index < (opt.model_dept-1) then
-         addHidden(mlp, activation, output_size, layer_index+1)
+         return addHidden(mlp, activation, output_size, layer_index+1)
       else
          return output_size
       end

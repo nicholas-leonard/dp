@@ -1,5 +1,6 @@
 require 'paths'
 require 'torch'
+require 'nn'
 
 ------------------------------------------------------------------------
 --[[ dp ]]--
@@ -24,8 +25,10 @@ dp.LOG_DIR = os.getenv('DEEP_LOG_PATH')
 require "dp/utils"
 torch.include('dp', 'multinomial.lua')
 torch.include('dp', 'choose.lua')
-torch.include('dp', 'mediator.lua')
 torch.include('dp', 'query.lua')
+torch.include('dp', 'mediator.lua')
+torch.include('dp', 'objectid.lua')
+torch.include('dp', 'eidgenerator.lua')
 
 --[[ data ]]--
 torch.include('dp', 'data/datatensor.lua')
@@ -36,7 +39,6 @@ torch.include('dp', 'data/preprocess.lua')
 torch.include('dp', 'data/batch.lua')
 torch.include('dp', 'data/sampler.lua')
 
-
 --[[ propagator ]]--
 torch.include('dp', 'propagator/propagator.lua')
 torch.include('dp', 'propagator/optimizer.lua')
@@ -45,23 +47,41 @@ torch.include('dp', 'propagator/experiment.lua')
 
 --[[ feedback ]]--
 torch.include('dp', 'feedback/feedback.lua')
+torch.include('dp', 'feedback/compositefeedback.lua')
 torch.include('dp', 'feedback/confusion.lua')
+torch.include('dp', 'feedback/criteria.lua')
 
 --[[ visitor ]]--
 torch.include('dp', 'visitor/visitor.lua')
+torch.include('dp', 'visitor/visitorchain.lua')
+torch.include('dp', 'visitor/maxnorm.lua')
+torch.include('dp', 'visitor/weightdecay.lua')
+torch.include('dp', 'visitor/learn.lua')
+torch.include('dp', 'visitor/momentum.lua')
 
 --[[ observer ]]--
 torch.include('dp', 'observer/observer.lua')
+torch.include('dp', 'observer/compositeobserver.lua')
 torch.include('dp', 'observer/logger.lua')
-
+torch.include('dp', 'observer/earlystopper.lua')
+torch.include('dp', 'observer/savetofile.lua') --not an observer
+torch.include('dp', 'observer/learningrateschedule.lua')
 
 --[[ model ]]--
 torch.include('dp', 'model/model.lua')
-torch.include('dp', 'model/module.lua')
+torch.include('dp', 'model/container.lua')
 torch.include('dp', 'model/sequential.lua')
+torch.include('dp', 'model/module.lua')
+torch.include('dp', 'model/linear.lua')
 
 --[[ hyper ]]--
 torch.include('dp', 'hyper/hyperoptimizer.lua')
+torch.include('dp', 'hyper/hyperparamsampler.lua')
+torch.include('dp', 'hyper/datasourcefactory.lua')
+torch.include('dp', 'hyper/experimentfactory.lua')
+torch.include('dp', 'hyper/priorsampler.lua')
+torch.include('dp', 'hyper/mnistfactory.lua')
+torch.include('dp', 'hyper/mlpfactory.lua')
 
 --[[ postgres ]]--
 torch.include('dp', 'postgres/postgres.lua')

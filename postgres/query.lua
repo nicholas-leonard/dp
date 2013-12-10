@@ -49,7 +49,7 @@ function PGQuery:selectReport(xp_id, epoch)
          "WHERE xp_id = %s", 
          {xp_id}
       )
-      if _.isEmpty(rows then return end
+      if _.isEmpty(rows) then return end
       local reports = {}
       for i, row in ipairs(rows) do
          reports[row[1]] = torch.deserialize(row[2])
@@ -96,6 +96,7 @@ function PGQuery:_experiment(xp_id)
    return xp
 end
 
+--[[
 function Experiment:__init(...)
    self._xp_id
    self._collection_name
@@ -111,5 +112,5 @@ end
 
 function Experiment:isDone()
    return self._end_time
-end
+end]]--
 

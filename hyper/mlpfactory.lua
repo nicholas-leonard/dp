@@ -10,7 +10,7 @@ function MLPFactory:__init()
    parent.__init(self, {name='MLP'})
 end
 
-function MLPFactory:build(opt, id)
+function MLPFactory:buildModel(opt)
    local function addHidden(mlp, activation, input_size, layer_index)
       layer_index = layer_index or 1
       local output_size = opt.model_width * opt.width_scales[layer_index]
@@ -31,7 +31,6 @@ function MLPFactory:build(opt, id)
          return output_size
       end
    end
-   
    --[[Model]]--
    mlp = dp.Sequential()
    -- hidden layer(s)
@@ -39,7 +38,6 @@ function MLPFactory:build(opt, id)
    -- output layer
    mlp:add(dp.Linear{input_size=last_size, output_size=#opt.classes})
    mlp:add(dp.Module(nn.LogSoftMax()))
-
    --[[GPU or CPU]]--
    if opt.model_type == 'cuda' then
       require 'cutorch'
@@ -50,7 +48,10 @@ function MLPFactory:build(opt, id)
    elseif opt.model_type == 'float' then
       mlp:float()
    end
-   
+   return mlp
+end
+
+function MLPFactory:buildLearningRateSchedule(opt)
    --[[ Schedules ]]--
    local schedule
    local lr = opt.learning_rate
@@ -69,7 +70,11 @@ function MLPFactory:build(opt, id)
    if opt.learning_schedule and opt.learning_schedule ~= 'none' then 
       lr_schedule = dp.LearningRateSchedule{schedule=schedule}
    end
-   
+   return lr_schedule
+end
+
+function MLPFactory:buildVisitor(opt)
+   local lr_schedule = self:buildLearningRateSchedule(opt)
    --[[ Visitor ]]--
    local visitor = {}
    if opt.momentum and opt.momentum ~= 0 then
@@ -92,9 +97,13 @@ function MLPFactory:build(opt, id)
    if opt.max_out_norm and opt.max_out_norm ~= 0 then
       table.insert(visitor, dp.MaxNorm{max_out_norm=opt.max_out_norm})
    end
+   return visitor
+end
 
+function MLPFactory:buildOptimizer(opt)
+   local visitor = self:buildVisitor(opt)
    --[[Propagators]]--
-   train = dp.Optimizer{
+   return dp.Optimizer{
       criterion = nn.ClassNLLCriterion(),
       observer =  {
          dp.Logger(),
@@ -112,25 +121,34 @@ function MLPFactory:build(opt, id)
       },
       progress = true
    }
-   valid = dp.Evaluator{
+end
+
+function MLPFactory:buildValidator(opt)
+   return dp.Evaluator{
       criterion = nn.ClassNLLCriterion(),
       feedback = dp.Confusion(),  
       observer = dp.Logger(),
       sampler = dp.Sampler{sample_type=opt.model_type}
    }
-   test = dp.Evaluator{
+end
+
+function MLPFactory:buildTester(opt)
+   return dp.Evaluator{
       criterion = nn.ClassNLLCriterion(),
       feedback = dp.Confusion(),
       sampler = dp.Sampler{sample_type=opt.model_type}
    }
+end
 
+function MLPFactory:build(opt, id)
+   local mlp = self:buildModel(opt)
    --[[Experiment]]--
    return dp.Experiment{
       id = id,
       model = mlp,
-      optimizer = train,
-      validator = valid,
-      tester = test,
+      optimizer = self:buildOptimizer(opt),
+      validator = self:buildValidator(opt),
+      tester = self:buildTester(opt),
       max_epoch = opt.max_epoch
    }
 end

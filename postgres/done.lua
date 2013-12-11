@@ -16,7 +16,7 @@ function PGDone:__init(...)
        help='Postgres connection instance. Default is a dp.Postgres()'}
    )
    self._pg = pg or dp.Postgres()
-   parent.__init(self, "doneExperiment")
+   parent.__init(self, "finalizeExperiment")
 end
 
 function PGDone:setSubject(subject)
@@ -24,11 +24,11 @@ function PGDone:setSubject(subject)
    self._subject = subject
 end
 
-function PGDone:doneExperiment()
+function PGDone:finalizeExperiment()
    self._pg:execute(
       "INSERT INTO dp.done (xp_id, end_time) " ..
       "VALUES (%s, now())",
-      {self._subject:id()}
+      {self._subject:name()}
    )
 end
 

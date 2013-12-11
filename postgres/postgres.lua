@@ -6,6 +6,7 @@
 
 -- TODO :
 -- Cast row values to lua types using postgres types
+-- Automatic serialization switch
 ------------------------------------------------------------------------
 local Postgres = torch.class("dp.Postgres")
 Postgres.isPostgres = true

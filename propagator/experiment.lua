@@ -64,7 +64,7 @@ function Experiment:__init(...)
    assert(self._id.isObjectID)
    self._model = model
    self._epoch = epoch
-   self._observer = observer
+   self:setObserver(observer)
    self._optimizer = optimizer
    self._validator = validator
    self._tester = tester
@@ -123,7 +123,8 @@ function Experiment:run(datasource)
       self._tester:propagateEpoch(test_set, report)
       report = self:report()
       self._mediator:publish("doneEpoch", report)
-   until (self:isDoneExperiment() or self._epoch > self._max_epoch)
+   until (self:isDoneExperiment() or self._epoch >= self._max_epoch)
+   self._mediator:publish("finalizeExperiment")
 end
 
 --an observer should call this when the experiment is complete
@@ -137,6 +138,10 @@ end
 
 function Experiment:id()
    return self._id
+end
+
+function Experiment:name()
+   return self._id:name()
 end
 
 function Experiment:optimizer()
@@ -163,7 +168,7 @@ function Experiment:report()
       epoch = self:epoch(),
       random_seed = self:randomSeed(),
       model = self._model:report(),
-      id = self._id,
+      id = self._id:toString(),
       description = description
    }
    return report
@@ -182,3 +187,10 @@ function Experiment:setMaxEpoch(max_epoch)
    self._max_epoch = max_epoch
 end
 
+function Experiment:setObserver(observer)
+   if not torch.typename(observer) and type(observer) == 'table' then
+      --if list, make composite observer
+      observer = dp.CompositeObserver(observer)
+   end
+   self._observer = observer
+end

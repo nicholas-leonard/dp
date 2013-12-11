@@ -20,15 +20,15 @@ function PGSaveToFile:__init(config)
    )
    self._pg = pg or dp.Postgres()
    self._hostname = hostname
+   parent.__init(self, config)
 end
 
 function PGSaveToFile:setup(subject)
    parent.setup(self, subject)
-   self._pg = pg
    self._pg:execute(
       "INSERT INTO dp.savetofile (xp_id, hostname, filename) " ..
       "VALUES (%s, '%s', '%s');",
-      {subject:id(), self._hostname, self._filename}
+      {subject:name(), self._hostname, self._filename}
    )
 end
 

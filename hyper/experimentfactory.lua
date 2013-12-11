@@ -21,3 +21,11 @@ end
 function ExperimentFactory:build(hyperparameters, experiment_id)
    error"NotImplementedError : ExperimentFactory:build()"
 end
+
+function ExperimentFactory:name()
+   return self._name
+end
+
+function ExperimentFactory:hyperReport()
+   return {name = self._name}
+end 

@@ -6,8 +6,13 @@
 
 local SaveToFile = torch.class("dp.SaveToFile")
 
-function SaveToFile:__init(save_dir)
-   self._save_dir = save_dir or dp.SAVE_DIR
+function SaveToFile:__init(...)
+   local args, save_dir = xlua.unpack(
+      {... or {}},
+      'SaveToFile', nil,
+      {arg='save_dir', type='string', default=dp.SAVE_DIR}
+   )
+   self._save_dir = save_dir
 end
 
 function SaveToFile:setup(subject)

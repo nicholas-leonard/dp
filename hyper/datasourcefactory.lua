@@ -21,3 +21,11 @@ end
 function DatasourceFactory:build(hyperparameters)
    error"NotImplementedError : DatasourceFactory:build()"
 end
+
+function DatasourceFactory:name()
+   return self._name
+end
+
+function DatasourceFactory:hyperReport()
+   return {name = self._name}
+end 

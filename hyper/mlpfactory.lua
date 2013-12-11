@@ -6,8 +6,21 @@
 local MLPFactory, parent = torch.class("dp.MLPFactory", "dp.ExperimentFactory")
 MLPFactory.isMLPFactory = true
    
-function MLPFactory:__init() 
-   parent.__init(self, {name='MLP'})
+function MLPFactory:__init(config)
+   config = config or {}
+   local args, name, logger, save_strategy = xlua.unpack(
+      {config},
+      'MLPFactory', nil,
+      {arg='name', type='string', default='MLP'},
+      {arg='logger', type='dp.Logger', 
+       help='defaults to dp.FileLogger'},
+      {arg='save_strategy', type='object', 
+       help='defaults to dp.SaveToFile()'}
+   )
+   config.name = name
+   self._save_strategy = save_strategy or dp.SaveToFile()
+   parent.__init(self, config)
+   self._logger = logger or dp.FileLogger()
 end
 
 function MLPFactory:buildModel(opt)
@@ -51,6 +64,7 @@ function MLPFactory:buildModel(opt)
    return mlp
 end
 
+--TODO : make this more flexible : sample first epoch, then delta to 2nd
 function MLPFactory:buildLearningRateSchedule(opt)
    --[[ Schedules ]]--
    local schedule
@@ -105,14 +119,6 @@ function MLPFactory:buildOptimizer(opt)
    --[[Propagators]]--
    return dp.Optimizer{
       criterion = nn.ClassNLLCriterion(),
-      observer =  {
-         dp.Logger(),
-         dp.EarlyStopper{
-            error_report = {'validator','feedback','confusion','accuracy'},
-            maximize = true,
-            max_epochs = opt.max_tries
-         }
-      },
       visitor = visitor,
       feedback = dp.Confusion(),
       sampler = dp.ShuffleSampler{
@@ -127,7 +133,6 @@ function MLPFactory:buildValidator(opt)
    return dp.Evaluator{
       criterion = nn.ClassNLLCriterion(),
       feedback = dp.Confusion(),  
-      observer = dp.Logger(),
       sampler = dp.Sampler{sample_type=opt.model_type}
    }
 end
@@ -140,15 +145,28 @@ function MLPFactory:buildTester(opt)
    }
 end
 
+function MLPFactory:buildObserver(opt)
+   return {
+      self._logger,
+      dp.EarlyStopper{
+         start_epoch = 1,
+         error_report = {'validator','feedback','confusion','accuracy'},
+         maximize = true,
+         max_epochs = opt.max_tries,
+         save_strategy = self._save_strategy
+      }
+   }
+end
+
 function MLPFactory:build(opt, id)
-   local mlp = self:buildModel(opt)
    --[[Experiment]]--
    return dp.Experiment{
       id = id,
-      model = mlp,
+      model = self:buildModel(opt),
       optimizer = self:buildOptimizer(opt),
       validator = self:buildValidator(opt),
       tester = self:buildTester(opt),
+      observer = self:buildObserver(opt),
       max_epoch = opt.max_epoch
    }
 end

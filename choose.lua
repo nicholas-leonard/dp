@@ -13,6 +13,10 @@ function Choose:sample()
    return self._options[math.random(#self._options)]
 end
 
+function Choose:report()
+   return {typename = torch.typename(self), options = self._options}
+end
+
 ------------------------------------------------------------------------
 --[[ WeightedChoose ]] --
 -- Choose options by sampling from a multinomial probability distribution
@@ -41,3 +45,8 @@ function WeightedChoose:sample()
    return self._options[index]
 end
 
+function WeightedChoose:report()
+   local report = parent.report(self)
+   report.probs = self._probs
+   return report
+end

@@ -46,6 +46,7 @@ function EarlyStopper:__init(config)
    self._error_report = error_report
    self._error_channel = error_channel
    self._save_strategy = save_strategy
+   self._maximize = maximize
    self._sign = 1
    if maximize then
       self._sign = -1
@@ -64,7 +65,6 @@ function EarlyStopper:setSubject(subject)
       or subject.isPropagator 
       or subject.isExperiment)
    self._subject = subject
-   self._save_strategy:setup(subject)
 end
 
 function EarlyStopper:setup(config)
@@ -72,6 +72,7 @@ function EarlyStopper:setup(config)
    if self._error_channel then
       self._mediator:subscribe(self._error_channel, self, "compareError")
    end
+   self._save_strategy:setup(self._subject)
 end
 
 function EarlyStopper:doneEpoch(report, ...)

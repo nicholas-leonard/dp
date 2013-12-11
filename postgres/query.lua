@@ -8,10 +8,10 @@ function PGQuery:__init()
    local args, pg = xlua.unpack(
       {config or {}},
       'PGQuery', nil,
-      {arg='pg', type='dp.Postgres', default=dp.Postgres()}
+      {arg='pg', type='dp.Postgres', help='default is dp.Postgres()'}
    )
    parent.__init(self)
-   self._pg = pg
+   self._pg = pg or dp.Postgres()
 end
 
 function PGQuery:selectHyperparam(xp_id)
@@ -24,7 +24,7 @@ function PGQuery:selectHyperparam(xp_id)
    )
    local hyperparams = row[1]
    if hyperparams then 
-      return torch.deserialize(hyperparams)
+      return torch.deserialize(hyperparams, 'ascii')
    end
 end
 
@@ -40,7 +40,7 @@ function PGQuery:selectReport(xp_id, epoch)
       )
       report = row[1]
       if report then
-         return torch.deserialize(report)
+         return torch.deserialize(report, 'ascii')
       end
    else
       local rows = self._pg:fetch(
@@ -52,7 +52,7 @@ function PGQuery:selectReport(xp_id, epoch)
       if _.isEmpty(rows) then return end
       local reports = {}
       for i, row in ipairs(rows) do
-         reports[row[1]] = torch.deserialize(row[2])
+         reports[row[1]] = torch.deserialize(row[2], 'ascii')
       end
       return reports
    end

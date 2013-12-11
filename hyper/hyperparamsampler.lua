@@ -18,3 +18,12 @@ end
 function HyperparamSampler:sample()
    error"NotImplementedError: HyperparamSampler:sample()"
 end
+
+function HyperparamSampler:name()
+   return self._name
+end
+
+
+function HyperparamSampler:hyperReport()
+   return {name = self._name}
+end 

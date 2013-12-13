@@ -19,7 +19,8 @@ function FileLogger:setup(config)
    self._save_dir = paths.concat(self._save_dir, subject_path)
    self._log_dir = paths.concat(self._save_dir, 'log')
    --creates directories if required
-   os.execute('mkdir -p ' .. sys.dirname(self._log_dir))
+   os.execute('mkdir -p ' .. self._log_dir)
+   print(self._save_dir, self._log_dir)
 end
 
 function FileLogger:doneEpoch(report)

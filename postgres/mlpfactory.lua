@@ -21,7 +21,7 @@ end
 
 function PGMLPFactory:buildObserver(opt)
    return {
-      dp.PGLogger{pg = self._pg},
+      self._logger,
       dp.PGEarlyStopper{
          start_epoch = 1,
          pg = self._pg,

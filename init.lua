@@ -66,6 +66,7 @@ torch.include('dp', 'observer/logger.lua')
 torch.include('dp', 'observer/earlystopper.lua')
 torch.include('dp', 'observer/savetofile.lua') --not an observer
 torch.include('dp', 'observer/learningrateschedule.lua')
+torch.include('dp', 'observer/filelogger.lua')
 
 --[[ model ]]--
 torch.include('dp', 'model/model.lua')

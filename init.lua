@@ -22,6 +22,7 @@ dp.LOG_DIR = os.getenv('DEEP_LOG_PATH')
    or paths.concat(dp.TORCH_DIR, 'log')
 
 --[[ misc ]]--
+--TODO change this to work without require, with torch.include instead
 require "dp/utils"
 torch.include('dp', 'multinomial.lua')
 torch.include('dp', 'choose.lua')

@@ -194,7 +194,7 @@ function DataSource.getDataPath(...)
         do_with_cwd(datasrc_dir,
           function()
               print("decompressing file: ", data_path)
-              decompress_file(data_path)
+              dp.decompress_file(data_path)
           end)
       end
       return decompress_path

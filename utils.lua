@@ -150,7 +150,7 @@ function check_and_download_file(path, url)
   return path
 end
 
-function decompress_file(path)
+function dp.decompress_file(path)
     if string.find(path, ".zip") then
         unzip(path)
     elseif string.find(path, ".tar.gz") or string.find(path, ".tgz") then

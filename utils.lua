@@ -150,13 +150,29 @@ function check_and_download_file(path, url)
   return path
 end
 
+-- Decompress a .tgz or .tar.gz file.
+function dp.decompress_tarball(path)
+   os.execute('tar -xvzf ' .. path)
+end
+
+-- unzip a .zip file
+function dp.unzip(path)
+   os.execute('unzip ' .. path)
+end
+
+-- gunzip a .gz file
+function dp.gunzip(path)
+   os.execute('gunzip ' .. path)
+end
+
+
 function dp.decompress_file(path)
     if string.find(path, ".zip") then
-        unzip(path)
+        dp.unzip(path)
     elseif string.find(path, ".tar.gz") or string.find(path, ".tgz") then
-        decompress_tarball(path)
+        dp.decompress_tarball(path)
     elseif string.find(path, ".gz") or string.find(path, ".gzip") then
-        gunzip(path)
+        dp.gunzip(path)
     else
         print("Don't know how to decompress file: ", path)
     end

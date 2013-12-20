@@ -23,6 +23,9 @@ require 'optim'
 
 -- Take out classes from Batch. Feedback is setup with dataset.
 -- ForwardAct(act, gstate) .. BackwardGrad
+-- Tanh, ReLu, Sigmoid, Linear layers with optional dropout and 
+-- weight initialization.
+-- Momentum schedule
 
 ------------------------------------------------------------------------
 --[[ Propagator ]]--

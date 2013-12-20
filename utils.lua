@@ -150,13 +150,29 @@ function check_and_download_file(path, url)
   return path
 end
 
-function decompress_file(path)
+-- Decompress a .tgz or .tar.gz file.
+function dp.decompress_tarball(path)
+   os.execute('tar -xvzf ' .. path)
+end
+
+-- unzip a .zip file
+function dp.unzip(path)
+   os.execute('unzip ' .. path)
+end
+
+-- gunzip a .gz file
+function dp.gunzip(path)
+   os.execute('gunzip ' .. path)
+end
+
+
+function dp.decompress_file(path)
     if string.find(path, ".zip") then
-        unzip(path)
+        dp.unzip(path)
     elseif string.find(path, ".tar.gz") or string.find(path, ".tgz") then
-        decompress_tarball(path)
+        dp.decompress_tarball(path)
     elseif string.find(path, ".gz") or string.find(path, ".gzip") then
-        gunzip(path)
+        dp.gunzip(path)
     else
         print("Don't know how to decompress file: ", path)
     end
@@ -175,6 +191,7 @@ function merge(t1, t2)
     end
     return t1
 end
+table.merge = merge
 
 
 function constrain_norms(max_norm, axis, matrix)
@@ -194,4 +211,30 @@ function typeString_to_tensorType(type_string)
    elseif type_string == 'double' then
       return 'torch.DoubleTensor'
    end
+end
+
+-- simple helpers to serialize/deserialize arbitrary objects/tables
+function torch.serialize(object, mode)
+   mode = mode or 'binary'
+   local f = torch.MemoryFile()
+   f = f[mode](f)
+   f:writeObject(object)
+   local s = f:storage():string()
+   f:close()
+   return s
+end
+
+function torch.deserialize(str, mode)
+   mode = mode or 'binary'
+   local x = torch.CharStorage():string(str)
+   local tx = torch.CharTensor(x)
+   local xp = torch.CharStorage(x:size(1)+1)
+   local txp = torch.CharTensor(xp)
+   txp:narrow(1,1,tx:size(1)):copy(tx)
+   txp[tx:size(1)+1] = 0
+   local f = torch.MemoryFile(xp)
+   f = f[mode](f)
+   local object = f:readObject()
+   f:close()
+   return object
 end

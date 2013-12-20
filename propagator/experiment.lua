@@ -1,82 +1,3 @@
-require 'torch'
-------------------------------------------------------------------------
---[[ ObjectID ]]--
--- An identifier than can be used to save files, objects, etc.
--- Provides a unique name.
-------------------------------------------------------------------------
-
-local ObjectID = torch.class("dp.ObjectID")
-ObjectID.isObjectID = true
-
-function ObjectID:__init(name, parent)
-   self._parent = parent
-   self._name = name
-end
-
-function ObjectID:toList()
-   local obj_list = {}
-   if self._parent then 
-      obj_list = self._parent:toList()
-   end
-   table.insert(obj_list, self._name)
-   return obj_list
-end
-
-function ObjectID:toString(seperator)
-   seperator = seperator or ':'
-   local obj_string = ''
-   if self._parent then
-      obj_string = self._parent:toString() .. seperator 
-   end
-   return obj_string .. self._name
-end
-
-function ObjectID:toPath()
-   return self:toString('/')
-end   
-
-function ObjectID:name()
-   return self._name
-end
-
-function ObjectID:create(name)
-   return dp.ObjectID(name, self)
-end
-
-function ObjectID:parent()
-   return self._parent
-end
-
-------------------------------------------------------------------------
---[[ EIDGenerator ]]--
--- Generates a unique identifier for the experiment.
--- Default is to concatenate a provided namespace and 
--- the time of the experiment, and the next value from a sequence
--- as a unique name
--- To ensure uniqueness across experiments, the namespace should 
--- be associated to the process, and there should be but one 
--- EIDGenerator instance per process.
-
--- Like Builder, Mediator and Data*, this object exists in the 
--- extra-experiment scope.
-------------------------------------------------------------------------
-
-local EIDGenerator = torch.class("dp.EIDGenerator")
-EIDGenerator.isEIDGenerator = true
-
-function EIDGenerator:__init(namespace, seperator)
-   self._namespace = namespace
-   self._index = 0
-   self._seperator = seperator or '.'
-end
-
-function EIDGenerator:nextID()
-   local eid = self._namespace .. os.time() .. 
-               self._seperator .. self._index
-   self._index = self._index + 1
-   return dp.ObjectID(eid)
-end
-
 ------------------------------------------------------------------------
 --[[ Experiment ]]--
 -- Acts as a kind of Facade (Design Pattern) which inner objects can
@@ -143,7 +64,7 @@ function Experiment:__init(...)
    assert(self._id.isObjectID)
    self._model = model
    self._epoch = epoch
-   self._observer = observer
+   self:setObserver(observer)
    self._optimizer = optimizer
    self._validator = validator
    self._tester = tester
@@ -202,7 +123,8 @@ function Experiment:run(datasource)
       self._tester:propagateEpoch(test_set, report)
       report = self:report()
       self._mediator:publish("doneEpoch", report)
-   until (self:isDoneExperiment() or self._epoch > self._max_epoch)
+   until (self:isDoneExperiment() or self._epoch >= self._max_epoch)
+   self._mediator:publish("finalizeExperiment")
 end
 
 --an observer should call this when the experiment is complete
@@ -216,6 +138,10 @@ end
 
 function Experiment:id()
    return self._id
+end
+
+function Experiment:name()
+   return self._id:name()
 end
 
 function Experiment:optimizer()
@@ -242,7 +168,7 @@ function Experiment:report()
       epoch = self:epoch(),
       random_seed = self:randomSeed(),
       model = self._model:report(),
-      id = self._id,
+      id = self._id:toString(),
       description = description
    }
    return report
@@ -261,3 +187,10 @@ function Experiment:setMaxEpoch(max_epoch)
    self._max_epoch = max_epoch
 end
 
+function Experiment:setObserver(observer)
+   if not torch.typename(observer) and type(observer) == 'table' then
+      --if list, make composite observer
+      observer = dp.CompositeObserver(observer)
+   end
+   self._observer = observer
+end

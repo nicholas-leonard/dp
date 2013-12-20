@@ -1,6 +1,8 @@
 require 'torch'
 require 'image'
 require 'paths'
+db = require 'debugger'
+
 
 ------------------------------------------------------------------------
 -- TODO : 
@@ -119,7 +121,7 @@ function Standardize:__init(...)
             ]], default=1e-4}
    )
 end
-    
+
 function Standardize:apply(datatensor, can_fit)
    local data = datatensor:feature()
    if can_fit then
@@ -138,6 +140,9 @@ function Standardize:apply(datatensor, can_fit)
    if self._global_std then
       data:cdiv(self._std + self._std_eps)
    else
+      print('=====')
+      print(self._std_eps)
+      print('=====')
       data:cdiv(self._std:expandAs(data) + self._std_eps)
    end
    datatensor:setData(data)
@@ -155,7 +160,7 @@ local GlobalContrastNormalize
 function GlobalContrastNormalize:__init(...)
    local args
    args, self._subtract_mean, self._scale, self._sqrt_bias, self._use_std,
-   self._min_divisor, self._std_bias, self._use_norm, self._batch_size
+   self._min_divisor, self._std_bias, self._batch_size, self._use_norm
       = xlua.unpack(
       {...},
       'GlobalContrastNormalize', nil,
@@ -187,7 +192,13 @@ function GlobalContrastNormalize:__init(...)
 
       {arg='batch_size', type='number', 
        help=[[The size of a batch.
-            ]], default=0}
+            ]], default=0},
+            
+      {arg='use_norm', type='boolean', 
+       help=[[Normalize the data
+            ]], default=false}
+            
+            
    )
 end
     
@@ -195,7 +206,7 @@ function GlobalContrastNormalize:apply(datatensor, can_fit)
    local data = datatensor:feature()
    if self._batch_size == 0 then
       data = self:_transform(data)
-      datatensor.setData(data)    
+--      datatensor.setData(data)    
    else
       local data_size = data:size(1)
       local last = math.floor(data_size / self._batch_size) * self._batch_size
@@ -224,7 +235,7 @@ function GlobalContrastNormalize:_transform(data)
 	if self._use_norm then
 		scale = torch.sqrt(torch.sum(sqr,2) + self._std_bias)
 	else
-		scale = torch.sqrt(torch.mean(sqr,2) + self.std_bias)
+		scale = torch.sqrt(torch.mean(sqr,2) + self._std_bias)
 	end
 	
 	local eps = 1e-8

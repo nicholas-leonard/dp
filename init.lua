@@ -7,9 +7,7 @@ require 'nn'
 -- deep learning library for torch 7, inspired by pylearn2.
 ------------------------------------------------------------------------
 
-
 dp = {}
-
 dp.TORCH_DIR = os.getenv('TORCH_DATA_PATH')
 
 dp.DATA_DIR = os.getenv('DEEP_DATA_PATH') 
@@ -20,6 +18,23 @@ dp.SAVE_DIR = os.getenv('DEEP_SAVE_PATH')
    
 dp.LOG_DIR = os.getenv('DEEP_LOG_PATH') 
    or paths.concat(dp.TORCH_DIR, 'log')
+<<<<<<< HEAD
+--[[ data ]]--
+require "dp/utils"
+
+
+torch.include('dp', 'datatensor.lua')
+torch.include('dp', 'dataset.lua')
+torch.include('dp', 'datasource.lua')
+torch.include('dp', 'mnist.lua')
+torch.include('dp', 'cifar10.lua')
+
+
+torch.include('dp', 'preprocess.lua')
+torch.include('dp', 'batch.lua')
+torch.include('dp', 'sampler.lua')
+torch.include('dp', 'postgres.lua')
+=======
 
 --[[ misc ]]--
 --TODO change this to work without require, with torch.include instead
@@ -30,6 +45,7 @@ torch.include('dp', 'xplog.lua')
 torch.include('dp', 'mediator.lua')
 torch.include('dp', 'objectid.lua')
 torch.include('dp', 'eidgenerator.lua')
+>>>>>>> c6e8d01422ed28447ffb66fae9eeea92b0b13c20
 
 --[[ data ]]--
 torch.include('dp', 'data/datatensor.lua')
@@ -70,6 +86,13 @@ torch.include('dp', 'observer/learningrateschedule.lua')
 torch.include('dp', 'observer/filelogger.lua')
 
 --[[ model ]]--
+<<<<<<< HEAD
+torch.include('dp', 'model.lua')
+torch.include('dp', 'module.lua')
+torch.include('dp', 'sequential.lua')
+
+
+=======
 torch.include('dp', 'model/model.lua')
 torch.include('dp', 'model/container.lua')
 torch.include('dp', 'model/sequential.lua')
@@ -95,3 +118,4 @@ torch.include('dp', 'postgres/savetofile.lua')
 torch.include('dp', 'postgres/earlystopper.lua')
 torch.include('dp', 'postgres/done.lua')
 torch.include('dp', 'postgres/mlpfactory.lua')
+>>>>>>> c6e8d01422ed28447ffb66fae9eeea92b0b13c20

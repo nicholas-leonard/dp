@@ -131,7 +131,8 @@ function Sampler:sampleEpoch(data)
                        batch_iter=stop, epoch_size=nSample, 
                        batch_size=batch_size, n_sample=stop-start,
                        classes=dataset_targets[1]:classes(),
-                       grad_type=self._sample_type}
+                       grad_type=self._sample_type,
+                       indices=torch.range(start,stop)}
          start = start + batch_size
          if start >= nSample then
             return
@@ -237,7 +238,8 @@ function ShuffleSampler:sampleEpoch(dataset)
                        batch_iter=stop, epoch_size=nSample, 
                        batch_size=batch_size, n_sample=stop-start,
                        classes=dataset_targets[1]:classes(),
-                       grad_type=self._sample_type}
+                       grad_type=self._sample_type,
+                       indices=batch_indices}
          start = start + batch_size
          if start >= nSample then
             return

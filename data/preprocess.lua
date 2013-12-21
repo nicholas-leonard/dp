@@ -1,7 +1,6 @@
 require 'torch'
 require 'image'
 require 'paths'
-db = require 'debugger'
 
 
 ------------------------------------------------------------------------

@@ -139,9 +139,6 @@ function Standardize:apply(datatensor, can_fit)
    if self._global_std then
       data:cdiv(self._std + self._std_eps)
    else
-      print('=====')
-      print(self._std_eps)
-      print('=====')
       data:cdiv(self._std:expandAs(data) + self._std_eps)
    end
    datatensor:setData(data)
@@ -270,10 +267,6 @@ function ZCA:__init(...)
        help=[[
             ]], default=0.1},
             
-      {arg='copy', type='boolean', 
-       help=[[
-            ]], default=true},
-            
       {arg='has_fit', type='boolean', 
        help=[[
             ]], default=false}
@@ -283,20 +276,17 @@ end
 function ZCA:fit(X)
     
    assert (X:dim() == 2)
-   local n_samples = X:size()[0]
+   local n_samples = X:size()[1]
          
    -- center data
-   self.mean_ = torch.mean(X, 0)
-   X = X - self.mean_
-
-   if self.copy then
-     X = X:clone()
-   end
+   self._mean = X:mean(1)
+   X = X - self._mean:resizeAs(X)
 
    print('computing ZCA')
-   local matrix = torch.mm(X:t(), X) / X:size()[0] + self.filter_bias * torch.eye(X:size()[1])
+   local matrix = torch.mm(X:t(), X) / X:size()[1]
    local eig_val, eig_vec = torch.eig(matrix, 'V')
-   eig_val = eig_val:sub(1,-1,1,1):reshape(eig_val:size()[1])
+   print(eig_val:size(), eig_val:sub(1,-1,1,1):size())
+   eig_val = eig_val:sub(1,-1,1,1):reshape(eig_val:size()[2])
    local sorted_eig_val, sorted_index = eig_val:sort(1)
    local sorted_eig_vec = eig_vec:index(2, sorted_index)
 
@@ -319,15 +309,14 @@ function ZCA:fit(X)
                            return e;
                         end) 
 
-   self.P_ = torch.mm(sorted_eig_vec, eig_vec_T)
-   self.has_fit_ = true
+   self._P = torch.mm(sorted_eig_vec, eig_vec_T)
 end
 
 function ZCA:apply(datatensor, can_fit)
    local X = datatensor:feature()
-   if self.has_fit_ == false then
+   if can_fit then
       self:fit(X)
    end
-   new_X = torch.mm(X - self.mean_, self.P_)
+   local new_X = torch.mm(X - self._mean, self._P)
    datatensor.setData(new_X)
 end

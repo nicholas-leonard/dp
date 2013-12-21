@@ -1,4 +1,3 @@
-
 require 'torch'
 require 'image'
 
@@ -8,10 +7,8 @@ require 'image'
 -- A color image set of 10 different objects
 -------------------------------------------------
 
-local Cifar10, DataSource = torch.class("dp.Cifar10", "dp.DataSource")
---local DataSource = torch.class("dp.DataSource")
+local Cifar10, parent = torch.class("dp.Cifar10", "dp.DataSource")
 
---print(DataSource)
 Cifar10._name = 'cifar10'
 Cifar10._image_size = {32, 32, 3}
 Cifar10._feature_size = 3*32*32
@@ -21,6 +18,7 @@ Cifar10._classes = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 
 function Cifar10:__init(...)
     local load_all, input_preprocess, target_preprocess
+    
     self.args, self._valid_ratio,
     self._data_folder, self._data_path,
     self._scale, self._download_url, load_all, 
@@ -56,7 +54,7 @@ function Cifar10:__init(...)
         self:loadValid()
         self:loadTest()
     end
-    DataSource.__init(self, {train_set=self:trainSet(), 
+    parent.__init(self, {train_set=self:trainSet(), 
                             valid_set=self:validSet(),
                             test_set=self:testSet(),
                             input_preprocess=input_preprocess,
@@ -68,9 +66,8 @@ function Cifar10:loadTrain()
    --Data will contain a tensor where each row is an example, and where
    --the last column contains the target class.
    local data = self:loadData(self._download_url, 'train')
-   local start = 1
    local size = math.floor(data:size(1)*(1-self._valid_ratio))
-   local train_data = data:narrow(1, start, size)
+   local train_data = data:narrow(1, 1, size)
    self:setTrainSet(self:createDataSet(train_data, 'train'))
    return self:trainSet()
 end
@@ -96,17 +93,18 @@ end
 
 function Cifar10:createDataSet(data, which_set)
    local inputs = data:narrow(2, 1, self._feature_size):clone()
+   inputs = inputs:type('torch.DoubleTensor')
 
    if self._scale then
-      DataSource.rescale(inputs, self._scale[1], self._scale[2])
+      parent.rescale(inputs, self._scale[1], self._scale[2])
    end
    --inputs:resize(inputs:size(1), unpack(self._image_size))
    local targets = data:narrow(2, self._feature_size+1, 1):clone()
    -- class 0 will have index 1, class 1 index 2, and so on.
    targets:add(1)
    targets:resize(targets:size(1))
+   targets = targets:type('torch.DoubleTensor')
    -- construct inputs and targets datatensors 
-   print('=====' .. data:nElement())
    inputs = dp.ImageTensor{data=inputs, axes=self._image_axes, 
                           sizes=self._image_size}
    targets = dp.ClassTensor{data=targets, classes=self._classes}
@@ -117,57 +115,56 @@ end
 --Returns a 50,000 x 3073 tensor, where each image is 32*32*3 = 3072 values in the
 --range [0-255], and the 3073th element is the class ID.
 function Cifar10:loadData(download_url, which_set)
-    
+   local path = dp.DataSource.getDataPath{
+      name=self._name, url=download_url, data_dir=self._data_path,
+      decompress_file='cifar-10-batches-t7/data_batch_1.t7'
+   }
 
-    local path = DataSource.getDataPath{name=self._name, 
-                                       url=download_url, 
-                                       decompress_file=nil, 
-                                       data_dir=self._data_path}
-    
---    print ('======' .. self._data_path)
-    local dir = paths.dirname(path) .. '/' .. self._data_folder
-    
-    print ('====' .. dir)
-    
-    
-    if which_set == 'train' then
-        local tensor = torch.ByteTensor(50000, 3073)
-        local startIdx = 1
-        local train_files = {'data_batch_1.t7',
-                            'data_batch_2.t7',
-                            'data_batch_3.t7',
-                            'data_batch_4.t7',
-                            'data_batch_5.t7'}
-                    
-        for _,f_name in pairs(train_files) do
-            local data_path = dir .. '/' .. f_name
-            local f = torch.DiskFile(data_path, 'r')
-            local t = f:readObject()
-            local n_example = t.data:size(2)
-            local n_feature = t.data:size(1)
-            assert(n_feature == 3072)
-            tensor[{{startIdx, startIdx+n_example-1},{1, n_feature}}] = t.data:t()
-            tensor[{{startIdx, startIdx+n_example-1},{n_feature+1}}] = t.labels
-            startIdx = startIdx + n_example
-            f:close()
-        end
-        assert(startIdx-1 == 50000, 'total number of examples is not equal to 50000')
-        return tensor
-    
-    elseif which_set == 'test' then
-        local tensor = torch.ByteTensor(10000, 3073)
-        local test_file = 'test_batch.t7'  
-        local data_path = dir .. '/' .. test_file
-        local f = torch.DiskFile(data_path, 'r')
-        local t = f:readObject()
-        local n_example = t.data:size(2)
-        local n_feature = t.data:size(1)
-        assert(n_feature == 3072)
-        assert(n_example == 10000)
-        tensor[{{1, n_example},{1, n_feature}}] = t.data:t()
-        tensor[{{1, n_example},{n_feature+1}}] = t.labels
-        f:close()
-        return tensor
-    end
+   local dir = paths.dirname(path) --.. '/' .. self._data_folder
+
+   if which_set == 'train' then
+      local tensor = torch.ByteTensor(50000, 3073)
+      local startIdx = 1
+      local train_files = {'data_batch_1.t7',
+                         'data_batch_2.t7',
+                         'data_batch_3.t7',
+                         'data_batch_4.t7',
+                         'data_batch_5.t7'}
+                 
+      for _,f_name in pairs(train_files) do
+         local data_path = dir .. '/' .. f_name
+         local f = torch.DiskFile(data_path, 'r')
+         local t = f:readObject()
+         local n_example = t.data:size(2)
+         local n_feature = t.data:size(1)
+         assert(n_feature == 3072)
+         tensor[{{startIdx, startIdx+n_example-1},{1, n_feature}}] = t.data:t()
+         tensor[{{startIdx, startIdx+n_example-1},{n_feature+1}}] = t.labels
+         startIdx = startIdx + n_example
+         f:close()
+      end
+      assert(startIdx-1 == 50000, 'total number of examples is not equal to 50000')
+      return tensor
+
+   elseif which_set == 'test' then
+      local tensor = torch.ByteTensor(10000, 3073)
+      local test_file = 'test_batch.t7'  
+      local data_path = dir .. '/' .. test_file
+      local f = torch.DiskFile(data_path, 'r')
+      local t = f:readObject()
+      local n_example = t.data:size(2)
+      local n_feature = t.data:size(1)
+      assert(n_feature == 3072)
+      assert(n_example == 10000)
+      tensor[{{1, n_example},{1, n_feature}}] = t.data:t()
+      tensor[{{1, n_example},{n_feature+1}}] = t.labels
+      f:close()
+      return tensor
+   end
        
 end
+
+local function cifar10test()
+   c = dp.Cifar10{input_preprocess=dp.ZCA()}
+end
+cifar10test()

@@ -131,7 +131,7 @@ function Mnist:loadData(file_name, download_url)
    local n_examples   = f:readInt()
    local n_dimensions = f:readInt()
 
-   local tensor       = torch.Tensor(n_examples, n_dimensions)
+   local tensor = torch.Tensor(n_examples, n_dimensions)
    tensor:storage():copy(f:readFloat(n_examples * n_dimensions))
    return tensor
 end

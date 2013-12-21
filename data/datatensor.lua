@@ -17,9 +17,7 @@ require 'image'
 --- type of tensor (:cuda(), :double(), etc. set in constructor)
 
 local DataTensor = torch.class("dp.DataTensor")
-
 DataTensor.isDataTensor = true
-
 
 --returns true if all indices in obj_table are instances of DataTensor
 --else return false and index of first non-element

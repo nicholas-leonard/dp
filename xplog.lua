@@ -15,7 +15,7 @@ function XpLog:__init(...)
    self._collections = {}
 end
 
-function XpLog:collection(collection_name, fast)
+function XpLog:collection(collection_name)
    local collection = self._collections[collection_name] 
    if not collection then 
       collection = self:createCollection(collection_name)

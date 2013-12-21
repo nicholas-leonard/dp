@@ -167,4 +167,3 @@ end
 local function cifar10test()
    c = dp.Cifar10{input_preprocess=dp.ZCA()}
 end
-cifar10test()

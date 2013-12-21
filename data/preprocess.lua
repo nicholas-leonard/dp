@@ -285,8 +285,7 @@ function ZCA:fit(X)
    print('computing ZCA')
    local matrix = torch.mm(X:t(), X) / X:size()[1]
    local eig_val, eig_vec = torch.eig(matrix, 'V')
-   print(eig_val:size(), eig_val:sub(1,-1,1,1):size())
-   eig_val = eig_val:sub(1,-1,1,1):reshape(eig_val:size()[2])
+   eig_val = eig_val:select(2,1)
    local sorted_eig_val, sorted_index = eig_val:sort(1)
    local sorted_eig_vec = eig_vec:index(2, sorted_index)
 
@@ -301,7 +300,7 @@ function ZCA:fit(X)
    end
 
    sorted_eig_val:apply(function(e) e = 1/e; return e; end)
-   eig_vec_T = sorted_eig_vec:clone().t()
+   eig_vec_T = sorted_eig_vec:clone():t()
    local index = 0
    sorted_eig_vec:apply(function(e) 
                            e = e * sorted_eig_val[index+1];
@@ -317,6 +316,6 @@ function ZCA:apply(datatensor, can_fit)
    if can_fit then
       self:fit(X)
    end
-   local new_X = torch.mm(X - self._mean, self._P)
-   datatensor.setData(new_X)
+   local new_X = torch.mm(X - self._mean:resizeAs(X), self._P)
+   datatensor:setData(new_X)
 end

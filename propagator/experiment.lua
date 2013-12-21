@@ -49,7 +49,8 @@ function Experiment:__init(...)
       {arg='random_seed', type='number', default=7},
       {arg='epoch', type='number', default=0,
        help='Epoch at which to start the experiment.'},
-      {arg='mediator', type='dp.Mediator', default=dp.Mediator()},
+      {arg='mediator', type='dp.Mediator', 
+       help='defaults to dp.Mediator()'},
       {arg='overwrite', type='boolean', default=false,
        help='Overwrite existing values. For example, if a ' ..
        'datasource is provided, and optimizer is already ' ..
@@ -58,6 +59,7 @@ function Experiment:__init(...)
       {arg='max_epoch', type='number', default=1000, 
        help='Maximum number of epochs allocated to the experiment'}
    )
+   self:setRandomSeed(random_seed)
    self._is_done_experiment = false
    assert(id or id_gen)
    self._id = id or id_gen:nextID()
@@ -68,7 +70,7 @@ function Experiment:__init(...)
    self._optimizer = optimizer
    self._validator = validator
    self._tester = tester
-   self._mediator = mediator
+   self._mediator = mediator or dp.Mediator()
    self:setMaxEpoch(max_epoch)
 end
 
@@ -174,7 +176,6 @@ function Experiment:report()
    return report
 end
 
-
 function Experiment:observers()
    return self._observers
 end
@@ -193,4 +194,9 @@ function Experiment:setObserver(observer)
       observer = dp.CompositeObserver(observer)
    end
    self._observer = observer
+end
+
+function Experiment:setRandomSeed(random_seed)
+   torch.manualSeed(random_seed)
+   self._random_seed = random_seed
 end

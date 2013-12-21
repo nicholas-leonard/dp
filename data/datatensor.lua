@@ -378,7 +378,7 @@ function DataTensor:class(...)
        default=false}
    )
    --use multiclass:
-   data, classes = self:multiclass(args)
+   local data, classes = self:multiclass(args)
    --Takes the first class of each example
    data = data:select(2, 1)
    return data, classes

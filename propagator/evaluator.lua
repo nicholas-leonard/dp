@@ -10,13 +10,12 @@
 local Evaluator = torch.class("dp.Evaluator", "dp.Propagator")
 
       
-function Evaluator:propagateBatch(batch) 
+function Evaluator:propagateBatch(batch, report) 
    local model = self._model
    --[[ feedforward ]]--
    -- evaluate function for complete mini batch
-   model.istate.act = batch:inputs()
-   model:evaluate()
-   batch:setOutputs(model.ostate.act)
+   local ostate = model:evaluate{input=batch:inputs()}
+   batch:setOutputs(ostate.act)
    
    -- average loss (a scalar)
    batch:setLoss(
@@ -31,7 +30,7 @@ function Evaluator:propagateBatch(batch)
    end
    --publish report for this optimizer
    self._mediator:publish(self:id():name() .. ':' .. "doneFeedback", 
-                          self:report(), batch)
+                          report, batch)
 
    
    --[[ update parameters ]]--
@@ -42,5 +41,5 @@ function Evaluator:propagateBatch(batch)
    
    --publish report for this optimizer
    self._mediator:publish(self:id():name() .. ':' .. "doneBatch", 
-                          self:report(), batch)
+                          report, batch)
 end

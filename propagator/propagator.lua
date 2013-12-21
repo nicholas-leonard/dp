@@ -46,8 +46,9 @@ function Propagator:__init(...)
       = xlua.unpack(
       {... or {}},
       'Propagator', nil,
-      {arg='sampler', type='dp.Sampler', default=dp.Sampler(),
-       help='used to iterate through the train set'},
+      {arg='sampler', type='dp.Sampler', 
+       help='Used to iterate through the train set. ' ..
+       'Defaults to dp.Sampler()'},
       {arg='criterion', type='nn.Criterion', req=true,
        help='a neural network criterion to evaluate or minimize'},
       {arg='visitor', type='dp.Visitor',
@@ -65,7 +66,7 @@ function Propagator:__init(...)
       {arg='stats', type='boolean', default=false,
        help='display statistics'}
    )
-   self:setSampler(sampler)
+   self:setSampler(sampler or dp.Sampler())
    self:setMemType(mem_type)
    self:setCriterion(criterion)
    self:setObserver(observer)
@@ -113,8 +114,7 @@ function Propagator:setup(...)
                            dataset=dataset}
    end
    if self._visitor then
-      self._visitor:setup{mediator=mediator, 
-                          model=self._model, 
+      self._visitor:setup{mediator=mediator, model=self._model, 
                           propagator=self}
    end
 end
@@ -129,14 +129,13 @@ function Propagator:propagateEpoch(dataset, report)
    local start_time = sys.clock()
    local last_batch
    
-   
    if self._stats then
       print('==> online epoch # ' .. (report.epoch + 1) .. 
                         ' for ' .. self:id():name())
    end
    
    for batch in self._sampler:sampleEpoch(dataset) do
-      self:propagateBatch(batch)
+      self:propagateBatch(batch, report)
       if self._progress then
          -- disp progress
          xlua.progress(batch:batchIter(), batch:epochSize())
@@ -194,6 +193,7 @@ function Propagator:report()
    if self._visitor then
       report.visitor = self._visitor:report()
    end
+   print(self:id():toString() .. ' loss ' .. self:loss())
    return report
 end
 
@@ -272,12 +272,7 @@ function Propagator:memType()
 end
 
 function Propagator:updateLoss(batch)
-   self._loss = (
-                     ( self._samples_seen * self._loss ) 
-                     + 
-                     ( batch:nSample() * batch:loss() )
-                ) / self._samples_seen + batch:nSample()
-                
+   self._loss = self._loss + batch:loss()                
    self._samples_seen = self._samples_seen + batch:nSample()
 end
 
@@ -287,5 +282,5 @@ function Propagator:resetLoss()
 end
 
 function Propagator:loss()
-   return self._loss
+   return self._loss / self._samples_seen
 end

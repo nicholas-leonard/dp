@@ -76,7 +76,7 @@ function Mnist:loadTrain()
 end
 
 function Mnist:loadValid()
-   data = self:loadData(self._train_file, self._download_url)
+   local data = self:loadData(self._train_file, self._download_url)
    if self._valid_ratio == 0 then
       print"Warning : No Valid Set due to valid_ratio == 0"
       return

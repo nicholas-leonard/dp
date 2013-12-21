@@ -11,26 +11,26 @@ function Optimizer:__init(config)
       {config},
       'Optimizer', 
       'Optimizes a model on a training dataset',
-      {arg='sampler', type='dp.Sampler', default=dp.ShuffleSampler(),
-       help='used to iterate through the train set'},
+      {arg='sampler', type='dp.Sampler', 
+       help='used to iterate through the train set. ' ..
+       'Defaults to dp.ShuffleSampler()'},
       {arg='visitor', type='dp.Visitor', req=true,
        help='visits models after forward-backward phase. ' .. 
        'Performs the parameter updates.'},
       {arg='stats', type='boolean', default=true,
        help='display statistics'}
    )
-   config.sampler = sampler
+   config.sampler = sampler or dp.ShuffleSampler()
    config.stats = stats
    parent.__init(self, config)
 end
       
-function Optimizer:propagateBatch(batch)   
+function Optimizer:propagateBatch(batch, report)   
    local model = self._model
    --[[ feedforward ]]--
    -- evaluate function for complete mini batch
-   model.istate.act = batch:inputs()
-   model:forward()
-   batch:setOutputs(model.ostate.act:double())
+   local ostate = model:forward{input=batch:inputs()}
+   batch:setOutputs(ostate.act:double())
    
    -- average loss (a scalar)
    batch:setLoss(
@@ -45,7 +45,7 @@ function Optimizer:propagateBatch(batch)
    end
    --publish report for this optimizer
    self._mediator:publish(self:id():name() .. ':' .. "doneFeedback", 
-                          self:report(), batch)
+                          report, batch)
    
    --[[ backpropagate ]]--
    -- estimate df/do (f is for loss, o is for outputs), a tensor
@@ -53,8 +53,7 @@ function Optimizer:propagateBatch(batch)
       self._criterion:backward(batch:outputs(), batch:targets())
    )
    
-   model.ostate.grad = batch:outputGradients()
-   model:backward()
+   model:backward{output=batch:outputGradients()}
 
    
    --[[ update parameters ]]--
@@ -63,7 +62,7 @@ function Optimizer:propagateBatch(batch)
    
    --publish report for this optimizer
    self._mediator:publish(self:id():name() .. ':' .. "doneBatch", 
-                          self:report(), batch)
+                          report, batch)
 end
 
 

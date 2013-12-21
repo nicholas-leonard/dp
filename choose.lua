@@ -50,3 +50,20 @@ function WeightedChoose:report()
    report.probs = self._probs
    return report
 end
+
+------------------------------------------------------------------------
+--[[ TimeChoose ]]--
+-- each sample is the time from os.time().
+-- useful for setting the random seed of experiments
+------------------------------------------------------------------------
+local TimeChoose = torch.class("dp.TimeChoose")
+TimeChoose.isChoose = true
+TimeChoose.isTimeChoose = true
+
+function TimeChoose:sample()
+   return os.time()
+end
+
+function TimeChoose:report()
+   return {typename = torch.typename(self)}
+end

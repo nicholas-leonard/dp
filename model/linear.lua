@@ -37,10 +37,10 @@ function Linear:maxNorm(max_out_norm, max_in_norm)
    local weight = param.weight.param
    if max_out_norm then
       -- rows feed into output neurons 
-      constrain_norms(max_out_norm, 2, weight)
+      dp.constrain_norms(max_out_norm, 2, weight)
    end
    if max_in_norm then
       -- cols feed out from input neurons
-      constrain_norms(max_in_norm, 1, weight)
+      dp.constrain_norms(max_in_norm, 1, weight)
    end
 end

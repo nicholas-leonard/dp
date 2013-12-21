@@ -70,8 +70,7 @@ function Confusion:setup(config)
 end
 
 function Confusion:doneEpoch(report)
-   print(self._id:toString())
-   print(self._cm)
+   print(self._id:toString() .. " accuracy = " .. self._cm.averageValid)
 end
 
 function Confusion:add(batch)

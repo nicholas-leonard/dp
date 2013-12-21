@@ -73,6 +73,7 @@ torch.include('dp', 'observer/filelogger.lua')
 torch.include('dp', 'model/model.lua')
 torch.include('dp', 'model/container.lua')
 torch.include('dp', 'model/sequential.lua')
+torch.include('dp', 'model/neural.lua')
 torch.include('dp', 'model/module.lua')
 torch.include('dp', 'model/linear.lua')
 

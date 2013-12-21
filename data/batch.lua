@@ -17,7 +17,7 @@ Batch.isBatch = true
 
 function Batch:__init(...)
    local args, inputs, targets, batch_iter, epoch_size, batch_size, 
-      n_sample, classes, grad_type
+      n_sample, classes, grad_type, indices
       = xlua.unpack(
       {... or {}},
       'Batch', nil,
@@ -30,10 +30,12 @@ function Batch:__init(...)
       {arg='batch_size', type='number'},
       {arg='n_sample', type='number'},
       {arg='classes', type='table', 
-      help='temporary hack for confusion feedback worker until this ' ..
+       help='temporary hack for confusion feedback worker until this '..
       'class in made to inherit DataSet and spawned from a dataset ' ..
       'via a Sampler.'},
-      {arg='grad_type', type='string'}
+      {arg='grad_type', type='string'},
+      {arg='indices', type='torch.Tensor', 
+       help='indices of the examples in the original dataset.'}
    )
    self._inputs = inputs
    self._targets = targets
@@ -43,6 +45,7 @@ function Batch:__init(...)
    self._n_sample = n_sample
    self._classes = classes
    self._grad_type = grad_type
+   self._indices = indices
 end
 
 function Batch:inputs()
@@ -96,5 +99,9 @@ end
 
 function Batch:batchIter()
    return self._batch_iter
+end
+
+function Batch:indices()
+   return self._indices
 end
    

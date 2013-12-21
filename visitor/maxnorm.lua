@@ -12,7 +12,7 @@ local MaxNorm, parent = torch.class("dp.MaxNorm", "dp.Visitor")
 
 function MaxNorm:__init(config)
    config = config or {}
-   local args, max_col_norm, max_row_norm, name = xlua.unpack(
+   local args, max_out_norm, max_in_norm, name = xlua.unpack(
       {config},
       'MaxNorm', 
       'Hard constraint on the upper bound of the norm of output ' ..

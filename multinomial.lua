@@ -11,7 +11,7 @@ end
 -- Make cumulative probability distribution for each row of a matrix.
 -- If inplace is True, use the prob_dist to store the cumulative dist.
 local function cumulative(prob_dist, inplace)
-    cum_dist = prob_dist
+    local cum_dist = prob_dist
     if not inplace then
         cum_dist = prob_dist:clone()
     end

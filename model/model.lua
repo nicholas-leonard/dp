@@ -100,9 +100,43 @@ function Model:parameters()
    return self._params
 end
 
+function Model:setInputState(istate)
+   if istate then
+      if torch.isTensor(istate) then
+         -- istate is tensor, then assume it is activation
+         self.istate.act = istate     
+         return    
+      end
+      assert(type(istate) == 'table')
+      -- merge gstate.input into istate, keep non-overlapping istate
+      for k,v in pairs(istate) do
+         self.istate[k] = v
+      end
+   end
+end
+
+function Model:setOutputState(ostate)
+   if ostate then
+      if torch.isTensor(ostate) then
+         -- ostate is tensor, then assume it is gradients
+         self.ostate.grad = ostate
+         return
+      end
+      assert(type(ostate) == 'table')
+      -- merge gstate.input into istate, keep non-overlapping istate
+      for k,v in pairs(ostate) do
+         self.ostate[k] = v
+      end
+   end
+end
+
 function Model:forward(gstate)
+   -- if gstate contains field 'input', assume this is istate
+   self:setInputState(gstate.input)
+   gstate.input = nil
    self:_forward(gstate)
    self.forwarded = true
+   return self.ostate
 end
 
 function Model:_forward(gstate)
@@ -113,9 +147,13 @@ end
 --this is useful for stochastic Modules like Dropout, which have 
 --different behavior for training than for evaluation.
 function Model:evaluate(gstate)
+   -- if gstate contains field 'input', assume this is istate
+   self:setInputState(gstate.input)
+   gstate.input = nil
    self:_evaluate(gstate)
    self.evaluated = true
    self.forwarded = true
+   return self.ostate
 end
 --default is to call forward (no difference)
 function Model:_evaluate(gstate)
@@ -123,8 +161,12 @@ function Model:_evaluate(gstate)
 end
 
 function Model:backward(gstate, scale)
+   -- if gstate contains field 'output', assume this is ostate
+   self:setOutputState(gstate.output)
+   gstate.output = nil
    self:_backward(gstate, scale)
    self.backwarded = true
+   return self.istate
 end
 
 function Model:_backward(gstate, scale)
@@ -157,7 +199,9 @@ end
 
 function Model:doneBatch(...)
    self:_doneBatch(...)
-   self:zeroGradParameters()
+   if self.backwarded then
+      self:zeroGradParameters()
+   end
    self.forwarded = false
    self.backwarded = false
    self.evaluated = false
@@ -215,3 +259,5 @@ end
 function Model:reset()
 end
 
+function Model:share(mlp, ...)
+end

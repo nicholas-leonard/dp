@@ -181,9 +181,11 @@ end
 --[[ End From ]]--
 
 -- From http://stackoverflow.com/questions/1283388/lua-merge-tables
+-- values in table 1 have precedence
 function merge(t1, t2)
     for k, v in pairs(t2) do
-        if (type(v) == "table") and (type(t1[k] or false) == "table") then
+        if (type(v) == "table") and (type(t1[k] or false) == "table") 
+         and (not torch.typename(v)) and (not torch.typename(t1[k])) then
             merge(t1[k], t2[k])
         else
             t1[k] = v
@@ -193,15 +195,24 @@ function merge(t1, t2)
 end
 table.merge = merge
 
-
 function constrain_norms(max_norm, axis, matrix)
-   local norms = torch.norm(weight,2,axis)
+   local old_matrix = matrix
+   local cuda
+   if matrix:type() == 'torch.CudaTensor' then
+      matrix = matrix:double()
+      cuda = true
+   end
+   local norms = torch.norm(matrix,2,axis)
    -- clip
    local new_norms = norms:clone()
    new_norms[torch.gt(norms, max_norm)] = max_norm
    local div = torch.cdiv(new_norms, torch.add(norms,1e-7))
-   matrix:cmul(div:expandAs(matrix))
+   if cuda then
+      div = div:cuda()
+   end
+   old_matrix:cmul(div:expandAs(old_matrix))
 end
+dp.constrain_norms = constrain_norms
 
 function typeString_to_tensorType(type_string)
    if type_string == 'cuda' then
@@ -237,4 +248,13 @@ function torch.deserialize(str, mode)
    local object = f:readObject()
    f:close()
    return object
+end
+
+function dp.printG()
+   for k,v in pairs(_.omit(_G, 'torch', 'paths', 'nn', 'xlua', '_', 
+                           'underscore', 'io', 'utils', '_G', 'nnx', 
+                           'optim', '_preloaded_ ', 'math', 'libfs',
+                           'cutorch', 'image')) do
+      print(k, type(v))
+   end
 end

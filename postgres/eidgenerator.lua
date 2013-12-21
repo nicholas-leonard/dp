@@ -14,10 +14,10 @@ function PGEIDGenerator:__init(config)
       {config or {}},
       'PGEIDGenerator', 'Generates unique IDs for experiments using ' ..
       'a postgreSQL Sequence.',
-      {arg='pg', type='dp.Postgres', default=dp.Postgres()},
+      {arg='pg', type='dp.Postgres', help='defaults to dp.Postgres()'},
       {arg='sequence', type='string', default='dp.xp_id_gen'}
    )
-   self._pg = pg
+   self._pg = pg or dp.Postgres()
    self._sequence = sequence
 end
 

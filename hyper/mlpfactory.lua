@@ -27,17 +27,24 @@ function MLPFactory:buildModel(opt)
    local function addHidden(mlp, activation, input_size, layer_index)
       layer_index = layer_index or 1
       local output_size = opt.model_width * opt.width_scales[layer_index]
-      mlp:add(dp.Linear{input_size=input_size, output_size=output_size})
+      local transfer
       if activation == 'ReLU' then
          require 'nnx'
-         mlp:add(dp.Module(nn.ReLU()))
+         transfer = nn.ReLU()
       elseif activation == 'Tanh' then
-         mlp:add(dp.Module(nn.Tanh()))
+         transfer = nn.Tanh()
       elseif activation == 'Sigmoid' then
-         mlp:add(dp.Module(nn.Sigmoid()))
+         transfer = nn.Sigmoid()
       elseif activation ~= 'Linear' then
          error("Unknown activation function : " .. activation)
       end
+      local dropout
+      if opt.dropout_probs[layer_index] then
+         require 'nnx'
+         dropout = nn.Dropout(opt.dropout_probs[layer_index])
+      end
+      mlp:add(dp.Neural{input_size=input_size, output_size=output_size,
+                        transfer=transfer, dropout=dropout})
       if layer_index < (opt.model_dept-1) then
          return addHidden(mlp, activation, output_size, layer_index+1)
       else
@@ -45,12 +52,21 @@ function MLPFactory:buildModel(opt)
       end
    end
    --[[Model]]--
-   mlp = dp.Sequential()
+   local mlp = dp.Sequential()
    -- hidden layer(s)
    local last_size = addHidden(mlp, opt.activation, opt.feature_size, 1)
    -- output layer
-   mlp:add(dp.Linear{input_size=last_size, output_size=#opt.classes})
-   mlp:add(dp.Module(nn.LogSoftMax()))
+   local dropout
+   if opt.dropout_probs[opt.model_dept] then
+      require 'nnx'
+      dropout = nn.Dropout(opt.dropout_probs[opt.model_dept])
+   end
+   mlp:add(
+      dp.Neural{
+         input_size=last_size, output_size=#opt.classes,
+         transfer=nn.LogSoftMax(), dropout=dropout
+      }
+   )
    --[[GPU or CPU]]--
    if opt.model_type == 'cuda' then
       require 'cutorch'
@@ -162,6 +178,7 @@ function MLPFactory:build(opt, id)
    --[[Experiment]]--
    return dp.Experiment{
       id = id,
+      random_seed = opt.random_seed,
       model = self:buildModel(opt),
       optimizer = self:buildOptimizer(opt),
       validator = self:buildValidator(opt),

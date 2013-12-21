@@ -63,7 +63,7 @@ end
 function Sequential:_backward(gstate, scale)
    scale = scale or 1
    for i=#self._models,1,-1 do
-      self._models[i]:backward(scale)
+      self._models[i]:backward(gstate, scale)
    end
 end
 

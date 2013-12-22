@@ -17,7 +17,9 @@ require 'image'
 --- type of tensor (:cuda(), :double(), etc. set in constructor)
 
 local DataTensor = torch.class("dp.DataTensor")
+
 DataTensor.isDataTensor = true
+
 
 --returns true if all indices in obj_table are instances of DataTensor
 --else return false and index of first non-element
@@ -225,7 +227,7 @@ function DataTensor:feature(...)
       error("No batch ('b') dimension")
    elseif b ~= 1 then
       --make (transpose) the batch dim the first dim
-      data:transpose(1, b)
+      data = data:transpose(1, b)
       --make contiguous for a later resize (may result in new storage)
       data = data:contiguous()
    end
@@ -246,148 +248,6 @@ function DataTensor:feature(...)
       self:storeExpandedAxes(axes)
    end
    return data
-end
-
-function DataTensor:image(...)
-   local axes = self:expandedAxes()
-   local sizes = self:expandedSize()
-   if #axes ~= 4 then
-      print"DataTensor Warning: no image axis provided at construction, assuming {'b','h','w','c'}"
-      axes = {'b','h','w','c'}
-   end
-   assert((sizes:size(1) == 4), "Error: no image size provided at construction")
-   local args, inplace, contiguous = xlua.unpack(
-      {... or {}},
-      'DataTensor:images',
-      'Returns a 4D-tensor of axes format : ' .. table.tostring(axes),
-      {arg='inplace', type='boolean', 
-       help=[[When true, makes self._data a contiguous view of axes 
-       ]] .. table.tostring(axes) .. [[ for future use.]], 
-       default=true},
-      {arg='contiguous', type='boolean', 
-       help='When true makes sure the returned tensor is contiguous.', 
-       default=false}
-   )
-   --creates a new view of the same storage
-   local data = torch.Tensor(self._data)
-   if data:dim() == 4 and table.eq(self.axes, axes) then
-      return self._data
-   end
-   local b = _.indexOf(self.axes, 'b')
-   local new_b = _.indexOf(axes, 'b')
-   if b == 0 then
-      error("No batch ('b') dimension")
-   elseif b ~= new_b then
-      --make (transpose) the batch dim first
-      data:transpose(new_b, b)
-      sizes:transpose(new_b, b)
-      --make contiguous (new storage) for a later resize
-      data = data:contiguous()
-   end
-   if data:dim() == 2 and _.contains(self.axes, 'f') then
-      assert(sizes:size(1) == 4, "Error: sizes doesn't have enough dimensions")
-      --convert {'b','f'} to {'b','h','w','c'}
-      data:resize(sizes:storage())      
-   else
-      error("unsupported conversion of axes formats")
-   end
-   if contiguous or inplace then
-      data = data:contiguous()
-   end
-   if inplace then
-      self:store(data, axes)
-   else
-      self:storeExpandedSize(data:size())
-      self:storeExpandedAxes(axes)
-   end
-   return data, axes
-end
-
-function DataTensor:imageCUDA(...)
-   local axes = {'c','h','w','b'}
-   --TODO
-   error("Error Not Implemented")
-end
-
-function DataTensor:multiclass(...)
-   local axes = {'b', 't'} 
-   local sizes = self:expandedSize()
-   local args, inplace, contiguous = xlua.unpack(
-      {... or {}},
-      'DataTensor:multiclass',
-      [[Returns a 2D-tensor of examples by classes: {'b', 't'}]],
-      {arg='inplace', type='boolean', 
-       help=[[When true, makes self._data a contiguous view of axes 
-       {'b', 'f'} for future use.]], 
-       default=true},
-      {arg='contiguous', type='boolean', 
-       help='When true makes sure the returned tensor is contiguous.', 
-       default=false}
-   )
-   --creates a new view of the same storage
-   local data = torch.Tensor(self._data)
-   if data:dim() == 2 and table.eq(self.axes, axes) then
-      return self._data
-   end
-   assert(table.eq(self.axes, {'b'}) or table.eq(self.axes, {'t', 'b'}),
-          "Error: DataTensor doesn't support conversion to {'b', 't'}")
-   local b = _.indexOf(self.axes, 'b')
-   if b == 0 then
-      error("No batch ('b') dimension")
-   elseif b ~= 1 then
-      --make (transpose) the batch dim first
-      data:transpose(1, b)
-      --make contiguous (new storage) for a later resize
-      data = data:contiguous()
-   end
-   if data:dim() == 1 then
-      if sizes:size(1) == 1 then
-         print"DataTensor Warning: Assuming one class per example."
-         sizes = torch.LongTensor({self._data:size(1), 1})
-      end
-      --convert {'b'} to {'b','t'}
-      data:resize(sizes:storage())
-   end
-   if contiguous or inplace then
-      data = data:contiguous()
-   end
-   if inplace then
-      self:store(data, axes)
-   else
-      self:storeExpandedSize(data:size())
-      self:storeExpandedAxes(axes)
-   end
-   return data, self._classes
-end
-
-function DataTensor:class(...)
-   local axes = {'b'} 
-   local sizes = self:expandedSize()
-   local args, inplace, contiguous = xlua.unpack(
-      {... or {}},
-      'DataTensor:class',
-      [[Returns a 1D-tensor of example classes: {'b'}]],
-      {arg='inplace', type='boolean', 
-       help=[[When true, makes self._data is a contiguous view of axes 
-       {'b'} for future use.]], 
-       default=true},
-      {arg='contiguous', type='boolean', 
-       help='When true makes sure the returned tensor is contiguous.', 
-       default=false}
-   )
-   --use multiclass:
-   local data, classes = self:multiclass(args)
-   --Takes the first class of each example
-   data = data:select(2, 1)
-   return data, classes
-end
-
-function DataTensor:onehot(...)
-   error("Not Implemented")
-end
-
-function DataTensor:manyhot(...)
-   error("Not Implemented")
 end
 
 function DataTensor:array(...)
@@ -415,7 +275,7 @@ function DataTensor:array(...)
       error("No batch ('b') dimension")
    elseif b ~= 1 then
       --make (transpose) the batch dim first
-      data:transpose(1, b)
+      data = data:transpose(1, b)
       --make contiguous (new storage) for a later resize
       data = data:contiguous()
    end
@@ -446,11 +306,33 @@ function DataTensor:index(indices)
    return self._data:index(self:b(), indices)
 end
 
+function DataTensor.transpose(axis, new_dim, axes, size, data)
+   -- copy
+   axes = _.omit(axes)
+   local current_dim = _.indexOf(axes, axis)
+   if current_dim == 0 then
+      error("Axis " .. axis .. 'is not in axes ' .. axes)
+   end
+   if new_dim < 0 then
+      new_dim = #axes + 1 - new_dim
+   end
+   if current_dim ~= new_dim then
+      axes[current_dim] = axes[new_dim]
+      axes[new_dim] = axis
+      local new_size = size[new_dim]
+      size[new_dim] = size[current_dim]
+      size[current_dim] = new_size
+      if data then
+         data = data:transpose(new_dim, current_dim)
+      end
+   end
+   return axes, size, data
+end
 
 ------------------------------------------------------------------------
 -- ImageTensor : A DataTensor holding a tensor of images.
 ------------------------------------------------------------------------
-local ImageTensor = torch.class("dp.ImageTensor", "dp.DataTensor")
+local ImageTensor, parent = torch.class("dp.ImageTensor", "dp.DataTensor")
 
 --TODO : enforce image representions, or deny non-image ones
 function ImageTensor:__init(...)
@@ -491,9 +373,74 @@ function ImageTensor:__init(...)
             ]]}
    )   
    --TODO error when sizes is not provided for unknown axes.
-   DataTensor.__init(self, {data=data, axes=axes, sizes=sizes})
+   parent.__init(self, {data=data, axes=axes, sizes=sizes})
 end
 
+function ImageTensor:image(...)
+   return self:imageBHWC(...)
+end
+
+function ImageTensor:imageBHWC(...)
+   local desired_axes = {'b','h','w','c'}
+   local current_axes = self:storedAxes()
+   local current_size = self:storedSize()
+   local expanded_axes = self:expandedAxes()
+   local expanded_size = self:expandedSize()
+   if #expanded_axes ~= 4 then
+      print"DataTensor Warning: no image axis provided at construction, assuming {'b','h','w','c'}"
+      expanded_axes = desired_axes
+   end
+   assert((expanded_size:size(1) == 4), "Error: no image size provided at construction")
+   local args, inplace, contiguous = xlua.unpack(
+      {... or {}},
+      'DataTensor:images',
+      'Returns a 4D-tensor of axes format : ' .. 
+         table.tostring(desired_axes),
+      {arg='inplace', type='boolean', 
+       help=[[When true, makes self._data a contiguous view of axes 
+       ]] ..  table.tostring(desired_axes) .. [[ for future use.]], 
+       default=true},
+      {arg='contiguous', type='boolean', 
+       help='When true makes sure the returned tensor is contiguous.', 
+       default=false}
+   )
+   --creates a new view of the same storage
+   local data = torch.Tensor(self._data)
+   if data:dim() == 4 and table.eq(current_axes, desired_axes) then
+      return self._data, desired_axes
+   end
+   expanded_axes, expanded_size 
+      = parent.transpose('b', 1, expanded_axes, expanded_size)
+   --resize to image size
+   if data:dim() == 2 and _.contains(current_axes, 'f') then
+      --expand {'b','f'}
+      assert(expanded_size:size(1) == 4, 
+             "Error: sizes doesn't have enough dimensions")
+      current_axes, current_size, data 
+         = parent.transpose('b', 1, current_axes, current_size, data)
+      data:contiguous():resize(expanded_size:storage())      
+   end
+   --convert between image representations
+   expanded_axes, expanded_size, data 
+      = parent.transpose('c', 4, expanded_axes, expanded_size, data)
+   expanded_axes, expanded_size, data 
+      = parent.transpose('h', 2, expanded_axes, expanded_size, data)
+   assert(table.eq(expanded_axes, desired_axes),
+         "Error: unsupported conversion of axes formats")
+   if contiguous or inplace then
+      data = data:contiguous()
+      if inplace then
+         self:store(data, desired_axes)
+      end
+   end
+   return data, axes
+end
+
+function ImageTensor:imageCUDA(...)
+   local axes = {'c','h','w','b'}
+   --TODO
+   error("Error Not Implemented")
+end
 
 ------------------------------------------------------------------------
 -- ClassTensor : A DataTensor holding a tensor of classes.
@@ -549,4 +496,86 @@ end
 
 function ClassTensor:classes()
    return self._classes
+end
+
+
+function ClassTensor:multiclass(...)
+   local axes = {'b', 't'} 
+   local sizes = self:expandedSize()
+   local args, inplace, contiguous = xlua.unpack(
+      {... or {}},
+      'DataTensor:multiclass',
+      [[Returns a 2D-tensor of examples by classes: {'b', 't'}]],
+      {arg='inplace', type='boolean', 
+       help=[[When true, makes self._data a contiguous view of axes 
+       {'b', 'f'} for future use.]], 
+       default=true},
+      {arg='contiguous', type='boolean', 
+       help='When true makes sure the returned tensor is contiguous.', 
+       default=false}
+   )
+   --creates a new view of the same storage
+   local data = torch.Tensor(self._data)
+   if data:dim() == 2 and table.eq(self.axes, axes) then
+      return self._data
+   end
+   assert(table.eq(self.axes, {'b'}) or table.eq(self.axes, {'t', 'b'}),
+          "Error: DataTensor doesn't support conversion to {'b', 't'}")
+   local b = _.indexOf(self.axes, 'b')
+   if b == 0 then
+      error("No batch ('b') dimension")
+   elseif b ~= 1 then
+      --make (transpose) the batch dim first
+      data = data:transpose(1, b)
+      --make contiguous (new storage) for a later resize
+      data = data:contiguous()
+   end
+   if data:dim() == 1 then
+      if sizes:size(1) == 1 then
+         print"DataTensor Warning: Assuming one class per example."
+         sizes = torch.LongTensor({self._data:size(1), 1})
+      end
+      --convert {'b'} to {'b','t'}
+      data:resize(sizes:storage())
+   end
+   if contiguous or inplace then
+      data = data:contiguous()
+   end
+   if inplace then
+      self:store(data, axes)
+   else
+      self:storeExpandedSize(data:size())
+      self:storeExpandedAxes(axes)
+   end
+   return data, self._classes
+end
+
+function ClassTensor:class(...)
+   local axes = {'b'} 
+   local sizes = self:expandedSize()
+   local args, inplace, contiguous = xlua.unpack(
+      {... or {}},
+      'DataTensor:class',
+      [[Returns a 1D-tensor of example classes: {'b'}]],
+      {arg='inplace', type='boolean', 
+       help=[[When true, makes self._data is a contiguous view of axes 
+       {'b'} for future use.]], 
+       default=true},
+      {arg='contiguous', type='boolean', 
+       help='When true makes sure the returned tensor is contiguous.', 
+       default=false}
+   )
+   --use multiclass:
+   local data, classes = self:multiclass(args)
+   --Takes the first class of each example
+   data = data:select(2, 1)
+   return data, classes
+end
+
+function ClassTensor:onehot(...)
+   error("Not Implemented")
+end
+
+function ClassTensor:manyhot(...)
+   error("Not Implemented")
 end

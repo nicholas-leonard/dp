@@ -10,9 +10,9 @@ require 'image'
 local Cifar10, parent = torch.class("dp.Cifar10", "dp.DataSource")
 
 Cifar10._name = 'cifar10'
-Cifar10._image_size = {32, 32, 3}
+Cifar10._image_size = {3, 32, 32}
 Cifar10._feature_size = 3*32*32
-Cifar10._image_axes = {'b', 'v', 'h', 'c'}
+Cifar10._image_axes = {'b', 'c', 'w', 'h'}
 Cifar10._classes = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 
 
@@ -164,6 +164,23 @@ function Cifar10:loadData(download_url, which_set)
        
 end
 
-local function cifar10test()
-   c = dp.Cifar10{input_preprocess=dp.ZCA()}
+local function cifar10test(num_images)
+   local c = dp.Cifar10()
+   require 'image'
+   local dt = c:trainSet():inputs(1)
+   for idx = 1,num_images do
+      local img = dt:image():select(1,idx):transpose(1,3)
+      image.savePNG('cifar10image'..idx..'.png', img)
+   end
+   dt:feature()
+   for idx = 1,num_images do
+      img = dt:image():select(1,idx):transpose(1,3)
+      image.savePNG('cifar10feature'..idx..'.png', img)
+   end
+   c:setInputPreprocess(dp.ZCA())
+   c:preprocess()
+   for idx = 1,num_images do
+      img = dt:image():select(1,idx):transpose(1,3)
+      image.savePNG('cifar10zca'..idx..'.png', img)
+   end
 end

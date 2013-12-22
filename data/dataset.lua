@@ -172,12 +172,18 @@ function DataSet:nSample()
 end
 
 --Returns set of input dp.DataTensors
-function DataSet:inputs()
+function DataSet:inputs(index)
+   if index then
+      return self._inputs[index]
+   end
    return self._inputs
 end
 
 --Returns set of target dp.DataTensors
-function DataSet:targets()
+function DataSet:targets(index)
+   if index then
+      return self._targets[index]
+   end
    return self._targets
 end
 

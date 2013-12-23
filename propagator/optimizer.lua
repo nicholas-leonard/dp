@@ -4,6 +4,7 @@
 ------------------------------------------------------------------------
 
 local Optimizer, parent = torch.class("dp.Optimizer", "dp.Propagator")
+Optimizer.isOptimizer = true
 
 function Optimizer:__init(config)
    config = config or {}

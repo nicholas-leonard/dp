@@ -3,9 +3,7 @@ local DEBUG = false
 
 -- Normalize each row of a matrix to sum to one
 local function sum_to_one(prob_dist)
-    local sums = prob_dist:sum(2)
-    local sums = torch.expand(sums, prob_dist:size())
-    return prob_dist:cdiv(sums)
+    return prob_dist:cdiv(prob_dist:sum(2):expandAs(prob_dist))
 end
 
 -- Make cumulative probability distribution for each row of a matrix.

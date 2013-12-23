@@ -3,7 +3,6 @@
 -- Model, Adapter, Composite
 -- Replaces nn.Sequential such that it can be used for both 
 -- optimzation and evaluation.
--- TODO : reimplement nn.Sequential to work with Models instead of modules.
 ------------------------------------------------------------------------
 
 local Sequential, parent = torch.class("dp.Sequential", "dp.Container")
@@ -14,6 +13,11 @@ function Sequential:__init(config)
    parent.__init(self, config)
 end
 
+function Sequential:extend(models)
+   for model_idx, model in ipairs(models) do
+      self:add(model)
+   end
+end
 
 function Sequential:setup(config)
    parent.setup(self, config)

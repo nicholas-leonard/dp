@@ -60,10 +60,6 @@ function Model:setup(...)
    self._predecessor = predecessor
    self._successor = successor
    self._container = container
-   -- share pointers to states
-   if predecessor then
-      self.istate = self._predecessor.ostate
-   end
    mediator:subscribe("doneEpoch", self, "doneEpoch")
 end
 
@@ -130,11 +126,10 @@ function Model:setOutputState(ostate)
    end
 end
 
-function Model:forward(gstate)
-   -- if gstate contains field 'input', assume this is istate
-   self:setInputState(gstate.input)
-   gstate.input = nil
-   self:_forward(gstate)
+function Model:forward(state)
+   -- if state contains field 'input', assume this is istate
+   self:setInputState(state.input)
+   self:_forward(state.global)
    self.forwarded = true
    return self.ostate
 end
@@ -146,11 +141,10 @@ end
 --like forward, but for evaluation purposes (valid/test).
 --this is useful for stochastic Modules like Dropout, which have 
 --different behavior for training than for evaluation.
-function Model:evaluate(gstate)
-   -- if gstate contains field 'input', assume this is istate
-   self:setInputState(gstate.input)
-   gstate.input = nil
-   self:_evaluate(gstate)
+function Model:evaluate(state)
+   -- if state contains field 'input', assume this is istate
+   self:setInputState(state.input)
+   self:_evaluate(state.global)
    self.evaluated = true
    self.forwarded = true
    return self.ostate
@@ -160,11 +154,10 @@ function Model:_evaluate(gstate)
    self:_forward(gstate)
 end
 
-function Model:backward(gstate, scale)
-   -- if gstate contains field 'output', assume this is ostate
-   self:setOutputState(gstate.output)
-   gstate.output = nil
-   self:_backward(gstate, scale)
+function Model:backward(state, scale)
+   -- if state contains field 'output', assume this is ostate
+   self:setOutputState(state.output)
+   self:_backward(state, scale)
    self.backwarded = true
    return self.istate
 end
@@ -173,18 +166,18 @@ function Model:_backward(gstate, scale)
 
 end
 
-function Model:update(gstate)
+function Model:update(state)
    --TODO (implement stats gathering in visitor?):
    --statistics on gradOutputs
    --statistics on updates
    --statistics on parameters
    
    --update parameters
-   self:_update(gstate)
+   self:_update(state)
    self.updated = true
 end
 
-function Model:_update(gstate)
+function Model:_update(state)
    return
 end
 

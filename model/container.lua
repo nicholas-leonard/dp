@@ -6,8 +6,25 @@ local Container, parent = torch.class("dp.Container", "dp.Model")
 Container.isContainer = true
 
 function Container:__init(config)
-   self._models = {}
+   config = config or {}
+   local args, models = xlua.unpack(
+      {config},
+      'Sequential', nil,
+      {arg='models', type='table', help='a table of models'}
+   )
+   self._models = {}      
    parent.__init(self, config)
+   self:extend(models)
+end
+
+function Container:extend(models)
+   for model_idx, model in pairs(models) do
+      self:add(model)
+   end
+end
+
+function Container:add(model)
+   table.insert(self._models, model)
 end
 
 function Container:type(type)

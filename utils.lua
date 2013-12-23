@@ -258,3 +258,7 @@ function dp.printG()
       print(k, type(v))
    end
 end
+
+function dp.dimshuffle()
+   --TODO
+end

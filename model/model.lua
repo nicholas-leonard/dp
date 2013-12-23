@@ -97,37 +97,29 @@ function Model:parameters()
 end
 
 function Model:setInputState(istate)
-   if istate then
-      if torch.isTensor(istate) then
-         -- istate is tensor, then assume it is activation
-         self.istate.act = istate     
-         return    
-      end
-      assert(type(istate) == 'table')
-      -- merge gstate.input into istate, keep non-overlapping istate
-      for k,v in pairs(istate) do
-         self.istate[k] = v
-      end
+   assert(istate, "No Input State")
+   if torch.isTensor(istate) then
+      -- istate is tensor, then assume it is activation
+      istate = {act=istate}
    end
+   assert(type(istate) == 'table')
+   self.istate = istate
 end
 
 function Model:setOutputState(ostate)
-   if ostate then
-      if torch.isTensor(ostate) then
-         -- ostate is tensor, then assume it is gradients
-         self.ostate.grad = ostate
-         return
-      end
-      assert(type(ostate) == 'table')
-      -- merge gstate.input into istate, keep non-overlapping istate
-      for k,v in pairs(ostate) do
-         self.ostate[k] = v
-      end
+   if torch.isTensor(ostate) then
+      -- ostate is tensor, then assume it is gradients
+      self.ostate.grad = ostate
+      return
+   end
+   assert(type(ostate) == 'table')
+   -- merge gstate.input into istate, keep non-overlapping istate
+   for k,v in pairs(ostate) do
+      self.ostate[k] = v
    end
 end
 
 function Model:forward(state)
-   -- if state contains field 'input', assume this is istate
    self:setInputState(state.input)
    self:_forward(state.global)
    self.forwarded = true
@@ -142,7 +134,6 @@ end
 --this is useful for stochastic Modules like Dropout, which have 
 --different behavior for training than for evaluation.
 function Model:evaluate(state)
-   -- if state contains field 'input', assume this is istate
    self:setInputState(state.input)
    self:_evaluate(state.global)
    self.evaluated = true
@@ -155,7 +146,6 @@ function Model:_evaluate(gstate)
 end
 
 function Model:backward(state, scale)
-   -- if state contains field 'output', assume this is ostate
    self:setOutputState(state.output)
    self:_backward(state, scale)
    self.backwarded = true

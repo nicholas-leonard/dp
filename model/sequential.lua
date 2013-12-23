@@ -59,16 +59,21 @@ function Sequential:get(index)
 end
 
 function Sequential:_forward(gstate)
+   local istate = self.istate
    for i=1,#self._models do 
-      self._models[i]:forward(gstate)
-   end 
+      local model = self._models[i]
+      istate = model:forward{input=istate,global=gstate}
+   end
+   self.ostate = istate
 end
 
 function Sequential:_backward(gstate, scale)
    scale = scale or 1
+   local ostate = self.ostate
    for i=#self._models,1,-1 do
-      self._models[i]:backward(gstate, scale)
+      ostate = self._models[i]:backward({output=ostate,global=gstate}, scale)
    end
+   return ostate
 end
 
 function Sequential:_accept(visitor)

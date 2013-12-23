@@ -14,7 +14,9 @@ function Container:__init(config)
    )
    self._models = {}      
    parent.__init(self, config)
-   self:extend(models)
+   if models then
+      self:extend(models)
+   end
 end
 
 function Container:extend(models)

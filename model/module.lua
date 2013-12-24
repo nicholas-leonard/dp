@@ -5,6 +5,7 @@
 -- Model subclasses
 ------------------------------------------------------------------------
 local Module, parent = torch.class("dp.Module", "dp.Model")
+Module.isModule = true
 
 function Module:__init(config)
    config = config or {}
@@ -37,17 +38,20 @@ function Module:__init(config)
    end
 end
 
-function Module:_forward(gstate)
+function Module:_forward(cstate)
    self.ostate.act = self._module:forward(self.istate.act)
 end
 
-function Module:_backward(gstate, scale)
-   self.istate.grad 
-      = self._module:backward(self.istate.act, self.ostate.grad, scale)
+function Module:_backward(cstate)
+   self.istate.grad = self._module:backward(
+      self.istate.act, 
+      self.ostate.grad, 
+      self.gstate.scale
+   )
 end
 
-function Module:_update(gstate)
-   self._module:updateParameters(gstate.learning_rate)
+function Module:_update(state)
+   self._module:updateParameters(self.gstate.learning_rate)
 end
 
 function Module:zeroGradParameters()

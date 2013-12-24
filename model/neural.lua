@@ -50,7 +50,7 @@ function Neural:setup(config)
    parent.setup(self, config)
 end
 
-function Neural:_forward(gstate, eval)
+function Neural:_forward(cstate, eval)
    local activation = self.istate.act
    if self._dropout then
       -- dropout has a different behavior during evaluation vs training
@@ -69,12 +69,13 @@ function Neural:_forward(gstate, eval)
    self.ostate.act = self._transfer:forward(activation)
 end
 
-function Neural:_evaluate(gstate)
-   -- requires for dropout
-   self:_forward(gstate, true)
+function Neural:_evaluate(cstate)
+   -- required for dropout
+   return self:_forward(cstate, true)
 end
 
-function Neural:_backward(gstate, scale)
+function Neural:_backward(cstate)
+   local scale = self.gstate.scale
    local input_act = self.mvstate.affineAct
    local output_grad = self.ostate.grad
    output_grad = self._transfer:backward(input_act, output_grad, scale)
@@ -92,7 +93,7 @@ function Neural:_backward(gstate, scale)
    self.istate.grad = output_grad
 end
 
-function Neural:_update(gstate)
+function Neural:_update()
    self._affine:updateParameters(gstate.learning_rate)
 end
 

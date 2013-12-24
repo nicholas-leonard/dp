@@ -4,8 +4,8 @@
 -- Replaces nn.Sequential such that it can be used for both 
 -- optimzation and evaluation.
 ------------------------------------------------------------------------
-
 local Sequential, parent = torch.class("dp.Sequential", "dp.Container")
+Sequential.isSequential = true
 
 function Sequential:__init(config)
    config = config or {}
@@ -42,12 +42,7 @@ function Sequential:report()
 end
 
 function Sequential:add(model)
-   if #self._models == 0 then
-      self.istate = model.istate
-   end
    table.insert(self._models, model)
-   self.ostate = model.ostate
-   return self
 end
 
 function Sequential:size()
@@ -58,22 +53,24 @@ function Sequential:get(index)
    return self._models[index]
 end
 
-function Sequential:_forward(gstate)
+function Sequential:_forward(cstate)
    local istate = self.istate
    for i=1,#self._models do 
-      local model = self._models[i]
-      istate = model:forward{input=istate,global=gstate}
+      local state = {input=istate,global=self.gstate,carry=cstate}
+      istate, cstate = self._models[i]:forward(state)
    end
    self.ostate = istate
+   return cstate
 end
 
-function Sequential:_backward(gstate, scale)
-   scale = scale or 1
+function Sequential:_backward(cstate)
    local ostate = self.ostate
    for i=#self._models,1,-1 do
-      ostate = self._models[i]:backward({output=ostate,global=gstate}, scale)
+      local state = {output=ostate,global=self.gstate,carry=cstate}
+      ostate, cstate = self._models[i]:backward(state)
    end
-   return ostate
+   self.istate = ostate
+   return cstate
 end
 
 function Sequential:_accept(visitor)
@@ -89,9 +86,9 @@ function Sequential:zeroGradParameters()
   end
 end
 
-function Sequential:_update(gstate)
+function Sequential:_update()
    for i=1,#self._models do
-      self._models[i]:update(gstate)
+      self._models[i]:update(self.gstate)
    end
 end
 

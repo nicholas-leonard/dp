@@ -106,6 +106,10 @@ function Model:setInputState(istate)
    self.istate = istate
 end
 
+function Model:setGlobalState(gstate)
+   self.gstate = gstate or {}
+end
+
 function Model:setOutputState(ostate)
    if torch.isTensor(ostate) then
       -- ostate is tensor, then assume it is gradients
@@ -120,13 +124,23 @@ function Model:setOutputState(ostate)
 end
 
 function Model:forward(state)
+   -- state.input :
+   --- input activation tensor or input state table
+   -- state.global : 
+   --- global state table accessible to all models in the graph
+   -- state.carry :
+   --- a state that is carried throughout the graph. 
+   --- models may or may not use or modify it.
+   --- useful when you want to forward information to a later model
+   --- in the graph seperated by an unknown number of models
    self:setInputState(state.input)
-   self:_forward(state.global)
+   self:setGlobalState(state.global)
+   local cstate = self:_forward(table.copy(state.carry)) or state.carry
    self.forwarded = true
-   return self.ostate
+   return self.ostate, cstate
 end
 
-function Model:_forward(gstate)
+function Model:_forward(cstate)
    
 end
 
@@ -135,24 +149,26 @@ end
 --different behavior for training than for evaluation.
 function Model:evaluate(state)
    self:setInputState(state.input)
-   self:_evaluate(state.global)
+   self:setGlobalState(state.global)
+   local cstate = self:_evaluate(table.copy(state.carry)) or state.carry
    self.evaluated = true
    self.forwarded = true
-   return self.ostate
+   return self.ostate, cstate
 end
 --default is to call forward (no difference)
-function Model:_evaluate(gstate)
-   self:_forward(gstate)
+function Model:_evaluate(cstate)
+   return self:_forward(cstate)
 end
 
-function Model:backward(state, scale)
+function Model:backward(state)
    self:setOutputState(state.output)
-   self:_backward(state, scale)
+   self:setGlobalState(state.global)
+   local cstate = self:_backward(table.copy(state.carry)) or state.carry
    self.backwarded = true
-   return self.istate
+   return self.istate, cstate
 end
 
-function Model:_backward(gstate, scale)
+function Model:_backward(cstate)
 
 end
 
@@ -190,6 +206,9 @@ function Model:doneBatch(...)
    self.evaluated = false
    self.updated = false
    self.visited = false
+   self.istate = nil
+   self.gstate = nil
+   self.cstate = nil
 end
 
 function Model:_doneBatch(...)

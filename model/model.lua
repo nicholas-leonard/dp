@@ -111,16 +111,23 @@ function Model:setGlobalState(gstate)
 end
 
 function Model:setOutputState(ostate)
-   if torch.isTensor(ostate) then
+   if ostate == nil then
+      return
+   elseif torch.isTensor(ostate) then
       -- ostate is tensor, then assume it is gradients
       self.ostate.grad = ostate
       return
    end
    assert(type(ostate) == 'table')
-   -- merge gstate.input into istate, keep non-overlapping istate
+   self.ostate = ostate
+   --[[
+   if ostate == self.ostate then 
+      return 
+   end
+   -- merge ostates give priority to new ostate
    for k,v in pairs(ostate) do
       self.ostate[k] = v
-   end
+   end--]]
 end
 
 function Model:forward(state)

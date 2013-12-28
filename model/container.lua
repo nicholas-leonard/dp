@@ -37,3 +37,19 @@ function Container:type(type)
       end
    end
 end
+
+function Container:_accept(visitor)
+   for i=1,#self._models do 
+      self._models[i]:accept(visitor)
+   end 
+   visitor:visitContainer(self)
+end
+
+function Container:report()
+   -- merge reports
+   local report = {}
+   for k, model in ipairs(self._models) do
+      report[model:name()] = model:report()
+   end
+   return report
+end

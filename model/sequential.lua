@@ -73,13 +73,6 @@ function Sequential:_backward(cstate)
    return cstate
 end
 
-function Sequential:_accept(visitor)
-   for i=1,#self._models do 
-      self._models[i]:accept(visitor)
-   end 
-   visitor:visitContainer(self)
-end
-
 function Sequential:zeroGradParameters()
   for i=1,#self._models do
      self._models[i]:zeroGradParameters()

@@ -272,3 +272,15 @@ function table.copy(t)
    for k, v in pairs(t) do u[k] = v end
    return setmetatable(u, getmetatable(t))
 end
+
+function dp.distReport(dist, sort_dist)
+   local dist = torch.div(dist, dist:sum()+0.000001)
+   local report = {
+      dist=dist, min=dist:min(), max=dist:max(),   
+      mean=dist:mean(), std=dist:std()
+   }
+   if sort_dist then
+      report.dist = dist:sort()
+   end
+   return report
+end

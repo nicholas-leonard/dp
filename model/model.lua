@@ -215,7 +215,7 @@ function Model:doneBatch(...)
    self.visited = false
    self.istate = nil
    self.gstate = nil
-   self.cstate = nil
+   self.ostate = nil
 end
 
 function Model:_doneBatch(...)

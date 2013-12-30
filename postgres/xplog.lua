@@ -191,4 +191,3 @@ local function xplogtest()
    print(entry:hyperReport())
    print(#cln, cln[1])
 end
-

@@ -138,8 +138,9 @@ function dp.multinomial(prob_dist, num_samples, without_replacement)
    local res
    if without_replacement then
       res = multinomial_without_replacement(prob_dist, num_samples)
+   else
+      res = multinomial_with_replacement(prob_dist, num_samples)
    end
-   res = multinomial_with_replacement(prob_dist, num_samples)
    if new_size then
       prob_dist:resize(old_size)
       res:resize(old_size)

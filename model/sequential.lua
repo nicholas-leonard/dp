@@ -57,7 +57,11 @@ function Sequential:_forward(cstate)
    local istate = self.istate
    for i=1,#self._models do 
       local state = {input=istate,global=self.gstate,carry=cstate}
-      istate, cstate = self._models[i]:forward(state)
+      if self.gstate.evaluate then
+         istate, cstate = self._models[i]:evaluate(state)
+      else
+         istate, cstate = self._models[i]:forward(state)
+      end
    end
    self.ostate = istate
    return cstate

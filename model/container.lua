@@ -53,3 +53,10 @@ function Container:report()
    end
    return report
 end
+
+function Container:doneBatch(...)
+   for i=1,#self._models do
+      self._models[i]:doneBatch(...)
+   end
+   parent.doneBatch(self, ...)
+end

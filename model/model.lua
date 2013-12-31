@@ -21,18 +21,10 @@ function Model:__init(...)
        help='model-visitor state'}
    )
    self._typename = typename
-   -- input state
-   self.istate = {}
-   -- output state
-   self.ostate = {}
-   -- model-visitor state (double dispatch)
-   self.mvstate = {}
-   -- params
-   self._params = {}
-   -- statistics
-   self._stats = {}
-   -- tags
-   self._tags = tags
+   self._params = {} -- parameters
+   self._stats = {} -- statistics
+   self._tags = tags -- tags
+   self:doneBatch()
 end
 
 function Model:setup(...)
@@ -157,12 +149,13 @@ end
 function Model:evaluate(state)
    self:setInputState(state.input)
    self:setGlobalState(state.global)
+   self.gstate.evaluate = true
    local cstate = self:_evaluate(table.copy(state.carry)) or state.carry
    self.evaluated = true
    self.forwarded = true
    return self.ostate, cstate
 end
---default is to call forward (no difference)
+--default is to call forward (only diff is 'evaluate' flag in gstate)
 function Model:_evaluate(cstate)
    return self:_forward(cstate)
 end
@@ -213,9 +206,10 @@ function Model:doneBatch(...)
    self.evaluated = false
    self.updated = false
    self.visited = false
-   self.istate = nil
-   self.gstate = nil
-   self.ostate = nil
+   self.istate = {} -- input state
+   self.ostate = {} -- output state
+   self.mvstate = {} -- model-visitor state (double dispatch)
+   self.gstate = {}
 end
 
 function Model:_doneBatch(...)

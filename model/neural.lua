@@ -50,11 +50,11 @@ function Neural:setup(config)
    parent.setup(self, config)
 end
 
-function Neural:_forward(cstate, eval)
+function Neural:_forward(cstate)
    local activation = self.istate.act
    if self._dropout then
       -- dropout has a different behavior during evaluation vs training
-      self._dropout.train = (not eval)
+      self._dropout.train = (not self.gstate.evaluate)
       activation = self._dropout:forward(activation)
       self.mvstate.dropoutAct = activation
    end
@@ -67,11 +67,6 @@ function Neural:_forward(cstate, eval)
    end
    self.mvstate.affineAct = activation
    self.ostate.act = self._transfer:forward(activation)
-end
-
-function Neural:_evaluate(cstate)
-   -- required for dropout
-   return self:_forward(cstate, true)
 end
 
 function Neural:_backward(cstate)

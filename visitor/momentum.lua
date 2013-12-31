@@ -33,6 +33,9 @@ function Momentum:__init(config)
 end
 
 function Momentum:_visitModel(model)
+   if self._momentum_factor == 0 then 
+      return 
+   end
    local params = model:parameters()
    for param_name, param_table in pairs(params) do
       if not param_table.past_grad then

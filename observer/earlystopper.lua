@@ -100,6 +100,8 @@ function EarlyStopper:compareError(current_error, ...)
       end
    end
    if self._max_epochs < (self._epoch - self._minima_epoch) then
+      print("found minima : " .. self._minima .. 
+            " at epoch " .. self._minima_epoch) 
       self._mediator:publish("doneExperiment")
    end
    return found_minima

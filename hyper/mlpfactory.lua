@@ -23,28 +23,37 @@ function MLPFactory:__init(config)
    self._logger = logger or dp.FileLogger()
 end
 
+function MLPFactory:buildTransfer(activation)
+   if activation == 'ReLU' then
+      require 'nnx'
+      return nn.ReLU()
+   elseif activation == 'Tanh' then
+      return nn.Tanh()
+   elseif activation == 'Sigmoid' then
+      return nn.Sigmoid()
+   elseif activation ~= 'Linear' then
+      error("Unknown activation function : " .. activation)
+   end
+end
+
+function MLPFactory:buildDropout(dropout_prob)
+   if dropout_prob then
+      require 'nnx'
+      return nn.Dropout(opt.dropout_probs[layer_index])
+   end
+end
+
 function MLPFactory:buildModel(opt)
    local function addHidden(mlp, activation, input_size, layer_index)
       layer_index = layer_index or 1
       local output_size = opt.model_width * opt.width_scales[layer_index]
-      local transfer
-      if activation == 'ReLU' then
-         require 'nnx'
-         transfer = nn.ReLU()
-      elseif activation == 'Tanh' then
-         transfer = nn.Tanh()
-      elseif activation == 'Sigmoid' then
-         transfer = nn.Sigmoid()
-      elseif activation ~= 'Linear' then
-         error("Unknown activation function : " .. activation)
-      end
-      local dropout
-      if opt.dropout_probs[layer_index] then
-         require 'nnx'
-         dropout = nn.Dropout(opt.dropout_probs[layer_index])
-      end
-      mlp:add(dp.Neural{input_size=input_size, output_size=output_size,
-                        transfer=transfer, dropout=dropout})
+      mlp:add(
+         dp.Neural{
+            input_size=input_size, output_size=output_size,
+            transfer=self:buildTransfer(activation), 
+            dropout=self:buildDropout(opt.dropout_probs[layer_index])
+         }
+      )
       if layer_index < (opt.model_dept-1) then
          return addHidden(mlp, activation, output_size, layer_index+1)
       else
@@ -56,15 +65,11 @@ function MLPFactory:buildModel(opt)
    -- hidden layer(s)
    local last_size = addHidden(mlp, opt.activation, opt.feature_size, 1)
    -- output layer
-   local dropout
-   if opt.dropout_probs[opt.model_dept] then
-      require 'nnx'
-      dropout = nn.Dropout(opt.dropout_probs[opt.model_dept])
-   end
    mlp:add(
       dp.Neural{
          input_size=last_size, output_size=#opt.classes,
-         transfer=nn.LogSoftMax(), dropout=dropout
+         transfer=nn.LogSoftMax(), 
+         dropout=self:buildDropout(opt.dropout_probs[layer_index])
       }
    )
    --[[GPU or CPU]]--
@@ -80,27 +85,16 @@ function MLPFactory:buildModel(opt)
    return mlp
 end
 
---TODO : make this more flexible : sample first epoch, then delta to 2nd
 function MLPFactory:buildLearningRateSchedule(opt)
    --[[ Schedules ]]--
-   local schedule
    local lr = opt.learning_rate
-   if opt.learning_schedule == '100=/10,200=/10' then 
-      schedule={[100]=0.1*lr, [200]=0.01*lr}
-   elseif opt.learning_schedule == '100=/10,150=/10' then
-      schedule={[100]=0.1*lr, [150]=0.01*lr}
-   elseif opt.learning_schedule == '200=/10,250=/10' then
-      schedule={[200]=0.1*lr, [250]=0.01*lr}
-   elseif opt.learning_schedule == 'none' then
-      -- pass
-   elseif opt.learning_schedule then
-      error("Unknown learning schedule : " .. opt.learning_schedule)
+   if opt.learning_drop1 ~= 'none' then
+      local schedule = {[opt.learning_drop1] = 0.1 * lr}
+      if opt.learning_drop2 ~= 'none' then
+         schedule[opt.learning_drop2+opt.learning_drop1] = 0.01 * lr
+      end
+      return dp.LearningRateSchedule{schedule=schedule}
    end
-   local lr_schedule 
-   if opt.learning_schedule and opt.learning_schedule ~= 'none' then 
-      lr_schedule = dp.LearningRateSchedule{schedule=schedule}
-   end
-   return lr_schedule
 end
 
 function MLPFactory:buildVisitor(opt)

@@ -9,8 +9,6 @@
 -- Base Class
 -- Sequentially samples batches from a dataset.
 ------------------------------------------------------------------------
-
-
 local Sampler = torch.class("dp.Sampler")
 
 function Sampler:__init(...)
@@ -127,12 +125,13 @@ function Sampler:sampleEpoch(data)
          batch_targets = _.map(dataset_targets, batch_function)
          --TODO support multi-input/target datasets
          --Dataset should be called with sub, index to generate Batch
-         batch = dp.Batch{inputs=batch_inputs[1], targets=batch_targets[1], 
-                       batch_iter=stop, epoch_size=nSample, 
-                       batch_size=batch_size, n_sample=stop-start+1,
-                       classes=dataset_targets[1]:classes(),
-                       grad_type=self._sample_type,
-                       indices=torch.range(start,stop)}
+         batch = dp.Batch{
+            inputs=batch_inputs[1], targets=batch_targets[1], 
+            batch_iter=stop, epoch_size=nSample, 
+            batch_size=batch_size, n_sample=stop-start+1,
+            classes=dataset_targets[1]:classes(),
+            grad_type=self._sample_type, indices=torch.range(start,stop)
+         }
          start = start + batch_size
          if start >= nSample then
             return

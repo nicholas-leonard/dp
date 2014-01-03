@@ -39,7 +39,7 @@ end
 function MLPFactory:buildDropout(dropout_prob)
    if dropout_prob then
       require 'nnx'
-      return nn.Dropout(opt.dropout_probs[layer_index])
+      return nn.Dropout(dropout_prob)
    end
 end
 
@@ -88,10 +88,10 @@ end
 function MLPFactory:buildLearningRateSchedule(opt)
    --[[ Schedules ]]--
    local lr = opt.learning_rate
-   if opt.learning_drop1 ~= 'none' then
-      local schedule = {[opt.learning_drop1] = 0.1 * lr}
-      if opt.learning_drop2 ~= 'none' then
-         schedule[opt.learning_drop2+opt.learning_drop1] = 0.01 * lr
+   if opt.learning_decay1 ~= 'none' then
+      local schedule = {[opt.learning_decay1] = 0.1 * lr}
+      if opt.learning_decay2 ~= 'none' then
+         schedule[opt.learning_decay2 + opt.learning_decay1] = 0.01 * lr
       end
       return dp.LearningRateSchedule{schedule=schedule}
    end
@@ -163,7 +163,8 @@ function MLPFactory:buildObserver(opt)
          error_report = {'validator','feedback','confusion','accuracy'},
          maximize = true,
          max_epochs = opt.max_tries,
-         save_strategy = self._save_strategy
+         save_strategy = self._save_strategy,
+         min_epoch = 10, max_error = 70
       }
    }
 end

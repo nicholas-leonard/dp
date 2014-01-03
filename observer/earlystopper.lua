@@ -6,13 +6,13 @@
 -- Should only be called on Experiment, Propagator or Model subjects.
 ------------------------------------------------------------------------
 
-local EarlyStopper, parent 
-   = torch.class("dp.EarlyStopper", "dp.Observer")
+local EarlyStopper, parent = torch.class("dp.EarlyStopper", "dp.Observer")
+EarlyStopper.isEarlyStopper = true
 
 function EarlyStopper:__init(config) 
    config = config or {}
    local args, start_epoch, error_report, error_channel, maximize, 
-         save_strategy, max_epochs 
+         save_strategy, max_epochs, max_error, min_epoch
       = xlua.unpack(
       {config},
       'EarlyStopper', 
@@ -39,7 +39,13 @@ function EarlyStopper:__init(config)
       {arg='max_epochs', type='number', default='30',
        help='maximum number of epochs to consider after a minima ' ..
        'has been found. After that, a terminate signal is published ' ..
-       'to the mediator.'}
+       'to the mediator.'},
+      {arg='max_error', type='number', 
+       help='maximum value for which the experiment should be ' ..
+       'stopped after min_epochs. ' ..
+       'If maximize is true, this is min value'},
+      {arg='min_epoch', type='number', default=10000000,
+       help='see max_value'}
    )
    self._start_epoch = start_epoch
    self._minima_epoch = start_epoch - 1
@@ -47,11 +53,13 @@ function EarlyStopper:__init(config)
    self._error_channel = error_channel
    self._save_strategy = save_strategy
    self._maximize = maximize
+   self._min_epoch = min_epoch
    self._sign = 1
    if maximize then
       self._sign = -1
    end
    self._max_epochs = max_epochs
+   self._max_error = max_error * self._sign
    assert(self._error_report or self._error_channel)
    assert(not(self._error_report and self._error_channel))
    if not (self._error_report or self._error_channel) then
@@ -91,6 +99,11 @@ function EarlyStopper:compareError(current_error, ...)
    -- if maximize is true, sign will be -1
    local found_minima = false
    current_error = current_error * self._sign
+   if self._epoch >= self._min_epoch then
+      if current_error > self._max_error then
+         self._mediator:publish("doneExperiment")
+      end
+   end
    if self._epoch >= self._start_epoch then
       if (not self._minima) or (current_error < self._minima) then
          self._minima = current_error

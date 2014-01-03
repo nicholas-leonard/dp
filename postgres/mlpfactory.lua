@@ -28,7 +28,8 @@ function PGMLPFactory:buildObserver(opt)
          error_report = {'validator','feedback','confusion','accuracy'},
          maximize = true,
          max_epochs = opt.max_tries,
-         save_strategy = self._save_strategy
+         save_strategy = self._save_strategy,
+         min_epoch = 10, max_error = 70
       },
       dp.PGDone{pg=self._pg}
    }

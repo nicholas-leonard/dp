@@ -40,6 +40,18 @@ function PGXpLog:createEntry(xp_id)
    return dp.PGXpLogEntry{id=xp_id, pg=self._pg}
 end
 
+function PGXpLog:listCollections()
+   local rows = self._pg:fetch(
+      "SELECT collection_name, COUNT(*), MAX(start_time) " .. 
+      "FROM dp.experiment " ..
+      "GROUP BY collection_name ORDER BY max DESC",
+      {}, 'a'
+   )
+   if not _.isEmpty(rows) then 
+      return rows
+   end
+end
+
 ------------------------------------------------------------------------
 --[[ PGXpLogEntry ]]--
 -- XpLogEntry
@@ -102,8 +114,7 @@ function PGXpLogEntry:selectExperiment(xp_id)
       "       hyper_report_pickle, start_time " .. 
       "FROM dp.experiment " ..
       "WHERE xp_id = %s", 
-      {xp_id},
-      'a'
+      {xp_id}, 'a'
    )
    if not _.isEmpty(row) then
       return row
@@ -116,8 +127,7 @@ function PGXpLogEntry:selectDone(xp_id)
       "SELECT end_time " .. 
       "FROM dp.done " ..
       "WHERE xp_id = %s", 
-      {xp_id},
-      'a'
+      {xp_id}, 'a'
    )
    if not _.isEmpty(row) then
       return row
@@ -131,8 +141,7 @@ function PGXpLogEntry:selectReport(xp_id, epoch)
       "SELECT report_pickle " .. 
       "FROM dp.report " ..
       "WHERE (xp_id, report_epoch) = (%s, %s)", 
-      {xp_id, epoch},
-      'a'
+      {xp_id, epoch}, 'a'
    )
    if not _.isEmpty(row) then
       return row
@@ -146,8 +155,7 @@ function PGXpLogEntry:selectReports(xp_id, min_epoch)
       "SELECT report_epoch, report_pickle " .. 
       "FROM dp.report " ..
       "WHERE xp_id = %s AND report_epoch >= %s", 
-      {xp_id, min_epoch},
-      'a'
+      {xp_id, min_epoch}, 'a'
    )
    if not _.isEmpty(rows) then 
       return rows
@@ -160,8 +168,7 @@ function PGXpLogEntry:selectEarlyStopper(xp_id)
       "SELECT maximize, channel_name " .. 
       "FROM dp.earlystopper " ..
       "WHERE xp_id = %s", 
-      {xp_id},
-      'a'
+      {xp_id}, 'a'
    )
    if not _.isEmpty(rows) then 
       return rows
@@ -174,8 +181,7 @@ function PGXpLogEntry:selectMinima(xp_id, min_epoch)
       "SELECT minima_epoch, minima_error " .. 
       "FROM dp.minima " ..
       "WHERE xp_id = %s AND min_epoch >= %s" , 
-      {xp_id, min_epoch},
-      'a'
+      {xp_id, min_epoch}, 'a'
    )
    if not _.isEmpty(rows) then 
       return rows

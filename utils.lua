@@ -284,3 +284,29 @@ function dp.distReport(dist, sort_dist)
    end
    return report
 end
+
+function table.channelValue(tbl, channel, dept)
+   dept = dept or 1
+   if type(tbl) ~= 'table' or dept > #channel then
+      return tbl
+   end
+   return table.channelValue(tbl[channel[dept]], channel, dept+1)
+end
+
+function table.channelValues(tbls, channel)
+   local values = {}
+   for key, tbl in pairs(tbls) do
+      table.insert(values, table.channelValue(tbl, channel))
+   end
+   return values
+end
+
+function table.fromString(str)
+   if type(str) == 'table' then
+      return str
+   end
+   return _.map(
+      _.split(str:sub(2,-2),','), 
+      function(c) return tonumber(c) end
+   )
+end

@@ -33,6 +33,7 @@ function HyperOptimizer:__init(...)
    self._process_name = process_name
    -- experiment id generator
    self._id_gen = id_gen or dp.EIDGenerator(process_name)
+   math.randomseed(os.time())
 end
 
 function HyperOptimizer:hyperReport(id, hyperparam)
@@ -60,7 +61,7 @@ function HyperOptimizer:run()
       -- setup experiment (required for setting up logger)
       xp:setup(ds)
       -- log hyper-report
-      self._logger:logHyperReport(self:hyperReport(id, hyperparam))
+      self._logger:logHyperReport(self:hyperReport(id, hp))
       -- run the experiment on the datasource
       xp:run(ds)
       -- TODO : feedback hyperexperiment to HyperparamSampler

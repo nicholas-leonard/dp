@@ -198,5 +198,6 @@ end
 
 function Experiment:setRandomSeed(random_seed)
    torch.manualSeed(random_seed)
+   math.randomseed(random_seed)
    self._random_seed = random_seed
 end

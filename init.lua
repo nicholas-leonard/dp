@@ -28,6 +28,7 @@ torch.include('dp', 'xplog.lua')
 torch.include('dp', 'mediator.lua')
 torch.include('dp', 'objectid.lua')
 torch.include('dp', 'eidgenerator.lua')
+torch.include('dp', 'analyse.lua')
 
 --[[ data ]]--
 torch.include('dp', 'data/datatensor.lua')

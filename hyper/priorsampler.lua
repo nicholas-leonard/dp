@@ -32,15 +32,3 @@ function PriorSampler:sample()
    print(hyperparams)
    return hyperparams
 end
-
-function PriorSampler:hyperReport()
-   local dist_report = {}
-   for k, v in pairs(self._dist) do
-      if (type(v) == 'table') and v.isChoose then
-         dist_report[k] = v:report()
-      else
-         dist_report[k] = v
-      end
-   end
-   return {name=self._name, dist=dist_report}
-end 

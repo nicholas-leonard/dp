@@ -101,7 +101,7 @@ function MLPFactory:buildVisitor(opt)
    local lr_schedule = self:buildLearningRateSchedule(opt)
    --[[ Visitor ]]--
    local visitor = {}
-   if opt.momentum and opt.momentum ~= 0 then
+   if opt.momentum and opt.momentum > 0 then
       table.insert(visitor, 
          dp.Momentum{
             momentum_factor=opt.momentum, 
@@ -109,7 +109,7 @@ function MLPFactory:buildVisitor(opt)
          }
       )
    end
-   if opt.weightdecay and opt.weightdecay ~=0 then
+   if opt.weightdecay and opt.weightdecay > 0 then
       table.insert(visitor, dp.WeightDecay{wd_factor=opt.weightdecay})
    end
    table.insert(visitor, 
@@ -118,7 +118,7 @@ function MLPFactory:buildVisitor(opt)
          observer = lr_schedule
       }
    )
-   if opt.max_out_norm and opt.max_out_norm ~= 0 then
+   if opt.max_out_norm and opt.max_out_norm > 0 then
       table.insert(visitor, dp.MaxNorm{max_out_norm=opt.max_out_norm})
    end
    return visitor
@@ -164,7 +164,7 @@ function MLPFactory:buildObserver(opt)
          maximize = true,
          max_epochs = opt.max_tries,
          save_strategy = self._save_strategy,
-         min_epoch = 10, max_error = 70
+         min_epoch = 10, max_error = 0.7
       }
    }
 end

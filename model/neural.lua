@@ -154,7 +154,7 @@ function Neural:share(neural, ...)
    local arg = {...}
    for i,v in ipairs(arg) do
       if self._affine[v] ~= nil then
-         self._affine[v]:set(neural:parameters()[v])
+         self._affine[v]:set(neural._affine[v])
       end
    end
    return self      

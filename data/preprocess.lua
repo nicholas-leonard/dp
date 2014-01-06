@@ -335,10 +335,6 @@ function LeCunLCN:__init(...)
    )
 end
 
--- X should have axes={'b', 'h', 'w', 'c'}
-function LeCunLCN:_transform(X)
-   assert (X:dim() == 4)
-end
 
 function _gaussian_filter(kernel_size)
    local x = torch.zeros(kernel_size, kernel_size)
@@ -359,8 +355,8 @@ function _gaussian_filter(kernel_size)
 end
 
 
-function LeCunLCN:apply(datatensor, img_shape, can_fit)
-   local data, axes = imagetensor:image()
+function LeCunLCN:apply(datatensor, can_fit)
+   local data, axes = datatensor:image()
    assert(table.eq(axes, {'b', 'h', 'w', 'c'}))
    local data_size = data:size(1)
    

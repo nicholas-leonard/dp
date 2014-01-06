@@ -284,3 +284,28 @@ function dp.distReport(dist, sort_dist)
    end
    return report
 end
+
+-- return a table 
+-- range(5) return {1, 2, 3, 4, 5}
+-- range(2, 5) return {2, 3, 4, 5}
+-- range(2, 5, 2) return {2, 4}
+function dp.range(start, stop, step)
+   local _range = function (start, stop, step)
+      local t = {}
+      for i = start, stop, step do 
+         table.insert(t, i)
+      end
+      return t
+   end
+
+   if stop == nil and step == nil then
+      assert (start > 0)
+      return _range(1, start, 1)
+   elseif step == nil then
+      assert (stop >= start)
+      return _range(start, stop, 1)
+   else
+      assert (stop >= start and step > 0)
+      return _range(start, stop, step)
+   end
+end

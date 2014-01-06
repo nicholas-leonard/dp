@@ -5,7 +5,6 @@
 -- the experiment when no new minima is found for max_epochs.
 -- Should only be called on Experiment, Propagator or Model subjects.
 ------------------------------------------------------------------------
-
 local EarlyStopper, parent = torch.class("dp.EarlyStopper", "dp.Observer")
 EarlyStopper.isEarlyStopper = true
 
@@ -40,7 +39,7 @@ function EarlyStopper:__init(config)
        help='maximum number of epochs to consider after a minima ' ..
        'has been found. After that, a terminate signal is published ' ..
        'to the mediator.'},
-      {arg='max_error', type='number', 
+      {arg='max_error', type='number', default=0,
        help='maximum value for which the experiment should be ' ..
        'stopped after min_epochs. ' ..
        'If maximize is true, this is min value'},

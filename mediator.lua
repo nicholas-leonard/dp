@@ -1,6 +1,3 @@
-require 'torch'
-
-
 ------------------------------------------------------------------------
 --[[ Subscriber ]]--
 -- Used by Mediator. Holds a subscriber object which will be called
@@ -173,8 +170,3 @@ function Mediator:publish(channelNamespace, ...)
    local channel = self:getChannel(channelNamespace)
    channel:publish(channelNamespace, ...)
 end
-
-
-
-
-

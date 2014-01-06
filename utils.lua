@@ -285,27 +285,28 @@ function dp.distReport(dist, sort_dist)
    return report
 end
 
--- return a table 
--- range(5) return {1, 2, 3, 4, 5}
--- range(2, 5) return {2, 3, 4, 5}
--- range(2, 5, 2) return {2, 4}
-function dp.range(start, stop, step)
-   local _range = function (start, stop, step)
-      local t = {}
-      for i = start, stop, step do 
-         table.insert(t, i)
-      end
-      return t
+function table.channelValue(tbl, channel, dept)
+   dept = dept or 1
+   if type(tbl) ~= 'table' or dept > #channel then
+      return tbl
    end
+   return table.channelValue(tbl[channel[dept]], channel, dept+1)
+end
 
-   if stop == nil and step == nil then
-      assert (start > 0)
-      return _range(1, start, 1)
-   elseif step == nil then
-      assert (stop >= start)
-      return _range(start, stop, 1)
-   else
-      assert (stop >= start and step > 0)
-      return _range(start, stop, step)
+function table.channelValues(tbls, channel)
+   local values = {}
+   for key, tbl in pairs(tbls) do
+      table.insert(values, table.channelValue(tbl, channel))
    end
+   return values
+end
+
+function table.fromString(str)
+   if type(str) == 'table' then
+      return str
+   end
+   return _.map(
+      _.split(str:sub(2,-2),','), 
+      function(c) return tonumber(c) end
+   )
 end

@@ -8,9 +8,9 @@ function conv2d(image, filters, border_mode)
    -- 2D filters by default applies to all channels
    -- border_mode:
    -- 'valid' : only apply filter to complete patches of the image. Generates
-   --           output of shape: image_shape - filter_size + 1
+   --           output of shape: image_shape - filter_shape + 1
    -- 'full'  : zero-pads image to multiple of filter shape to generate output
-   --           of shape: image_shape + filter_size - 1
+   --           of shape: image_shape + filter_shape - 1
    
    
    border_mode = border_mode or 'full'
@@ -29,23 +29,20 @@ function conv2d(image, filters, border_mode)
       error ('filter dim is not 2 or 3')
    end
 
-
-   local _conv2 = function(images, 3d_filter, border_mode)
+   local _conv2 = function(images, filter, border_mode)
       local t = torch.zeros(image_shape['b'], image_shape['h'], 
                             image_shape['w'], image_shape['c'])
       
       for b = 1, image_shape.b do
          local new_image = images[b]:resize(image_shape.c, image_shape.h, image_shape.w)
-         t[b] = torch.conv2(new_image, filters, border_mode):resize(image_shape.h, 
+         t[b] = torch.conv2(new_image, filter, border_mode):resize(image_shape.h, 
                                                                     image_shape.w,
                                                                     image_shape.c)
-         end
       end 
       
       return t
    end
                     
-   
    -- no zero padding, return image size of image_size - filter_size + 1
    if border_mode == 'valid' then
       
@@ -71,7 +68,6 @@ function conv2d(image, filters, border_mode)
       
    else
       error('border_mode is not set to \'valid\' or \'full\'')
-   
    end
    
 end

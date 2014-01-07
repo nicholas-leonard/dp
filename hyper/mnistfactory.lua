@@ -16,10 +16,12 @@ function MnistFactory:build(opt)
       datasource = self._cache[opt.datasource]
       assert(torch.typename(datasource) and datasource.isMnist)
    elseif opt.datasource == 'mnist' then
-      datasource = dp.Mnist()
+      datasource = dp.Mnist{valid_ratio=opt.valid_ratio}
       self._cache[opt.datasource] = datasource
    elseif opt.datasource == 'mnist:standardize' then
-      datasource = dp.Mnist{input_preprocess = dp.Standardize}
+      datasource = dp.Mnist{
+         input_preprocess = dp.Standardize, valid_ratio=opt.valid_ratio
+      }
       self._cache[opt.datasource] = datasource
    else
       error("Unknown datasource : " .. opt.datasource)

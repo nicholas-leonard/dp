@@ -117,6 +117,15 @@ function PGXpLogEntry:refresh()
    self:refreshReports()
 end
 
+function PGXpLogEntry:report(report_epoch)
+   local report = self._reports[report_epoch]
+   if (not report) then
+      local row = self:selectReport(self._id, report_epoch)
+      return torch.deserialize(row.report_pickle, 'ascii')
+   end
+   return report
+end
+
 function PGXpLogEntry:refreshReports()
    local rows = self:selectReports(self._id, #self._reports)
    if rows then
@@ -188,7 +197,7 @@ function PGXpLogEntry:selectDone(xp_id)
 end
 
 function PGXpLogEntry:selectReport(xp_id, epoch)
-   assert(type(xp_id) == 'number' and type(epoch) == 'epoch')
+   assert(type(xp_id) == 'number' and type(epoch) == 'number')
    local row = self._pg:fetchOne(
       "SELECT report_pickle " .. 
       "FROM dp.report " ..

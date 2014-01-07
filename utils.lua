@@ -310,3 +310,11 @@ function table.fromString(str)
       function(c) return tonumber(c) end
    )
 end
+
+function dp.reverseDist(dist)
+   assert(dist:dim() == 1)
+   local reverse = dist:clone()
+   -- reverse distribution and make unlikely values more likely
+   reverse:add(-reverse:max()):mul(-1):div(reverse:sum())
+   return reverse
+end

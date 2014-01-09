@@ -66,7 +66,7 @@ end
 -- matrix, where each row is its own probability distribution. 
 local function multinomial_without_replacement(prob_dist, num_samples)
     --Used to store multinomial samples:
-    local m_samples = torch.IntTensor(prob_dist:size(1), num_samples)
+    local m_samples = torch.LongTensor(prob_dist:size(1), num_samples)
         
     local function multinomial(prob_dist, m_samples, i)
         --Make cumulative distribution out of multinomial (sum-to-one) dist:

@@ -315,6 +315,7 @@ function dp.reverseDist(dist)
    assert(dist:dim() == 1)
    local reverse = dist:clone()
    -- reverse distribution and make unlikely values more likely
-   reverse:add(-reverse:max()):mul(-1):div(reverse:sum())
+   reverse:add(-reverse:max()):mul(-1):add(dist:min())
+   reverse:div(math.max(reverse:sum(),0.000001))
    return reverse
 end

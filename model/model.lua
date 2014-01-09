@@ -24,6 +24,7 @@ function Model:__init(...)
    self._params = {} -- parameters
    self._stats = {} -- statistics
    self._tags = tags -- tags
+   self.mvstate = mvstate
    self:doneBatch()
 end
 
@@ -112,14 +113,6 @@ function Model:setOutputState(ostate)
    end
    assert(type(ostate) == 'table')
    self.ostate = ostate
-   --[[
-   if ostate == self.ostate then 
-      return 
-   end
-   -- merge ostates give priority to new ostate
-   for k,v in pairs(ostate) do
-      self.ostate[k] = v
-   end--]]
 end
 
 function Model:forward(state)
@@ -208,7 +201,6 @@ function Model:doneBatch(...)
    self.visited = false
    self.istate = {} -- input state
    self.ostate = {} -- output state
-   self.mvstate = {} -- model-visitor state (double dispatch)
    self.gstate = {}
 end
 

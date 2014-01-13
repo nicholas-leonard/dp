@@ -164,7 +164,7 @@ function Cifar10:loadData(download_url, which_set)
        
 end
 
-local function cifar10test(num_images)
+function cifar10test(num_images)
    local c = dp.Cifar10()
    require 'image'
    local dt = c:trainSet():inputs(1)
@@ -177,7 +177,7 @@ local function cifar10test(num_images)
       img = dt:image():select(1,idx):transpose(1,3)
       image.savePNG('cifar10feature'..idx..'.png', img)
    end
-   c:setInputPreprocess(dp.ZCA())
+   c:setInputPreprocess(dp.LeCunLCN())
    c:preprocess()
    for idx = 1,num_images do
       img = dt:image():select(1,idx):transpose(1,3)

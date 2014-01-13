@@ -433,7 +433,7 @@ function ImageTensor:imageBHWC(...)
          self:store(data, desired_axes)
       end
    end
-   return data, axes
+   return data, desired_axes
 end
 
 function ImageTensor:imageCUDA(...)

@@ -310,3 +310,23 @@ function table.fromString(str)
       function(c) return tonumber(c) end
    )
 end
+
+function torch.swapaxes(tensor, new_axes)
+   -- new_axes : table that give new axes of tensor, to swap axes 1 and 2, new_axes={2,1,3}
+   
+   assert(tensor:dim() == #new_axes, 'tensor dim is not equal to new_axes dim')
+   local new_size = {}
+   for k, v in ipairs(new_axes) do
+      new_size[v] = tensor:size(k)
+   end
+   return tensor:resize(unpack(new_size))
+end
+   
+   
+   
+   
+   
+   
+   
+   
+

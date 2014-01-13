@@ -3,7 +3,8 @@ local DEBUG = false
 
 -- Normalize each row of a matrix to sum to one
 local function sum_to_one(prob_dist)
-    return prob_dist:cdiv(prob_dist:sum(2):expandAs(prob_dist))
+   prob_dist:add(0.00001)
+   return prob_dist:cdiv(prob_dist:sum(2):expandAs(prob_dist))
 end
 
 -- Make cumulative probability distribution for each row of a matrix.
@@ -36,7 +37,7 @@ local function multinomial_with_replacement(prob_dist, num_samples)
         print(u_samples) 
     end
     --Used to store multinomial samples:
-    local m_samples = torch.IntTensor(cum_dist:size(1), num_samples)
+    local m_samples = torch.LongTensor(cum_dist:size(1), num_samples)
     
     for i=1,num_samples do
         for j=1,cum_dist:size(2) do
@@ -65,7 +66,7 @@ end
 -- matrix, where each row is its own probability distribution. 
 local function multinomial_without_replacement(prob_dist, num_samples)
     --Used to store multinomial samples:
-    local m_samples = torch.IntTensor(prob_dist:size(1), num_samples)
+    local m_samples = torch.LongTensor(prob_dist:size(1), num_samples)
         
     local function multinomial(prob_dist, m_samples, i)
         --Make cumulative distribution out of multinomial (sum-to-one) dist:
@@ -143,7 +144,7 @@ function dp.multinomial(prob_dist, num_samples, without_replacement)
    end
    if new_size then
       prob_dist:resize(old_size)
-      res:resize(old_size)
+      res = res:select(1,1)
    end
    return res
 end

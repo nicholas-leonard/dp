@@ -32,30 +32,14 @@ end
 function Learn:_visitModel(model)
    if not self:canVisit(model) then return end
    local params = model:parameters()
+   local mvstate = model.mvstate
    for param_name, param_table in pairs(params) do
       -- parameter update with single or individual learning rates
-      if param_table.learning_rate_scale then
-         if not param_table.delta then
-            param_table.delta 
-               = torch.Tensor():typeAs(
-                     param_table.param
-                  ):resizeAs(
-                     param_table.grad
-                  )
-         end
-         param_table.delta:copy(
-               param_table.learning_rate_scale
-            ):cmul(
-               param_table.grad
-            )
-         param_table.param:add(
-               -self._learning_rate, param_table.delta
-            )
-      else
-         param_table.param:add(
-               -self._learning_rate, param_table.grad
-            )
+      local learn_rate = self._learning_rate
+      if mvstate.learn_scale then
+         learn_rate = learn_rate * mvstate.learn_scale
       end
+      param_table.param:add(-learn_rate, param_table.grad)
    end
 end
 

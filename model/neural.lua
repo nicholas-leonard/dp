@@ -70,7 +70,7 @@ function Neural:_forward(cstate)
 end
 
 function Neural:_backward(cstate)
-   local scale = self.gstate.scale
+   local scale = cstate.scale or self.gstate.scale
    local input_act = self.mvstate.affineAct
    local output_grad = self.ostate.grad
    output_grad = self._transfer:backward(input_act, output_grad, scale)

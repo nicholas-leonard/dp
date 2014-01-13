@@ -47,7 +47,7 @@ end
 
 function Container:report()
    -- merge reports
-   local report = {}
+   local report = {typename=self._typename}
    for k, model in ipairs(self._models) do
       report[model:name()] = model:report()
    end

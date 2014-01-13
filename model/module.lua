@@ -50,10 +50,6 @@ function Module:_backward(cstate)
    )
 end
 
-function Module:_update(state)
-   self._module:updateParameters(self.gstate.learning_rate)
-end
-
 function Module:zeroGradParameters()
    self._module:zeroGradParameters()
 end

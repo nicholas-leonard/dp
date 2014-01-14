@@ -268,7 +268,7 @@ function ZCA:fit(X)
          
    -- center data
    self._mean = X:mean(1)
-   X:add(-self._mean:resizeAs(X))
+   X:add(-self._mean:expandAs(X))
 
    print'computing ZCA'
    local matrix = torch.mm(X:t(), X) / X:size(1)
@@ -301,7 +301,7 @@ function ZCA:apply(datatensor, can_fit)
       self:fit(X)
       new_X = torch.mm(X, self._P)
    else
-      new_X = torch.mm(X - self._mean:resizeAs(X), self._P)
+      new_X = torch.mm(X - self._mean:expandAs(X), self._P)
    end
    print('zca size', new_X:size())
    print ('zca data', new_X[{{1},{1,-1}}])

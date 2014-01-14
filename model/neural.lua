@@ -34,6 +34,42 @@ function Neural:__init(config)
    self._uncuda = (torch.typename(self._transfer) == 'nn.SoftMax')
    self:zeroGradParameters()
    self:checkParams()
+   self:zeroStatistics()
+end
+--[[
+function Neural:sparseInit(stdev)
+   W = np.zeros(shape)
+   -- for each output unit:
+   for i in xrange(output_dim):
+      assert self.sparse_init <= input_dim
+      # initialize self.sparse_init input weights:
+      for j in xrange(self.sparse_init):
+          idx = rng.randint(0, input_dim)
+          while W[idx, i] != 0 or mask_rejects(idx, i):
+              idx = rng.randint(0, input_dim)
+          W[idx, i] = rng.randn()
+   W *= self.sparse_stdev
+   return W
+end]]--
+
+function Neural:zeroStatistics()
+   for param_name, param_table in pairs(self:parameters()) do
+      local param_stats = self._stats[param_name]
+      if param_stats and param_stats.grad and param_stats.grad.count > 0 then
+         local grad = param_stats.grad
+         local param_report = self._report[param_name] or {}
+         local count = grad.count
+         local grad_report = {
+               sum=grad.sum/count, mean=grad.mean/count,
+               min=grad.min/count, max=grad.max/count,
+               std=grad.std/count, count=grad.count
+         }
+         self._report[param_name] = {grad=grad_report}
+      end
+      self._stats[param_name] = {
+         grad={sum=0, mean=0, min=0, max=0, count=0, std=0}
+      }
+   end
 end
 
 function Neural:checkParams()
@@ -71,6 +107,7 @@ end
 
 function Neural:_backward(cstate)
    local scale = cstate.scale or self.gstate.scale
+   self._report.scale = scale
    local input_act = self.mvstate.affineAct
    local output_grad = self.ostate.grad
    output_grad = self._transfer:backward(input_act, output_grad, scale)
@@ -88,8 +125,19 @@ function Neural:_backward(cstate)
    self.istate.grad = output_grad
 end
 
-function Neural:_update()
-   self._affine:updateParameters(gstate.learning_rate)
+function Neural:_accept(visitor)
+   local params = self:parameters()
+   for param_name, param_table in pairs(self:parameters()) do
+      local grad = torch.abs(param_table.grad:double())
+      local grad_stats = self._stats[param_name].grad 
+      grad_stats.sum = grad_stats.sum + grad:sum()
+      grad_stats.min = grad_stats.min + grad:min()
+      grad_stats.max = grad_stats.max + grad:max()
+      grad_stats.mean = grad_stats.mean + grad:mean()
+      grad_stats.std = grad_stats.std + grad:std()
+      grad_stats.count = grad_stats.count + 1
+   end
+   parent._accept(self, visitor)
 end
 
 function Neural:zeroGradParameters()
@@ -158,4 +206,10 @@ function Neural:share(neural, ...)
       end
    end
    return self      
+end
+
+function Neural:report()
+   local report = parent.report(self) or {}
+   self:zeroStatistics()
+   return table.merge(report, self._report)
 end

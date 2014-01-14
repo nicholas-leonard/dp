@@ -24,6 +24,7 @@ function Model:__init(...)
    self._params = {} -- parameters
    self._stats = {} -- statistics
    self._tags = tags -- tags
+   self._report = {}
    self.mvstate = mvstate
    self:doneBatch()
 end
@@ -165,21 +166,6 @@ function Model:_backward(cstate)
 
 end
 
-function Model:update(state)
-   --TODO (implement stats gathering in visitor?):
-   --statistics on gradOutputs
-   --statistics on updates
-   --statistics on parameters
-   
-   --update parameters
-   self:_update(state)
-   self.updated = true
-end
-
-function Model:_update(state)
-   return
-end
-
 function Model:accept(visitor)
    self.visited = true
    self:_accept(visitor)
@@ -197,7 +183,6 @@ function Model:doneBatch(...)
    self.forwarded = false
    self.backwarded = false
    self.evaluated = false
-   self.updated = false
    self.visited = false
    self.istate = {} -- input state
    self.ostate = {} -- output state

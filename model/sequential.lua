@@ -33,14 +33,6 @@ function Sequential:setup(config)
    self._data_view = self._models[1]:dataView()
 end
 
-function Sequential:report()
-   local report = {typename=self._typename}
-   for i, model in ipairs(self._models) do 
-      report[i] = model:report()
-   end
-   return report
-end
-
 function Sequential:add(model)
    table.insert(self._models, model)
 end
@@ -81,12 +73,6 @@ function Sequential:zeroGradParameters()
   for i=1,#self._models do
      self._models[i]:zeroGradParameters()
   end
-end
-
-function Sequential:_update()
-   for i=1,#self._models do
-      self._models[i]:update(self.gstate)
-   end
 end
 
 function Sequential:reset(stdv)

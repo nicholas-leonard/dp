@@ -332,10 +332,15 @@ end
 
 
 function dp.reverseDist(dist)
-   assert(dist:dim() == 1)
    local reverse = dist:clone()
-   -- reverse distribution and make unlikely values more likely
-   reverse:add(-reverse:max()):mul(-1):add(dist:min())
-   reverse:div(math.max(reverse:sum(),0.000001))
+   if dist:dim() == 1 then
+      -- reverse distribution and make unlikely values more likely
+      reverse:add(-reverse:max()):mul(-1):add(dist:min())
+      reverse:div(math.max(reverse:sum(),0.000001))
+   elseif dist:dim() == 2 then
+      -- reverse distribution and make unlikely values more likely
+      reverse:add(-reverse:max(2):reshape(reverse:size(1),1):expandAs(reverse)):mul(-1):add(dist:min(2):reshape(reverse:size(1),1):expandAs(reverse))
+      reverse:cdiv(reverse:sum(2):add(0.000001):reshape(reverse:size(1),1):expandAs(reverse))
+   end
    return reverse
 end

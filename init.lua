@@ -28,9 +28,11 @@ torch.include('dp', 'xplog.lua')
 torch.include('dp', 'mediator.lua')
 torch.include('dp', 'objectid.lua')
 torch.include('dp', 'eidgenerator.lua')
+
 --torch.include('dp', 'analyse.lua')
 
 --[[ data ]]--
+torch.include('dp', 'data/conv2d.lua')
 torch.include('dp', 'data/datatensor.lua')
 torch.include('dp', 'data/dataset.lua')
 torch.include('dp', 'data/datasource.lua')
@@ -39,7 +41,6 @@ torch.include('dp', 'data/preprocess.lua')
 torch.include('dp', 'data/batch.lua')
 torch.include('dp', 'data/sampler.lua')
 torch.include('dp', 'data/cifar10.lua')
-torch.include('dp', 'data/conv2d.lua')
 
 --[[ propagator ]]--
 torch.include('dp', 'propagator/propagator.lua')

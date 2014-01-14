@@ -304,6 +304,8 @@ function ZCA:apply(datatensor, can_fit)
    else
       new_X = torch.mm(X - self._mean:expandAs(X), self._P)
    end
+   print('zca size', new_X:size())
+   print ('zca data', new_X[{{1},{1,-1}}])
    datatensor:setData(new_X)
 end
 
@@ -317,18 +319,15 @@ local LeCunLCN = torch.class("dp.LeCunLCN", "dp.Preprocess")
 function LeCunLCN:__init(...)
 
    local args
-   args, self._axes, self._kernel_size, self._threshold
+   args, self._kernel_size, self._threshold
       = xlua.unpack(
       {... or {}},
       'LeCunLCN', 'LeCunLCN constructor',
-      {arg='axes', type='table',
-       help=[[axes for the input data]], default={'b', 'h', 'w', 'c'}},
       {arg='kernel_size', type='number', 
        help=[[local contrast kernel size]], default=9},
       {arg='threshold', type='number',
        help=[[threshold for denominator]], default=1e-4}
-      )
-         
+      )     
 end
 
 function LeCunLCN:_gaussian_filter(kernel_size)
@@ -339,7 +338,7 @@ function LeCunLCN:_gaussian_filter(kernel_size)
       return 1 / Z * math.exp(-(math.pow(x,2)+math.pow(y,2))/(2 * math.pow(sigma,2)))
    end
    
-   local mid = math.floor(kernel_size / 2)
+   local mid = math.ceil(kernel_size / 2)
    for i = 1, kernel_size do
       for j = 1, kernel_size do
          x[i][j] = _gauss(i-mid, j-mid)
@@ -350,28 +349,34 @@ function LeCunLCN:_gaussian_filter(kernel_size)
 end
 
 function LeCunLCN:apply(datatensor, can_fit)
-
+   print ('Start LeCunLCN Preprocessing ... ')
    local data, axes = datatensor:image()
-   
    if not table.eq(axes, {'b', 'h', 'w', 'c'}) then
-      data:resize(axes.b, axes.h, axes.w, axes.c)
+      data:resize(data:size(_.indexOf(axes, 'b')), data:size(_.indexOf(axes, 'h')),
+                  data:size(_.indexOf(axes, 'w')), data:size(_.indexOf(axes, 'c')))
    end
-   
+      
    local filters = self:_gaussian_filter(self._kernel_size)
-   local convout = dp.conv2d(data, filters)
-   local mid = math.floor(self._kernel_size / 2)
-   
+
+   local convout = dp.conv2d(data, filters, {'b', 'h', 'w', 'c'}, {'h', 'w'}, 'F')
+   local mid = math.ceil(self._kernel_size / 2)
+
    local centered_X = data - convout[{{1, -1},{mid, -mid},{mid, -mid},{1, -1}}]
-   local sum_sqr_XX = dp.conv2d(torch.pow(centered_X,2), filters)
+   local sum_sqr_XX = dp.conv2d(torch.pow(centered_X,2), filters, 
+                                {'b', 'h', 'w', 'c'}, {'h', 'w'})
    local denom = torch.sqrt(sum_sqr_XX[{{1,-1},{mid, -mid},{mid, -mid},{1, -1}}])
    local resized = denom:resize(denom:size(1), denom:size(2) * denom:size(3), denom:size(4))
    local per_img_mean = torch.mean(resized, 2)
    per_img_mean:resize(per_img_mean:size(1), 1, 1, per_img_mean:size(3))
-   local expanded = torch.expand(per_img_mean, per_img_mean:size(1), denom:size(2), 
-                                 denom:size(3), per_img_mean:size(3))
+   local expanded = per_img_mean:expandAs(data)
+   denom:resize(data:size(_.indexOf(axes, 'b')), data:size(_.indexOf(axes, 'h')),
+                data:size(_.indexOf(axes, 'w')), data:size(_.indexOf(axes, 'c')))
    local divisor = denom:map(expanded, function(d, e) return d>e and d or e end)
+
    divisor = divisor:apply(function(x) return x>self._threshold and x or self._threshold end)
-   return centered_X:cdiv(divisor)
+   print ('LeCunLCN Preprocessing completed')
+   local new_X = centered_X:cdiv(divisor)
+   datatensor:setData(new_X)
 end
    
       

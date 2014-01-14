@@ -189,13 +189,12 @@ function GlobalContrastNormalize:__init(...)
 
       {arg='batch_size', type='number', 
        help=[[The size of a batch.
-            ]], default=0},
+            ]], default=32},
             
       {arg='use_norm', type='boolean', 
        help=[[Normalize the data
             ]], default=false}
-            
-            
+                    
    )
 end
     
@@ -349,19 +348,35 @@ function LeCunLCN:_gaussian_filter(kernel_size)
 end
 
 function LeCunLCN:apply(datatensor, can_fit)
+
    print ('Start LeCunLCN Preprocessing ... ')
+   
    local data, axes = datatensor:image()
    if not table.eq(axes, {'b', 'h', 'w', 'c'}) then
       data:resize(data:size(_.indexOf(axes, 'b')), data:size(_.indexOf(axes, 'h')),
                   data:size(_.indexOf(axes, 'w')), data:size(_.indexOf(axes, 'c')))
    end
-      
+     
    local filters = self:_gaussian_filter(self._kernel_size)
+   local filters_3D = filters:repeatTensor(3, 1, 1)
 
-   local convout = dp.conv2d(data, filters, {'b', 'h', 'w', 'c'}, {'h', 'w'}, 'F')
+   local images_b = data:size(1)
+   local images_c = data:size(4)
+   local images_h = data:size(2)
+   local images_w = data:size(3)
+   local filters_h = filters:size(1)
+   local filters_w = filters:size(2)
+
+   local convout = torch.zeros(images_b, images_c, 
+                               images_h + filters_h - 1, 
+                               images_w + filters_w - 1)
+
+   for b = 1, images_b do
+      convout[b] = torch.conv2((data[b]):transpose(1,3), filters_3D, 'F')
+   end
+
    local mid = math.ceil(self._kernel_size / 2)
-
-   local centered_X = data - convout[{{1, -1},{mid, -mid},{mid, -mid},{1, -1}}]
+   local centered_X = data - convout:transpose(2,4)[{{1, -1},{mid, -mid},{mid, -mid},{1, -1}}]
    local sum_sqr_XX = dp.conv2d(torch.pow(centered_X,2), filters, 
                                 {'b', 'h', 'w', 'c'}, {'h', 'w'})
    local denom = torch.sqrt(sum_sqr_XX[{{1,-1},{mid, -mid},{mid, -mid},{1, -1}}])
@@ -372,7 +387,6 @@ function LeCunLCN:apply(datatensor, can_fit)
    denom:resize(data:size(_.indexOf(axes, 'b')), data:size(_.indexOf(axes, 'h')),
                 data:size(_.indexOf(axes, 'w')), data:size(_.indexOf(axes, 'c')))
    local divisor = denom:map(expanded, function(d, e) return d>e and d or e end)
-
    divisor = divisor:apply(function(x) return x>self._threshold and x or self._threshold end)
    print ('LeCunLCN Preprocessing completed')
    local new_X = centered_X:cdiv(divisor)

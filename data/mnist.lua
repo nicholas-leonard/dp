@@ -1,6 +1,3 @@
-require 'torch'
-require 'image'
-
 ------------------------------------------------------------------------
 --[[ Mnist ]]--
 -- http://yann.lecun.com/exdb/mnist/

@@ -6,6 +6,8 @@ require 'fs'
 require 'paths'
 require 'os'
 require 'sys'
+require 'image'
+require 'lfs'
 
 --useful for validating if an object is an instance of a class, 
 --even when the class is a super class.
@@ -224,6 +226,23 @@ function typeString_to_tensorType(type_string)
    end
 end
 
+function torch.view(tensor)
+   local ttype = tensor:type()
+   if ttype == 'torch.FloatTensor' then
+      return torch.FloatTensor(tensor)
+   elseif ttype == 'torch.LongTensor' then
+      return torch.LongTensor(tensor)
+   elseif ttype == 'torch.DoubleTensor' then
+      return torch.DoubleTensor(tensor)
+   elseif ttype == 'torch.IntTensor' then
+      return torch.IntTensor(tensor)
+   elseif ttype == 'torch.ByteTensor' then
+      return torch.ByteTensor(tensor)
+   else
+      error"unknown tensor type"
+   end
+end
+
 -- simple helpers to serialize/deserialize arbitrary objects/tables
 function torch.serialize(object, mode)
    mode = mode or 'binary'
@@ -321,15 +340,6 @@ function torch.swapaxes(tensor, new_axes)
    end
    return tensor:resize(unpack(new_size))
 end
-   
-   
-   
-   
-   
-   
-   
-   
-
 
 function dp.reverseDist(dist)
    local reverse = dist:clone()

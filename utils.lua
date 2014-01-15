@@ -6,6 +6,8 @@ require 'fs'
 require 'paths'
 require 'os'
 require 'sys'
+require 'image'
+require 'lfs'
 
 --useful for validating if an object is an instance of a class, 
 --even when the class is a super class.
@@ -221,6 +223,23 @@ function typeString_to_tensorType(type_string)
       return 'torch.FloatTensor'
    elseif type_string == 'double' then
       return 'torch.DoubleTensor'
+   end
+end
+
+function torch.view(tensor)
+   local ttype = tensor:type()
+   if ttype == 'torch.FloatTensor' then
+      return torch.FloatTensor(tensor)
+   elseif ttype == 'torch.LongTensor' then
+      return torch.LongTensor(tensor)
+   elseif ttype == 'torch.DoubleTensor' then
+      return torch.DoubleTensor(tensor)
+   elseif ttype == 'torch.IntTensor' then
+      return torch.IntTensor(tensor)
+   elseif ttype == 'torch.ByteTensor' then
+      return torch.ByteTensor(tensor)
+   else
+      error"unknown tensor type"
    end
 end
 

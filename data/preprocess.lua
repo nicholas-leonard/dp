@@ -156,8 +156,14 @@ local GlobalContrastNormalize
 
 function GlobalContrastNormalize:__init(...)
    local args
-   args, self._subtract_mean, self._scale, self._sqrt_bias, self._use_std,
-   self._min_divisor, self._std_bias, self._batch_size, self._use_norm
+   args, self._subtract_mean,
+   self._scale, 
+   self._sqrt_bias, 
+   self._use_std,
+   self._min_divisor, 
+   self._std_bias, 
+   self._batch_size, 
+   self._use_norm
       = xlua.unpack(
       {...},
       'GlobalContrastNormalize', nil,
@@ -189,17 +195,17 @@ function GlobalContrastNormalize:__init(...)
 
       {arg='batch_size', type='number', 
        help=[[The size of a batch.
-            ]], default=32},
+            ]], default=0},
             
       {arg='use_norm', type='boolean', 
        help=[[Normalize the data
             ]], default=false}
-                    
    )
 end
     
 function GlobalContrastNormalize:apply(datatensor, can_fit)
    local data = datatensor:feature()
+   print('begin Global Contrast Normalization Preprocessing...')
    if self._batch_size == 0 then
       data = self:_transform(data)
 --      datatensor.setData(data)    
@@ -216,8 +222,9 @@ function GlobalContrastNormalize:apply(datatensor, can_fit)
       end
 
       data = self:_transform(data:sub(1,stop))
-      datatensor.setData(data)
+      datatensor:setData(data)
    end
+   print('Global Contrast Normalization Preprocessing completed')
 end
 
 function GlobalContrastNormalize:_transform(data)
@@ -352,33 +359,17 @@ function LeCunLCN:apply(datatensor, can_fit)
    print ('Start LeCunLCN Preprocessing ... ')
    
    local data, axes = datatensor:image()
-   if not table.eq(axes, {'b', 'h', 'w', 'c'}) then
-      data:resize(data:size(_.indexOf(axes, 'b')), data:size(_.indexOf(axes, 'h')),
-                  data:size(_.indexOf(axes, 'w')), data:size(_.indexOf(axes, 'c')))
-   end
-     
+   assert(table.eq(axes, {'b', 'h', 'w', 'c'}), 'data axes is not equal to {b ,h, w, c}')
+          
    local filters = self:_gaussian_filter(self._kernel_size)
-   local filters_3D = filters:repeatTensor(3, 1, 1)
-
-   local images_b = data:size(1)
-   local images_c = data:size(4)
-   local images_h = data:size(2)
-   local images_w = data:size(3)
-   local filters_h = filters:size(1)
-   local filters_w = filters:size(2)
-
-   local convout = torch.zeros(images_b, images_c, 
-                               images_h + filters_h - 1, 
-                               images_w + filters_w - 1)
-
-   for b = 1, images_b do
-      convout[b] = torch.conv2((data[b]):transpose(1,3), filters_3D, 'F')
-   end
-
+   print('start convolving data')
+   local convout = dp.conv2d(data, filters, {'b','h','w','c'}, {'h', 'w'})
+   print('1/3 finished convolving data, start convolving centered_X ...')
    local mid = math.ceil(self._kernel_size / 2)
-   local centered_X = data - convout:transpose(2,4)[{{1, -1},{mid, -mid},{mid, -mid},{1, -1}}]
+   local centered_X = data - convout[{{1, -1},{mid, -mid},{mid, -mid},{1, -1}}]
    local sum_sqr_XX = dp.conv2d(torch.pow(centered_X,2), filters, 
                                 {'b', 'h', 'w', 'c'}, {'h', 'w'})
+   print('2/3 finished convolving centered_X, start finding divisor ...')
    local denom = torch.sqrt(sum_sqr_XX[{{1,-1},{mid, -mid},{mid, -mid},{1, -1}}])
    local resized = denom:resize(denom:size(1), denom:size(2) * denom:size(3), denom:size(4))
    local per_img_mean = torch.mean(resized, 2)
@@ -387,6 +378,7 @@ function LeCunLCN:apply(datatensor, can_fit)
    denom:resize(data:size(_.indexOf(axes, 'b')), data:size(_.indexOf(axes, 'h')),
                 data:size(_.indexOf(axes, 'w')), data:size(_.indexOf(axes, 'c')))
    local divisor = denom:map(expanded, function(d, e) return d>e and d or e end)
+   print('3/3 finished finding divisor, finishing preprocessing ..')
    divisor = divisor:apply(function(x) return x>self._threshold and x or self._threshold end)
    print ('LeCunLCN Preprocessing completed')
    local new_X = centered_X:cdiv(divisor)

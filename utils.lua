@@ -312,25 +312,43 @@ function table.fromString(str)
 end
 
 function torch.swapaxes(tensor, new_axes)
-   -- new_axes : table that give new axes of tensor, to swap axes 1 and 2, new_axes={2,1,3}
+
+   -- new_axes : A table that give new axes of tensor, 
+   -- example: to swap axes 2 and 3 in 3D tensor of original axes = {1,2,3}, 
+   -- then new_axes={1,3,2}
+ 
+   local sorted_axes = table.copy(new_axes)
+   table.sort(sorted_axes)
    
-   assert(tensor:dim() == #new_axes, 'tensor dim is not equal to new_axes dim')
-   local new_size = {}
-   for k, v in ipairs(new_axes) do
-      new_size[v] = tensor:size(k)
+   for k, v in ipairs(sorted_axes) do
+      assert(k == v, 'Error: new_axes does not contain all the new axis values')
+   end       
+
+   -- tracker is used to track if a dim in new_axes has been swapped
+   local tracker = torch.zeros(#new_axes)   
+   local new_tensor = tensor
+
+   -- set off a chain swapping of a group of intraconnected dimensions
+   _chain_swap = function(idx)
+      -- if the new_axes[idx] has not been swapped yet
+      if tracker[new_axes[idx]] ~= 1 then
+         tracker[idx] = 1
+         new_tensor = new_tensor:transpose(idx, new_axes[idx])
+         return _chain_swap(new_axes[idx])
+      else
+         return new_tensor
+      end    
    end
-   return tensor:resize(unpack(new_size))
+   
+   for idx = 1, #new_axes do
+      if idx ~= new_axes[idx] and tracker[idx] ~= 1 then
+         new_tensor = _chain_swap(idx)
+      end
+   end
+   
+   return new_tensor
 end
    
-   
-   
-   
-   
-   
-   
-   
-
-
 function dp.reverseDist(dist)
    local reverse = dist:clone()
    if dist:dim() == 1 then

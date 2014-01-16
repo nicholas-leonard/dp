@@ -37,7 +37,7 @@ function MLPFactory:buildTransfer(activation)
 end
 
 function MLPFactory:buildDropout(dropout_prob)
-   if dropout_prob then
+   if dropout_prob and dropout_prob > 0 and dropout_prob < 1 then
       require 'nnx'
       return nn.Dropout(dropout_prob)
    end
@@ -46,7 +46,9 @@ end
 function MLPFactory:buildModel(opt)
    local function addHidden(mlp, activation, input_size, layer_index)
       layer_index = layer_index or 1
-      local output_size = opt.model_width * opt.width_scales[layer_index]
+      local output_size = math.ceil(
+         opt.model_width * opt.width_scales[layer_index]
+      )
       mlp:add(
          dp.Neural{
             input_size=input_size, output_size=output_size,
@@ -54,6 +56,7 @@ function MLPFactory:buildModel(opt)
             dropout=self:buildDropout(opt.dropout_probs[layer_index])
          }
       )
+      print(output_size .. " hidden neurons")
       if layer_index < (opt.model_dept-1) then
          return addHidden(mlp, activation, output_size, layer_index+1)
       else
@@ -63,6 +66,7 @@ function MLPFactory:buildModel(opt)
    --[[Model]]--
    local mlp = dp.Sequential()
    -- hidden layer(s)
+   print(opt.feature_size .. " input neurons")
    local last_size = addHidden(mlp, opt.activation, opt.feature_size, 1)
    -- output layer
    mlp:add(
@@ -72,6 +76,7 @@ function MLPFactory:buildModel(opt)
          dropout=self:buildDropout(opt.dropout_probs[layer_index])
       }
    )
+   print(#opt.classes.." output neurons")
    --[[GPU or CPU]]--
    if opt.model_type == 'cuda' then
       require 'cutorch'
@@ -159,7 +164,7 @@ function MLPFactory:buildObserver(opt)
    return {
       self._logger,
       dp.EarlyStopper{
-         start_epoch = 1,
+         start_epoch = 11,
          error_report = {'validator','feedback','confusion','accuracy'},
          maximize = true,
          max_epochs = opt.max_tries,

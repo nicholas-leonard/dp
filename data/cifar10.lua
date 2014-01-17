@@ -181,6 +181,8 @@ function cifar10test(num_images)
    c:preprocess()
    for idx = 1,num_images do
       img = dt:image():select(1,idx):transpose(1,3)
-      image.savePNG('cifar10zca'..idx..'.png', img)
+      print(dt:image():select(1,idx):size())
+
+      image.savePNG('cifar10lecun'..idx..'.png', img)
    end
 end

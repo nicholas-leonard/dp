@@ -22,7 +22,7 @@ function dp.conv2d(images, filters, images_axes, filters_axes, border_mode)
    --    A convolved double tensor of same size and axes as input images
    
    local _size = function(tensor, axes)
-      -- return a table of key, value = 'axes label', 'tensor size for that label'
+      -- return a table of key, value = {'axes label', 'tensor size for that label'}
       t = {}
       for k, v in ipairs(axes) do
          t[v] = tensor:size(k)
@@ -33,37 +33,52 @@ function dp.conv2d(images, filters, images_axes, filters_axes, border_mode)
    border_mode = border_mode or 'F'
    assert(#images_axes == images:dim(), 'Error: images dim is not equal to images_axes dim')
    assert(#filters_axes == filters:dim(), 'Error: filters dim is not equal to filters_axes dim')
+      
    local images_size = _size(images, images_axes)
    local filters_size = _size(filters, filters_axes)
-   local orig_img_size = images:size()
-   local orig_fil_size = filters:size()
 
+   local new_filters
+   
+   if #filters_axes == 2 then
+      local new_filters_axes = {_.indexOf(filters_axes, 'h'),
+                                _.indexOf(filters_axes, 'w')}
+                                
+      new_filters = table.eq(filters_axes, {'h', 'w'}) 
+                            and filters
+                            or filters:transpose(1, 2)
+   
+      new_filters = filters:repeatTensor(images_size.c, 1, 1)
+      
+   elseif #filters_axes == 3 then
+      local new_filters_axes = {_.indexOf(filters_axes, 'c'),
+                                _.indexOf(filters_axes, 'h'),
+                                _.indexOf(filters_axes, 'w')}
+                                
+      new_filters = table.eq(filters_axes, {'c', 'h', 'w'}) 
+                            and filters
+                            or torch.swapaxes(filters, new_filters_axes)
+   else
+      error('filters dim is not 2 or 3')
+   end
+
+   
    if #images_axes == 3 then
    
-      local _conv2 = function(filters)
-         if not table.eq(images_axes, {'c', }) then
-         images:resize(images_size.c, images_size.h, images_size.w)
-         end
-         local orig_axes = {_.indexOf(images_axes, 'c'), _.indexOf(images_axes, 'h'),
-                           _.indexOf(images_axes, 'w')}
-         local new_images = torch.swapaxes(torch.conv2(images, filters, border_mode), orig_axes)
-         images:resize(orig_img_size)
-         return new_images
-      end
-         
-      if #filters_axes == 2 then
-         return _conv2(filters:repeatTensor(images_size.c, 1, 1))
-         
-      elseif #filters_axes == 3 then
-         local new_images = _conv2(filters:resize(images_size.c, images_size.h, images_size.w)) 
-         filters:resize(orig_fil_size)
-         return new_images      
-      else
-         error('filters dim is not 2 or 3')
-      end
-   
+      local resized_images = table.eq(images_axes, {'c', 'h', 'w'})
+                             and images
+                             or torch.swapaxes(images, {_.indexOf(images_axes, 'c'),
+                                                        _.indexOf(images_axes, 'h'),
+                                                        _.indexOf(images_axes, 'w')})
+
+      local conv_images = torch.conv2(resized_images, new_filters, border_mode)
+      
+      -- swap back to the original axes
+      return torch.swapaxes(conv_images, {[_.indexOf(images_axes, 'c')] = 1,
+                                                [_.indexOf(images_axes, 'h')] = 2,
+                                                [_.indexOf(images_axes, 'w')] = 3})
+
    elseif #images_axes == 4 then      
-      local new_images = border_mode == 'F' 
+      local conv_images = border_mode == 'F' 
                                        and 
                                        torch.zeros(images_size.b, images_size.c, 
                                        images_size.h + filters_size.h - 1, 
@@ -72,31 +87,23 @@ function dp.conv2d(images, filters, images_axes, filters_axes, border_mode)
                                        torch.zeros(images_size.b, images_size.c, 
                                        images_size.h - filters_size.h + 1, 
                                        images_size.w - filters_size.w + 1)
+                               
+      local resized_images = table.eq(images_axes, {'b', 'c', 'h', 'w'})
+                             and images
+                             or torch.swapaxes(images, {_.indexOf(images_axes, 'b'),
+                                                        _.indexOf(images_axes, 'c'),
+                                                        _.indexOf(images_axes, 'h'),
+                                                        _.indexOf(images_axes, 'w')})
       
-      local _conv2 = function(filters)
-         images:resize(images_size.b, images_size.c, images_size.h, images_size.w)
-         for b = 1, images_size.b do
-            new_images[b] = torch.conv2(images[b], filters, border_mode)
-         end
-         local orig_axes = {_.indexOf(images_axes, 'b'), _.indexOf(images_axes, 'c'),
-                            _.indexOf(images_axes, 'h'), _.indexOf(images_axes, 'w')}
-         images:resize(orig_img_size)  
-         torch.swapaxes(new_images, orig_axes)
+      for b = 1, images_size.b do
+         conv_images[b] = torch.conv2(resized_images[b], new_filters, border_mode)
       end
-                                                   
-      if #filters_axes == 2 then
-         _conv2(filters:repeatTensor(images_size.c, 1, 1))
-         return new_images
-      
-      elseif #filters_axes == 3 then
-         _conv2(filters:resize(filters_size.c, filters_size.h, filters_size.w))
-         filters:resize(orig_fil_size)
-         return new_images
-      
-      else
-         error('filters dim is not 2 or 3')
-      end
-   
+
+      -- swap back to the original axes
+      return torch.swapaxes(conv_images, {[_.indexOf(images_axes, 'b')] = 1,
+                                          [_.indexOf(images_axes, 'c')] = 2,
+                                          [_.indexOf(images_axes, 'h')] = 3,
+                                          [_.indexOf(images_axes, 'w')] = 4})
    else
       error('images dim is not 3 or 4')
    end

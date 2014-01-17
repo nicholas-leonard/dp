@@ -1,6 +1,3 @@
-require 'torch'
-require 'image'
-
 -------------------------------------------------
 --[[ CIFAR10 ]]--
 -- http://www.cs.toronto.edu/~kriz/cifar.html
@@ -15,7 +12,6 @@ Cifar10._image_size = {3, 32, 32}
 Cifar10._feature_size = 3*32*32
 Cifar10._image_axes = {'b', 'c', 'w', 'h'}
 Cifar10._classes = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
-
 
 function Cifar10:__init(...)
     local load_all, input_preprocess, target_preprocess

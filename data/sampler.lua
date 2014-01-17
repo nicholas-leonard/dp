@@ -99,13 +99,12 @@ function Sampler:sampleEpoch(data)
    local stop
    local dataset_inputs = dataset:inputs()
    local dataset_targets = dataset:targets()
-   local batch_inputs, batch_targets, batch_function, batch
    -- build iterator
    local epochSamples = 
       function()
          stop = math.min(start+batch_size-1,nSample)
          -- inputs
-         batch_inputs = {}
+         local batch_inputs = {}
          for i=1,#dataset_inputs do
             local dv = data_view[i]
             local dt = dataset_inputs[i]
@@ -116,16 +115,16 @@ function Sampler:sampleEpoch(data)
                                  ):clone():type(self._sample_type)
          end
          -- targets
-         batch_function = 
+         local batch_function = 
             function(datatensor) 
                return datatensor:default():sub(
                                     start, stop
                                  ):clone() --:type(self._sample_type)
             end
-         batch_targets = _.map(dataset_targets, batch_function)
+         local batch_targets = _.map(dataset_targets, batch_function)
          --TODO support multi-input/target datasets
          --Dataset should be called with sub, index to generate Batch
-         batch = dp.Batch{
+         local batch = dp.Batch{
             inputs=batch_inputs[1], targets=batch_targets[1], 
             batch_iter=stop, epoch_size=nSample, 
             batch_size=batch_size, n_sample=stop-start+1,
@@ -136,6 +135,7 @@ function Sampler:sampleEpoch(data)
          if start >= nSample then
             return
          end
+         collectgarbage() 
          return batch
       end
    return epochSamples
@@ -205,8 +205,6 @@ function ShuffleSampler:sampleEpoch(dataset)
    local data_view = self._data_view
    local dataset_inputs = dataset:inputs()
    local dataset_targets = dataset:targets()
-   local batch_inputs, batch_targets, batch_indices, batch_function
-   local batch
    -- shuffle before each epoch
    local dataset_indices = torch.randperm(nSample)
    -- build iterator
@@ -216,9 +214,9 @@ function ShuffleSampler:sampleEpoch(dataset)
             return
          end
          stop = math.min(start+batch_size-1,nSample)
-         batch_indices = dataset_indices:sub(start,stop):long()
+         local batch_indices = dataset_indices:sub(start,stop):long()
          -- inputs
-         batch_inputs = {}
+         local batch_inputs = {}
          for i=1,#dataset_inputs do
             local dv = data_view[i]
             local dt = dataset_inputs[i]
@@ -227,22 +225,23 @@ function ShuffleSampler:sampleEpoch(dataset)
                                  ):type(self._sample_type)
          end
          -- targets
-         batch_function = 
+         local batch_function = 
             function(datatensor) 
                return datatensor:default():index(
                                     1, batch_indices
                                  ) --:type(self._sample_type)
             end
-         batch_targets = _.map(dataset_targets, batch_function)
+         local batch_targets = _.map(dataset_targets, batch_function)
          --TODO support multi-input/target datasets
          --Dataset should be called with sub, index to generate Batch
-         batch = dp.Batch{inputs=batch_inputs[1], targets=batch_targets[1], 
-                       batch_iter=stop, epoch_size=nSample, 
-                       batch_size=batch_size, n_sample=stop-start+1,
-                       classes=dataset_targets[1]:classes(),
-                       grad_type=self._sample_type,
-                       indices=batch_indices}
+         local batch = dp.Batch{
+            inputs=batch_inputs[1], targets=batch_targets[1], 
+            batch_iter=stop, epoch_size=nSample, batch_size=batch_size, 
+            n_sample=stop-start+1, classes=dataset_targets[1]:classes(),
+            grad_type=self._sample_type, indices=batch_indices
+         }
          start = start + batch_size
+         collectgarbage() 
          return batch
       end
    return epochSamples

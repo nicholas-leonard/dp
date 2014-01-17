@@ -8,6 +8,7 @@ require 'image'
 -------------------------------------------------
 
 local Cifar10, parent = torch.class("dp.Cifar10", "dp.DataSource")
+Cifar10.isCifar10 = true
 
 Cifar10._name = 'cifar10'
 Cifar10._image_size = {3, 32, 32}
@@ -60,7 +61,6 @@ function Cifar10:__init(...)
                             input_preprocess=input_preprocess,
                             target_preprocess=target_preprocess})
 end
-
 
 function Cifar10:loadTrain()
    --Data will contain a tensor where each row is an example, and where

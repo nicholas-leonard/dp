@@ -109,8 +109,7 @@ function MLPFactory:buildVisitor(opt)
    if opt.momentum and opt.momentum > 0 then
       table.insert(visitor, 
          dp.Momentum{
-            momentum_factor=opt.momentum, 
-            nesterov=opt.nesterov
+            momentum_factor=opt.momentum, nesterov=opt.nesterov
          }
       )
    end
@@ -137,8 +136,7 @@ function MLPFactory:buildOptimizer(opt)
       visitor = visitor,
       feedback = dp.Confusion(),
       sampler = dp.ShuffleSampler{
-         batch_size=opt.batch_size, 
-         sample_type=opt.model_type
+         batch_size=opt.batch_size, sample_type=opt.model_type
       },
       progress = true
    }
@@ -148,7 +146,7 @@ function MLPFactory:buildValidator(opt)
    return dp.Evaluator{
       criterion = nn.ClassNLLCriterion(),
       feedback = dp.Confusion(),  
-      sampler = dp.Sampler{sample_type=opt.model_type}
+      sampler = dp.Sampler{batch_size=1024, sample_type=opt.model_type}
    }
 end
 
@@ -156,7 +154,7 @@ function MLPFactory:buildTester(opt)
    return dp.Evaluator{
       criterion = nn.ClassNLLCriterion(),
       feedback = dp.Confusion(),
-      sampler = dp.Sampler{sample_type=opt.model_type}
+      sampler = dp.Sampler{batch_size=1024, sample_type=opt.model_type}
    }
 end
 

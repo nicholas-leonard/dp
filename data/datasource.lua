@@ -91,10 +91,20 @@ function DataSource:testSet()
 end
 
 function DataSource:setInputPreprocess(input_preprocess)
+   if not torch.typename(input_preprocess) 
+      and type(input_preprocess) == 'table' 
+   then
+      input_preprocess = dp.Pipeline(input_preprocess)
+   end
    self._input_preprocess = input_preprocess
 end
 
 function DataSource:setTargetPreprocess(target_preprocess)
+   if not torch.typename(target_preprocess) 
+      and type(target_preprocess) == 'table' 
+   then
+      target_preprocess = dp.Pipeline(target_preprocess)
+   end
    self._target_preprocess = target_preprocess
 end
 

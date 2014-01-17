@@ -34,7 +34,7 @@ function Preprocess:__init(...)
 end
 ]]--
 local Preprocess = torch.class("dp.Preprocess")
-
+Preprocess.isPreprocess = true
 
 --[[
 datatensor: The DataTensor to act upon. An instance of dp.DataTensor.
@@ -54,13 +54,13 @@ function Preprocess:apply(datatensor, can_fit)
    error("Preprocessor subclass does not implement an apply method.")
 end
 
-Preprocess.isPreprocess = true
 
 -----------------------------------------------------------------------
 -- Pipeline : A Preprocessor that sequentially applies a list
 -- of other Preprocessors.
 -----------------------------------------------------------------------
 local Pipeline = torch.class("dp.Pipeline", "dp.Preprocess")
+Pipeline.isPipeline = true
 
 function Pipeline:__init(items)
    self._items = items or {}
@@ -71,14 +71,13 @@ function Pipeline:apply(datatensor, can_fit)
       item:apply(datatensor, can_fit)
    end
 end
-            
-            
 
 -----------------------------------------------------------------------
 -- Binarize : A Preprocessor that set to 0 any pixel strictly below the 
 ---threshold, sets to 1 those above or equal to the threshold.
 -----------------------------------------------------------------------
 local Binarize = torch.class("dp.Binarize", "dp.Preprocess")
+Binarize.isBinarize = true
 
 function Binarize:__init(threshold)
    self._threshold = threshold
@@ -96,6 +95,7 @@ end
 -- by the standard deviation.
 -----------------------------------------------------------------------
 local Standardize = torch.class("dp.Standardize", "dp.Preprocess")
+Standardize.isStandardize = true
 
 function Standardize:__init(...)
    local args
@@ -142,19 +142,17 @@ function Standardize:apply(datatensor, can_fit)
       data:cdiv(self._std:expandAs(data) + self._std_eps)
    end
    datatensor:setData(data)
-   print(collectgarbage("count"))
 end
 
 -----------------------------------------------------------------------
--- GlobalContrastNormalization : Global contrast normalizes by (optionally) 
+-- GCN : Global contrast normalizes by (optionally) 
 -- subtracting the mean across features and then normalizes by either the 
 -- vector norm or the standard deviation (across features, for each example).
 -----------------------------------------------------------------------
-local GlobalContrastNormalize 
- = torch.class("dp.GlobalContrastNormalize", "dp.Preprocess")
+local GCN, parent = torch.class("dp.GCN", "dp.Preprocess")
+GCN.isGCN = true
 
-
-function GlobalContrastNormalize:__init(...)
+function GCN:__init(...)
    local args
    args, self._subtract_mean,
    self._scale, 
@@ -165,50 +163,34 @@ function GlobalContrastNormalize:__init(...)
    self._batch_size, 
    self._use_norm
       = xlua.unpack(
-      {...},
-      'GlobalContrastNormalize', nil,
-      {arg='subtract_mean', type='boolean', 
-       help=[[if True subtract the mean of each example.
-            ]], default=true},
-            
-      {arg='scale', type='number', 
-       help=[[Multiply features by this const.
-            ]], default=1.0},
-            
-      {arg='sqrt_bias', type='number', 
-       help=[[Fudge factor added inside the square root.
-            ]], default=0},
-            
-      {arg='use_std', type='boolean', 
-       help=[[If True uses the norm instead of the standard deviation
-            ]], default=false},
-            
-      {arg='min_divisor', type='number', 
-       help=[[If the divisor for an example is less than this value,
-        	do not apply it.
-            ]], default=1e-8},
-            
-      {arg='std_bias', type='number', 
-       help=[[Add this amount inside the square root when computing
-            the standard deviation or the norm
-            ]], default=0},
-
-      {arg='batch_size', type='number', 
-       help=[[The size of a batch.
-            ]], default=0},
-            
-      {arg='use_norm', type='boolean', 
-       help=[[Normalize the data
-            ]], default=false}
+      {... or {}},
+      'GCN', nil,
+      {arg='subtract_mean', type='boolean', default=true, 
+       help='when True subtract the mean of each example.'},
+      {arg='scale', type='number', default=1.0, 
+       help='Multiply features by this const.'},
+      {arg='sqrt_bias', type='number', default=0,
+       help='Fudge factor added inside the square root.'},
+      {arg='use_std', type='boolean', default=false, 
+       help='If True uses the norm instead of the standard deviation.'},
+      {arg='min_divisor', type='number', default=1e-8,
+       help='If the divisor for an example is less than this value, '..
+       'do not apply it.'},
+      {arg='std_bias', type='number', default=0,
+       help='Add this amount inside the square root when computing '..
+       'the standard deviation or the norm'},
+      {arg='batch_size', type='number', default=0, 
+       help='The size of a batch.'},
+      {arg='use_norm', type='boolean', default=false,
+       help='Normalize the data'}            
    )
 end
     
-function GlobalContrastNormalize:apply(datatensor, can_fit)
+function GCN:apply(datatensor, can_fit)
    local data = datatensor:feature()
    print('begin Global Contrast Normalization Preprocessing...')
    if self._batch_size == 0 then
-      data = self:_transform(data)
---      datatensor.setData(data)    
+      self:_transform(data)
    else
       local data_size = data:size(1)
       local last = math.floor(data_size / self._batch_size) * self._batch_size
@@ -219,34 +201,28 @@ function GlobalContrastNormalize:apply(datatensor, can_fit)
          else
             stop = i + self._batch_size
          end
+         self:_transform(data:sub(i,stop))
       end
-
-      data = self:_transform(data:sub(1,stop))
-      datatensor:setData(data)
    end
    print('Global Contrast Normalization Preprocessing completed')
 end
 
-function GlobalContrastNormalize:_transform(data)
+function GCN:_transform(data)
 	if self._subtract_mean then
-		local miu = torch.mean(data,2)
-		miu = torch.expand(miu, data:size())
-		data = data - miu
+		data:add(-data:mean(2):expandAs(data))
 	end
 	
-	local sqr = torch.pow(data,2)
+	local scale
 	if self._use_norm then
-		scale = torch.sqrt(torch.sum(sqr,2) + self._std_bias)
+		scale = torch.sqrt(data:pow(2):sum(2):add(self._std_bias))
 	else
-		scale = torch.sqrt(torch.mean(sqr,2) + self._std_bias)
+		scale = torch.sqrt(data:pow(2):mean(2):add(self._std_bias))
 	end
 	
 	local eps = 1e-8
 	scale[torch.lt(scale, eps)] = 1
-	data = torch.cdiv(data, torch.expand(scale, data:size()))
-	return data
+	data:cdiv(scale:expandAs(data))
 end
-
 
 -----------------------------------------------------------------------
 --[[ ZCA ]]--
@@ -310,8 +286,6 @@ function ZCA:apply(datatensor, can_fit)
    else
       new_X = torch.mm(X - self._mean:expandAs(X), self._P)
    end
-   print('zca size', new_X:size())
-   print ('zca data', new_X[{{1},{1,-1}}])
    datatensor:setData(new_X)
 end
 
@@ -320,20 +294,18 @@ end
 -- Performs Local Contrast Normalization
 -----------------------------------------------------------------------
 local LeCunLCN = torch.class("dp.LeCunLCN", "dp.Preprocess")
-
+LeCunLCN.isLeCunLCN = true
 
 function LeCunLCN:__init(...)
-
    local args
-   args, self._kernel_size, self._threshold
-      = xlua.unpack(
+   args, self._kernel_size, self._threshold = xlua.unpack(
       {... or {}},
       'LeCunLCN', 'LeCunLCN constructor',
       {arg='kernel_size', type='number', 
        help=[[local contrast kernel size]], default=9},
       {arg='threshold', type='number',
        help=[[threshold for denominator]], default=1e-4}
-      )     
+   )     
 end
 
 function LeCunLCN:_gaussian_filter(kernel_size)
@@ -385,7 +357,3 @@ function LeCunLCN:apply(datatensor, can_fit)
    datatensor:setData(new_X)
 end
    
-      
-
-
-

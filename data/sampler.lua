@@ -135,6 +135,7 @@ function Sampler:sampleEpoch(data)
          if start >= nSample then
             return
          end
+         --http://bitsquid.blogspot.ca/2011/08/fixing-memory-issues-in-lua.html
          collectgarbage() 
          return batch
       end
@@ -147,7 +148,6 @@ end
 -- Samples from a multinomial distribution where each examples has a 
 -- probability of being samples.
 ------------------------------------------------------------------------
-
 local ShuffleSampler, parent
    = torch.class("dp.ShuffleSampler", "dp.Sampler")
 

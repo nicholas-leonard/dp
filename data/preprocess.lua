@@ -154,20 +154,15 @@ GCN.isGCN = true
 
 function GCN:__init(...)
    local args
-   args, self._subtract_mean,
-   self._scale, 
-   self._sqrt_bias, 
-   self._use_std,
-   self._min_divisor, 
-   self._std_bias, 
-   self._batch_size, 
+   args, self._subtract_mean, self._scale, self._sqrt_bias, 
+   self._use_std, self._min_divisor, self._std_bias, self._batch_size, 
    self._use_norm
       = xlua.unpack(
       {... or {}},
       'GCN', nil,
       {arg='subtract_mean', type='boolean', default=true, 
        help='when True subtract the mean of each example.'},
-      {arg='scale', type='number', default=1.0, 
+      {arg='scale', type='number', default=55, 
        help='Multiply features by this const.'},
       {arg='sqrt_bias', type='number', default=0,
        help='Fudge factor added inside the square root.'},
@@ -182,7 +177,7 @@ function GCN:__init(...)
       {arg='batch_size', type='number', default=0, 
        help='The size of a batch.'},
       {arg='use_norm', type='boolean', default=false,
-       help='Normalize the data'}            
+       help='Normalize the data'}
    )
 end
     
@@ -221,7 +216,7 @@ function GCN:_transform(data)
 	
 	local eps = 1e-8
 	scale[torch.lt(scale, eps)] = 1
-	data:cdiv(scale:expandAs(data))
+	data:cdiv(scale:expandAs(data)):mul(self._scale)
 end
 
 -----------------------------------------------------------------------
@@ -284,7 +279,7 @@ function ZCA:apply(datatensor, can_fit)
       self:fit(X)
       new_X = torch.mm(X, self._P)
    else
-      new_X = torch.mm(X - self._mean:expandAs(X), self._P)
+      new_X = torch.mm(torch.add(X, -self._mean:expandAs(X)), self._P)
    end
    datatensor:setData(new_X)
 end

@@ -167,7 +167,7 @@ function MLPFactory:buildObserver(opt)
          maximize = true,
          max_epochs = opt.max_tries,
          save_strategy = self._save_strategy,
-         min_epoch = 10, max_error = 0.7
+         min_epoch = 10, max_error = opt.max_error or 0.1
       }
    }
 end

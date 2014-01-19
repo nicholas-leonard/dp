@@ -30,7 +30,7 @@ end
 function ImageClassFactory:buildInputPreprocess(opt)
    local input_preprocess
    if opt.zca_gcn then
-      input_preprocess = {dp.ZCA(),dp.GCN()}
+      input_preprocess = {dp.GCN(),dp.ZCA()} --order is important
    elseif opt.standardize then
       input_preprocess = dp.Standardize()
    elseif opt.lecunlcn then

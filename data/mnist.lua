@@ -106,8 +106,9 @@ function Mnist:createDataSet(data, which_set)
    targets:add(1)
    targets:resize(targets:size(1))
    -- construct inputs and targets datatensors 
-   inputs = dp.ImageTensor{data=inputs, axes=self._image_axes, 
-                          sizes=self._image_size}
+   inputs = dp.ImageTensor{
+      data=inputs, axes=self._image_axes, sizes=self._image_size
+   }
    targets = dp.ClassTensor{data=targets, classes=self._classes}
    -- construct dataset
    return dp.DataSet{inputs=inputs,targets=targets,which_set=which_set}
@@ -118,10 +119,10 @@ end
 -- Returns a 60,000 x 785 tensor, where each image is 28*28 = 784 values in the
 -- range [0-255], and the 785th element is the class ID.
 function Mnist:loadData(file_name, download_url)
-   local path = DataSource.getDataPath{name=self._name, 
-                                       url=download_url, 
-                                       decompress_file=file_name, 
-                                       data_dir=self._data_path}
+   local path = DataSource.getDataPath{
+      name=self._name, url=download_url, decompress_file=file_name, 
+      data_dir=self._data_path
+   }
    local f = torch.DiskFile(path, 'r')
    f:binary()
 

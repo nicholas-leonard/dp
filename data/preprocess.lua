@@ -154,7 +154,7 @@ GCN.isGCN = true
 
 function GCN:__init(...)
    local args
-   args, self._subtract_mean,
+   args,
    self._scale, 
    self._sqrt_bias, 
    self._use_std,
@@ -165,8 +165,6 @@ function GCN:__init(...)
       = xlua.unpack(
       {... or {}},
       'GCN', nil,
-      {arg='subtract_mean', type='boolean', default=true, 
-       help='when True subtract the mean of each example.'},
       {arg='scale', type='number', default=1.0, 
        help='Multiply features by this const.'},
       {arg='sqrt_bias', type='number', default=0,
@@ -204,14 +202,11 @@ function GCN:apply(datatensor, can_fit)
          self:_transform(data:sub(i,stop))
       end
    end
+   datatensor:setData(data)
    print('Global Contrast Normalization Preprocessing completed')
 end
 
 function GCN:_transform(data)
-	if self._subtract_mean then
-		data:add(-data:mean(2):expandAs(data))
-	end
-	
 	local scale
 	if self._use_norm then
 		scale = torch.sqrt(data:pow(2):sum(2):add(self._std_bias))

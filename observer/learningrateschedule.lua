@@ -10,7 +10,7 @@ function LearningRateSchedule:__init(...)
    local args, schedule = xlua.unpack(
       {... or {}},
       'LearningRateSchedule', nil,
-      {arg='schedule', type='table', req=true,
+      {arg='schedule', type='table | tensor', req=true,
        help='Epochs as keys, and learning rates as values'}
    )
    self._schedule = schedule

@@ -368,8 +368,11 @@ function torch.swapaxes(tensor, new_axes)
    return new_tensor
 end
    
-function dp.reverseDist(dist)
-   local reverse = dist:clone()
+function dp.reverseDist(dist, inplace)
+   local reverse = dist
+   if not inplace then
+      reverse = dist:clone()
+   end
    if dist:dim() == 1 then
       -- reverse distribution and make unlikely values more likely
       reverse:add(-reverse:max()):mul(-1):add(dist:min())

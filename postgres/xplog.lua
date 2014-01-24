@@ -94,7 +94,7 @@ function PGXpLogEntry:__init(config)
    self._pg = pg
    local row = self:selectExperiment(self._id)
    if not row then 
-      error"PGXpLogEntry : not data in database"
+      error"PGXpLogEntry : no data in database"
    end
    self._collection_name = row.collection_name
    self._process_name = row.process_name

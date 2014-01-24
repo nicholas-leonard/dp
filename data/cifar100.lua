@@ -102,6 +102,10 @@ end
 
 function Cifar100:loadTest()
    local test_data = self:loadData(self._test_file, self._download_url)
+   if self._shuffle then
+      print"shuffling test set"
+      test_data = test_data:index(1, torch.randperm(test_data:size(1)):long())
+   end
    self:setTestSet(self:createDataSet(test_data, 'test'))
 end
 

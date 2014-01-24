@@ -16,7 +16,7 @@ Mnist._classes = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 function Mnist:__init(...) 
    local load_all, input_preprocess, target_preprocess
    self._args, self._valid_ratio, self._train_file, self._test_file, 
-         self._data_path, self._scale, self._binarize, 
+         self._data_path, self._scale, self._binarize, self._shuffle,
          self._download_url, load_all, input_preprocess, 
          target_preprocess
       = xlua.unpack(
@@ -34,6 +34,8 @@ function Mnist:__init(...)
        help='bounds to scale the values between', default={0,1}},
       {arg='binarize', type='boolean', 
        help='binarize the inputs (0s and 1s)', default=false},
+      {arg='shuffle', type='boolean', 
+       help='shuffle different sets', default=true},
       {arg='download_url', type='string',
        default='http://data.neuflow.org/data/mnist-th7.tgz',
        help='URL from which to download dataset if not found on disk.'},
@@ -93,6 +95,9 @@ end
 
 --Creates an Mnist Dataset out of data and which_set
 function Mnist:createDataSet(data, which_set)
+   if self._shuffle then
+      data = data:index(1, torch.randperm(data:size(1)):long())
+   end
    local inputs = data:narrow(2, 1, self._feature_size):clone()
    if self._binarize then
       DataSource.binarize(inputs, 128)

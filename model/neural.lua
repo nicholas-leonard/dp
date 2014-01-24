@@ -7,8 +7,8 @@ Neural.isNeural = true
 
 function Neural:__init(config)
    config = config or {}
-   local args, input_size, output_size, transfer, dropout, typename 
-      = xlua.unpack(
+   local args, input_size, output_size, transfer, dropout, typename, 
+         sparse_init = xlua.unpack(
       {config},
       'Neural', 
       'An affine transformation followed by a non-linearity',
@@ -21,7 +21,8 @@ function Neural:__init(config)
       {arg='dropout', type='nn.Dropout', 
        help='applies dropout to the inputs of this model.'},
       {arg='typename', type='string', default='neural', 
-       help='identifies Model type in reports.'}
+       help='identifies Model type in reports.'},
+      {arg='sparse_init', type='boolean', default=true}
    )
    self._input_size = input_size
    self._output_size = output_size
@@ -32,40 +33,34 @@ function Neural:__init(config)
    parent.__init(self, config)
    self._tags.hasParams = true
    self._uncuda = (torch.typename(self._transfer) == 'nn.SoftMax')
+   if sparse_init then
+      self:sparseInit()
+   end
    self:zeroGradParameters()
    self:checkParams()
    self:zeroStatistics()
 end
---[[
+
 function Neural:sparseInit(stdev)
-   W = np.zeros(shape)
+   stdev = stdev or 1
+   local W = self:parameters().weight.param:zero()
+   local output_size, input_size = W:size(1), W:size(2)
+   local sparse_init = math.max(math.ceil(output_size/2), 15)
    -- for each output unit:
-   for i in xrange(output_dim):
-      assert self.sparse_init <= input_dim
-      # initialize self.sparse_init input weights:
-      for j in xrange(self.sparse_init):
-          idx = rng.randint(0, input_dim)
-          while W[idx, i] != 0 or mask_rejects(idx, i):
-              idx = rng.randint(0, input_dim)
-          W[idx, i] = rng.randn()
-   W *= self.sparse_stdev
-   return W
-end]]--
+   for i = 1, output_size do
+      -- initialize self.sparse_init input weights:
+      for j = 1, sparse_init do
+         local idx = math.ceil(math.random() * input_size)
+         while W[{i, idx}] ~= 0 do
+            idx = math.ceil(math.random() * input_size)
+         end
+         W[{i, idx}] = torch.normal(0, stdev)
+      end
+   end
+end
 
 function Neural:zeroStatistics()
    for param_name, param_table in pairs(self:parameters()) do
-      local param_stats = self._stats[param_name]
-      if param_stats and param_stats.grad and param_stats.grad.count > 0 then
-         local grad = param_stats.grad
-         local param_report = self._report[param_name] or {}
-         local count = grad.count
-         local grad_report = {
-               sum=grad.sum/count, mean=grad.mean/count,
-               min=grad.min/count, max=grad.max/count,
-               std=grad.std/count, count=grad.count
-         }
-         self._report[param_name] = {grad=grad_report}
-      end
       self._stats[param_name] = {
          grad={sum=0, mean=0, min=0, max=0, count=0, std=0}
       }
@@ -210,6 +205,19 @@ end
 
 function Neural:report()
    local report = parent.report(self) or {}
-   self:zeroStatistics()
+   for param_name, param_table in pairs(self:parameters()) do
+      local param_stats = self._stats[param_name]
+      if param_stats and param_stats.grad and param_stats.grad.count > 0 then
+         local grad = param_stats.grad
+         local param_report = self._report[param_name] or {}
+         local count = grad.count
+         local grad_report = {
+               sum=grad.sum/count, mean=grad.mean/count,
+               min=grad.min/count, max=grad.max/count,
+               std=grad.std/count, count=grad.count
+         }
+         self._report[param_name] = {grad=grad_report}
+      end
+   end
    return table.merge(report, self._report)
 end

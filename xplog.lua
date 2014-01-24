@@ -79,6 +79,7 @@ end
 function XpLogEntry:sync(...)
    if self:dirty() then
       self:refresh(...)
+      collectgarbage() 
    end
 end
 
@@ -136,9 +137,9 @@ function XpLogEntry:_plotReportChannel(...)
       )
    end
    require 'gnuplot'
-   gnuplot.xlabel(x_name)
-   gnuplot.ylabel(y_name)
-   gnuplot.movelegend(hloc,vloc)
+   --gnuplot.xlabel(x_name)
+   --gnuplot.ylabel(y_name)
+   --gnuplot.movelegend(hloc,vloc)
    return curves, x_name, y_name, x
 end
 

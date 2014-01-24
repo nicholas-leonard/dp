@@ -92,14 +92,30 @@ end
 
 function MLPFactory:buildLearningRateSchedule(opt)
    --[[ Schedules ]]--
-   local lr = opt.learning_rate
-   if opt.learning_decay1 ~= 'none' then
-      local schedule = {[opt.learning_decay1] = 0.1 * lr}
-      if opt.learning_decay2 ~= 'none' then
-         schedule[opt.learning_decay2 + opt.learning_decay1] = 0.01 * lr
+   local start_lr = opt.learning_rate
+   local schedule
+   if opt.linear_decay then
+      x = torch.range(1,opt.decay_points[#opt.decay_points])
+      y = torch.FloatTensor(x:size()):fill(start_lr)
+      for i = 2, #opt.decay_points do
+         local start_epoch = opt.decay_points[i-1]
+         local end_epoch = opt.decay_points[i]
+         local end_lr = start_lr * opt.decay_factor
+         local m = (end_lr - start_lr) / (end_epoch - start_epoch)
+         y[{{start_epoch,end_epoch}}] = torch.mul(
+            torch.add(x[{{start_epoch,end_epoch}}], -start_epoch), m
+         ):add(start_lr)
+         start_lr = end_lr
       end
-      return dp.LearningRateSchedule{schedule=schedule}
+      schedule = y
+   else
+      schedule = {}
+      for i, epoch in ipairs(opt.decay_points) do
+         start_lr = start_lr * opt.decay_factor
+         schedule[epoch] = start_lr
+      end
    end
+   return dp.LearningRateSchedule{schedule=schedule}
 end
 
 function MLPFactory:buildVisitor(opt)

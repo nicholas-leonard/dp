@@ -125,7 +125,8 @@ function MLPFactory:buildVisitor(opt)
    if opt.momentum and opt.momentum > 0 then
       table.insert(visitor, 
          dp.Momentum{
-            momentum_factor=opt.momentum, nesterov=opt.nesterov
+            momentum_factor=opt.momentum, nesterov=opt.nesterov,
+            exclude=opt.exclude_momentum
          }
       )
    end

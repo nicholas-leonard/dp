@@ -28,6 +28,8 @@ function MaxNorm:__init(config)
    self._max_in_norm = max_in_norm
    config.include = config.include or {}
    table.insert(config.include, 'hasParams')
+   config.exclude = config.exclude or {}
+   table.insert(config.exclude, 'no-maxnorm')
    config.name = name
    parent.__init(self, config)
 end

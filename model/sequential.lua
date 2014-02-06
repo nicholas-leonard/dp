@@ -69,39 +69,6 @@ function Sequential:_backward(cstate)
    return cstate
 end
 
-function Sequential:zeroGradParameters()
-  for i=1,#self._models do
-     self._models[i]:zeroGradParameters()
-  end
-end
-
-function Sequential:reset(stdv)
-   for i=1,#self._models do
-      self._models[i]:reset(stdv)
-   end
-end
-
-function Sequential:parameters()
-   error"NotImplementedError"
-   local function tinsert(to, from)
-      if type(from) == 'table' then
-         for i=1,#from do
-            tinsert(to,from[i])
-         end
-      else
-         table.insert(to,from)
-      end
-   end
-   for i=1,#self._models do
-      local params = self._models[i]:parameters()
-      if mw then
-         tinsert(w,mw)
-         tinsert(gw,mgw)
-      end
-   end
-   return w,gw
-end
-
 function Sequential:__tostring__()
    local tab = '  '
    local line = '\n'

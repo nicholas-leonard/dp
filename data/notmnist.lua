@@ -23,7 +23,7 @@ function NotMnist:__init(...)
       = xlua.unpack(
       {... or {}},
       'NotMnist', nil,
-      {arg='valid_ratio', type='number', default=1/10,
+      {arg='valid_ratio', type='number', default=1/6,
        help='proportion of training set to use for cross-validation.'},
       {arg='train_dir', type='string', default='notMNIST_large',
        help='name of test_dir'},

@@ -60,3 +60,19 @@ function Container:doneBatch(...)
    end
    parent.doneBatch(self, ...)
 end
+
+function Container:zeroGradParameters()
+   for i=1,#self._models do
+      self._models[i]:zeroGradParameters()
+   end
+end
+
+function Container:reset(stdv)
+   for i=1,#self._models do
+      self._models[i]:reset(stdv)
+   end
+end
+
+function Container:parameters()
+   error"NotImplementedError"
+end

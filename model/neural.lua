@@ -22,7 +22,9 @@ function Neural:__init(config)
        help='applies dropout to the inputs of this model.'},
       {arg='typename', type='string', default='neural', 
        help='identifies Model type in reports.'},
-      {arg='sparse_init', type='boolean', default=true}
+      {arg='sparse_init', type='boolean', default=true,
+       hel='sparse initialization of weights. See Martens (2010), '..
+       '"Deep learning via Hessian-free optimization"'}
    )
    self._input_size = input_size
    self._output_size = output_size
@@ -34,18 +36,18 @@ function Neural:__init(config)
    self._tags.hasParams = true
    self._uncuda = (torch.typename(self._transfer) == 'nn.SoftMax')
    if sparse_init then
-      self:sparseInit()
+      self:sparseInit(self:parameters().weight.param)
    end
    self:zeroGradParameters()
    self:checkParams()
    self:zeroStatistics()
 end
 
-function Neural:sparseInit(stdev)
+function Neural:sparseInit(W, stdev)
    stdev = stdev or 1
-   local W = self:parameters().weight.param:zero()
+   W:zero()
    local output_size, input_size = W:size(1), W:size(2)
-   local sparse_init = math.max(math.ceil(output_size/2), 15)
+   local sparse_init = math.min(math.ceil(input_size/2), 15)
    -- for each output unit:
    for i = 1, output_size do
       -- initialize self.sparse_init input weights:
@@ -147,34 +149,24 @@ function Neural:type(type)
    if self._dropout then
       self._dropout:type(type)
    end
-   return parent.type(self, type)
 end
 
 function Neural:reset()
    return self._affine:reset()
 end
 
--- TODO move this to __init() and test it!
+-- do not use this to change the type of parameters.
 function Neural:parameters()
-   local params = self._params
+   local params = {}
    local module = self._affine
    if module.weight and module.weight:dim() ~= 0 then
-      if not params.weight then
-         params.weight = {}
-      end
-      params.weight.param=module.weight
-      params.weight.grad=module.gradWeight
+      params.weight = { param=module.weight, grad=module.gradWeight }
    end
    if module.bias and module.bias:dim() ~= 0 then
-      if not params.bias then
-         params.bias = {}
-      end
-      params.bias.param=module.bias
-      params.bias.grad=module.gradBias
+      params.bias = { param=module.bias, grad=module.gradBias }
    end
    return params
 end
-
 
 function Neural:maxNorm(max_out_norm, max_in_norm)
    if not self.backwarded then return end

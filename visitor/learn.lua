@@ -23,9 +23,11 @@ function Learn:__init(config)
        help='identifies visitor in reports.'}
    )
    self:setLearningRate(learning_rate)
-   config.include = config.include or {}
    config.name = name
+   config.include = config.include or {}
    table.insert(config.include, 'hasParams')
+   config.exclude = config.exclude or {}
+   table.insert(config.exclude, 'no-learn')
    parent.__init(self, config)
 end
 

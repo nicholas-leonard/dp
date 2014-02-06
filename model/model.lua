@@ -4,7 +4,6 @@
 -- Could allow for reimplementation of each nn.Module
 -- to allow for automatic reshapes, set_input_space, as in pylearn2?
 ------------------------------------------------------------------------
-
 local Model = torch.class("dp.Model")
 Model.isModel = true
 
@@ -85,7 +84,6 @@ function Model:doneEpoch(report, ...)
    self:zeroStatistics()
 end
 
-
 function Model:parameters()
    return self._params
 end
@@ -93,7 +91,7 @@ end
 function Model:setInputState(istate)
    assert(istate, "No Input State")
    if torch.isTensor(istate) then
-      -- istate is tensor, then assume it is activation
+      -- istate is tensor, assume it is activation
       istate = {act=istate}
    end
    assert(type(istate) == 'table')
@@ -108,7 +106,7 @@ function Model:setOutputState(ostate)
    if ostate == nil then
       return
    elseif torch.isTensor(ostate) then
-      -- ostate is tensor, then assume it is gradients
+      -- ostate is tensor, assume it is gradients
       self.ostate.grad = ostate
       return
    end
@@ -149,6 +147,7 @@ function Model:evaluate(state)
    self.forwarded = true
    return self.ostate, cstate
 end
+
 --default is to call forward (only diff is 'evaluate' flag in gstate)
 function Model:_evaluate(cstate)
    return self:_forward(cstate)
@@ -213,15 +212,7 @@ function Model:clone()
 end
 
 function Model:type(type)
-   -- find all tensors and convert them
-   for param_name, param_table in pairs(self._params) do
-      for key, tensor in pairs(param_table) do
-         if torch.typename(tensor) and torch.typename(tensor):find('torch%..+Tensor') then
-            param_table[key] = tensor:type(type)
-         end
-      end
-   end
-   return self
+   error"NotImplementedError"
 end
 
 function Model:float()

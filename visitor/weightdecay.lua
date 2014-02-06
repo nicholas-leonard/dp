@@ -16,9 +16,11 @@ function WeightDecay:__init(config)
        help='identifies visitor in reports.'}
    )
    self._wd_factor = wd_factor
-   config.include = config.include or {}
    config.name = name
+   config.include = config.include or {}
    table.insert(config.include, 'hasParams')
+   config.exclude = config.exclude or {}
+   table.insert(config.exclude, 'no-weightdecay')
    parent.__init(self, config)
 end
 

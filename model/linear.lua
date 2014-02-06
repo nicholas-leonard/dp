@@ -1,5 +1,6 @@
 ------------------------------------------------------------------------
 --[[ Linear ]]--
+-- DEPRECATED
 -- Adapts a nn.Linear to the dp.Model interface
 ------------------------------------------------------------------------
 local Linear, parent = torch.class("dp.Linear", "dp.Module")

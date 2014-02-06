@@ -155,7 +155,7 @@ function MLPFactory:buildOptimizer(opt)
       sampler = dp.ShuffleSampler{
          batch_size=opt.batch_size, sample_type=opt.model_type
       },
-      progress = true
+      progress = opt.progress or true
    }
 end
 

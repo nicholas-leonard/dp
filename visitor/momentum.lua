@@ -27,8 +27,10 @@ function Momentum:__init(config)
    self._damping_factor = damping_factor or momentum_factor
    self._nesterov = nesterov
    config.include = config.include or {}
-   config.name = name
    table.insert(config.include, 'hasParams')
+   config.exclude = config.exclude or {}
+   table.insert(config.exclude, 'no-momentum')
+   config.name = name
    parent.__init(self, config)
 end
 

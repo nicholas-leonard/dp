@@ -80,6 +80,8 @@ torch.include('dp', 'model/sequential.lua')
 torch.include('dp', 'model/neural.lua')
 torch.include('dp', 'model/module.lua')
 torch.include('dp', 'model/linear.lua')
+torch.include('dp', 'model/AddConstant.lua')
+torch.include('dp', 'model/Print.lua')
 
 --[[ hyper ]]--
 torch.include('dp', 'hyper/hyperoptimizer.lua')

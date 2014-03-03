@@ -142,7 +142,7 @@ int binarySearch(double** cum_distr, int cum_width, int row, double uniform_samp
     num_samples: number of samples to sample from the multinomial distribution
     with_replacement: 1 for true, 0 for false
 @return:
-    
+    a sample of experts from the multinomial probability distribution
 */
 int** multinomial(int h, int prob_width, double** prob_distr, int num_samples, int with_replacement)
 {

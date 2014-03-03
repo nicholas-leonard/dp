@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <sys/time.h>
 
 #define TRUE 1
 #define FALSE 0
@@ -38,6 +39,7 @@ void printInt(int h, int w, int** array)
     }
 }
 
+
 /** destroy a 2d array */
 void destroyArray(double** arr)
 {
@@ -66,13 +68,17 @@ void update_cum_row(double** cum_distr, double** prob_distr, int r, int prob_wid
         }
 }
 
+
 /** generate a random array from U~[0,1] of dim h*w */
 double** rand_array(int h, int w)
 {
     double** random_samples;
     malloc2d(random_samples, h, w, double);
     
-    srand((time(NULL) % 100000) * (time(NULL) % 10));
+    struct timeval utime;
+    gettimeofday(&utime, NULL);
+    
+    srand(utime.tv_usec);
     for (int i=0; i<h; i++)
     {
         for (int j=0; j<w; j++)
@@ -82,6 +88,7 @@ double** rand_array(int h, int w)
     }
     return random_samples;
 }
+
 
 /** generate cumulative distribution from prob distribution
 @param:
@@ -132,7 +139,6 @@ int binarySearch(double** cum_distr, int cum_width, int row, double uniform_samp
     }
     return left_pointer;
 }
-
 
 
 /** Generate a subset of random samples from the prob_distr
@@ -208,7 +214,6 @@ int** multinomial(int h, int prob_width, double** prob_distr, int num_samples, i
                 prob_distr[i][sample] = 0;
                 update_cum_row(cum_distr, prob_distr, i, prob_width);
                 
-                
                 if (DEBUG)
                 {
                     printf("==after==");
@@ -229,8 +234,8 @@ int** multinomial(int h, int prob_width, double** prob_distr, int num_samples, i
 int main(void)
 {
     int h = 5;
-    int prob_width = 4;
-    int num_samples = 4;
+    int prob_width = 20;
+    int num_samples = 20;
     
     double** prob_distr = malloc(h * sizeof(double*));
    

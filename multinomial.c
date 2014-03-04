@@ -115,7 +115,7 @@ double** generate_cum_matrix(int h, int prob_width, double** prob_distr)
     row: the row of the cum_distr matrix to search where the prob falls
     uniform_sample: a sample from an uniform distribution U ~ [0, 1]
 @return: the slot in which the prob falls, 
-    ie cum_distr[row][slot-1] < prob < cum_distr[row][slot]
+    ie cum_distr[row][slot] < prob < cum_distr[row][slot+1]
 */
 int binarySearch(double** cum_distr, int cum_width, int row, double uniform_sample)
 {

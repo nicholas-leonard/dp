@@ -278,7 +278,7 @@ function dp.printG()
    end
 end
 
-function dp:dimshuffle(new_axes)
+function torch.Tensor:dimshuffle(new_axes)
    return swapaxes(self, new_axes)
 end
 

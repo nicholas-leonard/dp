@@ -278,8 +278,8 @@ function dp.printG()
    end
 end
 
-function dp.dimshuffle()
-   --TODO
+function dp:dimshuffle(new_axes)
+   return swapaxes(self, new_axes)
 end
 
 --http://stackoverflow.com/questions/640642/how-do-you-copy-a-lua-table-by-value

@@ -68,7 +68,6 @@ function Batch:outputs()
    return self._outputs:double()
 end
 
-
 function Batch:setLoss(loss)
    self._loss = loss
 end

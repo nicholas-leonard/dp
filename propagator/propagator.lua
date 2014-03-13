@@ -1,6 +1,3 @@
-require 'torch'
-require 'optim'
-
 --[[ TODO ]]--
 -- Convolution (way later)
 -- torch.clip
@@ -36,7 +33,6 @@ require 'optim'
 -- propagator. If you can reduce it to reusable components, you could 
 -- then refactor these into visitors, observers, etc.
 ------------------------------------------------------------------------
-
 local Propagator = torch.class("dp.Propagator")
 Propagator.isPropagator = true
 

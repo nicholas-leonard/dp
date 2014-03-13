@@ -159,7 +159,7 @@ function NotMnist:loadData(file_name, download_url, bad_png)
       local classpath = paths.concat(doc_path, class)
       for file in lfs.dir(classpath) do
          if #file > 2 and not _.contains(bad_png[class] or {}, file) then 
-            filename = paths.concat(classpath, file)
+            local filename = paths.concat(classpath, file)
             local ds_idx = shuffle[example_idx]
             inputs[{ds_idx,{},{},{}}] = image.loadPNG(filename):float()
             targets[ds_idx] = classidx

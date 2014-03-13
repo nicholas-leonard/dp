@@ -40,9 +40,9 @@ local function multinomial_with_replacement(prob_dist, num_samples)
     local m_samples = torch.LongTensor(cum_dist:size(1), num_samples)
     
     for i=1,num_samples do
+        local u_sample = u_samples:select(2,i)
         for j=1,cum_dist:size(2) do
             local a, b, indices
-            local u_sample = u_samples:select(2,i)
             if j < cum_dist:size(2) then
                 a = torch.lt(u_sample, cum_dist:select(2,j))
             end

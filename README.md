@@ -12,7 +12,42 @@ It provides facilites for storing and analysing experimental hyperpameters and r
 a PostgreSQL database backend, which facilitates running many experiments on different machines. 
 
 ## Neural Network Example ##
-A quick example to show what can be expected by this package.
+We begin with a simple [neural network example](examples/neuralnetwork.lua). The first line loads 
+the __dp__ package, whose first matter of business is to load its dependencies (see [dp/init.lua]):
+```lua
+require 'dp'
+```
+Note : package `underscore` in imported as `_`. So `_` shouldn't be used for dummy variables, instead 
+use the much more annoying `__`, or whatnot. 
+
+Then we make some hyper-parameters and other options available to the user via the command line:
+```lua
+--[[parse command line arguments]]--
+cmd = torch.CmdLine()
+cmd:text()
+cmd:text('MNIST MLP Training/Optimization')
+cmd:text('Example:')
+cmd:text('$> th neuralnetwork.lua --batchSize 128 --momentum 0.5')
+cmd:text('Options:')
+cmd:option('--learningRate', 0.1, 'learning rate at t=0')
+cmd:option('--maxOutNorm', 1, 'max norm each layers output neuron weights')
+cmd:option('--momentum', 0, 'momentum')
+cmd:option('--numHidden', 200, 'number of hidden units')
+cmd:option('--batchSize', 32, 'number of examples per batch')
+cmd:option('--type', 'double', 'type: double | float | cuda')
+cmd:option('--maxEpoch', 100, 'maximum number of epochs to run')
+cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better local minima for early-stopping')
+cmd:option('--dropout', false, 'apply dropout on hidden neurons, requires "nnx" luarock')
+cmd:option('--dataset', 'Mnist', 'which dataset to use')
+cmd:option('--lecunLCN', false, 'apply LeCunLCN preprocessing')
+cmd:text()
+opt = cmd:parse(arg or {})
+```
+We will come back to these later. For now, all you need to know is that `opt` is a table containing attributes
+like `learningRate` and `numHidden`, and that these can be specified via the command line switches 
+`--learningRate [number]` and `--numHidden [number]`, respectively. 
+
+Next we specify an experiment id generator or [dp.EIDGenerator](eidgenerator.lua)
 
 ## Data and preprocessing ##
 DataTensor, DataSet, DataSource, Samplers and Preprocessing.

@@ -5,10 +5,10 @@
 -- the time of the experiment, and the next value from a sequence
 -- as a unique name
 -- To ensure uniqueness across experiments, the namespace should 
--- be associated to the process, and there should be but one 
+-- be associated to the process, and their should be but one 
 -- EIDGenerator instance per process.
 
--- Like Builder, Mediator and Data*, this object exists in the 
+-- Like HyperOptimizer, Mediator and Data*, this object exists in the 
 -- extra-experiment scope.
 ------------------------------------------------------------------------
 

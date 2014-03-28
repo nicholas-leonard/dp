@@ -1,6 +1,14 @@
-require 'paths'
 require 'torch'
 require 'nn'
+require 'torch'
+require 'string'
+_ = require 'underscore'
+require 'xlua'
+require 'fs'
+require 'os'
+require 'sys'
+require 'image'
+require 'lfs'
 
 ------------------------------------------------------------------------
 --[[ dp ]]--

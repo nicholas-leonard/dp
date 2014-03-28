@@ -1,11 +1,6 @@
-require 'torch'
-require 'sys'
 require 'dp'
-require 'nn'
-require 'paths'
 
 --[[parse command line arguments]]--
-
 cmd = torch.CmdLine()
 cmd:text()
 cmd:text('MNIST MLP Training/Optimization')
@@ -34,11 +29,11 @@ id_gen = dp.EIDGenerator('mypc.pid')
 --[[preprocessing]]--
 local input_preprocess
 if opt.lecunLCN then
-   input_preprocess=dp.LeCunLCN()
+   input_preprocess = dp.LeCunLCN()
 end
 
 --[[Load DataSource]]--
-local datasource =dp[opt.dataset]{input_preprocess=input_preprocess}
+local datasource = dp[opt.dataset]{input_preprocess=input_preprocess}
 
 
 --[[Model]]--
@@ -47,14 +42,22 @@ if opt.dropout then
    require 'nnx'
    dropout = nn.Dropout()
 end
-mlp = dp.Sequential()
-mlp:add(dp.Neural{input_size=datasource._feature_size, 
-                  output_size=opt.numHidden,
-                  transfer=nn.Tanh()})
-mlp:add(dp.Neural{input_size=opt.numHidden, 
-                  output_size=#(datasource._classes),
-                  transfer=nn.LogSoftMax(),
-                  dropout=dropout})
+
+mlp = dp.Sequential{
+   models = {
+      dp.Neural{
+         input_size = datasource._feature_size, 
+         output_size = opt.numHidden, 
+         transfer = nn.Tanh()
+      },
+      dp.Neural{
+         input_size = opt.numHidden, 
+         output_size = #(datasource._classes),
+         transfer = nn.LogSoftMax(),
+         dropout = dropout
+      }
+   }
+}
 
 --[[GPU or CPU]]--
 if opt.type == 'cuda' then
@@ -67,17 +70,20 @@ end
 train = dp.Optimizer{
    criterion = nn.ClassNLLCriterion(),
    visitor = { -- the ordering here is important:
-      dp.Momentum{momentum_factor=opt.momentum},
+      dp.Momentum{momentum_factor = opt.momentum},
       dp.Learn{
-         learning_rate=opt.learningRate, 
+         learning_rate = opt.learningRate, 
          observer = dp.LearningRateSchedule{
-            schedule={[200]=0.01, [400]=0.001}
+            schedule = {[200]=0.01, [400]=0.001}
          }
       },
-      dp.MaxNorm{max_out_norm=opt.maxOutNorm}
+      dp.MaxNorm{max_out_norm = opt.maxOutNorm}
    },
    feedback = dp.Confusion(),
-   sampler = dp.ShuffleSampler{batch_size=opt.batchSize, sample_type=opt.type},
+   sampler = dp.ShuffleSampler{
+      batch_size = opt.batchSize, 
+      sample_type = opt.type
+   },
    progress = true
 }
 valid = dp.Evaluator{

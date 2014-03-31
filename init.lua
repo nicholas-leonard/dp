@@ -33,7 +33,6 @@ torch.include('dp', 'choose.lua')
 torch.include('dp', 'xplog.lua')
 torch.include('dp', 'mediator.lua')
 torch.include('dp', 'objectid.lua')
-torch.include('dp', 'eidgenerator.lua')
 torch.include('dp', 'test/test.lua')
 
 --torch.include('dp', 'analyse.lua')
@@ -102,7 +101,6 @@ torch.include('dp', 'hyper/mlpfactory.lua')
 
 --[[ postgres ]]--
 torch.include('dp', 'postgres/postgres.lua')
-torch.include('dp', 'postgres/eidgenerator.lua')
 torch.include('dp', 'postgres/logger.lua')
 torch.include('dp', 'postgres/xplog.lua')
 torch.include('dp', 'postgres/savetofile.lua')

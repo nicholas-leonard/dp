@@ -27,7 +27,6 @@
 -- to sub-objects during propagation in case they need to act upon 
 -- data found in other branches of the experiment tree.
 ------------------------------------------------------------------------
-
 local Experiment = torch.class("dp.Experiment")
 Experiment.isExperiment = true
 
@@ -37,7 +36,9 @@ function Experiment:__init(...)
       = xlua.unpack(
       {... or {}},
       'Experiment', nil,
-      {arg='id', type='dp.ObjectID', req=true},
+      {arg='id', type='dp.ObjectID',
+       help='uniquely identifies the experiment. '..
+       'Defaults to using dp.uniqueID() to initialize a dp.ObjectID'},
       {arg='description', type='string'},
       {arg='model', type='dp.Model', req=true},
       {arg='optimizer', type='dp.Optimizer'},
@@ -59,8 +60,8 @@ function Experiment:__init(...)
    )
    self:setRandomSeed(random_seed)
    self._is_done_experiment = false
-   assert(id.isObjectID)
-   self._id = id
+   self._id = id or dp.ObjectID(dp.uniqueID())
+   assert(self._id.isObjectID)
    self._model = model
    self._epoch = epoch
    self:setObserver(observer)

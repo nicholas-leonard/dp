@@ -109,7 +109,6 @@ test = dp.Evaluator{
 
 --[[Experiment]]--
 xp = dp.Experiment{
-   id_gen = dp.EIDGenerator('mypc.pid'),
    model = mlp,
    optimizer = train,
    validator = valid,

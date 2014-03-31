@@ -10,17 +10,24 @@ PGHyperOptimizer.isPGHyperOptimizer = true
 
 function PGHyperOptimizer:__init(config)
    config = config or {}
-   local args, id_gen, collection_name, hyperparam_sampler, 
-         experiment_factory, datasource_factory 
+   local args, pg, sequence 
       = xlua.unpack(
       {... or {}},
       'HyperOptimizer', nil,
-      {arg='id_gen', type='dp.PGEIDGenerator', req=true},
       {arg='pg', type='dp.Postgres', help='defaults to dp.Postgres()'}
+      {arg='sequence', type='string', default='dp.xp_id_gen'
+       help='name of the SQL Sequence to use for generating unique ids'}
    )
-   config.id_gen = id_gen
    self._pg = pg or dp.Postgres()
+   assert(type(sequence) == 'string')
+   self._sequence = sequence
    parent.__init(self, config)
+end
+
+-- Generates a unique identifier for the experiment using an SQL sequence
+function PGHyperOptimizer:nextID()
+   local id = self._pg:fetchOne("SELECT nextval('%s')", {self._sequence})[1]
+   return dp.ObjectID(id)
 end
 
 function PGHyperOptimizer:hyperReport(id, hyperparam)
@@ -29,7 +36,6 @@ function PGHyperOptimizer:hyperReport(id, hyperparam)
       hyperparam_sampler = self._hp_sampler:hyperReport(),
       experiment_factory = self._xp_factory:hyperReport(),
       datasource_factory = self._ds_factory:hyperReport(),
-      
    }
 end
 
@@ -38,7 +44,7 @@ function PGHyperOptimizer:run()
       -- sample hyperparameters 
       local hp = self._hp_sampler:sample()
       -- assign a unique id
-      local id = self._id_gen:nextID()
+      local id = self:nextID()
       -- build datasource
       local ds = self._ds_factory:build(hp)
       -- build experiment

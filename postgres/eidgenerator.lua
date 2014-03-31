@@ -12,8 +12,8 @@ PGEIDGenerator.isPGEIDGenerator = true
 function PGEIDGenerator:__init(config)
    local args, pg, sequence = xlua.unpack(
       {config or {}},
-      'PGEIDGenerator', 'Generates unique IDs for experiments using ' ..
-      'a postgreSQL Sequence.',
+      'PGEIDGenerator', 
+      'Generates unique IDs for experiments using a postgreSQL Sequence.',
       {arg='pg', type='dp.Postgres', help='defaults to dp.Postgres()'},
       {arg='sequence', type='string', default='dp.xp_id_gen'}
    )
@@ -22,8 +22,7 @@ function PGEIDGenerator:__init(config)
 end
 
 function PGEIDGenerator:nextID()
-   local eid = self._pg:fetchOne("SELECT nextval('%s')", 
-                                 {self._sequence})[1]
+   local eid = self._pg:fetchOne("SELECT nextval('%s')", {self._sequence})[1]
    return dp.ObjectID(eid)
 end
 

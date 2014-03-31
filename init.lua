@@ -29,12 +29,12 @@ dp.LOG_DIR = os.getenv('DEEP_LOG_PATH')
    
 --[[ misc ]]--
 torch.include('dp', 'utils.lua')
-torch.include('dp', 'multinomial.lua')
 torch.include('dp', 'choose.lua')
 torch.include('dp', 'xplog.lua')
 torch.include('dp', 'mediator.lua')
 torch.include('dp', 'objectid.lua')
 torch.include('dp', 'eidgenerator.lua')
+torch.include('dp', 'test/test.lua')
 
 --torch.include('dp', 'analyse.lua')
 

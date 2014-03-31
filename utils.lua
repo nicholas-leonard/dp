@@ -373,3 +373,37 @@ function dp.reverseDist(dist, inplace)
    end
    return reverse
 end
+
+--http://stackoverflow.com/questions/132397/get-back-the-output-of-os-execute-in-lua
+function os.capture(cmd, raw)
+  local f = assert(io.popen(cmd, 'r'))
+  local s = assert(f:read('*a'))
+  f:close()
+  if raw then return s end
+  s = string.gsub(s, '^%s+', '')
+  s = string.gsub(s, '%s+$', '')
+  s = string.gsub(s, '[\n\r]+', ' ')
+  return s
+end
+
+function os.pid()
+   return tonumber(_.split(os.capture('cat /proc/self/stat'), ' ')[5])
+end
+
+function os.hostname()
+   return os.capture('cat /etc/hostname')
+end
+
+-- Generates a globally unique identifier.
+-- If a namespace is provided it is concatenated with 
+-- the time of the call, and the next value from a sequence
+-- to get a pseudo-globally-unique name.
+-- Otherwise, we concatenate the linux hostname and PID.
+local counter = 1
+function dp.uniqueID(namespace, separator)
+   local separator = separator or ':'
+   local namespace = namespace or os.hostname()..separator..os.pid()
+   local uid = namespace..separator..os.time()..separator..counter
+   counter = counter + 1
+   return uid
+end

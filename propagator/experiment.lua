@@ -32,14 +32,12 @@ local Experiment = torch.class("dp.Experiment")
 Experiment.isExperiment = true
 
 function Experiment:__init(...)
-   local args, id, id_gen, description, model, optimizer, validator, 
-         tester, observer, random_seed, epoch, mediator, overwrite,
-         max_epoch
+   local args, id, description, model, optimizer, validator, tester, 
+         observer, random_seed, epoch, mediator, overwrite, max_epoch
       = xlua.unpack(
       {... or {}},
       'Experiment', nil,
-      {arg='id', type='dp.ObjectID'},
-      {arg='id_gen', type='dp.EIDGenerator'},
+      {arg='id', type='dp.ObjectID', req=true},
       {arg='description', type='string'},
       {arg='model', type='dp.Model', req=true},
       {arg='optimizer', type='dp.Optimizer'},
@@ -61,9 +59,8 @@ function Experiment:__init(...)
    )
    self:setRandomSeed(random_seed)
    self._is_done_experiment = false
-   assert(id or id_gen)
-   self._id = id or id_gen:nextID()
-   assert(self._id.isObjectID)
+   assert(id.isObjectID)
+   self._id = id
    self._model = model
    self._epoch = epoch
    self:setObserver(observer)

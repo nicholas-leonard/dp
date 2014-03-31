@@ -10,7 +10,7 @@ HyperOptimizer.isHyperOptimizer = true
 
 function HyperOptimizer:__init(...)
    local args, collection_name, hyperparam_sampler, experiment_factory, 
-         datasource_factory, logger, process_name, id_gen
+         datasource_factory, logger, namespace
       = xlua.unpack(
       {... or {}},
       'HyperOptimizer', nil,
@@ -19,11 +19,7 @@ function HyperOptimizer:__init(...)
       {arg='hyperparam_sampler', type='dp.HyperparamSampler', req=true},
       {arg='experiment_factory', type='dp.ExperimentFactory', req=true},
       {arg='datasource_factory', type='dp.DatasourceFactory', req=true},
-      {arg='logger', type='dp.Logger', help='defaults to dp.FileLogger'},
-      {arg='process_name', type='string', req=true, 
-       help='identifies the process running this experiment'},
-      {arg='id_gen', type='dp.EIDGenerator', 
-       help='defaults to dp.EIDGenerator(process_name)'}
+      {arg='logger', type='dp.Logger', help='defaults to dp.FileLogger'}
    )
    self._collection_name = collection_name
    self._hp_sampler = hyperparam_sampler
@@ -31,14 +27,17 @@ function HyperOptimizer:__init(...)
    self._ds_factory = datasource_factory
    self._logger = logger or dp.FileLogger()
    self._process_name = process_name
-   -- experiment id generator
-   self._id_gen = id_gen or dp.EIDGenerator(process_name)
    math.randomseed(os.time())
+end
+
+--generates globally unique experiment ID
+function HyperOptimizer:nextID()
+   return dp.ObjectID(dp.uniqueID(self._collection_name))
 end
 
 function HyperOptimizer:hyperReport(id, hyperparam)
    return {
-      experiment_id = id:name(),
+      experiment_id = id:name();
       hyperparam = hyperparam,
       process_name = self._process_name,
       collection_name = self._collection_name,
@@ -53,7 +52,7 @@ function HyperOptimizer:run()
       -- sample hyperparameters 
       local hp = self._hp_sampler:sample()
       -- assign a unique id
-      local id = self._id_gen:nextID()
+      local id = self:nextID()
       -- build datasource
       local ds = self._ds_factory:build(hp)
       -- build experiment

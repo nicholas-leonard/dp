@@ -3,7 +3,6 @@
 -- An identifier than can be used to save files, objects, etc.
 -- Provides a unique name.
 ------------------------------------------------------------------------
-
 local ObjectID = torch.class("dp.ObjectID")
 ObjectID.isObjectID = true
 

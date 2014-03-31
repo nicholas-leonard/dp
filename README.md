@@ -11,6 +11,7 @@ sampling and running experiment from the cmd-line or prior hyper-parameter distr
 It provides facilites for storing and analysing experimental hyperpameters and results using
 a PostgreSQL database backend, which facilitates running many experiments on different machines. 
 
+<a name="NeuralNetworkExample"/>
 ## Neural Network Example ##
 We begin with a simple [neural network example](examples/neuralnetwork.lua). The first line loads 
 the __dp__ package, whose first matter of business is to load its dependencies (see [dp/init.lua]):
@@ -22,7 +23,7 @@ use the much more annoying `__`, or whatnot.
 
 Then we make some hyper-parameters and other options available to the user via the command line:
 ```lua
---[[parse command line arguments]]--
+--[[command line arguments]]--
 cmd = torch.CmdLine()
 cmd:text()
 cmd:text('MNIST MLP Training/Optimization')
@@ -38,16 +39,83 @@ cmd:option('--type', 'double', 'type: double | float | cuda')
 cmd:option('--maxEpoch', 100, 'maximum number of epochs to run')
 cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better local minima for early-stopping')
 cmd:option('--dropout', false, 'apply dropout on hidden neurons, requires "nnx" luarock')
-cmd:option('--dataset', 'Mnist', 'which dataset to use')
-cmd:option('--lecunLCN', false, 'apply LeCunLCN preprocessing')
+cmd:option('--dataset', 'Mnist', 'which dataset to use : Mnist | NotMnist | Cifar10 | Cifar100')
+cmd:option('--standardize', false, 'apply Standardize preprocessing')
+cmd:option('--zca', false, 'apply Zero-Component Analysis whitening')
 cmd:text()
 opt = cmd:parse(arg or {})
+print(opt)
 ```
 We will come back to these later. For now, all you need to know is that `opt` is a table containing attributes
 like `learningRate` and `numHidden`, and that these can be specified via the command line switches 
 `--learningRate [number]` and `--numHidden [number]`, respectively. 
 
-Next we specify an experiment id generator or [dp.EIDGenerator](eidgenerator.lua)
+We are going to build and train a neural network so we need some data, 
+which we encapsulate in a [DataSource](data/datasource.lua)
+object. We provide the option of training on different datasets, 
+notably [MNIST](data/mnist.lua), [NotMNIST](data/notmnist.lua), 
+[CIFAR-10](data/cifar10) or [CIFAR-100](data/cifar100.lua):
+
+```lua
+--[[preprocessing]]--
+local input_preprocess = {}
+if opt.standardize then
+   table.insert(input_preprocess, dp.Standardize())
+end
+if opt.zca then
+   table.insert(input_preprocess, dp.ZCA())
+end
+
+--[[data]]--
+local datasource
+if opt.dataset == 'Mnist' then
+   dp.Mnist{input_preprocess = input_preprocess}
+elseif opt.dataset == 'NotMnist' then
+   dp.NotMnist{input_preprocess = input_preprocess}
+elseif opt.dataset == 'Cifar10' then
+   dp.Cifar10{input_preprocess = input_preprocess}
+elseif opt.dataset == 'Cifar100' then
+   dp.Cifar100{input_preprocess = input_preprocess}
+else
+    error("Unknown Dataset")
+end
+```
+Ok so we have a dataset, now we need a model:
+```lua
+--[[Model]]--
+local dropout
+if opt.dropout then
+   require 'nnx'
+   dropout = nn.Dropout()
+end
+
+mlp = dp.Sequential{
+   models = {
+      dp.Neural{
+         input_size = datasource._feature_size, 
+         output_size = opt.numHidden, 
+         transfer = nn.Tanh()
+      },
+      dp.Neural{
+         input_size = opt.numHidden, 
+         output_size = #(datasource._classes),
+         transfer = nn.LogSoftMax(),
+         dropout = dropout
+      }
+   }
+}
+
+--[[GPU or CPU]]--
+if opt.type == 'cuda' then
+   require 'cutorch'
+   require 'cunn'
+   mlp:cuda()
+end
+```
+
+An `EIDGenerator` is used for generating unique ids. It is initialized with a key that shouldn't be used 
+by another experiments running in parallel. It is used to differentiate experiments and their associated logs.
+
 
 ## Data and preprocessing ##
 DataTensor, DataSet, DataSource, Samplers and Preprocessing.

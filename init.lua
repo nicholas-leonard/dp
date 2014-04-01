@@ -35,8 +35,6 @@ torch.include('dp', 'mediator.lua')
 torch.include('dp', 'objectid.lua')
 torch.include('dp', 'test/test.lua')
 
---torch.include('dp', 'analyse.lua')
-
 --[[ data ]]--
 torch.include('dp', 'data/conv2d.lua')
 torch.include('dp', 'data/datatensor.lua')
@@ -49,6 +47,15 @@ torch.include('dp', 'data/sampler.lua')
 torch.include('dp', 'data/cifar10.lua')
 torch.include('dp', 'data/cifar100.lua')
 torch.include('dp', 'data/notmnist.lua')
+
+--[[ preprocess ]]--
+torch.include('dp', 'preprocess/preprocess.lua')
+torch.include('dp', 'preprocess/pipeline.lua')
+torch.include('dp', 'preprocess/binarize.lua')
+torch.include('dp', 'preprocess/standardize.lua')
+torch.include('dp', 'preprocess/gcn.lua')
+torch.include('dp', 'preprocess/zca.lua')
+torch.include('dp', 'preprocess/lecunlca.lua')
 
 --[[ propagator ]]--
 torch.include('dp', 'propagator/propagator.lua')

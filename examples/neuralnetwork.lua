@@ -10,7 +10,7 @@ cmd:text('Options:')
 cmd:option('--learningRate', 0.1, 'learning rate at t=0')
 cmd:option('--maxOutNorm', 1, 'max norm each layers output neuron weights')
 cmd:option('--momentum', 0, 'momentum')
-cmd:option('--numHidden', 200, 'number of hidden units')
+cmd:option('--nHidden', 200, 'number of hidden units')
 cmd:option('--batchSize', 32, 'number of examples per batch')
 cmd:option('--type', 'double', 'type: double | float | cuda')
 cmd:option('--maxEpoch', 100, 'maximum number of epochs to run')
@@ -57,11 +57,11 @@ mlp = dp.Sequential{
    models = {
       dp.Neural{
          input_size = datasource._feature_size, 
-         output_size = opt.numHidden, 
+         output_size = opt.nHidden, 
          transfer = nn.Tanh()
       },
       dp.Neural{
-         input_size = opt.numHidden, 
+         input_size = opt.nHidden, 
          output_size = #(datasource._classes),
          transfer = nn.LogSoftMax(),
          dropout = dropout

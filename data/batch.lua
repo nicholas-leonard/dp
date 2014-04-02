@@ -1,4 +1,3 @@
-
 ------------------------------------------------------------------------
 --[[ Batch ]]--
 -- State
@@ -11,7 +10,6 @@
 -- Samples should create the Batch once every epoch, for speed?
 -- Make this a table (gstate), or allow it a gstate table.
 ------------------------------------------------------------------------
-
 local Batch = torch.class("dp.Batch")
 Batch.isBatch = true
 

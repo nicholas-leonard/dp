@@ -1,9 +1,4 @@
-require 'torch'
-require 'paths'
-
-
 --[[ TODO ]]--
--- Only the training set requires sampling?
 -- How to preprocess targets (fit only train?)
 -- Each preprocess has a unique id, which we can use to cache
 
@@ -146,19 +141,27 @@ function DataSource:preprocess()
    end
 end
 
+-- The following methods access optional static attributes (defined for class)
 function DataSource:name()
    return self._name
 end
 
---optional
 function DataSource:classes()
    return self._classes
 end
 
---optional
 function DataSource:imageSize()
    return self._image_size
 end
+
+function DataSource:featureSize()
+   return self._feature_size
+end
+
+function DataSource:imageAxes()
+   return self._image_axes
+end
+-- end access static attributes
 
 
 -- Check locally and download datasource if not found.  
@@ -212,7 +215,6 @@ function DataSource.getDataPath(...)
    
    return data_path
 end
-
 
 function DataSource.rescale(data, min, max)
    local range = max - min

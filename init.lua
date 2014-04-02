@@ -56,7 +56,7 @@ torch.include('dp', 'preprocess/binarize.lua')
 torch.include('dp', 'preprocess/standardize.lua')
 torch.include('dp', 'preprocess/gcn.lua')
 torch.include('dp', 'preprocess/zca.lua')
-torch.include('dp', 'preprocess/lecunlca.lua')
+torch.include('dp', 'preprocess/lecunlcn.lua')
 
 --[[ propagator ]]--
 torch.include('dp', 'propagator/propagator.lua')

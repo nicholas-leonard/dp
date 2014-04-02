@@ -14,7 +14,7 @@ a PostgreSQL database backend, which facilitates running many experiments on dif
 <a name="NeuralNetworkExample"/>
 ## Neural Network Example ##
 We begin with a simple [neural network example](examples/neuralnetwork.lua). The first line loads 
-the __dp__ package, whose first matter of business is to load its dependencies (see [dp/init.lua]):
+the __dp__ package, whose first matter of business is to load its dependencies (see [dp/init.lua](dp/init.lua)):
 ```lua
 require 'dp'
 ```
@@ -113,8 +113,6 @@ if opt.type == 'cuda' then
 end
 ```
 
-An `EIDGenerator` is used for generating unique ids. It is initialized with a key that shouldn't be used 
-by another experiments running in parallel. It is used to differentiate experiments and their associated logs.
 
 
 ## Data and preprocessing ##

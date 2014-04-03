@@ -22,11 +22,23 @@ function dptest.datatensor()
    
 end
 function dptest.imagetensor()
-   local data = torch.rand(3,32,32,3)
+   local size = {3,32,32,3}
+   local feature_size = {3,32*32*3}
+   local data = torch.rand(unpack(size))
    local axes = {'b','h','w','c'}
    local d = dp.ImageTensor{data=data, axes=axes}
-   local t = d:feature()
+   -- convert to image (shouldn't change anything)
    local i = d:image()
+   mytester:assertTensorEq(i, data, 0.0001)
+   mytester:assertTableEq(i:size():totable(), size, 0.0001)
+   -- convert to feature (should colapse last dims)
+   local t = d:feature()
+   mytester:assertTableEq(t:size():totable(), feature_size, 0.0001)
+   mytester:assertTensorEq(i, data, 0.00001)
+   -- convert to image (should expand last dim)
+   local i = d:image()
+   mytester:assertTensorEq(i, data, 0.0001)
+   mytester:assertTableEq(i:size():totable(), size, 0.0001)
 end
 function dptest.classtensor()
    local data = torch.rand(48,4)

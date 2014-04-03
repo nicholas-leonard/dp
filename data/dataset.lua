@@ -89,11 +89,11 @@ function DataSet:setWhichSet(which_set)
 end
 
 function DataSet:whichSet()
-   return self.which_set
+   return self._which_set
 end
 
 function DataSet:isTrain()
-   return (self.which_set == 'train')
+   return (self._which_set == 'train')
 end
 
 function DataSet:appendInput(input)

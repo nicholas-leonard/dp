@@ -1,7 +1,7 @@
 -----------------------------------------------------------------------
 --[[ ZCA ]]--
 -- Performs Zero Component Analysis Whitening.
--- Used for images.
+-- Commonly used for images.
 -- http://ufldl.stanford.edu/wiki/index.php/Whitening
 -----------------------------------------------------------------------
 local ZCA = torch.class("dp.ZCA", "dp.Preprocess")
@@ -9,7 +9,7 @@ ZCA.isZCA = true
 
 function ZCA:__init(...)
    local args
-   args, self.n_components, self.n_drop_components, self._filter_bias
+   args, self._n_components, self._n_drop_components, self._filter_bias
       = xlua.unpack(
       {... or {}},
       'ZCA', 'ZCA whitening constructor',
@@ -27,29 +27,42 @@ function ZCA:fit(X)
          
    -- center data
    self._mean = X:mean(1)
-   X:add(-self._mean:expandAs(X))
+   X:add(torch.mul(self._mean, -1):expandAs(X))
 
    print'computing ZCA'
    local matrix = torch.mm(X:t(), X) / X:size(1)
    matrix:add(torch.eye(matrix:size(1)):mul(self._filter_bias)) 
-   -- returns a eigen components in ascending order of importance
+   -- returns a eigen components 
    local eig_val, eig_vec = torch.eig(matrix, 'V')
-   local eig_val = eig_val:select(2,1)
+   -- sort in descending order of importance (eigen values)
+   local eig_idx
+   eig_val, eig_idx = torch.sort(eig_val:select(2,1),1,true)
+   eig_vec = eig_vec:index(2, eig_idx)
    print'done computing eigen values and vectors'
    assert(eig_val:min() > 0)
-   if self.n_components then
+   if self._n_components then
      eig_val = eig_val:sub(1, self.n_components)
      eig_vec = eig_vec:narrow(2, 1, self.n_components)
    end
-   if self.n_drop_components then
+   if self._n_drop_components then
       eig_val = eig_val:sub(self.n_drop_component, -1)
       local size = eig_vec:size(2)-self.n_drop_component
       eig_vec = eig_vec:narrow(2, self.n_drop_component, size)
    end
+   
+   if self._unit_test then
+      -- used by unit test only
+      self._inv_P = torch.mm(
+         torch.cmul(eig_vec, torch.pow(eig_val, 0.5):resize(1, eig_val:size(1)):expandAs(eig_vec)),
+         eig_vec:clone():t()
+      )
+   end
+   
    self._P = torch.mm(
-      torch.cmul(eig_vec, eig_val:pow(-0.5):reshape(1, eig_val:size(1)):expandAs(eig_vec)), 
+      torch.cmul(eig_vec, eig_val:pow(-0.5):resize(1, eig_val:size(1)):expandAs(eig_vec)),
       eig_vec:t()
    )
+   
    assert(not _.isNaN(self._P:sum()))
 end
 

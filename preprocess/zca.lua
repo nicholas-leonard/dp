@@ -17,7 +17,8 @@ function ZCA:__init(...)
        help='number of most important eigen components to use for ZCA'},
       {arg='n_drop_component', type='number', 
        help='number of least important eigen components to drop.'},
-      {arg='filter_bias', type='number', default=0.1}
+      {arg='filter_bias', type='number', default=0.1,
+       help='Filters are scaled by 1/sqrt(filter_bias + variance)'}
    )
 end
 

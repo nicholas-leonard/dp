@@ -11,64 +11,56 @@
 --- :b() should be optimized. You set it via a function. setB()
 --- type of tensor (:cuda(), :double(), etc. set in constructor)
 
+-----------------------------------------------------------------------
+--[[ DataTensor ]]-- 
+-- Encapsulates a torch.Tensor. Provides access to it using different
+-- viewing methods. A view may reshape the tensor inplace and render it
+-- contiguous. Views can be used to convert data into new axes formats 
+-- using torch.Tensor:resize, :transpose, :contiguous. The 
+-- conversions may be done in-place (default), or may be simply  
+-- returned using the conversion methods (feature, array, etc.). 
+-- A DataTensor may also holds metadata about the provided data.
+------------------------------------------------------------------------
 local DataTensor = torch.class("dp.DataTensor")
 DataTensor.isDataTensor = true
 
---returns true if all indices in obj_table are instances of DataTensor
---else return false and index of first non-element
-function DataTensor.areInstances(obj_table)
-   local map = _.map(obj_table, function(obj) return obj.isDataTensor end)
-   return _.all(map), _.indexOf(map, false)
-end
-
-function DataTensor.assertInstances(obj_table)
-   local areInstances, index = DataTensor.areInstances(obj_table)
-   assert(areInstances, "Error : object at index " .. index .. 
-      " is of wrong type. Expecting type dp.DataTensor.")
-end
-
-function DataTensor:__init(...)
+function DataTensor:__init(config)
    local args, sizes
    args, self._data, self.axes, sizes
       = xlua.unpack(
-      {... or {}},
+      {config or {}},
       'DataTensor', 
-      [[Constuctor. Builds a data.DataTensor out of torch.Tensor data.
-      A DataTensor can be used to convert data into new axes formats 
-      using torch.Tensor:resize, :transpose, :contiguous. The 
-      conversions may be done in-place(default), or may be simply 
-      returned using the conversion methods (bf, bhwc, bt, etc.).
-      A DataTensor also holds metadata about the provided data.]],
+      'Builds a data.DataTensor out of torch.Tensor data.',
       {arg='data', type='torch.Tensor', 
        help='A torch.Tensor with 2 dimensions or more.', req=true},
-      {arg='axes', type='table', 
-       help=[[A table defining the order and nature of each dimension
-            of a tensor. Two common examples would be the archtypical 
-            MLP input : {'b', 'f'}, or a common image representation : 
-            {'b', 'h', 'w', 'c'}. 
-            Possible axis symbols are :
-            1. Standard Axes:
-              'b' : Batch/Example
-              'f' : Feature
-              't' : Class
-            2. Image Axes
-              'c' : Color/Channel
-              'h' : Height
-              'w' : Width
-              'd' : Dept
-            The provided axes should be the most expanded version of the
-            storage. For example, while an image can be represented 
-            as a vector, in which case it takes the form of {'b','f'},
-            its expanded axes format could be {'b', 'h', 'w', 'c'} 
-            ]], default={'b','f'}},
+      {arg='axes', type='table',
+       help='A table defining the order and nature of each dimension '..
+       'of a tensor. Two common examples would be the archtypical '..
+       'MLP input : {"b", "f"}, or a common image representation : '..
+       '{"b", "h", "w", "c"}. \n'..
+       'Possible axis symbols are : \n'..
+       '1. Standard Axes: \n'..
+       ' "b" : Batch/Example \n'..
+       ' "f" : Feature \n'..
+       ' "t" : Class \n'..
+       '2. Image Axes \n'..
+       ' "c" : Color/Channel \n'..
+       ' "h" : Height \n'..
+       ' "w" : Width \n'..
+       ' "d" : Dept \n'..
+       'The provided axes should be the most expanded version of the '..
+       'storage. For example, while an image can be represented '..
+       'as a vector, in which case it takes the form of {"b","f"}, '..
+       'its expanded axes format could be {"b", "h", "w", "c"}. '..
+       '[Default={"b","f"}]'},
       {arg='sizes', type='table | torch.LongTensor', 
-       help=[[A table or torch.LongTensor identifying the sizes of the 
-            commensurate dimensions in axes. This should be supplied 
-            if the dimensions of the data is different from the number
-            of elements in the axes table, in which case it will be used
-            to : data:reshape(sizes). Default is data:size().
-            ]]}
+       help='A table or torch.LongTensor holding the sizes of the '.. 
+       'commensurate dimensions in axes. This should be supplied '..
+       'if the dimensions of the data is different from the number '..
+       'of elements in the axes table, in which case it will be used '..
+       'to : data:reshape(sizes). Default is data:size().'}
    )   
+   self.axes = self.axes or {'b','f'}
    -- Keeps track of the most expanded size (the one with more dims) of the
    -- data. An example would be {'b','h','w','c'} being the expanded_size
    -- of an set of images currently stored as {'b', 'f'}
@@ -97,10 +89,10 @@ function DataTensor:__init(...)
             elseif b == #self.axes then
                sizes = {unpack(sizes), self._data:size(-1)}
             else
-               error([['b' is not in first or last axis, and provided 
-                     sizes specifies one dim less than axes, such that  
-                     the mapping of sizes to axes cannot be determined. 
-                     Please specify full size, or other axes.]])
+               error("'b' is not in first or last axis, and provided "..
+                  "sizes specifies one dim less than axes, such that ".. 
+                  "the mapping of sizes to axes can't be determined. "..
+                  "Please specify full size, or other axes.")
             end
             print("DataTensor Warning: sizes specifies one dim less than axes. " ..
                   "Assuming sizes omits 'b' axis. Sizes =" .. 
@@ -142,7 +134,6 @@ function DataTensor:nSample()
       "Error : unequal number of axis for size and axes")
    return self:storedSize()[self:b()]
 end
-
 
 function DataTensor:expandedSize()
    return torch.LongTensor(self.expanded_size)
@@ -199,16 +190,14 @@ function DataTensor:feature(...)
    local args, inplace, contiguous = xlua.unpack(
       {... or {}},
       'DataTensor:feature',
-      [[Returns a 2D-tensor of examples by features : {'b', 'f'}]],
-      {arg='inplace', type='boolean', 
-       help=[[When true, makes self._data a contiguous view of axes 
-       {'b', 'f'} for future use.]], 
-       default=true},
-      {arg='contiguous', type='boolean', 
-       help=[[When true, makes sure the returned data is contiguous.
-            Only considered when inplace is false, since inplace 
-            makes it contiguous anyway.]], 
-       default=false}
+      'Returns a 2D-tensor of examples by features : {"b", "f"}',
+      {arg='inplace', type='boolean', default=true,
+       help='When true, makes self._data a contiguous view of axes '..
+       '{"b", "f"} for future use.'},
+      {arg='contiguous', type='boolean', default=false,
+       help='When true, makes sure the returned data is contiguous. '..
+       'Only considered when inplace is false, since inplace '..
+       'makes it contiguous anyway.'}
    )
    --creates a new view of the same storage
    local data = torch.view(self._data)
@@ -253,13 +242,11 @@ function DataTensor:array(...)
       {... or {}},
       'DataTensor:class',
       'Returns a 1D-tensor of examples.',
-      {arg='inplace', type='boolean', 
-       help=[[When true, makes self._data is a contiguous view of axes 
-       {'b'} for future use.]], 
-       default=true},
-      {arg='contiguous', type='boolean', 
-       help='When true makes sure the returned tensor is contiguous.', 
-       default=false}
+      {arg='inplace', type='boolean', default=true,
+       help='When true, makes self._data a contiguous view of axes '..
+       '{"b"} for future use.'},
+      {arg='contiguous', type='boolean', default=false,
+       help='When true makes sure the returned tensor is contiguous.'}
    )
    --use feature:
    local data = self:feature{inplace=inplace,contiguous=contiguous}
@@ -305,4 +292,17 @@ function DataTensor.transpose(axis, new_dim, axes, size, data)
       end
    end
    return axes, size, data
+end
+
+--returns true if all indices in obj_table are instances of DataTensor
+--else return false and index of first non-element
+function DataTensor.areInstances(obj_table)
+   local map = _.map(obj_table, function(obj) return obj.isDataTensor end)
+   return _.all(map), _.indexOf(map, false)
+end
+
+function DataTensor.assertInstances(obj_table)
+   local areInstances, index = DataTensor.areInstances(obj_table)
+   assert(areInstances, "Error : object at index " .. index .. 
+      " is of wrong type. Expecting type dp.DataTensor.")
 end

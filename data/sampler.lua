@@ -26,7 +26,8 @@ function Sampler:__init(...)
        'Propagator, but can be manually entered for cases where ' ..
        'it cannot be determined by the model. For example, '..
        'when the first model is a transfer function like Tanh.' },
-      {arg='sample_type', type='string', default='double'}
+      {arg='sample_type', type='string', default='double',
+       help='"cuda" | "float" | "double"'}
    )
    self:setBatchSize(batch_size)
    if data_view then self:setDataView(data_view) end
@@ -148,8 +149,7 @@ end
 -- Samples from a multinomial distribution where each examples has a 
 -- probability of being samples.
 ------------------------------------------------------------------------
-local ShuffleSampler, parent
-   = torch.class("dp.ShuffleSampler", "dp.Sampler")
+local ShuffleSampler, parent = torch.class("dp.ShuffleSampler", "dp.Sampler")
 
 function ShuffleSampler:_init(config)
    local args, batch_size, random_seed = xlua.unpack(
@@ -160,7 +160,7 @@ function ShuffleSampler:_init(config)
       'Examples are shuffled at the start of the iteration. ',
       {arg='batch_size', type='number', default='64',
        help='Number of examples per sampled batches'},
-      {arg='random_seed', type='number',
+      {arg='random_seed', type='number', req=true,
        help='Used to initialize the shuffle generator.' ..
        'Not yet supported'}
    )

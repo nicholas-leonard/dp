@@ -11,7 +11,29 @@ function dptest.uid()
    mytester:assertne(uid2, uid3, 'uid2 ~= uid3')
 end
 function dptest.datatensor()
+   local data = torch.rand(3,4)
+   local axes = {'b','f'}
+   local sizes = {3, 4}
+   local d = dp.DataTensor{data=data, axes=axes, sizes=sizes}
+   local t = d:feature()
+   function test() return d:image() end
+   mytester:asserteq(t:dim(),2)
+   mytester:assert(not pcall(test))
    
+end
+function dptest.imagetensor()
+   local data = torch.rand(3,32,32,3)
+   local axes = {'b','h','w','c'}
+   local d = dp.ImageTensor{data=data, axes=axes}
+   local t = d:feature()
+   local i = d:image()
+end
+function dptest.classtensor()
+   local data = torch.rand(48,4)
+   local axes = {'b','t'}
+   local d = dp.ClassTensor{data=data, axes=axes}
+   local t = d:multiclass()
+   local i = d:class()
 end
 function dptest.gcn_zero_vector()
    -- Global Contrast Normalization
@@ -70,7 +92,7 @@ function dp.test(tests)
    math.randomseed(os.time())
    mytester = torch.Tester()
    mytester:add(dptest)
-   mytester:run(tests)
+   mytester:run(tests)   
    return mytester
 end
 

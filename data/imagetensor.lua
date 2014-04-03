@@ -1,7 +1,9 @@
 ------------------------------------------------------------------------
--- ImageTensor : A DataTensor holding a tensor of images.
+--[[ ImageTensor ]]-- 
+-- A DataTensor holding a tensor of images.
 ------------------------------------------------------------------------
 local ImageTensor, parent = torch.class("dp.ImageTensor", "dp.DataTensor")
+ImageTensor.isImageTensor = true
 
 --TODO : enforce image representions, or deny non-image ones
 function ImageTensor:__init(...)
@@ -9,39 +11,34 @@ function ImageTensor:__init(...)
       = xlua.unpack(
       {... or {}},
       'ImageTensor', 
-      [[Constuctor. Builds a data.ClassTensor out of torch.Tensor data.
-      A DataTensor can be used to convert data into new axes formats 
-      using torch.Tensor:resize, :transpose, :contiguous. The 
-      conversions may be done in-place(default), or may be simply 
-      returned using the conversion methods (bf, bhwc, bt, etc.).
-      A DataTensor also holds metadata about the provided data.]],
+      'Builds a data.ClassTensor out of torch.Tensor data. ',
       {arg='data', type='torch.Tensor', 
        help='A torch.Tensor with 2 dimensions or more.', req=true},
       {arg='axes', type='table', 
-       help=[[A table defining the order and nature of each dimension
-            of a tensor. Two common examples would be the archtypical 
-            MLP input : {'b', 'f'}, or a common image representation : 
-            {'b', 'h', 'w', 'c'}. 
-            Possible axis symbols are :
-            1. Standard Axes:
-              'b' : Batch/Example
-              'f' : Feature
-              't' : Class
-            2. Image Axes
-              'c' : Color/Channel
-              'h' : Height
-              'w' : Width
-              'd' : Dept
-            ]], default={'b','h','w','c'}},
+       help='A table defining the order and nature of each dimension '..
+       'of a tensor. Two common examples would be the archtypical '..
+       'MLP input : {"b", "f"}, or a common image representation : '..
+       '{"b", "h", "w", "c"}. \n'..
+       'Possible axis symbols are : \n'..
+       '1. Standard Axes: \n'..
+       ' "b" : Batch/Example \n'..
+       ' "f" : Feature \n'..
+       ' "t" : Class \n'..
+       '2. Image Axes \n'..
+       ' "c" : Color/Channel \n'..
+       ' "h" : Height \n'..
+       ' "w" : Width \n'..
+       ' "d" : Dept \n'..
+       '[Default={"b", "h", "w", "c"}].'},
       {arg='sizes', type='table | torch.LongTensor', 
-       help=[[A table or torch.LongTensor identifying the sizes of the 
-            commensurate dimensions in axes. This should be supplied 
-            if the dimensions of the data is different from the number
-            of elements in the axes table, in which case it will be used
-            to : data:resize(sizes). Default is data:size().
-            ]]}
+       help='A table or torch.LongTensor holding the sizes of the '.. 
+       'commensurate dimensions in axes. This should be supplied '..
+       'if the dimensions of the data is different from the number '..
+       'of elements in the axes table, in which case it will be used '..
+       'to : data:reshape(sizes). Default is data:size().'}
    )   
    --TODO error when sizes is not provided for unknown axes.
+   axes = axes or {'b','h','w','c'}
    parent.__init(self, {data=data, axes=axes, sizes=sizes})
 end
 
@@ -66,8 +63,8 @@ function ImageTensor:imageBHWC(...)
       'Returns a 4D-tensor of axes format : ' .. 
          table.tostring(desired_axes),
       {arg='inplace', type='boolean', 
-       help=[[When true, makes self._data a contiguous view of axes 
-       ]] ..  table.tostring(desired_axes) .. [[ for future use.]], 
+       help='When true, makes self._data a contiguous view of axes '..
+       table.tostring(desired_axes)..'for future use.', 
        default=true},
       {arg='contiguous', type='boolean', 
        help='When true makes sure the returned tensor is contiguous.', 

@@ -41,11 +41,17 @@ function dptest.imagetensor()
    mytester:assertTableEq(i:size():totable(), size, 0.0001)
 end
 function dptest.classtensor()
-   local data = torch.rand(48,4)
+   local size = {48,4}
+   local data = torch.rand(unpack(size))
    local axes = {'b','t'}
    local d = dp.ClassTensor{data=data, axes=axes}
    local t = d:multiclass()
+   mytester:assertTableEq(t:size():totable(), size, 0.0001)
+   mytester:assertTensorEq(t, data, 0.00001)
    local i = d:class()
+   mytester:asserteq(i:dim(),1)
+   mytester:assertTableEq(i:size(1), size[1], 0.0001)
+   mytester:assertTensorEq(i, data:select(2,1), 0.00001)
 end
 function dptest.gcn_zero_vector()
    -- Global Contrast Normalization

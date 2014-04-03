@@ -57,14 +57,12 @@ function ClassTensor:multiclass(...)
    local args, inplace, contiguous = xlua.unpack(
       {... or {}},
       'DataTensor:multiclass',
-      [[Returns a 2D-tensor of examples by classes: {'b', 't'}]],
-      {arg='inplace', type='boolean', 
-       help=[[When true, makes self._data a contiguous view of axes 
-       {'b', 'f'} for future use.]], 
-       default=true},
-      {arg='contiguous', type='boolean', 
-       help='When true makes sure the returned tensor is contiguous.', 
-       default=false}
+      'Returns a 2D-tensor of examples by classes: {"b", "t"}',
+      {arg='inplace', type='boolean', default=true, 
+       help='When true, makes self._data a contiguous view of axes '..
+       '{"b", "f"} for future use.'},
+      {arg='contiguous', type='boolean', default=false,
+       help='When true makes sure the returned tensor is contiguous.'}
    )
    --creates a new view of the same storage
    local data = torch.view(self._data)
@@ -117,7 +115,7 @@ function ClassTensor:class(...)
    )
    --use multiclass:
    local data, classes = self:multiclass{
-      inplace=inplace,contiguous=contiguous
+      inplace=inplace, contiguous=contiguous
    }
    --Takes the first class of each example
    data = data:select(2, 1)

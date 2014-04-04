@@ -11,9 +11,9 @@ sampling and running experiment from the cmd-line or prior hyper-parameter distr
 It provides facilites for storing and analysing experimental hyperpameters and results using
 a PostgreSQL database backend, which facilitates running many experiments on different machines. 
 
-<a name="NeuralNetworkExample"/>
-## Neural Network Example ##
-We begin with a simple [neural network example](examples/neuralnetwork.lua). The first line loads 
+<a name="NeuralNetworkTutorial"/>
+## Neural Network Tutorial ##
+We begin with a simple [neural network example](examples/neuralnetwork_tutorial.lua). The first line loads 
 the __dp__ package, whose first matter of business is to load its dependencies (see [dp/init.lua](dp/init.lua)):
 ```lua
 require 'dp'
@@ -59,10 +59,11 @@ we fit the preprocessor on the `train` set and apply it to all sets (`train`, `v
 However, some preprocesses require that statistics be measured
 only on each example (as in [global constrast normalization](preprocess/gcn.lua)). 
 
-Ok so we have a `datasource`, now we need a model:
+Ok so we have a `datasource`, now we need a `model`. Lets build a 
+multi-layer perceptron with two parameterized non-linear layers:
 ```lua
 --[[Model]]--
-mlp = dp.Sequential{
+model = dp.Sequential{
    models = {
       dp.Neural{
          input_size = datasource:featureSize(), 
@@ -77,8 +78,65 @@ mlp = dp.Sequential{
    }
 }
 ```
+Both layers are defined using [Neural](model/neural.lua), which require the `input_size` 
+(number of input neurons), `output_size` (number of output neurons) and a 
+[transfer function](https://github.com/torch/nn/blob/master/README.md#nn.transfer.dok).
+We use the `datasource:featureSize()` and `datasource:classes()` methods to access the
+number of input features and output classes, respectively. As for the number of 
+hidden neurons, we use our `opt` table of hyper-parameters. The `transfer` functions 
+used are the `nn.Tanh()` (for the hidden neurons) and `nn.LogSoftMax` (for the output neurons).
+The latter might seem odd (why not use `nn.SoftMax` instead), but the 
 
+The `propagators` each act on a different `dataset`.
+```lua
+--[[Propagators]]--
+train = dp.Optimizer{
+   criterion = nn.ClassNLLCriterion(),
+   visitor = { -- the ordering here is important:
+      dp.Momentum{momentum_factor = opt.momentum},
+      dp.Learn{learning_rate = opt.learningRate},
+      dp.MaxNorm{max_out_norm = opt.maxOutNorm}
+   },
+   feedback = dp.Confusion(),
+   sampler = dp.ShuffleSampler{batch_size = opt.batchSize},
+   progress = true
+}
+valid = dp.Evaluator{
+   criterion = nn.ClassNLLCriterion(),
+   feedback = dp.Confusion(),  
+   sampler = dp.Sampler{}
+}
+test = dp.Evaluator{
+   criterion = nn.ClassNLLCriterion(),
+   feedback = dp.Confusion(),
+   sampler = dp.Sampler{}
+}
+```
 
+The experiments puts this all together.
+```lua
+--[[Experiment]]--
+xp = dp.Experiment{
+   model = model,
+   optimizer = train,
+   validator = valid,
+   tester = test,
+   observer = {
+      dp.FileLogger(),
+      dp.EarlyStopper{
+         error_report = {'validator','feedback','confusion','accuracy'},
+         maximize = true,
+         max_epochs = opt.maxTries
+      }
+   },
+   random_seed = os.time(),
+   max_epoch = opt.maxEpoch
+}
+```
+Finally, we run the `experiment` on the `datasource`.
+```lua
+xp:run(datasource)
+```
 
 ## Data and preprocessing ##
 DataTensor, DataSet, DataSource, Samplers and Preprocessing.

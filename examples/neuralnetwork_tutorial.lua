@@ -15,7 +15,7 @@ opt = {
 datasource = dp.Mnist{input_preprocess = dp.Standardize()}
 
 --[[Model]]--
-mlp = dp.Sequential{
+model = dp.Sequential{
    models = {
       dp.Neural{
          input_size = datasource:featureSize(), 
@@ -55,7 +55,7 @@ test = dp.Evaluator{
 
 --[[Experiment]]--
 xp = dp.Experiment{
-   model = mlp,
+   model = model,
    optimizer = train,
    validator = valid,
    tester = test,

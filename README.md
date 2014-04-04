@@ -14,11 +14,11 @@ a PostgreSQL database backend, which facilitates running many experiments on dif
 <a name="NeuralNetworkTutorial"/>
 ## Neural Network Tutorial ##
 We begin with a simple [neural network example](examples/neuralnetwork_tutorial.lua). The first line loads 
-the __dp__ package, whose first matter of business is to load its dependencies (see [dp/init.lua](dp/init.lua)):
+the __dp__ package, whose first matter of business is to load its dependencies (see [init.lua](init.lua)):
 ```lua
 require 'dp'
 ```
-Note : package `underscore` in imported as `_`. So `_` shouldn't be used for dummy variables, instead 
+Note : package `underscore` is imported as `_`. So `_` shouldn't be used for dummy variables, instead 
 use the much more annoying `__`, or whatnot. 
 
 Lets define some hyper-parameters and store them in a table. We will need them later:
@@ -28,7 +28,7 @@ opt = {
    nHidden = 100, --number of hidden units
    learningRate = 0.1, --training learning rate
    momentum = 0.9, --momentum factor to use for training
-   maxOutNorm = 1, --maximum norm allowed for outgoing weights
+   maxOutNorm = 1, --maximum norm allowed for output neuron weights
    batchSize = 128, --number of examples per mini-batch
    maxTries = 100, --maximum number of epochs without reduction in validation error.
    maxEpoch = 1000 --maximum number of epochs of training
@@ -162,6 +162,7 @@ three visitors:
  1. [Momentum](visitor/momentum.lua) : updates parameter gradients using a factored mixture of current and previous gradients.
  2. [Learn](visitor/learn.lua) : updates the parameters using the gradients and a learning rate.
  3. [MaxNorm](visitor/maxnorm.lua) : updates output or input neuron weights (in this case, output) so that they have a norm less or equal to a specified value.
+
 The only mandatory visitor is the second one, which does the actual parameter updates (learning). The first is the well known 
 momentum. The last is the lesser known hard constraint on the norm of output or input neuron weights 
 (see [Hinton 2012](http://arxiv.org/pdf/1207.0580v1.pdf)), which acts as a regularizer. You could also
@@ -190,13 +191,35 @@ xp = dp.Experiment{
    max_epoch = opt.maxEpoch
 }
 ```
-The `experiment` is ready, let's run it on the `datasource`.
+The experiment can be initialized with a list of [Observers](observer/observer.lua). The 
+order is not important. Observers listen to mediator [Channels](mediator.lua). The mediator 
+calls them back when certain events occur. In particular, they may listen to the `"doneEpoch"`
+channel to receive a report from the experiment after each epoch. A report is nothing more than 
+a hierarchy of tables. After each epoch, each experiment component (except observers) 
+submit a report to its composite parent thereby forming a tree of reports. The observers can analyse 
+these and modify the component which they observer. Observers may be attached to experiments, propagators, 
+visitors, etc. Here we use a simple [FileLogger](observer/filelogger.lua) which will 
+store serialized reports in a simple text file for later use. Each experiment has a unique ID which are 
+included in reports, thus allowing the `FileLogger` to name its file appropriately. 
+
+The `EarlyStopper` is used for stopping the experiment when error has not decreased, or accuracy has not 
+be maximized. It also saves onto disk the best version of the experiment when it finds a new one. 
+It is initialized with a channel to `maximize` or minimize (default is to minimize). In this case we intend 
+to early-stop the experiment on a field of the report, in particular the `accuracy` field of the 
+`confusion` table of the `feedback` table of the `validator`. 
+This `{'validator','feedback','confusion','accuracy'}` happens to measure the accuracy of the model on the 
+validation `dataset` after each training epoch. So by early-stopping on this measure, we hope to find a 
+model that generalizes well. The parameter `max_epochs` indicates how much consecutive 
+epochs of training can occur without finding a new best model before the experiment is signaled to stop 
+on the `"doneExperiment"` mediator channel.
+
+The experiment is ready, let's run it on the `datasource`.
 ```lua
 xp:run(datasource)
 ```
 We don't initilize the experiment with the datasource so that we may easily 
-serialize it on disk, keeping this snapshot separate from its data (which shouldn't 
-be affected by the experiment).
+save it onto disk, thereby keeping this snapshot separate from its data 
+(which shouldn't be modified by the experiment).
 
 ## Data and preprocessing ##
 DataTensor, DataSet, DataSource, Samplers and Preprocessing.

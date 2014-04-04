@@ -12,7 +12,6 @@
 -- received report, but then the ordering of these modifications would
 -- be undefined, unless they make use of Mediator priorities.
 ------------------------------------------------------------------------
-
 local Observer = torch.class("dp.Observer")
 Observer.isObserver = true
 

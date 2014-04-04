@@ -4,8 +4,8 @@
 -- back via its func_name method name. Since no functions are being 
 -- pointed to directly, the object can be serialized...
 ------------------------------------------------------------------------
-
 local Subscriber = torch.class("dp.Subscriber")
+Subscriber.isSubscriber = true
 
 function Subscriber:__init(subscriber, func_name, id, options)
    self.options = options or {}
@@ -27,8 +27,8 @@ end
 --[[ Channel ]]--
 -- Used by Mediator. Can be published and subscribed to.
 ------------------------------------------------------------------------
-
 local Channel = torch.class("dp.Channel")
+Channel.isChannel = true
 
 function Channel:__init(namespace, parent)
     self.stopped = false
@@ -119,7 +119,6 @@ end
 -- An object oriented mediator. Callbacks are methods specified by 
 -- an object and a method name. 
 ------------------------------------------------------------------------
-
 local Mediator = torch.class("dp.Mediator")
 Mediator.isMediator = true
 

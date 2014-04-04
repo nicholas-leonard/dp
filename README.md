@@ -60,7 +60,7 @@ However, some preprocesses require that statistics be measured
 only on each example (as in [global constrast normalization](preprocess/gcn.lua)). 
 
 Ok so we have a `datasource`, now we need a `model`. Lets build a 
-multi-layer perceptron with two parameterized non-linear layers:
+multi-layer perceptron (MLP) with two parameterized non-linear layers:
 ```lua
 --[[Model]]--
 model = dp.Sequential{
@@ -85,7 +85,23 @@ We use the `datasource:featureSize()` and `datasource:classes()` methods to acce
 number of input features and output classes, respectively. As for the number of 
 hidden neurons, we use our `opt` table of hyper-parameters. The `transfer` functions 
 used are the `nn.Tanh()` (for the hidden neurons) and `nn.LogSoftMax` (for the output neurons).
-The latter might seem odd (why not use `nn.SoftMax` instead), but the 
+The latter might seem odd (why not use `nn.SoftMax` instead?), but the the `nn.ClassNLLCriterion` 
+only works with `nn.LogSoftMax`. Besides, unlike `nn.SoftMax`, `nn.LogSoftMax` is implemented in 
+[cutorch](https://github.com/torch/cutorch), which means it can be run on CUDA capable GPU.
+Both models initialize parameters using the default sparse initialization 
+(see [Martens 2010](http://machinelearning.wustl.edu/mlpapers/paper_files/icml2010_Martens10.pdf)). 
+If you construct it with argument `sparse_init=false`, it will delegate parameter initialization to 
+`nn.Linear`, which is what `Neural` uses internally for its parameters.
+
+These two `Neural` models are combined to form an MLP using the [Sequential](model/sequential.lua), 
+which is not to be confused with (yet very similar to), 
+[nn.Sequential](https://github.com/torch/nn/blob/master/README.md#sequential). It differs in that
+it can be constructed from a list of [Models](model/model.lua) instead of 
+[nn.Modules](https://github.com/torch/nn/blob/master/README.md#nn.Modules). `Models` have extra 
+methods, allowing them to be `accept` [Visitors](visitor/visitor.lua), to communicate with 
+other components through a [Mediator](mediator.lua), or `setup` with variables after initialization.
+`Model` instances also differ from `nn.Module` in their ability to `forward` and `backward` 
+complex `states`.  
 
 The `propagators` each act on a different `dataset`.
 ```lua

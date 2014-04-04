@@ -1,5 +1,4 @@
 -- TODO:
---- Flatten images only (define permitted conversions)
 --- Allow construction from existing DataTensor.
 --- Transpose expanded_size 'b' dims when data's 'b' is transposed
 --- Default axes depends on size of sizes, or size of data.
@@ -18,7 +17,7 @@
 -- contiguous. Views can be used to convert data into new axes formats 
 -- using torch.Tensor:resize, :transpose, :contiguous. The 
 -- conversions may be done in-place (default), or may be simply  
--- returned using the conversion methods (feature, array, etc.). 
+-- returned using the conversion methods (feature, class, image, etc.). 
 -- A DataTensor may also holds metadata about the provided data.
 ------------------------------------------------------------------------
 local DataTensor = torch.class("dp.DataTensor")
@@ -232,26 +231,6 @@ function DataTensor:feature(...)
       self:storeExpandedSize(data:size())
       self:storeExpandedAxes(axes)
    end
-   return data
-end
-
-function DataTensor:array(...)
-   local axes = {'b'} 
-   local sizes = self:expandedSize()
-   local args, inplace, contiguous = xlua.unpack(
-      {... or {}},
-      'DataTensor:class',
-      'Returns a 1D-tensor of examples.',
-      {arg='inplace', type='boolean', default=true,
-       help='When true, makes self._data a contiguous view of axes '..
-       '{"b"} for future use.'},
-      {arg='contiguous', type='boolean', default=false,
-       help='When true makes sure the returned tensor is contiguous.'}
-   )
-   --use feature:
-   local data = self:feature{inplace=inplace,contiguous=contiguous}
-   --Takes the first class of each example
-   data = data:select(2, 1)
    return data
 end
 

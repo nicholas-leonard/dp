@@ -21,96 +21,61 @@ require 'dp'
 Note : package `underscore` in imported as `_`. So `_` shouldn't be used for dummy variables, instead 
 use the much more annoying `__`, or whatnot. 
 
-Then we make some hyper-parameters and other options available to the user via the command line:
+Lets define some hyper-parameters and store them in a table. We will need them later:
 ```lua
---[[command line arguments]]--
-cmd = torch.CmdLine()
-cmd:text()
-cmd:text('MNIST MLP Training/Optimization')
-cmd:text('Example:')
-cmd:text('$> th neuralnetwork.lua --batchSize 128 --momentum 0.5')
-cmd:text('Options:')
-cmd:option('--learningRate', 0.1, 'learning rate at t=0')
-cmd:option('--maxOutNorm', 1, 'max norm each layers output neuron weights')
-cmd:option('--momentum', 0, 'momentum')
-cmd:option('--numHidden', 200, 'number of hidden units')
-cmd:option('--batchSize', 32, 'number of examples per batch')
-cmd:option('--type', 'double', 'type: double | float | cuda')
-cmd:option('--maxEpoch', 100, 'maximum number of epochs to run')
-cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better local minima for early-stopping')
-cmd:option('--dropout', false, 'apply dropout on hidden neurons, requires "nnx" luarock')
-cmd:option('--dataset', 'Mnist', 'which dataset to use : Mnist | NotMnist | Cifar10 | Cifar100')
-cmd:option('--standardize', false, 'apply Standardize preprocessing')
-cmd:option('--zca', false, 'apply Zero-Component Analysis whitening')
-cmd:text()
-opt = cmd:parse(arg or {})
-print(opt)
+--[[hyperparameters]]--
+opt = {
+   nHidden = 100, --number of hidden units
+   learningRate = 0.1, --training learning rate
+   momentum = 0.9, --momentum factor to use for training
+   maxOutNorm = 1, --maximum norm allowed for outgoing weights
+   batchSize = 128, --number of examples per mini-batch
+   maxTries = 100, --maximum number of epochs without reduction in validation error.
+   maxEpoch = 1000 --maximum number of epochs of training
+}
 ```
-We will come back to these later. For now, all you need to know is that `opt` is a table containing attributes
-like `learningRate` and `numHidden`, and that these can be specified via the command line switches 
-`--learningRate [number]` and `--numHidden [number]`, respectively. 
-
-We are going to build and train a neural network so we need some data, 
+We intend to build and train a neural network so we need some data, 
 which we encapsulate in a [DataSource](data/datasource.lua)
-object. We provide the option of training on different datasets, 
+object. __dp__ provides the option of training on different datasets, 
 notably [MNIST](data/mnist.lua), [NotMNIST](data/notmnist.lua), 
-[CIFAR-10](data/cifar10) or [CIFAR-100](data/cifar100.lua):
-
+[CIFAR-10](data/cifar10) or [CIFAR-100](data/cifar100.lua), but for this
+tutorial we will be using the archtypical MNIST (don't leave home without it):
 ```lua
---[[preprocessing]]--
-local input_preprocess = {}
-if opt.standardize then
-   table.insert(input_preprocess, dp.Standardize())
-end
-if opt.zca then
-   table.insert(input_preprocess, dp.ZCA())
-end
-
 --[[data]]--
-local datasource
-if opt.dataset == 'Mnist' then
-   dp.Mnist{input_preprocess = input_preprocess}
-elseif opt.dataset == 'NotMnist' then
-   dp.NotMnist{input_preprocess = input_preprocess}
-elseif opt.dataset == 'Cifar10' then
-   dp.Cifar10{input_preprocess = input_preprocess}
-elseif opt.dataset == 'Cifar100' then
-   dp.Cifar100{input_preprocess = input_preprocess}
-else
-    error("Unknown Dataset")
-end
+datasource = dp.Mnist{input_preprocess = dp.Standardize()}
 ```
-Ok so we have a dataset, now we need a model:
+A `datasource` contains up to three [Datasets](data/dataset.lua): 
+`train`, `valid` and `test`. The first if for training the model. 
+The second is used for [early-stopping](observer/earlystopper.lua).
+The third is used for publishing papers and comparing different models.
+  
+Although not really necessary, we [Standardize](preprocess/standardize.lua) 
+the datasource, which subtracts the mean and divides 
+by the standard deviation. Both statistics (mean and standard deviation) are 
+measured on the `train` set only. This is common pattern when preprocessing. 
+When statistics need to be measured accross different examples 
+(as in [ZCA](preprocess/zca.lua) and [LecunLCN](preprocess/lecunlcn.lua) preprocesses), 
+we fit the preprocessor on the `train` set and apply it to all sets (`train`, `valid` and `test`). 
+However, some preprocesses require that statistics be measured
+only on each example (as in [global constrast normalization](preprocess/gcn.lua)). 
+
+Ok so we have a `datasource`, now we need a model:
 ```lua
 --[[Model]]--
-local dropout
-if opt.dropout then
-   require 'nnx'
-   dropout = nn.Dropout()
-end
-
 mlp = dp.Sequential{
    models = {
       dp.Neural{
-         input_size = datasource._feature_size, 
-         output_size = opt.numHidden, 
+         input_size = datasource:featureSize(), 
+         output_size = opt.nHidden, 
          transfer = nn.Tanh()
       },
       dp.Neural{
-         input_size = opt.numHidden, 
-         output_size = #(datasource._classes),
-         transfer = nn.LogSoftMax(),
-         dropout = dropout
+         input_size = opt.nHidden, 
+         output_size = #(datasource:classes()),
+         transfer = nn.LogSoftMax()
       }
    }
 }
-
---[[GPU or CPU]]--
-if opt.type == 'cuda' then
-   require 'cutorch'
-   require 'cunn'
-   mlp:cuda()
-end
 ```
 
 

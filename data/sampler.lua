@@ -3,13 +3,12 @@
 -- Support multi-input/target datatensors
 -- Batch inherits DataSet
 
-
 ------------------------------------------------------------------------
 --[[ Sampler ]]--
--- Base Class
 -- Sequentially samples batches from a dataset.
 ------------------------------------------------------------------------
 local Sampler = torch.class("dp.Sampler")
+Sampler.isSampler = true
 
 function Sampler:__init(...)
    local args, batch_size, data_view, sample_type = xlua.unpack(
@@ -246,54 +245,3 @@ function ShuffleSampler:sampleEpoch(dataset)
       end
    return epochSamples
 end
-
-------------------------------------------------------------------------
---[[ FocusSampler ]]--
--- Samples from a multinomial distribution where each examples has a 
--- sampling probability proportional to its error.
--- TODO : is also an Observer or is also a Strategy
--- if an observer, gets report and subject(criteria or batch) from 
--- doneBatch mediator channel. If Strategy, is called with measureError
--- on inputs, targets by propagator, or Cost (criteria Adapter).
-------------------------------------------------------------------------
-
-local FocusSampler = torch.class("dp.FocusSampler", "dp.Sampler")
-FocusSampler.isObserver = true
-
-function FocusSampler:__init(...)
-   error("Error Not Implemented")
-   local args, batch_size, random_seed, prob_dist 
-      = xlua.unpack(
-         {... or {}},
-         'FocusSampler', 
-         'Samples batches from a shuffled set of examples in DataSet. '..
-         'Iteration ends after all examples have been sampled once (for one epoch). '..
-         'Examples are shuffled at the start of the iteration. ',
-         {arg='batch_size', type='number', default='512',
-          help='Number of examples per sampled batches'},
-         {arg='random_seed', type='number',
-          help='Used to initialize the shuffle generator.' ..
-          'Not yet supported'},
-         {arg='prob_dist', type='torch.Tensor', 
-          help='initial vector of probabilities : one per example.' ..
-          'defaults to a uniform probability distribution'},
-         {arg='uniform_prob', type='number', default=0.1,
-          help='probability of sampling from a uniform distribution'}
-   )
-end
-
-function FocusSampler:doneEpoch(report)
-   batch_errors = self._mediator:optimizer():criterion().batchOutputs
-   self:updateMultinomial(batch_errors)
-end
-
-function FocusSampler:updateMultinomial(batch_errors)
-   
-end
-
-function FocusSampler:sampleEpoch()
-   
-   self._last_indices = last_indices
-end
-
-

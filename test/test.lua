@@ -1,6 +1,5 @@
 local mytester 
 local dptest = {}
-local msize = 100
 
 function dptest.uid()
    local uid1 = dp.uniqueID()

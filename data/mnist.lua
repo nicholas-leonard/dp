@@ -3,7 +3,6 @@
 -- http://yann.lecun.com/exdb/mnist/
 -- A simple but widely used handwritten digits classification problem.
 ------------------------------------------------------------------------
-
 local Mnist, DataSource = torch.class("dp.Mnist", "dp.DataSource")
 Mnist.isMnist = true
 
@@ -31,7 +30,7 @@ function Mnist:__init(...)
       {arg='data_path', type='string', default=dp.DATA_PATH,
        help='path to data repository'},
       {arg='scale', type='table', 
-       help='bounds to scale the values between', default={0,1}},
+       help='bounds to scale the values between. [Default={0,1}]'},
       {arg='binarize', type='boolean', 
        help='binarize the inputs (0s and 1s)', default=false},
       {arg='shuffle', type='boolean', 
@@ -50,6 +49,7 @@ function Mnist:__init(...)
        '(fitting) on the train_set only, and reusing these to ' ..
        'preprocess the valid_set and test_set.'}  
    )
+   self._scale = self._scale or {0,1}
    if load_all then
       self:loadTrain()
       self:loadValid()

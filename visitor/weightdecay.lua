@@ -3,8 +3,8 @@
 -- ModelVisitor
 -- Decays the weight of the visited parameterized models.
 ------------------------------------------------------------------------
-
 local WeightDecay, parent = torch.class("dp.WeightDecay", "dp.Visitor")
+WeightDecay.isWeightDecay = true
 
 function WeightDecay:__init(config)
    config = config or {}

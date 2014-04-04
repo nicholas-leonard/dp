@@ -5,7 +5,7 @@
 -- neuron weights (in a weight matrix). Has a regularization effect 
 -- analogous to WeightDecay, but with easier to optimize 
 -- hyper-parameters. Quite useful with Rectified Linear Units (ReLU).
--- Should occur after LearningRate in VisitorChain
+-- Should occur after Learn in VisitorChain
 ------------------------------------------------------------------------
 
 local MaxNorm, parent = torch.class("dp.MaxNorm", "dp.Visitor")

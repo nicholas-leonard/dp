@@ -78,8 +78,8 @@ model = dp.Sequential{
    }
 }
 ```
-Both layers are defined using [Neural](model/neural.lua), which require the `input_size` 
-(number of input neurons), `output_size` (number of output neurons) and a 
+Both layers are defined using [Neural](model/neural.lua), which require an `input_size` 
+(number of input neurons), an `output_size` (number of output neurons) and a 
 [transfer function](https://github.com/torch/nn/blob/master/README.md#nn.transfer.dok).
 We use the `datasource:featureSize()` and `datasource:classes()` methods to access the
 number of input features and output classes, respectively. As for the number of 
@@ -87,7 +87,8 @@ hidden neurons, we use our `opt` table of hyper-parameters. The `transfer` funct
 used are the `nn.Tanh()` (for the hidden neurons) and `nn.LogSoftMax` (for the output neurons).
 The latter might seem odd (why not use `nn.SoftMax` instead?), but the the `nn.ClassNLLCriterion` 
 only works with `nn.LogSoftMax`. Besides, unlike `nn.SoftMax`, `nn.LogSoftMax` is implemented in 
-[cutorch](https://github.com/torch/cutorch), which means it can be run on CUDA capable GPU.
+[cutorch](https://github.com/torch/cutorch), which means it can run on CUDA-capable GPUs.
+
 Both models initialize parameters using the default sparse initialization 
 (see [Martens 2010](http://machinelearning.wustl.edu/mlpapers/paper_files/icml2010_Martens10.pdf)). 
 If you construct it with argument `sparse_init=false`, it will delegate parameter initialization to 
@@ -103,7 +104,11 @@ other components through a [Mediator](mediator.lua), or `setup` with variables a
 `Model` instances also differ from `nn.Module` in their ability to `forward` and `backward` 
 complex `states`.  
 
-The `propagators` each act on a different `dataset`.
+Next we initialize some [Propagators](propagator/propagator.lua). 
+Each such `propagator` will propagate examples from a different `dataset`.
+[Samplers](data/sampler.lua) iterate over `datasets` to 
+generate batches of examples (inputs and targets) to propagated through 
+the `model`:
 ```lua
 --[[Propagators]]--
 train = dp.Optimizer{
@@ -128,8 +133,44 @@ test = dp.Evaluator{
    sampler = dp.Sampler{}
 }
 ```
+For this example, we use an [Optimizer](propagator/optimizer.lua) for the training set,
+and two [Evaluators](propagator/evaluator.lua), one for cross-validation 
+and another for testing. The evaluators use the a simple `sampler` which 
+iterates sequentially through the dataset. On the other hand, the optimizer 
+uses a `ShuffleSampler` to iterate through the dataset. This `sampler` 
+shuffles the `dataset` before each epoch (an epoch is a complete iteration 
+over a `dataset`). This shuffling is useful for training since the model 
+must learn from varying sequences of batches at each epoch, which makes the
+training algorithm more stochastic.
 
-The experiments puts this all together.
+Each propagator must also specify a `criterion` for training or evaluation.
+If you have previously used the `nn` package, there is nothing new here. 
+Each example has a single target class and our model output is `nn.LogSoftMax` so 
+we use [nn.ClassNLLCriterion](https://github.com/torch/nn/blob/master/README.md#nn.ClassNLLCriterion).
+
+The `feedback` parameter is used to provide us with feedback like performance measures and
+statistics after each epoch. We use [Confusion](feedback/confusion.lua), which is a wrapper 
+for the [optim](https://github.com/torch/optim/blob/master/README.md) package's 
+[ConfusionMatrix](https://github.com/torch/optim/blob/master/ConfusionMatrix.lua).
+While our `criterions` measure the Negative Log-Likelihood (NLL) of the model 
+on different datasets, our `feedbacks` measure classification accuracy (which is what 
+we will use for early-stopping and comparing our model to the state of the art).
+
+Since the optimizer is used to train the model on a dataset, we all need to specify some 
+visitors to update its parameters. We want to update the model by sequentially appling 
+three visitors: 
+ 1. [Momentum](visitor/momentum.lua) : updates parameter gradients using a factored mixture of current and previous gradients.
+ 2. [Learn](visitor/learn.lua) : updates the parameters using the gradients and a learning rate.
+ 3. [MaxNorm](visitor/maxnorm.lua) : updates output or input neuron weights (in this case, output) so that they have a norm less or equal to a specified value.
+The only mandatory visitor is the second one, which does the actual parameter updates (learning). The first is the well known 
+momentum. The last is the lesser known hard constraint on the norm of output or input neuron weights 
+(see [Hinton 2012](http://arxiv.org/pdf/1207.0580v1.pdf)), which acts as a regularizer. You could also
+replace it with a more classic regularizer like [WeightDecay](visitor/weightdecay.lua), in which case you 
+would have to put it before the `Learn` visitor.
+
+Finally, we have the optimizer switch on its `progress` bar so we 
+can monitor its progress during training. Now its time to put this all together
+to form an [Experiment](propagator/experiment.lua):
 ```lua
 --[[Experiment]]--
 xp = dp.Experiment{
@@ -149,10 +190,13 @@ xp = dp.Experiment{
    max_epoch = opt.maxEpoch
 }
 ```
-Finally, we run the `experiment` on the `datasource`.
+The `experiment` is ready, let's run it on the `datasource`.
 ```lua
 xp:run(datasource)
 ```
+We don't initilize the experiment with the datasource so that we may easily 
+serialize it on disk, keeping this snapshot separate from its data (which shouldn't 
+be affected by the experiment).
 
 ## Data and preprocessing ##
 DataTensor, DataSet, DataSource, Samplers and Preprocessing.

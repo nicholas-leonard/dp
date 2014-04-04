@@ -213,13 +213,64 @@ model that generalizes well. The parameter `max_epochs` indicates how much conse
 epochs of training can occur without finding a new best model before the experiment is signaled to stop 
 on the `"doneExperiment"` mediator channel.
 
-The experiment is ready, let's run it on the `datasource`.
+Once we have initialized the experiment, we need only run it on the `datasource` to begin training.
 ```lua
 xp:run(datasource)
 ```
 We don't initilize the experiment with the datasource so that we may easily 
 save it onto disk, thereby keeping this snapshot separate from its data 
 (which shouldn't be modified by the experiment).
+
+Let's run the [script](examples/neuralnetwork_tutorial.lua) from the cmd-line:
+```
+nicholas@ultrabook:~/projects/dp$ th examples/neuralnetwork_tutorial.lua 
+checking for file located at: 	/home/nicholas/data/mnist/mnist-th7.tgz	
+DataTensor Warning: sizes specifies one dim less than axes. Assuming sizes omits 'b' axis. Sizes ={50000,28,28,1}	
+DataTensor Warning: data:size() is different than sizes. Assuming data is appropriately contiguous. Resizing data to sizes	
+checking for file located at: 	/home/nicholas/data/mnist/mnist-th7.tgz	
+DataTensor Warning: sizes specifies one dim less than axes. Assuming sizes omits 'b' axis. Sizes ={10000,28,28,1}	
+DataTensor Warning: data:size() is different than sizes. Assuming data is appropriately contiguous. Resizing data to sizes	
+checking for file located at: 	/home/nicholas/data/mnist/mnist-th7.tgz	
+DataTensor Warning: sizes specifies one dim less than axes. Assuming sizes omits 'b' axis. Sizes ={10000,28,28,1}	
+DataTensor Warning: data:size() is different than sizes. Assuming data is appropriately contiguous. Resizing data to sizes	
+/home/nicholas/save/ultrabook:4966:1396637554:1	/home/nicholas/save/ultrabook:4966:1396637554:1/log	
+ultrabook:4966:1396637554:1:optimizer loss nan	
+ultrabook:4966:1396637554:1:validator loss nan	
+ultrabook:4966:1396637554:1:tester loss nan	
+==> online epoch # 1 for optimizer	
+DataTensor Warning: Assuming one class per example.	
+ [================================ 50000/50000 ===============================>] ETA: 0ms | Step: 0ms                              
+
+==> epoch size = 50000 examples	
+==> batch duration = 0.43626294136047 ms	
+==> epoch duration = 21.813147068024 s	
+==> example speed = 2292.1956123102 examples/second	
+==> batch speed = 17.907778221173 batches/second	
+DataTensor Warning: Assuming one class per example.	
+DataTensor Warning: Assuming one class per example.	
+ultrabook:4966:1396637554:1:optimizer loss 0.0036266571109125	
+ultrabook:4966:1396637554:1:validator loss 0.0045470300605963	
+ultrabook:4966:1396637554:1:tester loss 0.0047816996884622	
+ultrabook:4966:1396637554:1:optimizer:confusion accuracy = 0.89022	
+ultrabook:4966:1396637554:1:validator:confusion accuracy = 0.92568108974359	
+ultrabook:4966:1396637554:1:tester:confusion accuracy = 0.92037259615385	
+==> online epoch # 2 for optimizer	
+ [================================ 50000/50000 ===============================>] ETA: 0ms | Step: 0ms                              
+
+==> epoch size = 50000 examples	
+==> batch duration = 0.41297492027283 ms	
+==> epoch duration = 20.648746013641 s	
+==> example speed = 2421.4545506525 examples/second	
+==> batch speed = 18.917613676973 batches/second	
+ultrabook:4966:1396637554:1:optimizer loss 0.0022255601718995	
+ultrabook:4966:1396637554:1:validator loss 0.0038820140620319	
+ultrabook:4966:1396637554:1:tester loss 0.0040944348146989	
+ultrabook:4966:1396637554:1:optimizer:confusion accuracy = 0.92598	
+ultrabook:4966:1396637554:1:validator:confusion accuracy = 0.93679887820513	
+ultrabook:4966:1396637554:1:tester:confusion accuracy = 0.9306891025641	
+==> online epoch # 3 for optimizer	
+ [===============................ 10112/50000 ................................] ETA: 8s540ms | Step: 0ms  
+```
 
 ## Data and preprocessing ##
 DataTensor, DataSet, DataSource, Samplers and Preprocessing.

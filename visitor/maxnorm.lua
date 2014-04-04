@@ -7,8 +7,8 @@
 -- hyper-parameters. Quite useful with Rectified Linear Units (ReLU).
 -- Should occur after Learn in VisitorChain
 ------------------------------------------------------------------------
-
 local MaxNorm, parent = torch.class("dp.MaxNorm", "dp.Visitor")
+MaxNorm.isMaxNorm = true
 
 function MaxNorm:__init(config)
    config = config or {}

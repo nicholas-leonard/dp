@@ -1,56 +1,11 @@
-require 'torch'
-require 'optim'
-
-------------------------------------------------------------------------
---[[ ConfusionMatrix ]]--
-------------------------------------------------------------------------
-local ConfusionMatrix = torch.class('optim.ConfusionMatrix2', 'optim.ConfusionMatrix')
-
-function ConfusionMatrix:batchAdd(predictions, targets)
-   local preds, targs, __
-   if predictions:dim() == 1 then
-      -- predictions is a vector of classes
-      preds = predictions
-   elseif predictions:dim() == 2 then
-      -- prediction is a matrix of class likelihoods
-      if predictions:size(2) == 1 then
-         -- or prediction just needs flattening
-         preds = predictions:copy()
-      else
-         __,preds = predictions:max(2)
-      end
-      preds:resize(preds:size(1))
-   else
-      error("predictions has invalid number of dimensions")
-   end
-      
-   if targets:dim() == 1 then
-      -- targets is a vector of classes
-      targs = targets
-   elseif targets:dim() == 2 then
-      -- targets is a matrix of one-hot rows
-      if targets:size(2) == 1 then
-         -- or targets just needs flattening
-         targs = targets:copy()
-      else
-         __,targs = targets:max(2)
-      end
-      targs:resize(targs:size(1))
-   else
-      error("targets has invalid number of dimensions")
-   end
-   --loop over each pair of indices
-   for i = 1,preds:size(1) do
-      self.mat[targs[i]][preds[i]] = self.mat[targs[i]][preds[i]] + 1
-   end
-end
-
 ------------------------------------------------------------------------
 --[[ Confusion ]]--
 -- Feedback
--- Adapter for optim.ConfusionMatrix2 
+-- Adapter for optim.ConfusionMatrix
+-- requires 'optim' package
 ------------------------------------------------------------------------
 local Confusion, parent = torch.class("dp.Confusion", "dp.Feedback")
+Confusion.isConfusion = true
    
 function Confusion:__init(config)
    config = config or {}
@@ -75,7 +30,8 @@ end
 
 function Confusion:add(batch)
    if not self._cm then
-      self._cm = optim.ConfusionMatrix2(batch:classes())
+      require 'optim'
+      self._cm = optim.ConfusionMatrix(batch:classes())
    end
    self._cm:batchAdd(batch:outputs(), batch:targets())
    self._samples_seen = self._samples_seen + batch:nSample()

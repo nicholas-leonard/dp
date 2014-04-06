@@ -195,10 +195,11 @@ The experiment can be initialized with a list of [Observers](observer/observer.l
 order is not important. Observers listen to mediator [Channels](mediator.lua). The mediator 
 calls them back when certain events occur. In particular, they may listen to the `"doneEpoch"`
 channel to receive a report from the experiment after each epoch. A report is nothing more than 
-a hierarchy of tables. After each epoch, each experiment component (except observers) 
-submit a report to its composite parent thereby forming a tree of reports. The observers can analyse 
-these and modify the component which they observer. Observers may be attached to experiments, propagators, 
-visitors, etc. Here we use a simple [FileLogger](observer/filelogger.lua) which will 
+a hierarchy of tables. After each epoch, the components objects of the experiment (except `Observers`) 
+can submit a report to its composite parent thereby forming a tree of reports. The observers can analyse 
+these and modify the component which they are assigned to (in this case, experiment). 
+Observers may be attached to experiments, propagators, visitors, etc. 
+Here we use a simple [FileLogger](observer/filelogger.lua) which will 
 store serialized reports in a simple text file for later use. Each experiment has a unique ID which are 
 included in reports, thus allowing the `FileLogger` to name its file appropriately. 
 

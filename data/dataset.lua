@@ -37,7 +37,7 @@ DataSet.isDataSet = true
 function DataSet:__init(...)
    local args, which_set, inputs, targets, axes, sizes, classes
       = xlua.unpack(
-      {...},
+      {... or {}},
       'DataSet', nil,
       {arg='which_set', type='string', req=true,
        help='"train", "valid" or "test" set'},

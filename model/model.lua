@@ -185,11 +185,10 @@ function Model:doneBatch(...)
    self.visited = false
    self.istate = {} -- input state
    self.ostate = {} -- output state
-   self.gstate = {}
+   self.gstate = {} -- global state
 end
 
 function Model:_doneBatch(...)
-
 end
 
 function Model:zeroGradParameters()

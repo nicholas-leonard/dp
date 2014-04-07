@@ -10,6 +10,7 @@
 -- fitting only the training set.
 ------------------------------------------------------------------------
 local DataSource = torch.class("dp.DataSource")
+DataSource.isDataSource = true
 
 function DataSource:__init(...)
    local args, train_set, valid_set, test_set, 
@@ -29,12 +30,11 @@ function DataSource:__init(...)
       'DataSets by fitting the preprocess (e.g. Standardization) on ' ..
       'only the training set, and reusing the same statistics on ' ..
       'the validation and test sets',
-      {arg='train_set', type='dp.DataSet',
+      {arg='train_set', type='dp.DataSet', req=true,
        help='used for optimizing (e.g. backpropagating) a ' ..
       'Criteria to a model. '},
       {arg='valid_set', type='dp.DataSet',
-       help='used for cross-validation during training ' ..
-      '(e.g. for early-stopping). '},
+       help='used for cross-validation and for e.g. early-stopping.'},
       {arg='test_set', type='dp.Dataset',
        help='used to evaluate generalization performance ' ..
       'after training (e.g. to compare different models).'},
@@ -162,7 +162,6 @@ function DataSource:imageAxes()
    return self._image_axes
 end
 -- end access static attributes
-
 
 -- Check locally and download datasource if not found.  
 -- Returns the path to the resulting data file.

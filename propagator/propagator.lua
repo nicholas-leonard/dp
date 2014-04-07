@@ -1,29 +1,3 @@
---[[ TODO ]]--
--- Convolution (way later)
--- torch.clip
-
--- Specify which values are default setup by Experiment in doc
--- Make reports read-only (everywhere)
--- Observers and Feedback lists are automatically converted to composites
--- All objects are setup with random seed and mediator and data*
--- Input Model (minimum) Output, Feedback (bonus) or Feedback container (propagator...)
--- Propagator takes gstate
--- Model accepts observers?
--- Tests are performed every early stop?
--- 'Overwrite' arg for setup
--- Experiment is just a composite Propagator?
-
--- Optimizer requires visitor.
--- Do visitors gather statistics stored in model statistics?
--- Prop, Model, Visitor namespace for prop.mvstate_matrix
--- Model Wrapper integrated with Batch...
-
--- Take out classes from Batch. Feedback is setup with dataset.
--- ForwardAct(act, gstate) .. BackwardGrad
--- Tanh, ReLu, Sigmoid, Linear layers with optional dropout and 
--- weight initialization.
--- Momentum schedule
-
 ------------------------------------------------------------------------
 --[[ Propagator ]]--
 -- Abstract Class for propagating a sampling distribution (Sampler) 
@@ -37,23 +11,22 @@ local Propagator = torch.class("dp.Propagator")
 Propagator.isPropagator = true
 
 function Propagator:__init(...)   
-   local args, sampler, criterion, visitor, observer, feedback, 
+   local args, criterion, visitor, sampler, observer, feedback, 
          mem_type, progress, stats
       = xlua.unpack(
       {... or {}},
       'Propagator', nil,
-      {arg='sampler', type='dp.Sampler', 
-       help='Used to iterate through the train set. ' ..
-       'Defaults to dp.Sampler()'},
       {arg='criterion', type='nn.Criterion', req=true,
        help='a neural network criterion to evaluate or minimize'},
       {arg='visitor', type='dp.Visitor',
-       help='visits models at the end of each batch propagation to ' .. 
+       help='visits models at the end of each batch propagation to '.. 
        'perform parameter updates and/or gather statistics, etc.'},
+      {arg='sampler', type='dp.Sampler', 
+       help='Iterates through the train set. [Default=dp.Sampler()]'},
       {arg='observer', type='dp.Observer', 
        help='observer that is informed when an event occurs.'},
       {arg='feedback', type='dp.Feedback',
-       help='takes predictions, targets, model and visitor as input ' ..
+       help='takes predictions, targets, model and visitor as input '..
        'and provides feedback through report(), setState, or mediator'},
       {arg='mem_type', type='string', default='float',
        help='double | float | cuda'},
@@ -72,7 +45,6 @@ function Propagator:__init(...)
    self._stats = stats
    self:resetLoss()
 end
-
 
 function Propagator:setup(...)
    local args, id, model, mediator, mem_type, dataset, overwrite
@@ -126,8 +98,7 @@ function Propagator:propagateEpoch(dataset, report)
    local last_batch
    
    if self._stats then
-      print('==> online epoch # ' .. (report.epoch + 1) .. 
-                        ' for ' .. self:id():name())
+      print('==> epoch # '..(report.epoch + 1)..' for '..self:name())
    end
    
    for batch in self._sampler:sampleEpoch(dataset) do
@@ -149,19 +120,14 @@ function Propagator:propagateEpoch(dataset, report)
    self._num_batches = last_batch:epochSize() / last_batch:batchSize()
    self._batch_speed = (self._num_batches / self._epoch_duration)
    if self._stats then
-      print("\n==> epoch size = " .. 
-            last_batch:epochSize() .. ' examples')
-      print("==> batch duration = " .. 
-            (self._batch_duration*1000) .. ' ms')
-      print("==> epoch duration = " .. 
-            (self._epoch_duration) .. ' s')
-      print("==> example speed = " .. 
-            (self._example_speed) .. ' examples/second')
-      print("==> batch speed = " .. 
-            (self._batch_speed) .. ' batches/second')
+      print("\n==> epoch size = "..last_batch:epochSize()..' examples')
+      print("==> batch duration = "..(self._batch_duration*1000)..' ms')
+      print("==> epoch duration = " ..self._epoch_duration..' s')
+      print("==> example speed = "..self._example_speed..' examples/s')
+      print("==> batch speed = "..self._batch_speed..' batches/s')
    end
 end      
-      
+
 function Propagator:propagateBatch(batch)
    error"NotImplementedError"
 end
@@ -203,6 +169,10 @@ end
 
 function Propagator:id()
    return self._id
+end
+
+function Propagator:name()
+   return self._id:name()
 end
 
 function Propagator:setModel(model)

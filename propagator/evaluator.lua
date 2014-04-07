@@ -27,8 +27,7 @@ function Evaluator:propagateBatch(batch, report)
       self._feedback:add(batch)
    end
    --publish report for this optimizer
-   self._mediator:publish(self:id():name() .. ':' .. "doneFeedback", 
-                          report, batch)
+   self._mediator:publish(self:name()..':'.."doneFeedback", report, batch)
 
    
    --[[ update parameters ]]--
@@ -38,6 +37,5 @@ function Evaluator:propagateBatch(batch, report)
    model:doneBatch()
    
    --publish report for this optimizer
-   self._mediator:publish(self:id():name() .. ':' .. "doneBatch", 
-                          report, batch)
+   self._mediator:publish(self:name()..':'.."doneBatch", report, batch)
 end

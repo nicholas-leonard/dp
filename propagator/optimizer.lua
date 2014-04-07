@@ -2,7 +2,6 @@
 --[[ Optimizer ]]--
 -- Trains a model using a sampling distribution.
 ------------------------------------------------------------------------
-
 local Optimizer, parent = torch.class("dp.Optimizer", "dp.Propagator")
 Optimizer.isOptimizer = true
 
@@ -45,8 +44,7 @@ function Optimizer:propagateBatch(batch, report)
       self._feedback:add(batch)
    end
    --publish report for this optimizer
-   self._mediator:publish(self:id():name() .. ':' .. "doneFeedback", 
-                          report, batch)
+   self._mediator:publish(self:name()..':'.."doneFeedback", report, batch)
    
    --[[ backpropagate ]]--
    -- estimate df/do (f is for loss, o is for outputs), a tensor
@@ -62,8 +60,7 @@ function Optimizer:propagateBatch(batch, report)
    model:doneBatch()
    
    --publish report for this optimizer
-   self._mediator:publish(self:id():name() .. ':' .. "doneBatch", 
-                          report, batch)
+   self._mediator:publish(self:name()..':'.."doneBatch", report, batch)
 end
 
 

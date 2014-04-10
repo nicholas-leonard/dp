@@ -74,17 +74,15 @@ function Propagator:setup(...)
    self:setModel(model)
    self:setMemType(mem_type, overwrite)
    self._sampler:setup{mediator=mediator, model=model}
-   if self._observer then
-      self._observer:setup{mediator=mediator, subject=self}
-   end
-   if self._feedback then
-      self._feedback:setup{mediator=mediator, propagator=self, 
-                           dataset=dataset}
-   end
-   if self._visitor then
-      self._visitor:setup{mediator=mediator, model=self._model, 
-                          propagator=self}
-   end
+   if self._observer then self._observer:setup{
+      mediator=mediator, subject=self
+   } end
+   if self._feedback then self._feedback:setup{
+      mediator=mediator, propagator=self, dataset=dataset
+   } end
+   if self._visitor then self._visitor:setup{
+      mediator=mediator, model=self._model, propagator=self
+   } end
 end
 
 function Propagator:propagateEpoch(dataset, report)

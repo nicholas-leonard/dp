@@ -87,6 +87,11 @@ torch.include('dp', 'observer/savetofile.lua') --not an observer
 torch.include('dp', 'observer/learningrateschedule.lua')
 torch.include('dp', 'observer/filelogger.lua')
 
+--[[ nn ]]--
+torch.include('dp', 'nn/AddConstant.lua')
+torch.include('dp', 'nn/Print.lua')
+torch.include('dp', 'nn/FairLookupTable.lua')
+
 --[[ model ]]--
 torch.include('dp', 'model/model.lua')
 torch.include('dp', 'model/container.lua')
@@ -94,8 +99,6 @@ torch.include('dp', 'model/sequential.lua')
 torch.include('dp', 'model/neural.lua')
 torch.include('dp', 'model/module.lua')
 torch.include('dp', 'model/linear.lua')
-torch.include('dp', 'model/AddConstant.lua')
-torch.include('dp', 'model/Print.lua')
 
 --[[ hyper ]]--
 torch.include('dp', 'hyper/hyperoptimizer.lua')

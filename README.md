@@ -12,7 +12,7 @@ It provides facilites for storing and analysing experimental hyperpameters and r
 a PostgreSQL database backend, which facilitates running many experiments on different machines. 
 
 ## Tutorials and Examples ##
-In order to help you get up and running we provide a quick [neural network tutorial](doc/neuralnetworktutorial.md) which explains step-by-step the contents of this [example script](example/neuralnetwork_tutorial.lua). For a more flexible option that allows input from the command-line specifying different datasources and preprocesses, using dropout, running the code on a GPU/CPU, please can consult this [script](example/neuralnetwork.lua). 
+In order to help you get up and running we provide a quick [neural network tutorial](doc/neuralnetworktutorial.md) which explains step-by-step the contents of this [example script](examples/neuralnetwork_tutorial.lua). For a more flexible option that allows input from the command-line specifying different datasources and preprocesses, using dropout, running the code on a GPU/CPU, please can consult this [script](examples/neuralnetwork.lua). 
 
 ## Data and preprocessing ##
 DataTensor, DataSet, DataSource, Samplers and Preprocessing.

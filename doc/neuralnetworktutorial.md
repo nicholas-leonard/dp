@@ -1,7 +1,7 @@
 <a name="NeuralNetworkTutorial"/>
 # Neural Network Tutorial #
-We begin with a simple [neural network example](examples/neuralnetwork_tutorial.lua). The first line loads 
-the __dp__ package, whose first matter of business is to load its dependencies (see [init.lua](init.lua)):
+We begin with a simple [neural network example](../examples/neuralnetwork_tutorial.lua). The first line loads 
+the __dp__ package, whose first matter of business is to load its dependencies (see [init.lua](../init.lua)):
 ```lua
 require 'dp'
 ```
@@ -23,29 +23,29 @@ opt = {
 ```
 ## DataSource and Preprocess ##
 We intend to build and train a neural network so we need some data, 
-which we encapsulate in a [DataSource](data/datasource.lua)
+which we encapsulate in a [DataSource](../data/datasource.lua)
 object. __dp__ provides the option of training on different datasets, 
-notably [MNIST](data/mnist.lua), [NotMNIST](data/notmnist.lua), 
-[CIFAR-10](data/cifar10) or [CIFAR-100](data/cifar100.lua), but for this
+notably [MNIST](../data/mnist.lua), [NotMNIST](../data/notmnist.lua), 
+[CIFAR-10](../data/cifar10) or [CIFAR-100](../data/cifar100.lua), but for this
 tutorial we will be using the archtypical MNIST (don't leave home without it):
 ```lua
 --[[data]]--
 datasource = dp.Mnist{input_preprocess = dp.Standardize()}
 ```
-A `datasource` contains up to three [Datasets](data/dataset.lua): 
+A `datasource` contains up to three [Datasets](../data/dataset.lua): 
 `train`, `valid` and `test`. The first if for training the model. 
 The second is used for [early-stopping](observer/earlystopper.lua).
 The third is used for publishing papers and comparing different models.
   
-Although not really necessary, we [Standardize](preprocess/standardize.lua) 
+Although not really necessary, we [Standardize](../preprocess/standardize.lua) 
 the datasource, which subtracts the mean and divides 
 by the standard deviation. Both statistics (mean and standard deviation) are 
 measured on the `train` set only. This is common pattern when preprocessing. 
 When statistics need to be measured accross different examples 
-(as in [ZCA](preprocess/zca.lua) and [LecunLCN](preprocess/lecunlcn.lua) preprocesses), 
+(as in [ZCA](../preprocess/zca.lua) and [LecunLCN](../preprocess/lecunlcn.lua) preprocesses), 
 we fit the preprocessor on the `train` set and apply it to all sets (`train`, `valid` and `test`). 
 However, some preprocesses require that statistics be measured
-only on each example (as in [global constrast normalization](preprocess/gcn.lua)). 
+only on each example (as in [global constrast normalization](../preprocess/gcn.lua)). 
 
 ## Model of Modules ##
 Ok so we have a `datasource`, now we need a `model`. Lets build a 
@@ -67,7 +67,7 @@ model = dp.Sequential{
    }
 }
 ```
-Both layers are defined using [Neural](model/neural.lua), which require an `input_size` 
+Both layers are defined using [Neural](../model/neural.lua), which require an `input_size` 
 (number of input neurons), an `output_size` (number of output neurons) and a 
 [transfer function](https://github.com/torch/nn/blob/master/README.md#nn.transfer.dok).
 We use the `datasource:featureSize()` and `datasource:classes()` methods to access the
@@ -83,20 +83,20 @@ Both models initialize parameters using the default sparse initialization
 If you construct it with argument `sparse_init=false`, it will delegate parameter initialization to 
 `nn.Linear`, which is what `Neural` uses internally for its parameters.
 
-These two `Neural` models are combined to form an MLP using the [Sequential](model/sequential.lua), 
+These two `Neural` models are combined to form an MLP using the [Sequential](../model/sequential.lua), 
 which is not to be confused with (yet very similar to), 
 [nn.Sequential](https://github.com/torch/nn/blob/master/README.md#sequential). It differs in that
-it can be constructed from a list of [Models](model/model.lua) instead of 
+it can be constructed from a list of [Models](../model/model.lua) instead of 
 [nn.Modules](https://github.com/torch/nn/blob/master/README.md#nn.Modules). `Models` have extra 
 methods, allowing them to be `accept` [Visitors](visitor/visitor.lua), to communicate with 
-other components through a [Mediator](mediator.lua), or `setup` with variables after initialization.
+other components through a [Mediator](../mediator.lua), or `setup` with variables after initialization.
 `Model` instances also differ from `nn.Module` in their ability to `forward` and `backward` 
 complex `states`.  
 
 ## Propagator ##
-Next we initialize some [Propagators](propagator/propagator.lua). 
+Next we initialize some [Propagators](../propagator/propagator.lua). 
 Each such `propagator` will propagate examples from a different `dataset`.
-[Samplers](data/sampler.lua) iterate over `datasets` to 
+[Samplers](../data/sampler.lua) iterate over `datasets` to 
 generate batches of examples (inputs and targets) to propagated through 
 the `model`:
 ```lua
@@ -123,8 +123,8 @@ test = dp.Evaluator{
    sampler = dp.Sampler{}
 }
 ```
-For this example, we use an [Optimizer](propagator/optimizer.lua) for the training set,
-and two [Evaluators](propagator/evaluator.lua), one for cross-validation 
+For this example, we use an [Optimizer](../propagator/optimizer.lua) for the training set,
+and two [Evaluators](../propagator/evaluator.lua), one for cross-validation 
 and another for testing. 
 
 ### Sampler ###
@@ -144,7 +144,7 @@ we use [nn.ClassNLLCriterion](https://github.com/torch/nn/blob/master/README.md#
 
 ### Feedback ###
 The `feedback` parameter is used to provide us with feedback like performance measures and
-statistics after each epoch. We use [Confusion](feedback/confusion.lua), which is a wrapper 
+statistics after each epoch. We use [Confusion](../feedback/confusion.lua), which is a wrapper 
 for the [optim](https://github.com/torch/optim/blob/master/README.md) package's 
 [ConfusionMatrix](https://github.com/torch/optim/blob/master/ConfusionMatrix.lua).
 While our `criterions` measure the Negative Log-Likelihood (NLL) of the model 
@@ -155,21 +155,21 @@ we will use for early-stopping and comparing our model to the state of the art).
 Since the optimizer is used to train the model on a dataset, we all need to specify some 
 visitors to update its parameters. We want to update the model by sequentially appling 
 three visitors: 
- 1. [Momentum](visitor/momentum.lua) : updates parameter gradients using a factored mixture of current and previous gradients.
- 2. [Learn](visitor/learn.lua) : updates the parameters using the gradients and a learning rate.
- 3. [MaxNorm](visitor/maxnorm.lua) : updates output or input neuron weights (in this case, output) so that they have a norm less or equal to a specified value.
+ 1. [Momentum](../visitor/momentum.lua) : updates parameter gradients using a factored mixture of current and previous gradients.
+ 2. [Learn](../visitor/learn.lua) : updates the parameters using the gradients and a learning rate.
+ 3. [MaxNorm](../visitor/maxnorm.lua) : updates output or input neuron weights (in this case, output) so that they have a norm less or equal to a specified value.
 
 The only mandatory visitor is the second one, which does the actual parameter updates (learning). The first is the well known 
 momentum. The last is the lesser known hard constraint on the norm of output or input neuron weights 
 (see [Hinton 2012](http://arxiv.org/pdf/1207.0580v1.pdf)), which acts as a regularizer. You could also
-replace it with a more classic regularizer like [WeightDecay](visitor/weightdecay.lua), in which case you 
+replace it with a more classic regularizer like [WeightDecay](../visitor/weightdecay.lua), in which case you 
 would have to put it before the `Learn` visitor.
 
 Finally, we have the optimizer switch on its `progress` bar so we 
 can monitor its progress during training. 
 
 ## Experiment ##
-Now its time to put this all togetherto form an [Experiment](propagator/experiment.lua):
+Now its time to put this all togetherto form an [Experiment](../propagator/experiment.lua):
 ```lua
 --[[Experiment]]--
 xp = dp.Experiment{
@@ -190,7 +190,7 @@ xp = dp.Experiment{
 }
 ```
 ### Observer ###
-The experiment can be initialized with a list of [Observers](observer/observer.lua). The 
+The experiment can be initialized with a list of [Observers](../observer/observer.lua). The 
 order is not important. Observers listen to mediator [Channels](mediator.lua). The mediator 
 calls them back when certain events occur. In particular, they may listen to the `"doneEpoch"`
 channel to receive a report from the experiment after each epoch. A report is nothing more than 
@@ -200,12 +200,12 @@ these and modify the component which they are assigned to (in this case, experim
 Observers may be attached to experiments, propagators, visitors, etc. 
 
 #### FileLogger ####
-Here we use a simple [FileLogger](observer/filelogger.lua) which will 
+Here we use a simple [FileLogger](../observer/filelogger.lua) which will 
 store serialized reports in a simple text file for later use. Each experiment has a unique ID which are 
 included in reports, thus allowing the `FileLogger` to name its file appropriately. 
 
 #### EarlyStopper ####
-The `EarlyStopper` is used for stopping the experiment when error has not decreased, or accuracy has not 
+The [EarlyStopper](../observer/earlystopper.lua) is used for stopping the experiment when error has not decreased, or accuracy has not 
 be maximized. It also saves onto disk the best version of the experiment when it finds a new one. 
 It is initialized with a channel to `maximize` or minimize (default is to minimize). In this case we intend 
 to early-stop the experiment on a field of the report, in particular the `accuracy` field of the 
@@ -226,7 +226,7 @@ We don't initilize the experiment with the datasource so that we may easily
 save it onto disk, thereby keeping this snapshot separate from its data 
 (which shouldn't be modified by the experiment).
 
-Let's run the [script](examples/neuralnetwork_tutorial.lua) from the cmd-line:
+Let's run the [script](../examples/neuralnetwork_tutorial.lua) from the cmd-line:
 ```
 nicholas@ultrabook:~/projects/dp$ th examples/neuralnetwork_tutorial.lua 
 checking for file located at: 	/home/nicholas/data/mnist/mnist-th7.tgz	

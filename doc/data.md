@@ -2,9 +2,9 @@
 
   * [DataTensor](#dp.DataTensor) :
     * [ImageTensor](#dp.ImageTensor)
-    * ClassTensor
-  * DataSet
-  * DataSource :
+    * [ClassTensor](#dp.ClassTensor)
+  * [DataSet](#dp.DataSet)
+  * [DataSource](#dp.DataSource) :
     * Mnist
     * NotMnist
     * Cifar10
@@ -226,7 +226,46 @@ Returns a 2D torch.Tensor of examples by features : `{'b', 'f'}` (see [DataTenso
 
 <a name="dp.DataSet"/>
 ## DataSet ##
+Generic container for inputs and optional targets. Used for training or evaluating a model. 
+Inputs/targets are tables of DataTensors, which allows for multi-input / multi-target DataSets.
+
+If the provided inputs or targets are torch.Tensors, an attempt is 
+made to convert them to [DataTensor](#dp.DataTensor) using the optionally 
+provided axes and sizes (inputs), classes (targets).
+
+Inputs and targets should be provided as instances of 
+[DataTensor](#dp.DataTensor) to support conversions to other axes formats. 
+Inputs and targets may also be provided as tables of 
+dp.DataTensors. In the case of multiple targets, it is useful for multi-task learning, 
+or learning from hints . In the case of multiple inputs, richer inputs representations could 
+be created allowing, for example, images to be combined with 
+tags, text with images, etc. Multi-input/target facilities could be used with nn.ParallelTable and 
+nn.ConcatTable.
+
+If the DataSet is used for unsupervised learning, only inputs need to 
+be provided.
+
+<a name="dp.DataSet.__init"/>
+### dp.DataSet(which_set, inputs, [targets, axes, sizes]) ###
 TODO
+DataSet{
+    which_set = string                  -- "train", "valid" or "test" set
+    inputs = dp.DataTensor | torch.Tensor | table-- Inputs of the DataSet taking the form of torch.Tensor with 2 dimensions, or more if topological is true. Alternatively, inputs may take the form of a table of such torch.Tensors. The first dimension of the torch.Tensor(s) should be of size number of examples.
+    [targets = dp.DataTensor | torch.Tensor | table]-- Targets of the DataSet taking the form of torch.Tensor with 1-2 dimensions. Alternatively, targets may take the form of a table of such torch.Tensors. The first dimension of the torch.Tensor(s) should index examples.
+    [axes = table]                      -- Optional. Used when supplied inputs is a torch.Tensor, in order to convert it to dp.DataTensor. In which case, it is a table defining the order and nature of each dimension of a tensor. Two common examples would be the archtypical MLP input : {"b", "f"}, or a common image representation :      {"b", "h", "w", "c"}.     Possible axis symbols are :      1. Standard Axes:        "b" : Batch/Example        "f" : Feature        "t" : Class      2. Image Axes        "c" : Color/Channel        "h" : Height        "w" : Width        "d" : Dept      Defaults to the dp.DataTensor default.
+    [sizes = table | torch.LongTensor]  -- Optional. Used when supplied inputs is a torch.Tensor, in order to convert it to dp.DataTensor. In which case, it is a table or torch.LongTensor identifying the sizes of the commensurate dimensions in axes. This should be supplied if the dimensions of the data is different from the number of elements in the axes table, in which case it will be used to : data:resize(sizes). Defaults to dp.DataTensor default.
+}
+
+DataSet{inputs=dp.DataTensor | torch.Tensor | table, which_set=string}
+DataSet(string, ...)
+
+
+<a name="dp.DataSet.preprocess"/>
+### preprocess([input_preprocess, target_preprocess, can_fit] ###
+TODO
+
+<a name="dp.DataSet.inputs"/>
+### [inputs] inputs([index]) ###
 
 <a name="dp.DataSource"/>
 ## DataSource ##

@@ -7,9 +7,7 @@
 --[[ DataSet ]]--
 -- Contains inputs and optional targets. Used for training or testing
 -- (evaluating) a model. Inputs/targets are tables of DataTensors, which
--- allows for multi-input / multi-target DataSets. This class can be 
--- inherited to create specific DataSets like MNIST, SVHN, Newsgroups20,
--- CIFAR-100, etc.
+-- allows for multi-input / multi-target DataSets.
 
 -- Unsupervised Learning
 -- If the DataSet is for unsupervised learning, only inputs need to 

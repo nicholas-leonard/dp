@@ -31,7 +31,7 @@ function DataTensor:__init(config)
       'DataTensor', 
       'Builds a data.DataTensor out of torch.Tensor data.',
       {arg='data', type='torch.Tensor', 
-       help='A torch.Tensor with 2 dimensions or more.', req=true},
+       help='A torch.Tensor with 1 dimensions or more.', req=true},
       {arg='axes', type='table',
        help='A table defining the order and nature of each dimension '..
        'of a tensor. Two common examples would be the archtypical '..

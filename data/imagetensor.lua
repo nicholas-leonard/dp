@@ -67,7 +67,7 @@ function ImageTensor:imageBHWC(...)
        table.tostring(desired_axes)..'for future use.', 
        default=true},
       {arg='contiguous', type='boolean', 
-       help='When true makes sure the returned tensor is contiguous.', 
+       help='When true makes sure the returned tensor contiguous.', 
        default=false}
    )
    --creates a new view of the same storage

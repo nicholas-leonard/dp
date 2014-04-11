@@ -16,19 +16,20 @@ a PostgreSQL database backend, which facilitates distributing experiments over d
 In order to help you get up and running we provide a quick [neural network tutorial](doc/neuralnetworktutorial.md) which explains step-by-step the contents of this [example script](examples/neuralnetwork_tutorial.lua). For a more flexible option that allows input from the command-line specifying different datasources and preprocesses, using dropout, running the code on a GPU/CPU, please can consult this [script](examples/neuralnetwork.lua). 
 
 <a name="dp.packages"/>
-## dp Packages (TODO) ##
+## dp Packages ##
 	
   * Data Library
     * [Data](doc/data.md) defines objects used for loading data.
-    * [Preprocess](doc/preprocess.md) defines objects used for preprocessing data.
+    * [Preprocess](doc/preprocess.md) defines objects used for preprocessing data (TODO).
   * Model Library
-    * Model defines objects encapsulating nn.Modules.
-    * Container defines objects encapsulating Models.
+    * Model defines objects encapsulating nn.Modules (TODO).
+    * Container defines objects encapsulating Models (TODO).
   * Experiment Library
-    * Propagator defines objects used to propagate (forward/backward) DataSets through models.
+    * Propagator defines objects used to propagate (forward/backward) DataSets through models (TODO).
   * Hyperparameter Library
-    * Hyperoptimizer
-    * DatasourceFactory
+    * Hyperoptimizer (TODO)
+    * DatasourceFactory (TODO)
+    * ExperimentFactory (TODO)
 
 
 <a name="dp.install"/>

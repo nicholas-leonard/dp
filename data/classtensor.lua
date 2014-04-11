@@ -39,8 +39,7 @@ function ClassTensor:__init(...)
       {arg='classes', type='table', help='A list of class IDs.'} 
    )   
    if not axes then
-      lsizes = sizes or data:size()
-      local 
+      local lsizes = sizes or data:size()
       if #lsizes == 1 then 
          axes = {'b'}
       elseif #lsizes == 2 then

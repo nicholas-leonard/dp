@@ -13,7 +13,7 @@ function ClassTensor:__init(...)
       'ClassTensor', 
       'Builds a data.ClassTensor out of torch.Tensor data.',
       {arg='data', type='torch.Tensor', 
-       help='A torch.Tensor with 2 dimensions or more.', req=true},
+       help='A torch.Tensor with 1 dimensions or more.', req=true},
       {arg='axes', type='table', 
        help='A table defining the order and nature of each dimension '..
        'of a tensor. Two common examples would be the archtypical '..
@@ -29,7 +29,7 @@ function ClassTensor:__init(...)
        ' "h" : Height \n'..
        ' "w" : Width \n'..
        ' "d" : Dept \n'..
-       '[Default={"b"}].'},
+       '[Default={"b"} for #sizes==1, or {"b","t"} for #sizes==2].'},
       {arg='sizes', type='table | torch.LongTensor', 
        help='A table or torch.LongTensor holding the sizes of the '.. 
        'commensurate dimensions in axes. This should be supplied '..
@@ -38,7 +38,15 @@ function ClassTensor:__init(...)
        'to : data:reshape(sizes). Default is data:size().'},
       {arg='classes', type='table', help='A list of class IDs.'} 
    )   
-   axes = axes or {'b'}
+   if not axes then
+      lsizes = sizes or data:size()
+      local 
+      if #lsizes == 1 then 
+         axes = {'b'}
+      elseif #lsizes == 2 then
+         axes = {'b', 't'}
+      end
+   end
    self._classes = classes
    parent.__init(self, {data=data, axes=axes, sizes=sizes})
 end
@@ -60,7 +68,7 @@ function ClassTensor:multiclass(...)
       'Returns a 2D-tensor of examples by classes: {"b", "t"}',
       {arg='inplace', type='boolean', default=true, 
        help='When true, makes self._data a contiguous view of axes '..
-       '{"b", "f"} for future use.'},
+       '{"b", "t"} for future use.'},
       {arg='contiguous', type='boolean', default=false,
        help='When true makes sure the returned tensor is contiguous.'}
    )

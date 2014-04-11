@@ -57,14 +57,14 @@ Since `inplace` makes it contiguous anyway, this parameter is only considered wh
 
 <a name="dp.ImageTensor"/>
 ## ImageTensor ##
-A DataTensor subclass used for providing access to a tensor of images. This is useful since it allows the for automatic reshaping. For example, let us suppose that we will be using a set of 10 images with 3x3 pixels and 1 channel (black and white).  
+A DataTensor subclass used for providing access to a tensor of images. This is useful since it allows for automatic reshaping. For example, let us suppose that we will be using a set of 10 images with 3x3 pixels and 1 channel (black and white).  
 ```lua
 > dt = dp.ImageTensor{data=torch.rand(10,3*3), axes={'b','h','w','c'}, sizes={10,3,3,1}}
 DataTensor Warning: data:size() is different than sizes. Assuming data is appropriately contiguous. Resizing data to sizes.
 ```
 We can use an ImageTensor:image() for obtaining a representation suitable for convolutions and image preprocessing:
 ```lua
-> print(dt:image())
+> =dt:image()
 (1,1,.,.) = 
   0.4230
   0.3545
@@ -85,7 +85,7 @@ We can use an ImageTensor:image() for obtaining a representation suitable for co
 ```
 Or we can use ImageTensor:feature() (inherited from [DataTensor](#dp.DataTensor.feature) to obtain a representation suitable for MLPs and feature preprocessing:
 ```lua
-> print(dt:feature())
+> =dt:feature()
 0.4230  0.3545  0.8071  0.1717  0.6072  0.9120  0.6389  0.5002  0.0237
  0.8478  0.7463  0.5556  0.7995  0.2141  0.5164  0.2037  0.2733  0.5226
  0.6114  0.3613  0.2784  0.2083  0.9485  0.5826  0.7669  0.0177  0.0550
@@ -104,7 +104,7 @@ Or we can use ImageTensor:feature() (inherited from [DataTensor](#dp.DataTensor.
 ### dp.ImageTensor(data, [axes, sizes]) ###
 Constructs a dp.ImageTensor out of torch.Tensor data. Arguments can also be passed as a table of key-value pairs:
 ```lua
-dt = dp.ImageTensor{data=torch.Tensor(10000,28*28), axes={'b','h','w','c'}, sizes={28,28,1}}
+> dt = dp.ImageTensor{data=torch.Tensor(10000,28*28), axes={'b','h','w','c'}, sizes={28,28,1}}
 ```
 
 `data` is a torch.Tensor with at least 2 dimensions.  
@@ -116,7 +116,7 @@ It should be the most expanded version of the `data`. For example, while an indi
 
 
 <a name="dp.ImageTensor.image"/>
-### [data, axes] feature([inplace, contiguous]) ###
+### [data, axes] image([inplace, contiguous]) ###
 Returns a 4D-tensor of axes format : `{'b','h','w','c'}`.
 
 `inplace` is a boolean. When true, makes `data` a contiguous view of `axes`
@@ -128,7 +128,101 @@ Since `inplace` makes it contiguous anyway, this parameter is only considered wh
 
 <a name="dp.ImageTensor.feature"/>
 ### [data] feature([inplace, contiguous]) ###
-Returns a 2D torch.Tensor of examples by features : `{'b', 'f'}`. (see [DataTensor:feature()](#dp.DataTensor.feature)
+Returns a 2D torch.Tensor of examples by features : `{'b', 'f'}` (see [DataTensor:feature()](#dp.DataTensor.feature)).
+
+
+<a name="dp.ClassTensor"/>
+## ClassTensor ##
+A DataTensor subclass used for providing access to a tensor of classes. This is useful since it allows for automatic reshaping. For example, let us suppose that we will be using a set of 8 samples picked from the following set of 4 classes : `{0,1,2,3}`.  
+```lua
+> dt = dp.ClassTensor{data=torch.IntTensor{4,1,3,4,1,2,3,1}, classes={0,1,2,3}}
+```
+
+We can use an ClassTensor:class() for obtaining a representation suitable for use as targets in nn.ClassNLLCriterion:
+```lua
+> =dt:class()
+DataTensor Warning: Assuming one class per example.	
+ 4
+ 1
+ 3
+ 4
+ 1
+ 2
+ 3
+ 1
+[torch.IntTensor of dimension 8]
+```
+Or we can use ClassTensor:multiclass() (inherited from [DataTensor](#dp.DataTensor.feature) to obtain a representation with an extra dimension that permits each example to have multiple target classes.
+```lua
+> =dt:multiclass()
+ 4
+ 1
+ 3
+ 4
+ 1
+ 2
+ 3
+ 1
+[torch.IntTensor of dimension 8x1]
+```
+
+<a name="dp.ClassTensor.__init"/>
+### dp.ClassTensor(data, [axes, sizes]) ###
+Constructs a dp.ImageTensor out of torch.Tensor data. Arguments can also be passed as a table of key-value pairs:
+```lua
+dt = dp.ClassTensor{data=torch.Tensor(10000), axes={'b'}, sizes={10000}}
+```
+
+`data` is a torch.Tensor with at least 1 dimensions.  
+
+`axes` is a table defining the order and nature of each dimension of the expanded torch.Tensor. 
+It should be the most expanded version of the `data`. Defaults to `{'b'}` for `#sizes==1` or `{'b','t'}` for `#sizes==2`.
+
+`sizes` can be a table, a torch.LongTensor or a torch.LongStorage holding the `sizes` of the commensurate dimensions in `axes`. This should be supplied if the dimensions of the data is different from the number of elements in `axes`, in which case it will be used to : `data:reshape(sizes)`. Defaults to data:size().
+
+`classes` is an optional table listing class IDs. The first index value is associated to class index 1, the second to 2, etc. For example, we could represent MNIST `data` containing classes indexed from `1,2...10` using `classes={0,1,2,3,4,5,6,7,8,9}`, supposing of course that the `0` MNIST-digits are indexed in `data` as `1`s.
+
+<a name="dp.ClassTensor.class"/>
+### [data, axes] class([inplace, contiguous]) ###
+Returns a 1D-tensor of axes format : `{'b'}`.
+
+`inplace` is a boolean. When true, makes `data` a contiguous view of `axes`
+`{'b'}` for future use. Defaults to true.
+ 
+`contiguous` is a boolean. When true, makes sure the returned data is contiguous. 
+Since `inplace` makes it contiguous anyway, this parameter is only considered when `inplace=false`. Defaults to false.
+
+<a name="dp.ClassTensor.multiclass"/>
+### [data] multiclass([inplace, contiguous]) ###
+Returns a 2D-tensor of axes format : `{'b','t'}`. 
+
+A ClassTensor where each example has many classes can be represented by vectors of classes. The data is thus of form `{'b','t'}`. So for example, we could be using a set of 4 samples of 2 classes each picked from the following set of 4 classes : `{0,1,2,3}`.  
+```lua
+> dt = dp.ClassTensor{data=torch.IntTensor{{4,2},{3,1},{2,3},{3,4}}, classes={0,1,2,3}}
+```
+We can use an ClassTensor:multiclass() for obtaining a representation suitable for use as targets in nn.ClassNLLCriterion:
+```lua
+> =dt:multiclass()
+ 0  1
+ 3  0
+ 1  2
+ 3  1
+[torch.IntTensor of dimension 4x2]
+```
+However, assuming the first index of each example vector represents the primary class, we could also call `ClassTensor:class()`:
+```lua
+> =dt:class()
+ 0
+ 3
+ 1
+ 3
+[torch.IntTensor of dimension 4]
+```
+
+<a name="dp.ClassTensor.feature"/>
+### [data] feature([inplace, contiguous]) ###
+Returns a 2D torch.Tensor of examples by features : `{'b', 'f'}` (see [DataTensor:feature()](#dp.DataTensor.feature)).
+
 
 <a name="dp.DataSet"/>
 ## DataSet ##

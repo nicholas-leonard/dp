@@ -52,7 +52,7 @@ function DataTensor:__init(config)
        'as a vector, in which case it takes the form of {"b","f"}, '..
        'its expanded axes format could be {"b", "h", "w", "c"}. '..
        '[Default={"b","f"}]'},
-      {arg='sizes', type='table | torch.LongTensor', 
+      {arg='sizes', type='table | torch.LongTensor | torch.LongStorage', 
        help='A table or torch.LongTensor holding the sizes of the '.. 
        'commensurate dimensions in axes. This should be supplied '..
        'if the dimensions of the data is different from the number '..

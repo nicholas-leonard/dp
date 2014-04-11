@@ -20,7 +20,7 @@ In order to help you get up and running we provide a quick [neural network tutor
 	
   * Data Library
     * [Data](doc/data.md) defines objects used for loading data.
-    * Preprocessor defines objects used for preprocessing data.
+    * [Preprocess](doc/preprocess.md) defines objects used for preprocessing data.
   * Model Library
     * Model defines objects encapsulating nn.Modules.
     * Container defines objects encapsulating Models.

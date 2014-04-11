@@ -3,13 +3,13 @@
 __dp__ is a deep learning framework based on the [Torch7](http://torch.ch) distribution and 
 inspired by pylearn2/Theano. It provides common datasets like MNIST, CIFAR-10 and CIFAR-100, 
 preprocessing like Zero-Component Analysis, Global Contrast Normalization, Lecunn Local Contrast Normalization  and 
-facilities for interfacing your own. Additionally, it provides a higher-level framework that 
+facilities for interfacing your own. Additionally, it provides a high-level framework that 
 abstracts away common usage patterns of the [nn](https://github.com/torch/nn/blob/master/README.md) 
-and [torch7](https://github.com/torch/torch7/blob/master/README.md) packages such as [early stopping](http://en.wikipedia.org/wiki/Early_stopping), dataset, and allows for more
+and [torch7](https://github.com/torch/torch7/blob/master/README.md) package such as [early stopping](http://en.wikipedia.org/wiki/Early_stopping), loading datasets, and it allows for more
 flexible representations. The framework includes hyperparameter optimization facilities for 
-sampling and running experiment from the cmd-line or prior hyper-parameter distributions.
-It provides facilites for storing and analysing experimental hyperpameters and results using
-a PostgreSQL database backend, which facilitates running many experiments on different machines. 
+sampling and running experiments from the cmd-line or prior hyper-parameter distributions.
+It also optionally provides facilites for storing and analysing hyperpameters and results using
+a PostgreSQL database backend, which facilitates distributing experiments over different machines. 
 
 <a name="dp.tutorials"/>
 ## Tutorials and Examples ##

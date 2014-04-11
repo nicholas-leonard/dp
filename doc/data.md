@@ -23,14 +23,14 @@ Constructs a dp.DataTensor out of torch.Tensor data. Arguments can also be passe
 or a common image representation : `{'b', 'h', 'w', 'c'}`. 
 Possible axis symbols are : 
  1. Standard Axes: 
-  * 'b' : Batch/Example 
-  * 'f' : Feature 
-  * 't' : Class 
+  * `'b'` : Batch/Example 
+  * `'f'` : Feature 
+  * `'t'` : Class 
  2. Image Axes 
-  * 'c' : Color/Channel 
-  * 'h' : Height 
-  * 'w' : Width 
-  * 'd' : Dept 
+  * `'c'` : Color/Channel 
+  * `'h'` : Height 
+  * `'w'` : Width 
+  * `'d'` : Dept 
 
 The provided `axes` should be the most expanded version of the storage. For example, while an image can be represented as a vector, in which case it takes the form of `{'b','f'}`, its expanded axes format could be `{'b', 'h', 'w', 'c'}`. Defaults to `{'b','f'}`.
 

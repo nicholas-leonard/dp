@@ -11,22 +11,27 @@ sampling and running experiment from the cmd-line or prior hyper-parameter distr
 It provides facilites for storing and analysing experimental hyperpameters and results using
 a PostgreSQL database backend, which facilitates running many experiments on different machines. 
 
+<a name="dp.tutorials"/>
 ## Tutorials and Examples ##
 In order to help you get up and running we provide a quick [neural network tutorial](doc/neuralnetworktutorial.md) which explains step-by-step the contents of this [example script](examples/neuralnetwork_tutorial.lua). For a more flexible option that allows input from the command-line specifying different datasources and preprocesses, using dropout, running the code on a GPU/CPU, please can consult this [script](examples/neuralnetwork.lua). 
 
-## Data and preprocessing ##
-DataTensor, DataSet, DataSource, Samplers and Preprocessing.
-DataSource is made up of 3 DataSet instances : train, valid and test.
+<a name="dp.packages"/>
+## dp Packages (TODO) ##
+	
+  * Data Library
+    * [Data](doc/data.md) defines objects used for loading data.
+    * Preprocessor defines objects used for preprocessing data.
+  * Model Library
+    * Model defines objects encapsulating nn.Modules.
+    * Container defines objects encapsulating Models.
+  * Experiment Library
+    * Propagator defines objects used to propagate (forward/backward) DataSets through models.
+  * Hyperparameter Library
+    * Hyperoptimizer
+    * DatasourceFactory
 
-## Models and states ##
-Model, Sequential, etc.
 
-## Experiments ##
-Experiment, Propagator, etc.
-
-## Hyperparameter optimization ##
-Big section. Starts with an example. MLPBuilder, etc. 
-
+<a name="dp.install"/>
 ## Install ##
 ```shell
 sudo apt-get install libpq-dev
@@ -36,3 +41,5 @@ sudo luarocks install underscore
 sudo luarocks install nnx
 sudo apt-get install liblapack-dev
 ```
+
+If you are encountering problems related to BLAS, please refer to Torch7's [BLAS and LAPACK installation manual] (https://github.com/torch/torch7-distro/blob/master/pkg/dok/dokinstall/blas.dok)

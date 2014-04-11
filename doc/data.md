@@ -2,5 +2,14 @@
 DataTensor, DataSet, DataSource, Samplers and Preprocessing.
 DataSource is made up of 3 DataSet instances : train, valid and test.
 
+## DataTensor ##
+TODO
+
+## DataSet ##
+TODO
+
 ## DataSource ##
-A 
+TODO
+
+## Preprocess ##
+TODO

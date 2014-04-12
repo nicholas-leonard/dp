@@ -66,6 +66,13 @@ function table.tostring( tbl )
   return "{" .. table.concat( result, "," ) .. "}"
 end
 
+--http://stackoverflow.com/questions/2705793/how-to-get-number-of-entries-in-a-lua-table
+function table.length(T)
+  local count = 0
+  for _ in pairs(T) do count = count + 1 end
+  return count
+end
+
 --http://stackoverflow.com/questions/8722620/comparing-two-index-tables-by-index-value-in-lua
 local function recursive_compare(t1,t2)
   -- Use usual comparison first.

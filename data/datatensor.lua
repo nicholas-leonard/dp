@@ -20,7 +20,7 @@
 -- returned using the conversion methods (feature, class, image, etc.). 
 -- A DataTensor may also holds metadata about the provided data.
 ------------------------------------------------------------------------
-local DataTensor = torch.class("dp.DataTensor")
+local DataTensor = torch.class("dp.FeatureTensor", "dp.DataTensor")
 DataTensor.isDataTensor = true
 
 function DataTensor:__init(config)
@@ -29,7 +29,7 @@ function DataTensor:__init(config)
       = xlua.unpack(
       {config or {}},
       'DataTensor', 
-      'Builds a data.DataTensor out of torch.Tensor data.',
+      'Builds a dp.DataTensor out of torch.Tensor data.',
       {arg='data', type='torch.Tensor', 
        help='A torch.Tensor with 1 dimensions or more.', req=true},
       {arg='axes', type='table',

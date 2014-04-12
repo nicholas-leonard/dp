@@ -39,13 +39,13 @@ function DataSet:__init(...)
       'DataSet', nil,
       {arg='which_set', type='string', req=true,
        help='"train", "valid" or "test" set'},
-      {arg='inputs', type='dp.DataTensor | list of dp.DataTensor', 
-       help='Inputs of the DataSet taking the form of torch.Tensor '..
+      {arg='inputs', type='dp.DataTensor', 
+       help='Inputs of the DataSet taking the form of dp.DataTensor '..
        'with 2 dimensions, or more if topological is true. '..
        'Alternatively, inputs may take the form of a table of such '..
        'torch.Tensors. The first dimension of the torch.Tensor(s) '..
        'should be of size number of examples.', req=true},
-      {arg='targets', type='dp.DataTensor | torch.Tensor | table', 
+      {arg='targets', type='dp.DataTensor | list of dp.DataTensor', 
        help='Targets of the DataSet taking the form of torch.Tensor '..
        'with 1-2 dimensions. Alternatively, targets may take the '..
        'form of a table of such torch.Tensors. The first dimension '..
@@ -85,51 +85,29 @@ function DataSet:write(...)
 end
 
 function DataSet:setInputs(inputs)
-   if inputs.isDataTensor then
-      -- encapsulate inputs in a table
-      inputs = {inputs}
-   elseif type(inputs) == 'table' then
-      dp.DataTensor.assertInstances(inputs)
-   else
-      assert(inputs.isDataTensor, 
-         "Error : invalid inputs. Expecting type dp.DataTensor")
-   end
+   assert(inputs.isDataTensor, 
+      "Error : invalid inputs. Expecting type dp.DataTensor")
    self._inputs = inputs
 end
 
 function DataSet:setTargets(targets)
-   if targets.isDataTensor then
-      -- encapsulate targets in a table
-      targets = {targets}
-   elseif type(targets) == 'table' then
-      dp.DataTensor.assertInstances(targets)
-   else
-      assert(targets.isDataTensor,
-         "Error : invalid targets. Expecting type dp.DataTensor")
-   end
+   assert(targets.isDataTensor,
+      "Error : invalid targets. Expecting type dp.DataTensor")
    self._targets = targets
 end
 
-
 -- Returns the number of samples in the DataSet.
 function DataSet:nSample()
-   --TODO what to do when DataTensors are of different size?
-   return self._inputs[1]:nSample()
+   return self._inputs:nSample()
 end
 
---Returns set of input dp.DataTensors
-function DataSet:inputs(index)
-   if index then
-      return self._inputs[index]
-   end
+--Returns input dp.DataTensors
+function DataSet:inputs()
    return self._inputs
 end
 
---Returns set of target dp.DataTensors
-function DataSet:targets(index)
-   if index then
-      return self._targets[index]
-   end
+--Returns target dp.DataTensors
+function DataSet:targets()
    return self._targets
 end
 
@@ -167,9 +145,9 @@ function DataSet:preprocess(...)
    end
    --TODO support multi-input/target preprocessing
    if input_preprocess and input_preprocess.isPreprocess then
-      input_preprocess:apply(self._inputs[1], can_fit)
+      input_preprocess:apply(self._inputs, can_fit)
    end
    if target_preprocess and target_preprocess.isPreprocess then
-      target_preprocess:apply(self._targets[1], can_fit)
+      target_preprocess:apply(self._targets, can_fit)
    end
 end

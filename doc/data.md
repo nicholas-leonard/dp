@@ -27,8 +27,8 @@ Constructs a dp.DataTensor out of torch.Tensor data. Arguments can also be passe
 
 `data` is a torch.Tensor with at least 1 dimensions. 
 
-`axes` is a table defining the order and nature of each dimension of a torch.Tensor. Two common examples would be the archtypical MLP input : `{'b', 'f'}`, 
-or a common image representation : `{'b', 'h', 'w', 'c'}`. 
+`axes` is a table defining the order and nature of each dimension of a torch.Tensor. Two common examples would be the archtypical MLP input : `{'b','f'}`, 
+or a common image representation : `{'b','h','w','c'}`. 
 Possible axis symbols are : 
  1. Standard Axes: 
   * `'b'` : Batch/Example 
@@ -40,16 +40,16 @@ Possible axis symbols are :
   * `'w'` : Width 
   * `'d'` : Dept 
 
-The provided `axes` should be the most expanded version of the `data` (the version with the most dimensions). For example, while an image can be represented as a vector, in which case it takes the form of `{'b','f'}`, its expanded axes format could be `{'b', 'h', 'w', 'c'}`. Defaults to `{'b','f'}`.
+The provided `axes` should be the most expanded version of the `data` (the version with the most dimensions). For example, while an image can be represented as a vector, in which case it takes the form of `{'b','f'}`, its expanded axes format could be `{'b','h','w','c'}`. Defaults to `{'b','f'}`.
 
 `sizes` can be a table, a torch.LongTensor or a torch.LongStorage. A table or torch.LongTensor holding the `sizes` of the commensurate dimensions in `axes`. This should be supplied if the dimensions of the data is different from the number of elements in `axes`, in which case it will be used to : `data:reshape(sizes)`. If the sizes has one less elements than `axes`, then it assumes that the missing element is the batch dimension `b` and further extrapolates its size from `data`. Defaults to data:size(). 
 
 <a name="dp.DataTensor.feature"/>
 ### [data] feature([inplace, contiguous]) ###
-Returns a 2D torch.Tensor of examples by features : `{'b', 'f'}`.
+Returns a 2D torch.Tensor of examples by features : `{'b','f'}`.
 
 `inplace` is a boolean. When true, makes `data` a contiguous view of `axes`
-`{'b', 'f'}` for future use. Defaults to true.
+`{'b','f'}` for future use. Defaults to true.
  
 `contiguous` is a boolean. When true, makes sure the returned data is contiguous. 
 Since `inplace` makes it contiguous anyway, this parameter is only considered when `inplace=false`. Defaults to false.
@@ -97,7 +97,6 @@ Or we can use ImageTensor:feature() (inherited from [DataTensor](#dp.DataTensor.
  0.1546  0.5477  0.1261  0.9096  0.7459  0.6923  0.6901  0.2539  0.7569
  0.2150  0.8002  0.3193  0.1342  0.1905  0.1681  0.7421  0.5609  0.4971
 [torch.DoubleTensor of dimension 10x9]
-
 ```
 
 <a name="dp.ImageTensor.__init"/>
@@ -110,7 +109,7 @@ Constructs a dp.ImageTensor out of torch.Tensor data. Arguments can also be pass
 `data` is a torch.Tensor with at least 2 dimensions.  
 
 `axes` is a table defining the order and nature of each dimension of the expanded torch.Tensor. 
-It should be the most expanded version of the `data`. For example, while an individual image can be represented as a vector, in which case it takes the form of `{'b','f'}`, its expanded axes format could be `{'b', 'h', 'w', 'c'}`. Defaults to the latter.
+It should be the most expanded version of the `data`. For example, while an individual image can be represented as a vector, in which case it takes the form of `{'b','f'}`, its expanded axes format could be `{'b','h','w','c'}`. Defaults to the latter.
 
 `sizes` can be a table, a torch.LongTensor or a torch.LongStorage. A table or torch.LongTensor holding the `sizes` of the commensurate dimensions in `axes`. This should be supplied if the dimensions of the data is different from the number of elements in `axes`, in which case it will be used to : `data:reshape(sizes)`. Defaults to data:size().
 
@@ -128,7 +127,7 @@ Since `inplace` makes it contiguous anyway, this parameter is only considered wh
 
 <a name="dp.ImageTensor.feature"/>
 ### [data] feature([inplace, contiguous]) ###
-Returns a 2D torch.Tensor of examples by features : `{'b', 'f'}` (see [DataTensor:feature()](#dp.DataTensor.feature)).
+Returns a 2D torch.Tensor of examples by features : `{'b','f'}` (see [DataTensor:feature()](#dp.DataTensor.feature)).
 
 
 <a name="dp.ClassTensor"/>
@@ -221,7 +220,7 @@ However, assuming the first index of each example vector represents the primary 
 
 <a name="dp.ClassTensor.feature"/>
 ### [data] feature([inplace, contiguous]) ###
-Returns a 2D torch.Tensor of examples by features : `{'b', 'f'}` (see [DataTensor:feature()](#dp.DataTensor.feature)).
+Returns a 2D torch.Tensor of examples by features : `{'b','f'}` (see [DataTensor:feature()](#dp.DataTensor.feature)).
 
 
 <a name="dp.DataSet"/>
@@ -247,10 +246,11 @@ be provided.
 
 <a name="dp.DataSet.__init"/>
 ### dp.DataSet(which_set, inputs, [targets, axes, sizes]) ###
-TODO
-DataSet{
-    which_set = string                  -- "train", "valid" or "test" set
-    inputs = dp.DataTensor | torch.Tensor | table-- Inputs of the DataSet taking the form of torch.Tensor with 2 dimensions, or more if topological is true. Alternatively, inputs may take the form of a table of such torch.Tensors. The first dimension of the torch.Tensor(s) should be of size number of examples.
+Constructs a training, validation or test DataSet from [a set of] [DataTensor](#dp.DataTensor) `inputs` and `targets`.
+
+`which_set` is a string of value `'train'`, `'valid'` or `'test'` for identifying sets used for training, cross-validation and testing, respectively.
+
+`inputs` is either a [DataTensor](#dp.DataTensor), a torch.Tensor or a table. Inputs of the DataSet taking the form of torch.Tensor with 2 dimensions, or more if topological is true. Alternatively, inputs may take the form of a table of such torch.Tensors. The first dimension of the torch.Tensor(s) should be of size number of examples.
     [targets = dp.DataTensor | torch.Tensor | table]-- Targets of the DataSet taking the form of torch.Tensor with 1-2 dimensions. Alternatively, targets may take the form of a table of such torch.Tensors. The first dimension of the torch.Tensor(s) should index examples.
     [axes = table]                      -- Optional. Used when supplied inputs is a torch.Tensor, in order to convert it to dp.DataTensor. In which case, it is a table defining the order and nature of each dimension of a tensor. Two common examples would be the archtypical MLP input : {"b", "f"}, or a common image representation :      {"b", "h", "w", "c"}.     Possible axis symbols are :      1. Standard Axes:        "b" : Batch/Example        "f" : Feature        "t" : Class      2. Image Axes        "c" : Color/Channel        "h" : Height        "w" : Width        "d" : Dept      Defaults to the dp.DataTensor default.
     [sizes = table | torch.LongTensor]  -- Optional. Used when supplied inputs is a torch.Tensor, in order to convert it to dp.DataTensor. In which case, it is a table or torch.LongTensor identifying the sizes of the commensurate dimensions in axes. This should be supplied if the dimensions of the data is different from the number of elements in the axes table, in which case it will be used to : data:resize(sizes). Defaults to dp.DataTensor default.

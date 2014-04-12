@@ -39,7 +39,7 @@ function DataSet:__init(...)
       'DataSet', nil,
       {arg='which_set', type='string', req=true,
        help='"train", "valid" or "test" set'},
-      {arg='inputs', type='dp.DataTensor | torch.Tensor | table', 
+      {arg='inputs', type='dp.DataTensor | list of dp.DataTensor', 
        help='Inputs of the DataSet taking the form of torch.Tensor '..
        'with 2 dimensions, or more if topological is true. '..
        'Alternatively, inputs may take the form of a table of such '..
@@ -49,37 +49,11 @@ function DataSet:__init(...)
        help='Targets of the DataSet taking the form of torch.Tensor '..
        'with 1-2 dimensions. Alternatively, targets may take the '..
        'form of a table of such torch.Tensors. The first dimension '..
-       'of the torch.Tensor(s) should index examples.'},
-      {arg='axes', type='table', 
-       help='Optional. Used when supplied inputs is a torch.Tensor, '..
-       'in order to convert it to dp.DataTensor. In which case, it '.. 
-       'is a table defining the order and nature of each dimension '..
-       'of a tensor. Two common examples would be the archtypical '..
-       'MLP input : {"b", "f"}, or a common image representation : '..
-       '     {"b", "h", "w", "c"}.'..
-       '     Possible axis symbols are : '..
-       '     1. Standard Axes: '..
-       '       "b" : Batch/Example '..
-       '       "f" : Feature '..
-       '       "t" : Class '..
-       '     2. Image Axes '..
-       '       "c" : Color/Channel '..
-       '       "h" : Height '..
-       '       "w" : Width '..
-       '       "d" : Dept '..
-       '     Defaults to the dp.DataTensor default.'},
-      {arg='sizes', type='table | torch.LongTensor', 
-       help='Optional. Used when supplied inputs is a torch.Tensor, '..
-       'in order to convert it to dp.DataTensor. In which case, it '..
-       'is a table or torch.LongTensor identifying the sizes of the '..
-       'commensurate dimensions in axes. This should be supplied '..
-       'if the dimensions of the data is different from the number '..
-       'of elements in the axes table, in which case it will be used '..
-       'to : data:resize(sizes). Defaults to dp.DataTensor default.'}
+       'of the torch.Tensor(s) should index examples.'}
    )
    self:setWhichSet(which_set)
-   self:setInputs(inputs, axes, size)  
-   if targets then self:setTargets(targets, classes) end
+   self:setInputs(inputs)  
+   if targets then self:setTargets(targets) end
 end
 
 function DataSet:setWhichSet(which_set)
@@ -110,39 +84,28 @@ function DataSet:write(...)
    error"DataSet Error: Shouldn't serialize DataSet"
 end
 
---TODO: accept list of axes and sizes
-function DataSet:setInputs(inputs, axes, sizes)
-   if type(inputs) ~= 'table' or inputs.isDataTensor then
-      if torch.isTensor(inputs) then
-         --convert torch.Tensor to dp.DataTensor
-         inputs = dp.DataTensor{data=inputs, axes=axes, sizes=sizes}
-      end
-      assert(inputs.isDataTensor,
-         "Error : invalid inputs. Expecting type dp.DataTensor")
+function DataSet:setInputs(inputs)
+   if inputs.isDataTensor then
       -- encapsulate inputs in a table
       inputs = {inputs}
-   else
+   elseif type(inputs) == 'table' then
       dp.DataTensor.assertInstances(inputs)
+   else
+      assert(inputs.isDataTensor, 
+         "Error : invalid inputs. Expecting type dp.DataTensor")
    end
    self._inputs = inputs
 end
 
-function DataSet:setTargets(targets, classes)
-   if type(targets) ~= 'table' or targets.isDataTensor then
-      if torch.isTensor(targets) then
-         --convert torch.Tensor to dp.DataTensor
-         if classes then
-            targets = dp.ClassTensor{data=targets, classes=classes}
-         else
-            targets = dp.DataTensor{data=targets}
-         end
-      end
+function DataSet:setTargets(targets)
+   if targets.isDataTensor then
+      -- encapsulate targets in a table
+      targets = {targets}
+   elseif type(targets) == 'table' then
+      dp.DataTensor.assertInstances(targets)
+   else
       assert(targets.isDataTensor,
          "Error : invalid targets. Expecting type dp.DataTensor")
-      -- encapsulate inputs in a table
-      targets = {targets}
-   else
-      dp.DataTensor.assertInstances(targets)
    end
    self._targets = targets
 end
@@ -198,7 +161,7 @@ function DataSet:preprocess(...)
           'training set.'}
    )
    assert(input_preprocess or target_preprocess, 
-      "Error: no preprocess (neither input or target) provided)")
+      "Error: no preprocess (neither input nor target) provided)")
    if can_fit == nil then
       can_fit = self:isTrain()
    end

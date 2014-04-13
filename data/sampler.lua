@@ -3,7 +3,7 @@
 -- Support multi-input/target datatensors
 -- Batch inherits DataSet
 -- postpone dataview to model.
--- pass criterion to batch? Or criterion needs to be adapted for providing dataview
+-- criterion needs to be decorated for providing dataview
 -- dont clone, copy into buffer.
 -- model determines sample type
 -- batch gets classes from targets.

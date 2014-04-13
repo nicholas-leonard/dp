@@ -10,15 +10,15 @@
 -- Samples should create the Batch once every epoch, for speed?
 -- Make this a table (gstate), or allow it a gstate table.
 ------------------------------------------------------------------------
-local DataBatch, parent = torch.class("dp.DataBatch", "dp.DataSet")
-DataBatch.isDataBatch = true
+local Batch, parent = torch.class("dp.Batch", "dp.BaseSet")
+Batch.isBatch = true
 
-function DataBatch:__init(...)
+function Batch:__init(...)
    local args, inputs, targets, batch_iter, epoch_size, batch_size, 
-      n_sample, classes, grad_type, indices
+      n_sample, grad_type, indices
       = xlua.unpack(
       {... or {}},
-      'DataBatch', nil,
+      'Batch', nil,
       {arg='inputs', type='torch.Tensor', req=true,
        help='batch of inputs'},
       {arg='targets', type='torch.Tensor',
@@ -27,10 +27,6 @@ function DataBatch:__init(...)
       {arg='epoch_size', type='number'},
       {arg='batch_size', type='number'},
       {arg='n_sample', type='number'},
-      {arg='classes', type='table', 
-       help='temporary hack for confusion feedback worker until this '..
-      'class in made to inherit DataSet and spawned from a dataset ' ..
-      'via a Sampler.'},
       {arg='grad_type', type='string'},
       {arg='indices', type='torch.Tensor', 
        help='indices of the examples in the original dataset.'}
@@ -41,57 +37,56 @@ function DataBatch:__init(...)
    self._epoch_size = epoch_size
    self._batch_size = batch_size
    self._n_sample = n_sample
-   self._classes = classes
    self._grad_type = grad_type
    self._indices = indices
 end
 
 -- TODO get classes from first target datatensor
-function DataBatch:classes()
+function Batch:classes()
    return self._classes
 end
 
-function DataBatch:setOutputs(outputs)
+function Batch:setOutputs(outputs)
    self._outputs = outputs
 end
 
-function DataBatch:outputs()
+function Batch:outputs()
    return self._outputs:double()
 end
 
-function DataBatch:setLoss(loss)
+function Batch:setLoss(loss)
    self._loss = loss
 end
 
-function DataBatch:loss()
+function Batch:loss()
    return self._loss
 end
 
-function DataBatch:setOutputGradients(output_gradients)
+function Batch:setOutputGradients(output_gradients)
    self._output_gradients = output_gradients
 end
 
-function DataBatch:outputGradients()
+function Batch:outputGradients()
    return self._output_gradients:type(self._grad_type)
 end
 
-function DataBatch:batchSize()
+function Batch:batchSize()
    return self._batch_size
 end
 
-function DataBatch:nSample()
+function Batch:nSample()
    return self._n_sample
 end
 
-function DataBatch:epochSize()
+function Batch:epochSize()
    return self._epoch_size
 end
 
-function DataBatch:batchIter()
+function Batch:batchIter()
    return self._batch_iter
 end
 
-function DataBatch:indices()
+function Batch:indices()
    return self._indices
 end
    

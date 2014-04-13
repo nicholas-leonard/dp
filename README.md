@@ -1,6 +1,6 @@
 # dp Package Reference Manual#
 
-__dp__ is a __d__ee__p__ learning library designed for speeding up 
+__dp__ is a <b>d</b>ee<b>p</b> learning library designed for speeding up 
 research and development using the [Torch7](http://torch.ch) distribution.
 Inspired by pylearn2/Theano, it provides common datasets like MNIST, CIFAR-10 and CIFAR-100, 
 preprocessing like Zero-Component Analysis whitening, Global Contrast Normalization, 

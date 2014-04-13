@@ -2,6 +2,12 @@
 -- Use Random_seed
 -- Support multi-input/target datatensors
 -- Batch inherits DataSet
+-- postpone dataview to model.
+-- pass criterion to batch? Or criterion needs to be adapted for providing dataview
+-- dont clone, copy into buffer.
+-- model determines sample type
+-- batch gets classes from targets.
+-- Dataset could be called with sub, index to generate Batch
 
 ------------------------------------------------------------------------
 --[[ Sampler ]]--
@@ -62,13 +68,6 @@ function Sampler:setBatchSize(batch_size)
    self._batch_size = batch_size
 end
 
-function Sampler:setDataView(data_view)
-   if type(data_view) == 'string' then
-      data_view = {data_view}
-   end
-   self._data_view = data_view
-end
-
 function Sampler:batchSize()
    return self._batch_size
 end
@@ -90,45 +89,24 @@ end
 
 --Returns an iterator over samples for one epoch
 --Default is to iterate sequentially over all examples
-function Sampler:sampleEpoch(data)
+function Sampler:sampleEpoch(data, batch)
+   batch = batch or dp.Batch()
    local dataset = dp.Sampler.toDataset(data)
    local nSample = dataset:nSample()
    local batch_size = self._batch_size
-   local data_view = self._data_view
    local start = 1
    local stop
-   local dataset_inputs = dataset:inputs()
-   local dataset_targets = dataset:targets()
    -- build iterator
    local epochSamples = 
       function()
          stop = math.min(start+batch_size-1,nSample)
          -- inputs
-         local batch_inputs = {}
-         for i=1,#dataset_inputs do
-            local dv = data_view[i]
-            local dt = dataset_inputs[i]
-            -- we clone these so that they are not serialized
-            -- TODO : model:forwardActivate instead of ref.
-            batch_inputs[i] = dt[dv](dt):sub(
-                                    start, stop
-                                 ):clone():type(self._sample_type)
-         end
+         batch:inputs():copy(dataset:inputs():sub(start, stop))
          -- targets
-         local batch_function = 
-            function(datatensor) 
-               return datatensor:default():sub(
-                                    start, stop
-                                 ):clone() --:type(self._sample_type)
-            end
-         local batch_targets = _.map(dataset_targets, batch_function)
-         --TODO support multi-input/target datasets
-         --Dataset should be called with sub, index to generate Batch
-         local batch = dp.Batch{
-            inputs=batch_inputs[1], targets=batch_targets[1], 
+         batch:targets():copy(dataset:targets():sub(start, stop))
+         batch:setup{
             batch_iter=stop, epoch_size=nSample, 
             batch_size=batch_size, n_sample=stop-start+1,
-            classes=dataset_targets[1]:classes(),
             grad_type=self._sample_type, indices=torch.range(start,stop)
          }
          start = start + batch_size

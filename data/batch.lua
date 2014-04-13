@@ -10,15 +10,15 @@
 -- Samples should create the Batch once every epoch, for speed?
 -- Make this a table (gstate), or allow it a gstate table.
 ------------------------------------------------------------------------
-local Batch = torch.class("dp.Batch", "dp.DataSet")
-Batch.isBatch = true
+local DataBatch, parent = torch.class("dp.DataBatch", "dp.DataSet")
+DataBatch.isDataBatch = true
 
-function Batch:__init(...)
+function DataBatch:__init(...)
    local args, inputs, targets, batch_iter, epoch_size, batch_size, 
       n_sample, classes, grad_type, indices
       = xlua.unpack(
       {... or {}},
-      'Batch', nil,
+      'DataBatch', nil,
       {arg='inputs', type='torch.Tensor', req=true,
        help='batch of inputs'},
       {arg='targets', type='torch.Tensor',
@@ -46,59 +46,52 @@ function Batch:__init(...)
    self._indices = indices
 end
 
-function Batch:inputs()
-   return self._inputs
-end
-
-function Batch:targets()
-   return self._targets
-end
-
-function Batch:classes()
+-- TODO get classes from first target datatensor
+function DataBatch:classes()
    return self._classes
 end
 
-function Batch:setOutputs(outputs)
+function DataBatch:setOutputs(outputs)
    self._outputs = outputs
 end
 
-function Batch:outputs()
+function DataBatch:outputs()
    return self._outputs:double()
 end
 
-function Batch:setLoss(loss)
+function DataBatch:setLoss(loss)
    self._loss = loss
 end
 
-function Batch:loss()
+function DataBatch:loss()
    return self._loss
 end
 
-function Batch:setOutputGradients(output_gradients)
+function DataBatch:setOutputGradients(output_gradients)
    self._output_gradients = output_gradients
 end
 
-function Batch:outputGradients()
+function DataBatch:outputGradients()
    return self._output_gradients:type(self._grad_type)
 end
 
-function Batch:batchSize()
+function DataBatch:batchSize()
    return self._batch_size
 end
 
-function Batch:nSample()
+function DataBatch:nSample()
    return self._n_sample
 end
 
-function Batch:epochSize()
+function DataBatch:epochSize()
    return self._epoch_size
 end
 
-function Batch:batchIter()
+function DataBatch:batchIter()
    return self._batch_iter
 end
 
-function Batch:indices()
+function DataBatch:indices()
    return self._indices
 end
    

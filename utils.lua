@@ -239,6 +239,11 @@ function torch.view(tensor)
    end
 end
 
+-- returns an empty (zero-dim) clone of a tensor
+function torch.emptyClone(tensor)
+   return torch.factory(tensor:type())()
+end
+
 -- simple helpers to serialize/deserialize arbitrary objects/tables
 function torch.serialize(object, mode)
    mode = mode or 'binary'

@@ -13,15 +13,15 @@ function CompositeTensor:__init(config)
       {arg='components', type='list of dp.BaseTensor', 
        help='A list of dp.BaseTensors', req=true}
    )   
-   dp.DataTensor.assertInstances(inputs)
+   parent.assertInstances(components)
    self._components = components
 end
 
 -- Returns number of samples
 function CompositeTensor:nSample()
-   assert(#self:storedAxes() == self:storedSize():nElement(),
-      "Error : unequal number of axis for size and axes")
-   return self:storedSize()[self:b()]
+   for k,component in self:pairs() do
+      return component:nSample()
+   end
 end
 
 --Decorator/Adapter for torch.Tensor
@@ -46,4 +46,29 @@ end
 -- return iterator over components
 function CompositeTensor:pairs()
    return pairs(self._components)
+end
+
+
+-- return a clone without data 
+function CompositeTensor:emptyClone()
+   return dp.CompositeTensor{
+      components=_.map(self._components,
+         function(component)
+            return component:emptyClone()
+         end
+      )
+   }
+end
+
+-- copy data into existing memory allocated for data
+function CompositeTensor:copy(compositetensor)
+   assert(compositetensor.isCompositeTensor, 
+      "CompositeTensor:copy() error : expecting CompositeTensor")
+   for k,v in self:pairs() do
+      v:copy(compositetensor:components()[k])
+   end
+end
+
+function CompositeTensor:components()
+   return self._components
 end

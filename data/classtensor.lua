@@ -73,12 +73,12 @@ function ClassTensor:multiclass(...)
    )
    --creates a new view of the same storage
    local data = torch.view(self._data)
-   if data:dim() == 2 and table.eq(self.axes, axes) then
+   if data:dim() == 2 and table.eq(self._axes, axes) then
       return self._data
    end
-   assert(table.eq(self.axes, {'b'}) or table.eq(self.axes, {'t', 'b'}),
+   assert(table.eq(self._axes, {'b'}) or table.eq(self._axes, {'t', 'b'}),
           "Error: DataTensor doesn't support conversion to {'b', 't'}")
-   local b = _.indexOf(self.axes, 'b')
+   local b = self:b()
    if b == 0 then
       error("No batch ('b') dimension")
    elseif b ~= 1 then

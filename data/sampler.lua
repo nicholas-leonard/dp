@@ -108,6 +108,7 @@ function Sampler:sampleEpoch(data, batch)
          batch:inputs():copy(dataset:inputs():sub(start, stop))
          -- targets
          batch:targets():copy(dataset:targets():sub(start, stop))
+         -- metadata
          batch:setup{
             batch_iter=stop, epoch_size=nSample, 
             batch_size=batch_size, n_sample=stop-start+1,

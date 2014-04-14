@@ -10,7 +10,7 @@ function BaseSet:__init(...)
       = xlua.unpack(
       {... or {}},
       'BaseSet', nil,
-      {arg='which_set', type='string', req=true,
+      {arg='which_set', type='string',
        help='"train", "valid" or "test" set'},
       {arg='inputs', type='dp.DataTensor | table of dp.DataTensors', 
        help='Sample inputs to a model. These can be DataTensors or '..

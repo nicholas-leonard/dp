@@ -28,7 +28,7 @@ local DataSet, parent = torch.class("dp.DataSet", "dp.BaseSet")
 DataSet.isDataSet = true
 
 function DataSet:__init(config)
-   local args, which_set, inputs, targets
+   local args, which_set, inputs
       = xlua.unpack(
       {config or {}},
       'DataSet', nil,
@@ -37,16 +37,10 @@ function DataSet:__init(config)
       {arg='inputs', type='dp.DataTensor | table of dp.DataTensors', 
        help='Sample inputs to a model. These can be DataTensors or '..
        'a table of DataTensors (in which case these are converted '..
-       'to a CompositeTensor', req=true},
-      {arg='targets', type='dp.DataTensor | table of dp.DataTensors', 
-       help='Sample targets to a model. These can be DataTensors or '..
-       'a table of DataTensors (in which case these are converted '..
-       'to a CompositeTensor. The indices of examples must be '..
-       'in both inputs and targets must be aligned.'}
+       'to a CompositeTensor', req=true}
    )
    config.which_set = which_set
    config.inputs = inputs
-   config.targets = targets
    parent.__init(self, config)
 end
 
@@ -59,4 +53,13 @@ end
 function DataSet:probabilities()
    error"NotImplementedError"
    return self._probabilities
+end
+
+-- builds an empty batch (factory method)
+function DataSet:batch()
+   dp.Batch{
+      which_set=self:whichSet(), 
+      inputs=self:inputs():emptyClone(),
+      targets=self:targets() and targets:emptyClone()
+   }
 end

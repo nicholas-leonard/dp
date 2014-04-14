@@ -24,14 +24,14 @@ local DataTensor, parent = torch.class("dp.DataTensor", "dp.BaseTensor")
 DataTensor.isDataTensor = true
 
 function DataTensor:__init(config)
-   local args, sizes
-   args, self._data, self.axes, sizes
-      = xlua.unpack(
+   local args, data, axes, sizes = xlua.unpack(
       {config or {}},
       'DataTensor', 
       'Builds a dp.DataTensor out of torch.Tensor data.',
-      {arg='data', type='torch.Tensor', 
-       help='A torch.Tensor with 1 dimensions or more.', req=true},
+      {arg='data', type='torch.Tensor | dp.DataTensor', req=true,
+       help='A torch.Tensor with 1 dimensions or more. Or setup from '..
+       'an existing dp.DataTensor (in which case, other params are '..
+       'ignored.'},
       {arg='axes', type='table',
        help='A table defining the order and nature of each dimension '..
        'of a tensor. Two common examples would be the archtypical '..
@@ -59,20 +59,28 @@ function DataTensor:__init(config)
        'of elements in the axes table, in which case it will be used '..
        'to : data:reshape(sizes). Default is data:size().'}
    )   
-   self.axes = self.axes or {'b','f'}
+   if data.isDataTensor then
+      self._axes = table.copy(data:storedAxes())
+      self._expanded_axes = table.copy(data:expandedAxes())
+      self._expanded_size = data:expandedSize():clone()
+      data = data:data()
+      return
+   end
+   self._data = data
+   self._axes = axes or {'b','f'}
    -- Keeps track of the most expanded size (the one with more dims) of the
    -- data. An example would be {'b','h','w','c'} being the expanded_size
    -- of an set of images currently stored as {'b', 'f'}
-   self.expanded_size = torch.LongTensor(self._data:size())
-   local b = _.indexOf(self.axes, 'b')
+   self._expanded_size = torch.LongTensor(self._data:size())
+   local b = _.indexOf(self._axes, 'b')
    if b == 0 then
-      self.axes = _.concat({'b'},self.axes)
+      self._axes = _.concat({'b'},self._axes)
       local b = 1
       print("DataTensor Warning: no 'b' axis provided, assuming axes=" .. 
-         table.tostring(self.axes))
+         table.tostring(self._axes))
    end
       
-   self.expanded_axes = self.axes
+   self._expanded_axes = self._axes
    
    if sizes == nil then
       sizes = torch.LongTensor(self._data:size())
@@ -81,11 +89,11 @@ function DataTensor:__init(config)
          sizes = {sizes}
       end
       if type(sizes) == 'table' then
-         if (#sizes + 1) ==  #self.axes then
+         if (#sizes + 1) ==  #self._axes then
             -- The user only specified the size of the non-b dimensions
             if b == 1 then
                sizes = {self._data:size(1), unpack(sizes)}
-            elseif b == #self.axes then
+            elseif b == #self._axes then
                sizes = {unpack(sizes), self._data:size(-1)}
             else
                error("'b' is not in first or last axis, and provided "..
@@ -104,10 +112,10 @@ function DataTensor:__init(config)
             "Error: sizes specify more elements than available in " .. 
             "data: sizes:prod(1)[1]=" .. sizes:prod(1)[1] .. 
             ", while data:nElement()=" .. self._data:nElement())
-      assert(sizes:size(1) == #(self.axes),
+      assert(sizes:size(1) == #(self._axes),
              "Error: sizes should specify as many dims as axes:" ..
-             tostring(sizes) .. " " .. table.tostring(self.axes))
-      if self._data:dim() ~= #(self.axes) then
+             tostring(sizes) .. " " .. table.tostring(self._axes))
+      if self._data:dim() ~= #(self._axes) then
          print("DataTensor Warning: data:size() is different than sizes. " ..
                "Assuming data is appropriately contiguous. " ..
                "Resizing data to sizes")
@@ -116,7 +124,7 @@ function DataTensor:__init(config)
    end
    -- Keep track of the most expanded size
    self:storeExpandedSize(sizes)
-   assert(self._data:dim() == #(self.axes), 
+   assert(self._data:dim() == #(self._axes), 
          "Error: data should have as many dims as specified in axes" )
 end
 
@@ -135,11 +143,11 @@ function DataTensor:nSample()
 end
 
 function DataTensor:expandedSize()
-   return torch.LongTensor(self.expanded_size)
+   return torch.LongTensor(self._expanded_size)
 end
 
 function DataTensor:expandedAxes()
-   return self.expanded_axes
+   return self._expanded_axes
 end
 
 -- Keeps track of the most expanded size (the one with more dims) of the
@@ -149,7 +157,7 @@ function DataTensor:storeExpandedSize(new_size)
    new_size = torch.LongTensor(new_size)
    if new_size:size(1) >= self:expandedSize():size(1) then
       --new_sizes is a more expanded version, store it as expanded_size
-      self.expanded_size = new_size
+      self._expanded_size = new_size
    end
 end
 
@@ -159,7 +167,7 @@ function DataTensor:storeExpandedAxes(new_axes)
       --furthermore, if new_axes is same length as old expanded_axes,
       --assume some axes have been transposed, such that new_axes is the
       --new expanded representation
-      self.expanded_axes = new_axes
+      self._expanded_axes = new_axes
    end
 end
 
@@ -168,7 +176,7 @@ function DataTensor:storedSize()
 end
 
 function DataTensor:storedAxes()
-   return self.axes
+   return self._axes
 end
 
 -- Stores a new representation of the data, where new_axes specifies
@@ -178,7 +186,7 @@ function DataTensor:store(new_data, new_axes)
           "new_data should have same number of elements as self._data")
    self:storeExpandedAxes(new_axes)
    self:storeExpandedSize(new_data:size())
-   self.axes = new_axes
+   self._axes = new_axes
    self._data = new_data
 end
 
@@ -200,10 +208,10 @@ function DataTensor:feature(...)
    )
    --creates a new view of the same storage
    local data = torch.view(self._data)
-   if self._data:dim() == 2 and table.eq(self.axes, axes) then
+   if self._data:dim() == 2 and table.eq(self._axes, axes) then
       return self._data
    end
-   local b = _.indexOf(self.axes, 'b')
+   local b = _.indexOf(self._axes, 'b')
    if b == 0 then
       error("No batch ('b') dimension")
    elseif b ~= 1 then
@@ -254,38 +262,21 @@ function DataTensor:index(indices)
    return self._data:index(self:b(), indices)
 end
 
-function DataTensor.transpose(axis, new_dim, axes, size, data)
-   -- copy
-   axes = _.omit(axes)
-   local current_dim = _.indexOf(axes, axis)
-   if current_dim == 0 then
-      error("Axis " .. axis .. 'is not in axes ' .. axes)
-   end
-   if new_dim < 0 then
-      new_dim = #axes + 1 - new_dim
-   end
-   if current_dim ~= new_dim then
-      axes[current_dim] = axes[new_dim]
-      axes[new_dim] = axis
-      local new_size = size[new_dim]
-      size[new_dim] = size[current_dim]
-      size[current_dim] = new_size
-      if data then
-         data = data:transpose(new_dim, current_dim)
-      end
-   end
-   return axes, size, data
+-- return a clone without data 
+function DataTensor:emptyClone()
+   return dp.DataTensor{
+      data=torch.emptyClone(self._data),
+      axes=table.copy(self:expandedAxes()),
+      sizes=self:expandedSize():clone()
+   }
 end
 
---returns true if all indices in obj_table are instances of DataTensor
---else return false and index of first non-element
-function DataTensor.areInstances(obj_table)
-   local map = _.map(obj_table, function(obj) return obj.isDataTensor end)
-   return _.all(map), _.indexOf(map, false)
+-- copy data into existing memory allocated for data
+function DataTensor:copy(datatensor)
+   self._data:copy(datatensor:data())
+   self._axes = table.copy(datatensor:storedAxes())
+   self._expanded_axes = table.copy(datatensor:expandedAxes())
+   self._expanded_size = datatensor:expandedSize())
 end
 
-function DataTensor.assertInstances(obj_table)
-   local areInstances, index = DataTensor.areInstances(obj_table)
-   assert(areInstances, "Error : object at index " .. index .. 
-      " is of wrong type. Expecting type dp.DataTensor.")
-end
+

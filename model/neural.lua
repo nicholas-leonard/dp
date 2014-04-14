@@ -1,6 +1,7 @@
 ------------------------------------------------------------------------
 --[[ Neural ]]--
--- An affine transformation followed by a non-linearity
+-- An affine transformation followed by a transfer function.
+-- For a linear transformation, you can use nn.Identity.
 ------------------------------------------------------------------------
 local Neural, parent = torch.class("dp.Neural", "dp.Model")
 Neural.isNeural = true
@@ -11,13 +12,14 @@ function Neural:__init(config)
          sparse_init = xlua.unpack(
       {config},
       'Neural', 
-      'An affine transformation followed by a non-linearity',
+      'An affine transformation followed by a transfer function.',
       {arg='input_size', type='number', req=true,
        help='Number of input neurons'},
       {arg='output_size', type='number', req=true,
        help='Number of output neurons'},
       {arg='transfer', type='nn.Module', req=true,
-       help='a transfer function like nn.Tanh, nn.Sigmoid, nn.ReLU'},
+       help='a transfer function like nn.Tanh, nn.Sigmoid, '..
+       'nn.ReLU, nn.Identity, etc.'},
       {arg='dropout', type='nn.Dropout', 
        help='applies dropout to the inputs of this model.'},
       {arg='typename', type='string', default='neural', 

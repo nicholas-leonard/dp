@@ -1,6 +1,6 @@
 ------------------------------------------------------------------------
 --[[ dp.Container ]]--
--- Model Composite of Model Components
+-- Composite of Model Components
 ------------------------------------------------------------------------
 local Container, parent = torch.class("dp.Container", "dp.Model")
 Container.isContainer = true
@@ -9,7 +9,8 @@ function Container:__init(config)
    config = config or {}
    local args, models = xlua.unpack(
       {config},
-      'Sequential', nil,
+      'Container', 
+      'Composite of Model Components',
       {arg='models', type='table', help='a table of models'}
    )
    self._models = {}      

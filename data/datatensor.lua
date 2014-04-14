@@ -265,7 +265,7 @@ end
 --Returns a sub-datatensor narrowed on the batch dimension
 function DataTensor:sub(start, stop)
    return torch.factory(torch.typename(self)){
-      data=self._data:narrow(self:b(), start, stop-start+1)
+      data=self._data:narrow(self:b(), start, stop-start+1),
       axes=table.copy(self:expandedAxes()),
       sizes=self:expandedSize():clone()
    }

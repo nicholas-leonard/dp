@@ -30,8 +30,8 @@ function Batch:setup(config)
       {arg='batch_iter', type='number',
        help='Count of the number of examples seen so far. Used to '..
        'update progress bar. Shouldn\'t be larger than epoch_size.'}, 
-      {arg='batch_size', type='number'
-       help='Maximum batch_size.'},
+      {arg='batch_size', type='number',
+       help='Maximum number of examples in batch.'},
       {arg='n_sample', type='number',
        help='Actual number of examples in batch. Shouldn\'t be '..
        'larger than batch_size.'},

@@ -1,8 +1,10 @@
+--[[ TODO ]]--
+-- to allow for automatic reshapes, set_input_space, as in pylearn2?
+-- remove predecessor, successor, etc?
+
 ------------------------------------------------------------------------
 --[[ Model ]]--
--- Module Adapter, Component
--- Could allow for reimplementation of each nn.Module
--- to allow for automatic reshapes, set_input_space, as in pylearn2?
+-- Module Adapter
 ------------------------------------------------------------------------
 local Model = torch.class("dp.Model")
 Model.isModel = true
@@ -35,7 +37,8 @@ function Model:setup(...)
       {... or {}},
       'Model:setup', nil,
       {arg='mediator', type='dp.Mediator'},
-      {arg='id', type='dp.ObjectID'},
+      {arg='id', type='dp.ObjectID',
+       help='Uniquely identifies model.'},
       {arg='predecessor', type='dp.Model'},
       {arg='successor', type='dp.Model'},
       {arg='container', type='dp.CompositeModel'},
@@ -198,7 +201,6 @@ function Model:zeroGradParameters()
 end
 
 function Model:zeroStatistics()
-   
 end
 
 function Model:clone()

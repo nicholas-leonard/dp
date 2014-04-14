@@ -20,7 +20,7 @@
 -- returned using the conversion methods (feature, class, image, etc.). 
 -- A DataTensor may also holds metadata about the provided data.
 ------------------------------------------------------------------------
-local DataTensor = torch.class("dp.FeatureTensor", "dp.DataTensor")
+local DataTensor, parent = torch.class("dp.DataTensor", "dp.BaseTensor")
 DataTensor.isDataTensor = true
 
 function DataTensor:__init(config)
@@ -241,6 +241,10 @@ end
 
 function DataTensor:setData(data)
    self._data = data
+end
+
+function DataTensor:pairs()
+   return pairs{self}
 end
 
 --Decorator/Adapter for torch.Tensor

@@ -262,9 +262,18 @@ function DataTensor:index(indices)
    return self._data:index(self:b(), indices)
 end
 
+--Returns a sub-datatensor narrowed on the batch dimension
+function DataTensor:sub(start, stop)
+   return torch.factory(torch.typename(self)){
+      data=self._data:narrow(self:b(), start, stop-start+1)
+      axes=table.copy(self:expandedAxes()),
+      sizes=self:expandedSize():clone()
+   }
+end
+
 -- return a clone without data 
 function DataTensor:emptyClone()
-   return dp.DataTensor{
+   return torch.factory(torch.typename(self)){
       data=torch.emptyClone(self._data),
       axes=table.copy(self:expandedAxes()),
       sizes=self:expandedSize():clone()
@@ -276,7 +285,7 @@ function DataTensor:copy(datatensor)
    self._data:copy(datatensor:data())
    self._axes = table.copy(datatensor:storedAxes())
    self._expanded_axes = table.copy(datatensor:expandedAxes())
-   self._expanded_size = datatensor:expandedSize())
+   self._expanded_size = datatensor:expandedSize()
 end
 
 

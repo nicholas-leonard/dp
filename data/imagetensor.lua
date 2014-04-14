@@ -107,3 +107,4 @@ function ImageTensor:imageCUDA(...)
    --TODO
    error("Error Not Implemented")
 end
+

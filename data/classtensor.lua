@@ -137,9 +137,19 @@ function ClassTensor:manyhot(...)
    error("Not Implemented")
 end
 
+--Returns a sub-datatensor narrowed on the batch dimension
+function ClassTensor:sub(start, stop)
+   return torch.factory(torch.typename(self)){
+      data=self._data:narrow(self:b(), start, stop-start+1)
+      axes=table.copy(self:expandedAxes()),
+      sizes=self:expandedSize():clone(),
+      classes=self:classes()
+   }
+end
+
 -- return a clone without data 
 function ClassTensor:emptyClone()
-   return dp.ImageTensor{
+   return torch.factory(torch.typename(self)){
       data=torch.emptyClone(self._data),
       axes=table.copy(self:expandedAxes()),
       sizes=self:expandedSize():clone(),

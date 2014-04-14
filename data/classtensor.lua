@@ -136,3 +136,20 @@ end
 function ClassTensor:manyhot(...)
    error("Not Implemented")
 end
+
+-- return a clone without data 
+function ClassTensor:emptyClone()
+   return dp.ImageTensor{
+      data=torch.emptyClone(self._data),
+      axes=table.copy(self:expandedAxes()),
+      sizes=self:expandedSize():clone(),
+      classes=self:classes()
+   }
+end
+
+-- copy data into existing memory allocated for data
+function ClassTensor:copy(classtensor)
+   parent.copy(self, classtensor)
+   self._classes = table.copy(classtensor:classes())
+end
+

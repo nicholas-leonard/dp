@@ -2,7 +2,6 @@
 -- Use Random_seed
 -- postpone dataview to model.
 -- criterion needs to be decorated for providing dataview
--- dont clone, copy into buffer.
 -- model determines sample type
 -- batch gets classes from targets.
 -- Dataset could be called with sub, index to generate Batch
@@ -93,28 +92,26 @@ end
 
 --Returns an iterator over samples for one epoch
 --Default is to iterate sequentially over all examples
-function Sampler:sampleEpoch(data, batch)
-   batch = batch or dp.Batch()
-   local dataset = dp.Sampler.toDataset(data)
-   local nSample = dataset:nSample()
-   local batch_size = self._batch_size
+function Sampler:sampleEpoch(dataset, batch)
+   dataset = dp.Sampler.toDataset(dataset)
+   batch = batch or dataset:emptyBatch()
    local start = 1
    local stop
    -- build iterator
    local epochSamples = 
       function()
-         stop = math.min(start+batch_size-1,nSample)
+         stop = math.min(start+self._batch_size-1,nSample)
          -- inputs
          batch:inputs():copy(dataset:inputs():sub(start, stop))
          -- targets
          batch:targets():copy(dataset:targets():sub(start, stop))
          -- metadata
          batch:setup{
-            batch_iter=stop, epoch_size=nSample, 
-            batch_size=batch_size, n_sample=stop-start+1,
-            grad_type=self._sample_type, indices=torch.range(start,stop)
+            batch_iter=stop, batch_size=self._batch_size,
+            n_sample=stop-start+1, grad_type=self._sample_type, 
+            indices=torch.range(start,stop)
          }
-         start = start + batch_size
+         start = start + self._batch_size
          if start >= nSample then
             return
          end

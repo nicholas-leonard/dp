@@ -1,5 +1,4 @@
 --[[ TODO ]]--
--- How to preprocess targets (fit only train?)
 -- Each preprocess has a unique id, which we can use to cache
 
 ------------------------------------------------------------------------

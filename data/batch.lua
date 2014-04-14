@@ -7,31 +7,42 @@
 local Batch, parent = torch.class("dp.Batch", "dp.BaseSet")
 Batch.isBatch = true
 
+function Batch:__init(config)
+   local args, epoch_size = xlua.unpack(
+      {config or {}},
+      'Batch', 
+      'State of a mini-batch to be fed into a model and criterion.',
+      {arg='epoch_size', type='number',
+       help='number of samples in original dataset'}
+   )
+   self._epoch_size = epoch_size
+   parent.__init(self, config)
+end
+
 function Batch:setup(config)
-   local args
-   args, self._batch_iter, self._epoch_size, self._batch_size, 
-      self._n_sample, self._grad_type, self._indices 
+   local args, epoch_size
+   args, self._batch_iter, self._batch_size, self._n_sample, 
+      self._grad_type, self._indices, epoch_size
       = xlua.unpack(
       {config or {}},
       'Batch:setup', 
       'post-construction setup. Usually performed by Sampler.',
-      {arg='inputs', type='dp.DataTensor | table of dp.DataTensors', 
-       help='Sample inputs to a model. These can be DataTensors or '..
-       'a table of DataTensors (in which case these are converted '..
-       'to a CompositeTensor'},
-      {arg='targets', type='dp.DataTensor | table of dp.DataTensors', 
-       help='Sample targets to a model. These can be DataTensors or '..
-       'a table of DataTensors (in which case these are converted '..
-       'to a CompositeTensor. The indices of examples must be '..
-       'in both inputs and targets must be aligned.'},
-      {arg='batch_iter', type='number'}, 
-      {arg='epoch_size', type='number'},
-      {arg='batch_size', type='number'},
-      {arg='n_sample', type='number'},
-      {arg='grad_type', type='string'},
+      {arg='batch_iter', type='number',
+       help='Count of the number of examples seen so far. Used to '..
+       'update progress bar. Shouldn\'t be larger than epoch_size.'}, 
+      {arg='batch_size', type='number'
+       help='Maximum batch_size.'},
+      {arg='n_sample', type='number',
+       help='Actual number of examples in batch. Shouldn\'t be '..
+       'larger than batch_size.'},
+      {arg='grad_type', type='string',
+       help='Type of output gradient : cuda | float | double'},
       {arg='indices', type='torch.Tensor', 
-       help='indices of the examples in the original dataset.'}
+       help='indices of the examples in the original dataset.'},
+      {arg='epoch_size', type='number',
+       help='number of samples in epoch dataset.'}
    )
+   self._epoch_size = epoch_size or self._epoch_size
 end
 
 function Batch:setOutputs(outputs)

@@ -9,13 +9,14 @@ function BaseSet:__init(...)
    local args, which_set, inputs, targets
       = xlua.unpack(
       {... or {}},
-      'BaseSet', nil,
+      'BaseSet', 
+      'Base class inherited by DataSet and Batch.',
       {arg='which_set', type='string',
        help='"train", "valid" or "test" set'},
       {arg='inputs', type='dp.DataTensor | table of dp.DataTensors', 
        help='Sample inputs to a model. These can be DataTensors or '..
        'a table of DataTensors (in which case these are converted '..
-       'to a CompositeTensor'},
+       'to a CompositeTensor', req=true},
       {arg='targets', type='dp.DataTensor | table of dp.DataTensors', 
        help='Sample targets to a model. These can be DataTensors or '..
        'a table of DataTensors (in which case these are converted '..

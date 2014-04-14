@@ -1,8 +1,9 @@
 ------------------------------------------------------------------------
 --[[ DataSet ]]--
--- Contains inputs and optional targets. Used for training or testing
--- (evaluating) a model. Inputs/targets are tables of DataTensors, which
--- allows for multi-input / multi-target DataSets.
+-- BaseSet
+-- Not Serializable
+-- Contains inputs and optional targets. Used for training or
+-- evaluating a model. Inputs and targets are tables of BaseTensors.
 
 -- Unsupervised Learning
 -- If the DataSet is for unsupervised learning, only inputs need to 
@@ -27,23 +28,6 @@
 local DataSet, parent = torch.class("dp.DataSet", "dp.BaseSet")
 DataSet.isDataSet = true
 
-function DataSet:__init(config)
-   local args, which_set, inputs
-      = xlua.unpack(
-      {config or {}},
-      'DataSet', nil,
-      {arg='which_set', type='string', req=true,
-       help='"train", "valid" or "test" set'},
-      {arg='inputs', type='dp.DataTensor | table of dp.DataTensors', 
-       help='Sample inputs to a model. These can be DataTensors or '..
-       'a table of DataTensors (in which case these are converted '..
-       'to a CompositeTensor', req=true}
-   )
-   config.which_set = which_set
-   config.inputs = inputs
-   parent.__init(self, config)
-end
-
 function DataSet:write(...)
    error"DataSet Error: Shouldn't serialize DataSet"
 end
@@ -56,10 +40,10 @@ function DataSet:probabilities()
 end
 
 -- builds an empty batch (factory method)
-function DataSet:batch()
+function DataSet:emptyBatch()
    dp.Batch{
-      which_set=self:whichSet(), 
+      which_set=self:whichSet(), epoch_size=self:nSample(),
       inputs=self:inputs():emptyClone(),
-      targets=self:targets() and targets:emptyClone()
+      targets=self:targets() and self:targets():emptyClone()
    }
 end

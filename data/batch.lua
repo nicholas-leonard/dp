@@ -1,6 +1,6 @@
 ------------------------------------------------------------------------
 --[[ Batch ]]--
--- State
+-- State of a mini-batch to be fed into a model and criterion.
 -- A batch of examples sampled from a dataset.
 
 -- TODO :

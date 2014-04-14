@@ -9,6 +9,45 @@
 -- batch gets classes from targets.
 -- Dataset could be called with sub, index to generate Batch
 
+-- Multi-input/target
+-- Integrate critera directly into model. Have them update batch for pushing stats?
+-- Need model to choose DataTensor from composite. That way can have inputs at different locations
+-- Or we can copy torch and force to use parallel and sequential for delayed inputs/targets.
+--[[
+-- Need MoE example
+
+--Option 1 : easily distributed, relies on carry to distributed criteria.
+
+experts = dp.Parallel()
+gater = dp.Sequential{models={layer1,layer2,criterion}} --how to backward targets or forward outputs (use carry?)
+-- use carry in own channel (gater state in mixtures)
+mixture = dp.Mixture(experts, gater) --inherits parallel. takes one or two inputs.
+-- One is output of previous gater(s), other is output of experts (two state spaces)
+
+dmoe = dp.Sequential{models={mixture1,mixture2,criterion}}
+
+dmoe:forward(batch)
+dmoe:backward(batch)
+
+visitor:visitModel(model) or dmoe:update(visitor)
+
+OR
+
+--Option 2 : needs ReinforceCriterion to generate Proxies to allows for communications between criteria.
+
+criterion = ReinforceCriterion()
+
+experts = dp.Parallel()
+gater = dp.Sequential{models={layer1,layer2,criterion:gaterCriterion{layer=1}}} --generates a criterion that has a link to the original criterion
+mixture = dp.Mixture(experts, gater) --inherits parallel. takes one or two inputs.
+-- One is output of previous gater(s), other is output of experts (two state spaces)
+-- 
+
+dmoe = dp.Sequential{models={mixture1,mixture2}}
+
+criterion is a special model that takes both inputs and targets.
+--]]
+
 ------------------------------------------------------------------------
 --[[ Sampler ]]--
 -- Sequentially samples batches from a dataset.

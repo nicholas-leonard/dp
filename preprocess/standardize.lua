@@ -1,6 +1,6 @@
 -----------------------------------------------------------------------
 --[[ Standardize ]]--
--- A Preprocessor that subtracts the mean and divides 
+-- A Preprocess that subtracts the mean and divides 
 -- by the standard deviation.
 -----------------------------------------------------------------------
 local Standardize = torch.class("dp.Standardize", "dp.Preprocess")

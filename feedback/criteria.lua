@@ -5,8 +5,7 @@
 -- nn.Criterion. Each supplied nn.Criterion requires a name for 
 -- reporting purposes. Default name is typename minus module name(s)
 ------------------------------------------------------------------------
-local Criteria, parent 
-   = torch.class("dp.Criteria", "dp.Feedback")
+local Criteria, parent = torch.class("dp.Criteria", "dp.Feedback")
 
 
 function Criteria:__init(config)

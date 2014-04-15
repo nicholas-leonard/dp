@@ -1,8 +1,8 @@
 -----------------------------------------------------------------------
 --[[ Pipeline ]]--
--- Preprocess Composite
--- A Preprocessor that sequentially applies a list 
--- of other Preprocessors.
+-- Preprocess subclass
+-- Composite of Preprocesses
+-- Sequentially applies a list of Preprocesses.
 -----------------------------------------------------------------------
 local Pipeline = torch.class("dp.Pipeline", "dp.Preprocess")
 Pipeline.isPipeline = true

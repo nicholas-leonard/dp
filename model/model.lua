@@ -1,10 +1,11 @@
 --[[ TODO ]]--
 -- to allow for automatic reshapes, set_input_space, as in pylearn2?
 -- remove predecessor, successor, etc?
+-- remove self._params
 
 ------------------------------------------------------------------------
 --[[ Model ]]--
--- Module Adapter
+-- Adapter of nn.Modules
 ------------------------------------------------------------------------
 local Model = torch.class("dp.Model")
 Model.isModel = true
@@ -83,7 +84,7 @@ function Model:report()
 end
 
 function Model:doneEpoch(report, ...)
-   --zeros statistics
+   --zeros statistics between epochs
    self:zeroStatistics()
 end
 

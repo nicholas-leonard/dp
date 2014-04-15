@@ -222,17 +222,19 @@ function typeString_to_tensorType(type_string)
    end
 end
 
+-- warning : doesn't always allow non-standard constructors
 function torch.classof(obj)
    return torch.factory(torch.typename(obj))
 end
 
-function torch.view(tensor)
-   return torch.classof(tensor)(tensor)
-end
-
 -- returns an empty (zero-dim) clone of an obj
 function torch.emptyClone(obj)
-   return torch.classof()
+   return torch.classof(obj)
+end
+
+-- returns a view of a tensor
+function torch.view(tensor)
+   return torch.emptyClone(tensor):set(tensor)
 end
 
 -- simple helpers to serialize/deserialize arbitrary objects/tables
@@ -265,7 +267,7 @@ end
 function torch.concat(result, tensors, dim)
    if type(result) == 'table' then
       dim = tensors
-      tensors = dim
+      tensors = result
       result = torch.emptyClone(tensors[1])
    end
    dim = dim or 1

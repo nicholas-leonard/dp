@@ -1,3 +1,7 @@
+--TODO : 
+-- move progress bar to sampler?
+-- feedback takes state
+
 ------------------------------------------------------------------------
 --[[ Propagator ]]--
 -- Abstract Class for propagating a sampling distribution (Sampler) 

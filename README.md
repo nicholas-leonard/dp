@@ -40,7 +40,7 @@ In order to help you get up and running we provide a quick [neural network tutor
 To use this library, we will require some lua rocks:
 ```shell
 $> sudo luarocks install fs
-$> sudo luarocks install underscore
+$> sudo luarocks install moses
 $> sudo luarocks install nnx
 ```
 Optional:

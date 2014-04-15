@@ -5,7 +5,7 @@ the __dp__ package, whose first matter of business is to load its dependencies (
 ```lua
 require 'dp'
 ```
-Note : package `underscore` is imported as `_`. So `_` shouldn't be used for dummy variables, instead 
+Note : package [Moses](https://github.com/Yonaba/Moses/blob/master/docs/moses.md) is imported as `_`. So `_` shouldn't be used for dummy variables, instead 
 use the much more annoying `__`, or whatnot. 
 
 Lets define some hyper-parameters and store them in a table. We will need them later:

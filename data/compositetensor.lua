@@ -21,16 +21,18 @@ end
 
 function CompositeTensor:feature()
    -- sort keys to get consistent view
-   local features = _.map(_.sort(_.keys(self._components)), 
+   local keys = _.sort(_.keys(self._components))
+   local features = _.map(keys, 
       function(key)
          return self._components[key]:feature()
       end
    )
    -- flatten in case of nested composites
    features = _.flatten(features)
-   -- concatenate torch.Tensors
-   features = torch.concat(features, 1)
-   
+   -- concat features (emptyClones first torch.Tensor of features)
+   -- we also save the memory for later use
+   self._data = torch.concat(self._data, features)
+   return self._data
 end
 
 -- Returns number of samples

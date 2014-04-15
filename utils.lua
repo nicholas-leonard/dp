@@ -222,27 +222,17 @@ function typeString_to_tensorType(type_string)
    end
 end
 
---deprecated. Use torch.factory(tensor:type()) instead
-function torch.view(tensor)
-   local ttype = tensor:type()
-   if ttype == 'torch.FloatTensor' then
-      return torch.FloatTensor(tensor)
-   elseif ttype == 'torch.LongTensor' then
-      return torch.LongTensor(tensor)
-   elseif ttype == 'torch.DoubleTensor' then
-      return torch.DoubleTensor(tensor)
-   elseif ttype == 'torch.IntTensor' then
-      return torch.IntTensor(tensor)
-   elseif ttype == 'torch.ByteTensor' then
-      return torch.ByteTensor(tensor)
-   else
-      error"unknown tensor type"
-   end
+function torch.classof(obj)
+   return torch.factory(torch.typename(obj))
 end
 
--- returns an empty (zero-dim) clone of a tensor
-function torch.emptyClone(tensor)
-   return torch.factory(tensor:type())()
+function torch.view(tensor)
+   return torch.classof(tensor)(tensor)
+end
+
+-- returns an empty (zero-dim) clone of an obj
+function torch.emptyClone(obj)
+   return torch.classof()
 end
 
 -- simple helpers to serialize/deserialize arbitrary objects/tables
@@ -271,7 +261,15 @@ function torch.deserialize(str, mode)
    return object
 end
 
-function torch.concat(tensors, dim)
+-- torch.concat([res], tensors, [dim])
+function torch.concat(result, tensors, dim)
+   if type(result) == 'table' then
+      dim = tensors
+      tensors = dim
+      result = torch.emptyClone(tensors[1])
+   end
+   dim = dim or 1
+
    local size
    for i,tensor in ipairs(tensors) do
       if not size then
@@ -280,10 +278,20 @@ function torch.concat(tensors, dim)
          for i,v in ipairs(tensor:size():totable()) do
             if i == dim then
                size[i] = size[i] + v
+            else
+               assert(size[i] == v, "Cannot concat different sizes")
             end
          end
       end
    end
+   
+   result:resize(unpack(size))
+   local start = 1
+   for i, tensor in ipairs(tensors) do
+      result:narrow(dim, start, tensor:size(dim)):copy(tensor)
+      start = start+tensor:size(dim)
+   end
+   return result
 end
 
 function dp.printG()

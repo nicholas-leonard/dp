@@ -2,6 +2,7 @@
 --[[ Neural ]]--
 -- An affine transformation followed by a transfer function.
 -- For a linear transformation, you can use nn.Identity.
+-- Works on a DataTensor:feature() view.
 ------------------------------------------------------------------------
 local Neural, parent = torch.class("dp.Neural", "dp.Model")
 Neural.isNeural = true
@@ -86,7 +87,7 @@ function Neural:setup(config)
 end
 
 function Neural:_forward(cstate)
-   local activation = self.istate.act
+   local activation = self.istate.act:feature()
    if self._dropout then
       -- dropout has a different behavior during evaluation vs training
       self._dropout.train = (not self.gstate.evaluate)

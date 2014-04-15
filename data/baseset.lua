@@ -45,8 +45,8 @@ function BaseSet:setInputs(inputs)
       --if list, make CompositeTensor
       inputs = dp.CompositeObserver(inputs)
    end
-   assert(inputs.isDataTensor, 
-      "Error : invalid inputs. Expecting type dp.DataTensor")
+   assert(inputs.isBaseTensor, 
+      "Error : invalid inputs. Expecting type dp.BaseTensor")
    self._inputs = inputs
 end
 
@@ -55,8 +55,8 @@ function BaseSet:setTargets(targets)
       --if list, make CompositeTensor
       targets = dp.CompositeObserver(targets)
    end
-   assert(targets.isDataTensor,
-      "Error : invalid targets. Expecting type dp.DataTensor")
+   assert(targets.isBaseTensor,
+      "Error : invalid targets. Expecting type dp.BaseTensor")
    self._targets = targets
 end
 

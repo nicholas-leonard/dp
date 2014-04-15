@@ -93,8 +93,8 @@ end
 
 function Model:setInputState(istate)
    assert(istate, "No Input State")
-   if torch.isTensor(istate) then
-      -- istate is tensor, assume it is activation
+   if istate.isBaseTensor then
+      -- istate is BaseTensor, assume it represents activations
       istate = {act=istate}
    end
    assert(type(istate) == 'table')
@@ -108,8 +108,8 @@ end
 function Model:setOutputState(ostate)
    if ostate == nil then
       return
-   elseif torch.isTensor(ostate) then
-      -- ostate is tensor, assume it is gradients
+   elseif ostate.isBaseTensor then
+      -- ostate is BaseTensor, assume it represents gradients
       self.ostate.grad = ostate
       return
    end
@@ -135,7 +135,7 @@ function Model:forward(state)
 end
 
 function Model:_forward(cstate)
-   
+   error"Not Implemented"
 end
 
 --like forward, but for evaluation purposes (valid/test).
@@ -165,7 +165,7 @@ function Model:backward(state)
 end
 
 function Model:_backward(cstate)
-
+   error"Not Implemented"
 end
 
 function Model:accept(visitor)
@@ -213,7 +213,7 @@ function Model:clone()
 end
 
 function Model:type(type)
-   error"NotImplementedError"
+   error"Not Implemented"
 end
 
 function Model:float()
@@ -229,7 +229,9 @@ function Model:cuda()
 end
 
 function Model:reset()
+   error"Not Implemented"
 end
 
 function Model:share(mlp, ...)
+   error"Not Implemented"
 end

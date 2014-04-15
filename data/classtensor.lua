@@ -137,6 +137,11 @@ function ClassTensor:manyhot(...)
    error("Not Implemented")
 end
 
+function ClassTensor:feature(config)
+   -- when request as features (usually as inputs), use many-hot view
+   return self:manyhot()
+end
+
 --Returns a sub-datatensor narrowed on the batch dimension
 function ClassTensor:sub(start, stop)
    return torch.factory(torch.typename(self)){

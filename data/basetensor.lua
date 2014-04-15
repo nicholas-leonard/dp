@@ -6,6 +6,10 @@
 local BaseTensor = torch.class("dp.BaseTensor")
 BaseTensor.isBaseTensor = true
 
+function BaseTensor:feature()
+   error"Not Implemented"
+end
+
 -- Returns number of samples
 function BaseTensor:nSample()
    error"Not Implemented"
@@ -36,6 +40,7 @@ end
 function BaseTensor:emptyClone()
    error"Not Implemented"
 end
+
 
 ---- static methods ----
 function BaseTensor.transpose(axis, new_dim, axes, size, data)

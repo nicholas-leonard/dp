@@ -222,6 +222,7 @@ function typeString_to_tensorType(type_string)
    end
 end
 
+--deprecated. Use torch.factory(tensor:type()) instead
 function torch.view(tensor)
    local ttype = tensor:type()
    if ttype == 'torch.FloatTensor' then
@@ -268,6 +269,21 @@ function torch.deserialize(str, mode)
    local object = f:readObject()
    f:close()
    return object
+end
+
+function torch.concat(tensors, dim)
+   local size
+   for i,tensor in ipairs(tensors) do
+      if not size then
+         size = tensor:size():totable()
+      else
+         for i,v in ipairs(tensor:size():totable()) do
+            if i == dim then
+               size[i] = size[i] + v
+            end
+         end
+      end
+   end
 end
 
 function dp.printG()

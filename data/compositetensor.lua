@@ -1,6 +1,8 @@
 -----------------------------------------------------------------------
 --[[ CompositeTensor ]]-- 
 -- Composite (design pattern) BaseTensor
+
+--TODO : TableTensor vs ListTensor (for performance reasons)
 ------------------------------------------------------------------------
 local CompositeTensor, parent = torch.class("dp.CompositeTensor", "dp.BaseTensor")
 CompositeTensor.isCompositeTensor = true
@@ -9,12 +11,26 @@ function CompositeTensor:__init(config)
    local args, components = xlua.unpack(
       {config or {}},
       'CompositeTensor', 
-      'Builds a dp.CompositeTensor out of torch.Tensor data.',
-      {arg='components', type='list of dp.BaseTensor', 
+      'Builds a dp.CompositeTensor out of a table of dp.BaseTensors',
+      {arg='components', type='table of dp.BaseTensor', 
        help='A list of dp.BaseTensors', req=true}
    )   
    parent.assertInstances(components)
    self._components = components
+end
+
+function CompositeTensor:feature()
+   -- sort keys to get consistent view
+   local features = _.map(_.sort(_.keys(self._components)), 
+      function(key)
+         return self._components[key]:feature()
+      end
+   )
+   -- flatten in case of nested composites
+   features = _.flatten(features)
+   -- concatenate torch.Tensors
+   features = torch.concat(features, 1)
+   
 end
 
 -- Returns number of samples
@@ -43,11 +59,14 @@ function CompositeTensor:sub(start, stop)
    )
 end
 
+function CompositeTensor:size()
+   return table.length(self._components)
+end
+
 -- return iterator over components
 function CompositeTensor:pairs()
    return pairs(self._components)
 end
-
 
 -- return a clone without data 
 function CompositeTensor:emptyClone()

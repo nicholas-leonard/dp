@@ -238,17 +238,3 @@ end
 function Propagator:memType()
    return self._mem_type
 end
-
-function Propagator:updateLoss(batch)
-   self._loss = self._loss + batch:loss()                
-   self._samples_seen = self._samples_seen + batch:nSample()
-end
-
-function Propagator:resetLoss()
-   self._loss = 0
-   self._samples_seen = 0
-end
-
-function Propagator:loss()
-   return self._loss / self._samples_seen
-end

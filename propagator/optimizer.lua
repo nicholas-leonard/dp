@@ -1,5 +1,6 @@
 ------------------------------------------------------------------------
 --[[ Optimizer ]]--
+-- Propagator subclass
 -- Trains a model using a sampling distribution.
 ------------------------------------------------------------------------
 local Optimizer, parent = torch.class("dp.Optimizer", "dp.Propagator")
@@ -26,38 +27,38 @@ function Optimizer:__init(config)
 end
       
 function Optimizer:propagateBatch(batch, report)   
-   local model = self._model
    --[[ feedforward ]]--
    -- evaluate function for complete mini batch
-   local ostate = model:forward{input=batch:inputs()}
-   batch:setOutputs(ostate.act:double())
+   local ostate, cstate = self._model:forward{input=batch:inputs()}
    
-   -- average loss (a scalar)
-   batch:setLoss(
-      self._criterion:forward(batch:outputs(), batch:targets())
-   )
+   -- used by loss and feedback
+   local state = {input=ostate, target=batch:targets(), carry=cstate}
    
-   self:updateLoss(batch)
+   -- measure loss and backprop gradients
+   local loss, cstate = self._loss:forward(state)
    
    -- monitor error 
    if self._feedback then
-      self._feedback:add(batch)
+      self._feedback:forward(state)
    end
+   
    --publish report for this optimizer
    self._mediator:publish(self:name()..':'.."doneFeedback", report, batch)
    
    --[[ backpropagate ]]--
-   -- estimate df/do (f is for loss, o is for outputs), a tensor
-   batch:setOutputGradients(
-      self._criterion:backward(batch:outputs(), batch:targets())
-   )
+   -- estimate gradient of loss w.r.t. outputs, a basetensor
+   local istate, cstate = self._loss:backward(state)
    
-   model:backward{output=batch:outputGradients()}
+   -- backprop through model
+   self._model:backward{output=istate}
 
-   
    --[[ update parameters ]]--
-   model:accept(self._visitor)
-   model:doneBatch()
+   -- visits models to perform updates
+   self._model:accept(self._visitor)
+   
+   -- zero gradients, statistics, etc.
+   self._model:doneBatch()
+   self._loss:doneBatch()
    
    --publish report for this optimizer
    self._mediator:publish(self:name()..':'.."doneBatch", report, batch)

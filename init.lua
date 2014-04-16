@@ -33,6 +33,7 @@ torch.include('dp', 'choose.lua')
 torch.include('dp', 'xplog.lua')
 torch.include('dp', 'mediator.lua')
 torch.include('dp', 'objectid.lua')
+torch.include('dp', 'node.lua')
 torch.include('dp', 'test/test.lua')
 
 --[[ data ]]--

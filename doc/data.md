@@ -12,10 +12,10 @@
 
 <a name="dp.DataTensor"/>
 ## DataTensor ##
-Encapsulates a torch.Tensor. Provides access to it using different
+Encapsulates a torch.Tensor and provides access to it using different
 viewing methods. A view may reshape the tensor inplace and render it
 contiguous. Views can be used to convert data into new axes formats 
-using torch.Tensor:resize, :transpose, :contiguous. The 
+using torch.Tensor:resize(), :transpose() and :contiguous(). The 
 conversions may be done in-place (default), or may be simply  
 returned using the conversion methods (feature, class, image, etc.). 
 A DataTensor may also holds metadata.

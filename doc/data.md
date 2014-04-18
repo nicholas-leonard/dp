@@ -1,14 +1,20 @@
 # Data #
 
-  * [DataTensor](#dp.DataTensor) :
-    * [ImageTensor](#dp.ImageTensor)
-    * [ClassTensor](#dp.ClassTensor)
+  * [BaseTensor](#dp.BaseTensor) :
+    * [DataTensor](#dp.DataTensor) :
+     * [ImageTensor](#dp.ImageTensor)
+     * [ClassTensor](#dp.ClassTensor)
+    * [CompositeTensor](#dp.CompositeTensor)
   * [DataSet](#dp.DataSet)
   * [DataSource](#dp.DataSource) :
     * Mnist
     * NotMnist
     * Cifar10
     * Cifar100 
+
+<a name="dp.BaseTensor"/>
+## BaseTensor ##
+Abstract class to allow for the use of CompositeTensors in models.
 
 <a name="dp.DataTensor"/>
 ## DataTensor ##
@@ -221,6 +227,10 @@ However, assuming the first index of each example vector represents the primary 
 <a name="dp.ClassTensor.feature"/>
 ### [data] feature([inplace, contiguous]) ###
 Returns a 2D torch.Tensor of examples by features : `{'b','f'}` (see [DataTensor:feature()](#dp.DataTensor.feature)).
+
+<a name="dp.CompositeTensor"/>
+## CompositeTensor ##
+A composite of BaseTensors. Allows for multiple input and multiple target datasets and batches.
 
 
 <a name="dp.DataSet"/>

@@ -34,7 +34,7 @@ if sync then
    end)
 else
    -- build tcp sever using async
-   server = async.tcp.listen({host='localhost', port=8483}, function(client)
+   server = async.tcp.listen({host='localhost', port=8080}, function(client)
       print('new connection:',client)
       client.onsplitdata(separator, function(data)
          print('received #data :', #data)
@@ -48,15 +48,12 @@ else
          print('wrote')
       end)
       client.onend(function()
-         print('client ended')
+         print('server ended')
       end)
       client.onclose(function()
          print('closed.')
          collectgarbage()
          print(collectgarbage("count") * 1024)
-      end)
-      client.onerr(function()
-         print('error')
       end)
    end)
 end

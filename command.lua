@@ -63,24 +63,12 @@ function Locate:execute(session)
 end
 
 ------------------------------------------------------------------------
---[[ Session ]]--
+--[[ NewSession ]]--
 -- Used by stations to query master to locate remote objects
 ------------------------------------------------------------------------
-local Locate, parent = torch.class("dp.Locate", "dp.Command")
+local NewSession, parent = torch.class("dp.NewSession", "dp.Command")
 
-function Locate:__init(master_id, addr)
-   parent.init(master_id)
-   self._addr = addr
-end
 
-function Locate:execute(session)
-   local session_map, shared_map = session:objectMaps()
-   local model = getSharedWithLocalMemento(self._subject_id)
-   local output_state, carry_state = model:forward(
-      self._input_state, self._carry_state, self._batch_state
-   )
-   return output_state, carry_state
-end
 
 ------------------------------------------------------------------------
 --[[ PropagateBatch ]]--

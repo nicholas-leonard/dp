@@ -1,7 +1,3 @@
-require 'dp'
-async = require 'async'
-
---Station
 ------------------------------------------------------------------------
 --[[ Station ]]--
 -- Not Serializable
@@ -26,31 +22,33 @@ function Station:__init(config)
    self._session_map = {}
    self:startServer()
 end
+
    
 function Station:startServer()
+   require 'async'
    self._server = async.tcp.listen({host=self._host, port=self._port}, function(client)
-      --listens to incomming commands from the network
-      print('new connection:',client)
-      client.onsplitdata(separator, function(data)
+      async.fiber(function()
+         client.sync()
+         --listens to incomming commands from the network
+         print('new connection:',client)
+         local function handleReply(reply)
+            if coroutine.status(coroutine.running()) == 'dead' then
+               
+            end
+         end
+         local data = client.readsplit(separator)
          print('received #data :', #data)
          local command = torch.deserialize(data, mode)
          print('received command :', torch.typename(command))
+         -- coroutine is yielded by _send() when waiting for async client.
+         -- returns after final resume()
          local session = self:session(command:sessionId())
-         -- execute command within a session
+         -- execute command within a session (yields after send)
          local reply = session:execute(command)
-         local data = torch.serialize(reply)
-         client.write(reply)
-      end)
-      client.onend(function()
-         print('server ended')
-      end)
-      client.onclose(function()
-         print('closed.')
-         collectgarbage()
-         print(collectgarbage("count") * 1024)
-      end)
-      client.onerr(function()
-         print('error')
+         -- send back reply to client
+         local data = torch.serialize(reply, self._mode)
+         client.write(data)
+         client.write(separator)
       end)
    end)
 end
@@ -77,27 +75,21 @@ function Station:send(command, session_id)
 end
 
 function Station:_send(command, dest_addr)
-   local reply
+   local co = async.fiber.context().co
    local client = async.tcp.connect(dest_addr, function(client)
-      print('new connection:',client)
-      client.onsplitdata(separator, function(data)
-         print('received:', #data)
-         reply = torch.deserialize(data, mode)
-         print('received command :', torch.typename(command))
+      local data = torch.serialize(command, self._mode)
+      client.onreadsplit(separator, function(data)
+         local reply = torch.deserialize(data)
+         --send reply to yield (see below)
+         coroutine.resume(co, reply)
          client.close()
       end)
-      client.onend(function()
-         
-         print('client ended')
-      end)
-      client.onclose(function()
-         print('closed.')
-      end)
-      --client.write('test')
-      local data = torch.serialize(command, mode)
-      print('sending :', #data)
       client.write(data)
       client.write(separator)
+      
    end)
+   -- this should be resumed by tcp client when reply is received
+   -- yields to 
+   local reply = coroutine.yield()
 end
 

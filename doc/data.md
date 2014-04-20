@@ -14,7 +14,7 @@
 
 <a name="dp.BaseTensor"/>
 ## BaseTensor ##
-Abstract class to allow for the use of CompositeTensors in models.
+Abstract class to allow for the use of CompositeTensors in models. Adapter (design pattern) for torch.Tensor.
 
 <a name="dp.DataTensor"/>
 ## DataTensor ##

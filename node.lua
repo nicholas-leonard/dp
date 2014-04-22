@@ -7,9 +7,8 @@
 local Node = torch.class("dp.Node")
 Node.isNode = true
 
-function Node:__init()
-   self.input = {}
-   self.output = {}
+function Node:__init(config)
+   self:zeroStatistics()
 end
 
 function Node:setup(config)
@@ -21,8 +20,6 @@ function Node:setup(config)
        help='Uniquely identifies node.'}
    )
    self._mediator = mediator
-   -- the id should be given by the experiment since the same 
-   -- model is shared by all propagators.
    self._id = id
    mediator:subscribe("doneEpoch", self, "doneEpoch")
    self._setup = true
@@ -42,23 +39,15 @@ end
 function Node:report()
 end
 
---- input activation basetensor or input state table
--- state.global : 
---- global state table accessible to all Nodes in the graph
--- state.carry :
---- a state that is carried throughout the graph. 
---- Nodes can modify it but should avoid deleting attributes
+--- carry table is carried throughout the graph. 
+--- Nodes can modify it but should avoid deleting attributes.
 --- Useful when you want to forward information to a later Node
 --- in the graph seperated by an unknown number of Nodes
 function Node:forward(input, carry)
-   assert(input.isBaseTensor, "Expecting dp.BaseTensor instance")
-   self.input.act = input
-   local carry = self:_forward(table.copy(carry)) or carry
-   self.forwarded = true
-   return self.output.act, carry
+   error"Not Implemented"
 end
 
-function Node:_forward(cstate)
+function Node:_forward(carry)
    error"Not Implemented"
 end
 
@@ -66,41 +55,42 @@ end
 -- this is useful for stochastic Modules like Dropout, which have 
 -- different behavior for training than for evaluation.
 function Node:evaluate(input, carry)
-   assert(input.isBaseTensor, "Expecting dp.BaseTensor instance")
-   self.input.act = input
-   self.carry.evaluate = true
-   local carry = self:_evaluate(table.copy(carry)) or carry
-   self.evaluated = true
-   self.forwarded = true
-   return self.output.act, carry
+   error"Not Implemented"
 end
 
---default is to call forward (only diff is 'evaluate' flag in gstate)
+--default is to call forward (only diff is 'evaluate' flag in carry)
 function Node:_evaluate(carry)
    return self:_forward(carry)
 end
 
 function Node:backward(output, carry)
-   assert(output.isBaseTensor, "Expecting dp.BaseTensor instance")
+   assert(output.isBaseTensor, "Expecting dp.BaseTensor output")
    self.output.act = output
-   local carry = self:_backward(table.copy(carry)) or carry
+   carry = self:_backward(carry) or carry
+   assert(self.input.grad.isBaseTensor, "Expecting dp.BaseTensor grad")
    self.backwarded = true
    return self.input.grad, carry
 end
 
-function Node:_backward(cstate)
+function Node:_backward(carry)
    error"Not Implemented"
 end
 
--- experimental (would allow for one chained RPC call for both backward forward)
-function Node:flux(carry)
-   local output, carry = self:forward()
-   local input, carry = self._successor:flux{output, carry}
-   local input, carry = self:backward{input, carry}
-   return input, carry
+function Node:zeroStatistics()
+   self._stats = {nSample=0}
+   self._zeroStatistics()
 end
 
-function Node:doneEpoch(report, ...)
+function Node:_zeroStatistics()
+end
+
+-- should only be called by forward or evaluate (once per batch)
+function Node:updateStatistics(carry)
+   self._stats.nSample = self._stats.nSample + carry.nSample
+   self._updateStatistics(carry)
+end
+
+function Node:_updateStatistics(carry)
 end
 
 function Node:doneBatch(...)
@@ -109,12 +99,16 @@ function Node:doneBatch(...)
    self.backwarded = false
    self.evaluated = false
    self.input = {}
-   self.output = {}
 end
 
 function Node:_doneBatch(...)
 end
 
+
+function Node:doneEpoch(report, ...)
+   --zeros statistics between epochs
+   self:zeroStatistics()
+end
 
 function Node:clone()
    local f = torch.MemoryFile("rw"):binary()
@@ -155,6 +149,12 @@ function Node:cuda()
    return self:type('torch.CudaTensor')
 end
 
-function Node:reset()
-   error"Not Implemented"
+--[[
+-- experimental (would allow for one chained RPC call for both backward forward)
+function Node:flux(carry)
+   local output, carry = self:forward()
+   local input, carry = self._successor:flux{output, carry}
+   local input, carry = self:backward{input, carry}
+   return input, carry
 end
+--]]

@@ -1,10 +1,6 @@
---[[ TODO ]]--
--- to allow for automatic reshapes, set_input_space, as in pylearn2?
--- remove predecessor, successor, etc?
--- remove self._params
-
 ------------------------------------------------------------------------
 --[[ Model ]]--
+-- Node subclass
 -- Adapter of nn.Modules
 ------------------------------------------------------------------------
 local Model, parent = torch.class("dp.Model", "dp.Node")
@@ -23,26 +19,20 @@ function Model:__init(...)
        help='model-visitor state'}
    )
    self._typename = typename
-   self._params = {} -- parameters
-   self._stats = {} -- statistics
    self._tags = tags -- tags
-   self._report = {}
-   self.mvstate = mvstate
+   self._report = {} -- stores a report
+   self.mvstate = mvstate -- stores stuff for visitors in between passes
    self:doneBatch()
 end
 
 function Model:setup(config)
-   local args, predecessor, successor, container
+   local args, container
       = xlua.unpack(
       {config or {}},
       'Model:setup', nil,
-      {arg='predecessor', type='dp.Model'},
-      {arg='successor', type='dp.Model'},
       {arg='container', type='dp.Container'}
    )
    -- context
-   self._predecessor = predecessor
-   self._successor = successor
    self._container = container
    parent.setup(self, config)
 end
@@ -51,13 +41,30 @@ function Model:tags()
    return self._tags
 end
 
-function Model:doneEpoch(report, ...)
-   --zeros statistics between epochs
-   self:zeroStatistics()
+function Model:parameters()
+   return {}
 end
 
-function Model:parameters()
-   return self._params
+function Model:forward(input, carry)
+   assert(input.isBaseTensor, "Expecting dp.BaseTensor input")
+   self.input.act = input
+   self:updateStatistics(carry)
+   carry = self:_forward(carry) or carry
+   assert(self.output.act.isBaseTensor, "Expecting dp.BaseTensor output")
+   self.forwarded = true
+   return self.output.act, carry
+end
+
+function Node:evaluate(input, carry)
+   assert(input.isBaseTensor, "Expecting dp.BaseTensor instance")
+   self.input.act = input
+   carry.evaluate = true
+   self:updateStatistics(carry)
+   carry = self:_evaluate(carry) or carry
+   assert(self.output.act.isBaseTensor, "Expecting dp.BaseTensor output")
+   self.evaluated = true
+   self.forwarded = true
+   return self.output.act, carry
 end
 
 function Model:accept(visitor)
@@ -75,7 +82,7 @@ function Model:doneBatch(...)
       self:zeroGradParameters()
    end
    self.visited = false
-   self.ostate = {} -- output state
+   self.output = {}
 end
 
 function Model:_doneBatch(...)
@@ -87,18 +94,6 @@ function Model:zeroGradParameters()
    end
 end
 
-function Model:zeroStatistics()
-end
-
-function Model:clone()
-   local f = torch.MemoryFile("rw"):binary()
-   f:writeObject(self)
-   f:seek(1)
-   local clone = f:readObject()
-   f:close()
-   return clone
-end
-
-function Model:share(mlp, ...)
+function Model:reset()
    error"Not Implemented"
 end

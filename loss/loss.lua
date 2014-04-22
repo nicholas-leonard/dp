@@ -6,63 +6,62 @@
 local Loss, parent = torch.class("dp.Loss", "dp.Node")
 Loss.isLoss = true
 
-function Loss:__init()
+function Loss:__init(config)
 
 end
 
-function Loss:setTargetState(tstate)
-   assert(tstate, "No Target State")
-   if tstate.isBaseTensor then
-      -- tstate is BaseTensor, assume it represents targets
-      tstate = {target=tstate}
-   end
-   assert(type(tstate) == 'table')
-   self.tstate = tstate
+function Loss:setup(config)
+
 end
 
-function Loss:forward(state)
-   self:setTargetState(state.target)
-   local loss, cstate = parent.forward(self, state)
-   self:updateLoss(loss)
-   return loss, cstate
+function Loss:forward(input, target, carry)
+   assert(input.isBaseTensor, "Expecting dp.BaseTensor for input")
+   assert(target.isBaseTensor, "Expecting dp.BaseTensor for target")
+   self.input.act = input
+   self.input.target = target
+   carry = self:_forward(carry) or carry
+   self:updateStatistics(carry)
+   self.forwarded = true
+   return self.loss, carry
 end
 
-function Loss:evaluate(state)
-   self:setTargetState(state.target)
-   local loss, cstate = parent.evaluate(self, state)
-   self:updateLoss(loss)
-   return loss, cstate
+function Loss:evaluate(input, target, carry)
+   assert(input.isBaseTensor, "Expecting dp.BaseTensor for input")
+   assert(target.isBaseTensor, "Expecting dp.BaseTensor for target")
+   self.input.act = input
+   self.input.target = target
+   carry = self:_evaluate(carry) or carry
+   self:updateStatistics(carry)
+   self.evaluated = true
+   self.forwarded = true
+   return self.loss, carry
 end
 
-function Loss:backward(state)
-   self:setTargetState(state.target)
-   self:setGlobalState(state.global)
-   local cstate = self:_backward(table.copy(state.carry)) or state.carry
+function Loss:backward(input, target, carry)
+   assert(input.isBaseTensor, "Expecting dp.BaseTensor for input")
+   assert(target.isBaseTensor, "Expecting dp.BaseTensor for target")
+   self.input.act = input
+   self.input.target = target
+   carry = self:_backward(carry) or carry
+   assert(self.input.grad.isBaseTensor, "Expecting dp.BaseTensor grad")
    self.backwarded = true
-   return self.istate, cstate
+   return self.input.grad, carry
 end
 
-function Loss:_forward(cstate)
+function Loss:_forward(carry)
 end
 
-function Loss:_backward(cstate)
+function Loss:_backward(carry)
 end
 
-function Loss:doneBatch(...)
-   parent.doneBatch(self, ...)
-   self.tstate = {} -- target state
+function Loss:_updateStatistics()
+   self._stats.loss = self._stats.loss + self.loss               
 end
 
-function Loss:updateLoss(loss)
-   self._loss = self._loss + batch:loss()                
-   self._samples_seen = self._samples_seen + self.gstate.n_sample
+function Loss:_zeroStatistics()
+   self._stats.loss = 0
 end
 
-function Loss:reset()
-   self._loss = 0
-   self._samples_seen = 0
-end
-
-function Loss:loss()
-   return self._loss / self._samples_seen
+function Loss:report()
+   return {loss=self._stats.loss/self._stats.nSample}
 end

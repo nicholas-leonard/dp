@@ -27,8 +27,14 @@ dp.SAVE_DIR = os.getenv('DEEP_SAVE_PATH')
 dp.LOG_DIR = os.getenv('DEEP_LOG_PATH') 
    or paths.concat(dp.TORCH_DIR, 'log')
    
+--[[ utils ]]--
+torch.include('dp', 'utils/utils.lua')
+torch.include('dp', 'utils/underscore.lua')
+torch.include('dp', 'utils/os.lua')
+torch.include('dp', 'utils/table.lua')
+torch.include('dp', 'utils/torch.lua')
+   
 --[[ misc ]]--
-torch.include('dp', 'utils.lua')
 torch.include('dp', 'choose.lua')
 torch.include('dp', 'xplog.lua')
 torch.include('dp', 'mediator.lua')

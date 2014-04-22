@@ -13,13 +13,13 @@ function BaseSet:__init(...)
       'Base class inherited by DataSet and Batch.',
       {arg='which_set', type='string',
        help='"train", "valid" or "test" set'},
-      {arg='inputs', type='dp.DataTensor | table of dp.DataTensors', 
+      {arg='inputs', type='dp.BaseTensor | table of dp.BaseTensors', 
        help='Sample inputs to a model. These can be DataTensors or '..
-       'a table of DataTensors (in which case these are converted '..
+       'a table of BaseTensors (in which case these are converted '..
        'to a CompositeTensor', req=true},
-      {arg='targets', type='dp.DataTensor | table of dp.DataTensors', 
-       help='Sample targets to a model. These can be DataTensors or '..
-       'a table of DataTensors (in which case these are converted '..
+      {arg='targets', type='dp.BaseTensor | table of dp.BaseTensors', 
+       help='Sample targets to a model. These can be BaseTensors or '..
+       'a table of BaseTensors (in which case these are converted '..
        'to a CompositeTensor. The indices of examples must be '..
        'in both inputs and targets must be aligned.'}
    )

@@ -57,7 +57,7 @@ function dptest.gcn_zero_vector()
    -- Test that passing in the zero vector does not result in
    -- a divide by 0 error
    local dataset = dp.DataSet{
-      which_set='train', inputs=torch.zeros(1, 1), axes={'b','f'}
+      which_set='train', inputs=dp.DataTensor{data=torch.zeros(1, 1)}
    }
 
    --std_bias = 0.0 is the only value for which there 
@@ -75,7 +75,7 @@ function dptest.gcn_unit_norm()
    -- results in vectors having unit norm
 
    local dataset = dp.DataSet{
-      which_set='train', axes={'b','f'}, inputs=torch.rand(3,9)
+      which_set='train', inputs=dp.DataTensor{data=torch.rand(3,9)}
    }
    
    local preprocess = dp.GCN{std_bias=0.0, use_std=false}
@@ -87,9 +87,8 @@ function dptest.gcn_unit_norm()
 end
 function dptest.zca()
    -- Confirm that ZCA.inv_P_ is the correct inverse of ZCA._P.
-
    local dataset = dp.DataSet{
-      which_set='train', axes={'b','f'}, inputs=torch.randn(15,10)
+      which_set='train', inputs=dp.DataTensor{data=torch.randn(15,10)}
    }
    local preprocess = dp.ZCA()
    preprocess._unit_test = true

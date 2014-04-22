@@ -20,7 +20,7 @@ local Sampler = torch.class("dp.Sampler")
 Sampler.isSampler = true
 
 function Sampler:__init(...)
-   local args, batch_size, data_view, sample_type = xlua.unpack(
+   local args, batch_size, sample_type = xlua.unpack(
       {... or {}},
       'Sampler', 
       'Abstract class. ' ..
@@ -28,23 +28,15 @@ function Sampler:__init(...)
       'Iteration ends after an epoch (sampler-dependent) ',
       {arg='batch_size', type='number', default='64',
        help='Number of examples per sampled batches'},
-      {arg='data_view', type='string | table',
-       help='Used to determine which view of the input DataTensors' ..
-       'to use. This is automatically setup using Model in ' ..
-       'Propagator, but can be manually entered for cases where ' ..
-       'it cannot be determined by the model. For example, '..
-       'when the first model is a transfer function like Tanh.' },
       {arg='sample_type', type='string', default='double',
        help='"cuda" | "float" | "double"'}
    )
    self:setBatchSize(batch_size)
-   if data_view then self:setDataView(data_view) end
    self._sample_type = typeString_to_tensorType(sample_type)
 end
 
 function Sampler:setup(...)
-   local args, batch_size, overwrite, mediator, model
-      = xlua.unpack(
+   local args, batch_size, overwrite, mediator = xlua.unpack(
       {... or {}},
       'Sampler:setup', 
       'Samples batches from a set of examples in a dataset. '..
@@ -54,17 +46,12 @@ function Sampler:setup(...)
       {arg='overwrite', type='boolean', default=false,
        help='overwrite existing values if not nil.' .. 
        'If nil, initialize whatever the value of overwrite.'},
-      {arg='mediator', type='dp.Mediator'},
-      {arg='model', type='dp.Model'}
+      {arg='mediator', type='dp.Mediator'}
    )
    if batch_size and (not self._batch_size or overwrite) then
       self:setBatchSize(batch_size)
    end
    self._mediator = mediator
-   assert(model or self._data_view)
-   if model and not self._data_view then
-      self:setDataView(model:dataView())
-   end
 end
 
 function Sampler:setBatchSize(batch_size)
@@ -176,12 +163,12 @@ function ShuffleSampler:randomSeed()
 end
    
 function ShuffleSampler:sampleEpoch(dataset)
+   error"Needs to be harmonized with multi-view paradigm"
    local dataset = dp.Sampler.toDataset(dataset)
    local nSample = dataset:nSample()
    local batch_size = self._batch_size
    local start = 1
    local stop
-   local data_view = self._data_view
    local dataset_inputs = dataset:inputs()
    local dataset_targets = dataset:targets()
    -- shuffle before each epoch

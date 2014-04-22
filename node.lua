@@ -104,7 +104,6 @@ end
 function Node:_doneBatch(...)
 end
 
-
 function Node:doneEpoch(report, ...)
    --zeros statistics between epochs
    self:zeroStatistics()

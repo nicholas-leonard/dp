@@ -6,14 +6,6 @@
 local Loss, parent = torch.class("dp.Loss", "dp.Node")
 Loss.isLoss = true
 
-function Loss:__init(config)
-
-end
-
-function Loss:setup(config)
-
-end
-
 function Loss:forward(input, target, carry)
    assert(input.isBaseTensor, "Expecting dp.BaseTensor for input")
    assert(target.isBaseTensor, "Expecting dp.BaseTensor for target")
@@ -46,12 +38,6 @@ function Loss:backward(input, target, carry)
    assert(self.input.grad.isBaseTensor, "Expecting dp.BaseTensor grad")
    self.backwarded = true
    return self.input.grad, carry
-end
-
-function Loss:_forward(carry)
-end
-
-function Loss:_backward(carry)
 end
 
 function Loss:_updateStatistics()

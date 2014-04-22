@@ -12,7 +12,7 @@ require 'lfs'
 
 ------------------------------------------------------------------------
 --[[ dp ]]--
--- deep learning library for torch 7, inspired by pylearn2.
+-- deep learning library for torch7.
 ------------------------------------------------------------------------
 
 dp = {}
@@ -42,6 +42,7 @@ torch.include('dp', 'data/basetensor.lua')
 torch.include('dp', 'data/datatensor.lua')
 torch.include('dp', 'data/imagetensor.lua')
 torch.include('dp', 'data/classtensor.lua')
+torch.include('dp', 'data/compositetensor.lua')
 torch.include('dp', 'data/baseset.lua')
 torch.include('dp', 'data/dataset.lua')
 torch.include('dp', 'data/batch.lua')
@@ -55,6 +56,7 @@ torch.include('dp', 'data/notmnist.lua')
 --[[ preprocess ]]--
 torch.include('dp', 'preprocess/preprocess.lua')
 torch.include('dp', 'preprocess/pipeline.lua')
+torch.include('dp', 'preprocess/parallelpreprocess.lua')
 torch.include('dp', 'preprocess/binarize.lua')
 torch.include('dp', 'preprocess/standardize.lua')
 torch.include('dp', 'preprocess/gcn.lua')
@@ -102,6 +104,10 @@ torch.include('dp', 'model/sequential.lua')
 torch.include('dp', 'model/neural.lua')
 torch.include('dp', 'model/module.lua')
 
+--[[ loss ]]--
+torch.include('dp', 'loss/loss.lua')
+torch.include('dp', 'loss/nll.lua')
+
 --[[ hyper ]]--
 torch.include('dp', 'hyper/hyperoptimizer.lua')
 torch.include('dp', 'hyper/hyperparamsampler.lua')
@@ -110,7 +116,6 @@ torch.include('dp', 'hyper/experimentfactory.lua')
 torch.include('dp', 'hyper/priorsampler.lua')
 torch.include('dp', 'hyper/imageclassfactory.lua')
 torch.include('dp', 'hyper/mlpfactory.lua')
-
 
 --[[ postgres ]]--
 torch.include('dp', 'postgres/postgres.lua')

@@ -103,6 +103,25 @@ function dptest.zca()
    mytester:assert(not is_identity(preprocess._P))
    mytester:assert(is_identity(preprocess._P*preprocess._inv_P))
 end
+function dptest.neural()
+   local tensor = torch.randn(5,10)
+   -- dp
+   local input = dp.DataTensor(tensor)
+   local layer = dp.Neural{input_size=10, output_size=2, transfer=nn.Tanh()}
+   local act, carry = layer:forward(input, {nSample=5})
+   local grad = layer:backward(input, carry)
+   -- nn
+   local mlp = nn.Sequential()
+   local m = nn.Linear(10,2)
+   m:share(layer._affine, 'weight', 'bias')
+   mlp:add(m)
+   mlp:add(nn.Tanh())
+   local mlp_act = mlp:forward(tensor)
+   local mlp_grad = mlp:backward(tensor, tensor)
+   -- compare nn and dp
+   mytester:assertTensorEq(mlp_act, act:feature(), 0.00001)
+   mytester:assertTensorEq(mlp_grad, grad:feature(), 0.00001)
+end
 
 function dp.test(tests)
    math.randomseed(os.time())

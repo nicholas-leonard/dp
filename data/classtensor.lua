@@ -144,22 +144,24 @@ end
 
 --Returns a sub-datatensor narrowed on the batch dimension
 function ClassTensor:sub(start, stop)
-   return torch.factory(torch.typename(self)){
+   return torch.protoClone(self, {
       data=self._data:narrow(self:b(), start, stop-start+1),
       axes=table.copy(self:expandedAxes()),
       sizes=self:expandedSize():clone(),
       classes=self:classes()
-   }
+   })
 end
 
--- return a clone without data 
-function ClassTensor:emptyClone()
-   return torch.factory(torch.typename(self)){
-      data=torch.emptyClone(self._data),
+-- return a clone with self's metadata initialized with some data 
+function ClassTensor:metaClone(data)
+   local sizes = self:expandedSize():clone()
+   assert(sizes[self:b()] == data:size(self:b()))
+   return torch.protoClone(self, {
+      data=data, 
       axes=table.copy(self:expandedAxes()),
       sizes=self:expandedSize():clone(),
-      classes=self:classes()
-   }
+      classes=table.copy(self:classes())
+   })
 end
 
 -- copy data into existing memory allocated for data

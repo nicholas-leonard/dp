@@ -31,19 +31,29 @@ function typeString_to_tensorType(type_string)
    end
 end
 
--- warning : doesn't always allow non-standard constructors
+-- warning : doesn't allow non-standard constructors.
+-- need to call constructors explicitly, e.g. :
 function torch.classof(obj)
    return torch.factory(torch.typename(obj))
 end
 
 -- returns an empty (zero-dim) clone of an obj
 function torch.emptyClone(obj)
-   return torch.classof(obj)
+   return torch.classof(obj)()
+end
+
+-- construct an object using a prototype and initialize it with ...
+-- won't work with torch.Tensors and other userdata (objects written in C)
+-- unless they define __init() constructor.
+function torch.protoClone(proto, ...)
+   local obj = torch.emptyClone(proto)
+   obj:__init(...)
+   return obj
 end
 
 -- returns a view of a tensor
 function torch.view(tensor)
-   return torch.emptyClone(tensor)():set(tensor)
+   return torch.emptyClone(tensor):set(tensor)
 end
 
 -- simple helpers to serialize/deserialize arbitrary objects/tables

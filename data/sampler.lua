@@ -72,7 +72,7 @@ end
 --Default is to iterate sequentially over all examples
 function Sampler:sampleEpoch(dataset, batch)
    dataset = dp.Sampler.toDataset(dataset)
-   batch = batch or dataset:emptyBatch()
+   batch = batch or dataset:batch(self._batch_size)
    local nSample = dataset:nSample()
    local start = 1
    local stop
@@ -155,7 +155,7 @@ end
    
 function ShuffleSampler:sampleEpoch(dataset, batch)
    dataset = dp.Sampler.toDataset(dataset)
-   batch = batch or dataset:emptyBatch()
+   batch = batch or dataset:batch(self._batch_size)
    local nSample = dataset:nSample()
    local start = 1
    local stop

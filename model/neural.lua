@@ -68,7 +68,7 @@ function Neural:sparseInit(W, stdev)
    end
 end
 
-function Neural:zeroStatistics()
+function Neural:_zeroStatistics()
    if self._gather_stats then
       for param_name, param_table in pairs(self:parameters()) do
          self._stats[param_name] = {
@@ -113,20 +113,20 @@ function Neural:_backward(carry)
    local scale = carry.scale
    self._report.scale = scale
    local input_act = self.mvstate.affineAct
-   local output_grad = self.output.grad
+   local output_grad = self.output.grad:feature()
    output_grad = self._transfer:backward(input_act, output_grad, scale)
    if self._recuda then
       output_grad = output_grad:cuda()
    end
    self.mvstate.affineGrad = output_grad
-   input_act = self.mvstate.dropoutAct or self.input.act
+   input_act = self.mvstate.dropoutAct or self.input.act:feature()
    output_grad = self._affine:backward(input_act, output_grad, scale)
    if self._dropout then
       self.mvstate.dropoutGrad = output_grad
-      input_act = self.input.act
-      output_grad = self._dropout:backward(input_act,output_grad,scale)
+      input_act = self.input.act:feature()
+      output_grad = self._dropout:backward(input_act, output_grad, scale)
    end
-   self.input.grad = output_grad
+   self.input.grad = self.input.act:metaClone(output_grad)
    return carry
 end
 

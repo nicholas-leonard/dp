@@ -1,8 +1,8 @@
+--TODO : TableTensor vs ListTensor (for performance reasons)
+
 -----------------------------------------------------------------------
 --[[ CompositeTensor ]]-- 
 -- Composite (design pattern) BaseTensor
-
---TODO : TableTensor vs ListTensor (for performance reasons)
 ------------------------------------------------------------------------
 local CompositeTensor, parent = torch.class("dp.CompositeTensor", "dp.BaseTensor")
 CompositeTensor.isCompositeTensor = true
@@ -65,17 +65,6 @@ end
 -- return iterator over components
 function CompositeTensor:pairs()
    return pairs(self._components)
-end
-
--- return a clone without data 
-function CompositeTensor:emptyClone()
-   return dp.CompositeTensor{
-      components=_.map(self._components,
-         function(component)
-            return component:emptyClone()
-         end
-      )
-   }
 end
 
 -- copy data into existing memory allocated for data

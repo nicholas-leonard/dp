@@ -32,11 +32,11 @@ function DataSet:probabilities()
    return self._probabilities
 end
 
--- builds an empty batch (factory method)
-function DataSet:emptyBatch()
+-- builds a batch (factory method)
+function DataSet:batch(batch_size)
    dp.Batch{
       which_set=self:whichSet(), epoch_size=self:nSample(),
-      inputs=self:inputs():emptyClone(),
-      targets=self:targets() and self:targets():emptyClone()
+      inputs=self:inputs():sub(1, batch_size),
+      targets=self:targets() and self:targets():sub(1, batch_size)
    }
 end

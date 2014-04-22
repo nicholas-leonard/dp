@@ -265,32 +265,35 @@ function DataTensor:index(dt, indices)
    else
       data = self._data:index(self:b(), indices)
    end
-   return torch.factory(torch.typename(self)){
+   return torch.protoClone(self, {
       data=data, axes=table.copy(self:expandedAxes()),
       sizes=self:expandedSize():clone()
-   }
+   })
 end
 
 --Returns a sub-datatensor narrowed on the batch dimension
 function DataTensor:sub(start, stop)
-   return torch.factory(torch.typename(self)){
+   return torch.protoClone(self, {
       data=self._data:narrow(self:b(), start, stop-start+1),
       axes=table.copy(self:expandedAxes()),
       sizes=self:expandedSize():clone()
-   }
+   })
 end
 
--- return a clone without data 
-function DataTensor:emptyClone()
-   return torch.factory(torch.typename(self)){
-      data=torch.emptyClone(self._data),
+-- return a clone with self's metadata initialized with some data 
+function DataTensor:metaClone(data)
+   local sizes = self:expandedSize():clone()
+   assert(sizes[self:b()] == data:size(self:b()))
+   return torch.protoClone(self, {
+      data=data, 
       axes=table.copy(self:expandedAxes()),
       sizes=self:expandedSize():clone()
-   }
+   })
 end
 
 -- copy data into existing memory allocated for data
 function DataTensor:copy(datatensor)
+   self._data:resizeAs(datatensor:data())
    self._data:copy(datatensor:data())
    self._axes = table.copy(datatensor:storedAxes())
    self._expanded_axes = table.copy(datatensor:expandedAxes())

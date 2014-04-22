@@ -7,10 +7,6 @@
 local Node = torch.class("dp.Node")
 Node.isNode = true
 
-function Node:__init(config)
-   self:zeroStatistics()
-end
-
 function Node:setup(config)
    local args, mediator, id = xlua.unpack(
       {config or {}},
@@ -65,7 +61,7 @@ end
 
 function Node:backward(output, carry)
    assert(output.isBaseTensor, "Expecting dp.BaseTensor output")
-   self.output.act = output
+   self.output.grad = output
    carry = self:_backward(carry) or carry
    assert(self.input.grad.isBaseTensor, "Expecting dp.BaseTensor grad")
    self.backwarded = true
@@ -78,7 +74,7 @@ end
 
 function Node:zeroStatistics()
    self._stats = {nSample=0}
-   self._zeroStatistics()
+   self:_zeroStatistics()
 end
 
 function Node:_zeroStatistics()
@@ -87,7 +83,7 @@ end
 -- should only be called by forward or evaluate (once per batch)
 function Node:updateStatistics(carry)
    self._stats.nSample = self._stats.nSample + carry.nSample
-   self._updateStatistics(carry)
+   self:_updateStatistics(carry)
 end
 
 function Node:_updateStatistics(carry)

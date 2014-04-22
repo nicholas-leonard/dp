@@ -37,12 +37,6 @@ function BaseTensor:copy(basetensor)
    error"Not Implemented"
 end
 
--- return a clone without data 
-function BaseTensor:emptyClone()
-   error"Not Implemented"
-end
-
-
 ---- static methods ----
 function BaseTensor.transpose(axis, new_dim, axes, size, data)
    -- copy

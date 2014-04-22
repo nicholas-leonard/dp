@@ -26,42 +26,38 @@ function Optimizer:__init(config)
    parent.__init(self, config)
 end
       
-function Optimizer:propagateBatch(batch, report)   
+function Optimizer:propagateBatch(batch, report) 
+   local carry = self:forward(batch)
+   carry = self:feedback(batch, report, carry) or carry
+   carry = self:backward(batch, carry) or carry
+   self:update()
+   self:doneBatch(report, carry)
+end
+
+function Optimizer:forward(batch, report)
    --[[ feedforward ]]--
    -- evaluate function for complete mini batch
-   local ostate, cstate = self._model:forward{input=batch:inputs()}
-   
-   -- used by loss and feedback
-   local state = {input=ostate, target=batch:targets(), carry=cstate}
+   local carry = batch:carry()
+   self.output, carry = self._model:forward(batch:inputs(), carry)
    
    -- measure loss and backprop gradients
-   local loss, cstate = self._loss:forward(state)
-   
-   -- monitor error 
-   if self._feedback then
-      self._feedback:forward(state)
-   end
-   
-   --publish report for this optimizer
-   self._mediator:publish(self:name()..':'.."doneFeedback", report, batch)
-   
+   self.loss, carry = self._loss:forward(output, batch:targets(), carry)
+   return carry
+end
+
+function Optimizer:backward(batch, carry)
    --[[ backpropagate ]]--
    -- estimate gradient of loss w.r.t. outputs, a basetensor
-   local istate, cstate = self._loss:backward(state)
+   self.input, carry = self._loss:backward(output, batch:targets(), carry)
    
    -- backprop through model
    self._model:backward{output=istate}
+end
 
+function Optimizer:update()
    --[[ update parameters ]]--
    -- visits models to perform updates
    self._model:accept(self._visitor)
-   
-   -- zero gradients, statistics, etc.
-   self._model:doneBatch()
-   self._loss:doneBatch()
-   
-   --publish report for this optimizer
-   self._mediator:publish(self:name()..':'.."doneBatch", report, batch)
 end
 
 

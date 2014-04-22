@@ -1,41 +1,34 @@
 ------------------------------------------------------------------------
 --[[ Evaluator ]]--
--- Tests (evaluates) a model using a sampling distribution.
--- For evaluating the generalization of the model, seperate the 
+-- Evaluates (tests) a model using a sampling distribution.
+-- For evaluating the generalization of the model, separate the 
 -- training data from the test data. The Evaluator can also be used 
 -- for early-stoping.
 ------------------------------------------------------------------------
 local Evaluator = torch.class("dp.Evaluator", "dp.Propagator")
 Evaluator.isEvaluator = true
-      
+
 function Evaluator:propagateBatch(batch, report) 
-   local model = self._model
+   local carry = self:evaluate(batch)
+   carry = self:feedback(batch, report, carry) or carry
+   self:visitModel()
+   self:doneBatch(report, carry)
+end
+
+function Evaluator:evaluate(batch, report)
    --[[ feedforward ]]--
    -- evaluate function for complete mini batch
-   local ostate = model:evaluate{input=batch:inputs()}
-   batch:setOutputs(ostate.act)
+   local carry = batch:carry()
+   self.output, carry = self._model:evaluate(batch:inputs(), carry)
    
-   -- average loss (a scalar)
-   batch:setLoss(
-      self._criterion:forward(batch:outputs(), batch:targets())
-   )
-   
-   self:updateLoss(batch)
-   
-   -- monitor error 
-   if self._feedback then
-      self._feedback:add(batch)
-   end
-   --publish report for this optimizer
-   self._mediator:publish(self:name()..':'.."doneFeedback", report, batch)
+   -- measure loss and backprop gradients
+   self.loss, carry = self._loss:evaluate(output, batch:targets(), carry)
+   return carry
+end
 
-   
-   --[[ update parameters ]]--
+function Evaluator:visitModel()
+   -- visits the model
    if self._visitor then
-      model:accept(self._visitor)
+      self._model:accept(self._visitor)
    end
-   model:doneBatch()
-   
-   --publish report for this optimizer
-   self._mediator:publish(self:name()..':'.."doneBatch", report, batch)
 end

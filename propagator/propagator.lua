@@ -1,7 +1,3 @@
---TODO : 
--- move progress bar to sampler?
--- feedback takes state
-
 ------------------------------------------------------------------------
 --[[ Propagator ]]--
 -- Abstract Class for propagating a sampling distribution (Sampler) 
@@ -11,16 +7,16 @@
 -- propagator. If you can reduce it to reusable components, you could 
 -- then refactor these into visitors, observers, etc.
 ------------------------------------------------------------------------
-local Propagator = torch.class("dp.Propagator")
+local Propagator = torch.class("dp.Propagator", "dp.Node")
 Propagator.isPropagator = true
 
 function Propagator:__init(...)   
-   local args, criterion, visitor, sampler, observer, feedback, 
+   local args, loss, visitor, sampler, observer, feedback, 
          mem_type, progress, stats
       = xlua.unpack(
       {... or {}},
       'Propagator', nil,
-      {arg='criterion', type='nn.Criterion', req=true,
+      {arg='loss', type='dp.Loss', req=true,
        help='a neural network criterion to evaluate or minimize'},
       {arg='visitor', type='dp.Visitor',
        help='visits models at the end of each batch propagation to '.. 
@@ -41,13 +37,12 @@ function Propagator:__init(...)
    )
    self:setSampler(sampler or dp.Sampler())
    self:setMemType(mem_type)
-   self:setCriterion(criterion)
+   self:setLoss(loss)
    self:setObserver(observer)
    self:setFeedback(feedback)
    self:setVisitor(visitor)
    self._progress = progress
    self._stats = stats
-   self:resetLoss()
 end
 
 function Propagator:setup(...)
@@ -90,7 +85,6 @@ function Propagator:setup(...)
 end
 
 function Propagator:propagateEpoch(dataset, report)
-   self:resetLoss()
    if self._feedback then
       self._feedback:reset()
    end
@@ -134,6 +128,27 @@ function Propagator:propagateBatch(batch)
    error"NotImplementedError"
 end
 
+
+function Propagator:feedback(batch, report, carry)
+   -- monitor error 
+   if self._feedback then
+      self._feedback:forward(batch, self.output, carry)
+   end
+   
+   --publish report for this optimizer
+   self._mediator:publish(self:name()..':'.."doneFeedback", report, batch)
+   return carry
+end
+
+function Propagator:doneBatch(report, carry)
+   -- zero gradients, statistics, etc.
+   self._model:doneBatch()
+   self._loss:doneBatch()
+   
+   --publish report for this optimizer
+   self._mediator:publish(self:name()..':'.."doneBatch", report, carry)
+end
+
 -- returns a log for the current epoch, in the format of a table
 -- or we could create an EpochLog class to help with this.
 -- But a table is more flexible. The advantage over pylearn2 is that 
@@ -143,7 +158,7 @@ end
 function Propagator:report()
    local report = {
       name = self:id():name(),      
-      loss = self:loss(),
+      loss = self._loss:report(),
       sampler = self._sampler:report(),
       epoch_duration = self._epoch_duration,
       batch_duration = self._batch_duration,
@@ -221,12 +236,12 @@ function Propagator:feedback()
    return self._feedback
 end
 
-function Propagator:setCriterion(criterion)
-   self._criterion = criterion
+function Propagator:setLoss(loss)
+   self._loss = loss
 end
 
-function Propagator:criterion()
-   return self._criterion
+function Propagator:loss()
+   return self._loss
 end
 
 function Propagator:setMemType(mem_type, overwrite)

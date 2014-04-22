@@ -55,7 +55,7 @@ function Model:forward(input, carry)
    return self.output.act, carry
 end
 
-function Node:evaluate(input, carry)
+function Model:evaluate(input, carry)
    assert(input.isBaseTensor, "Expecting dp.BaseTensor instance")
    self.input.act = input
    carry.evaluate = true

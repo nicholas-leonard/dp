@@ -32,11 +32,11 @@ function Container:add(model)
    table.insert(self._models, model)
 end
 
-function Sequential:size()
+function Container:size()
    return #self._models
 end
 
-function Sequential:get(index)
+function Container:get(index)
    return self._models[index]
 end
 

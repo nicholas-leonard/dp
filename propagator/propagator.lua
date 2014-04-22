@@ -7,7 +7,7 @@
 -- propagator. If you can reduce it to reusable components, you could 
 -- then refactor these into visitors, observers, etc.
 ------------------------------------------------------------------------
-local Propagator = torch.class("dp.Propagator", "dp.Node")
+local Propagator = torch.class("dp.Propagator")
 Propagator.isPropagator = true
 
 function Propagator:__init(...)   
@@ -43,6 +43,7 @@ function Propagator:__init(...)
    self:setVisitor(visitor)
    self._progress = progress
    self._stats = stats
+   self.output = {}
 end
 
 function Propagator:setup(...)
@@ -147,6 +148,7 @@ function Propagator:doneBatch(report, carry)
    
    --publish report for this optimizer
    self._mediator:publish(self:name()..':'.."doneBatch", report, carry)
+   self.output = {}
 end
 
 -- returns a log for the current epoch, in the format of a table

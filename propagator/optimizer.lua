@@ -38,20 +38,20 @@ function Optimizer:forward(batch, report)
    --[[ feedforward ]]--
    -- evaluate function for complete mini batch
    local carry = batch:carry()
-   self.output, carry = self._model:forward(batch:inputs(), carry)
+   self.output.act, carry = self._model:forward(batch:inputs(), carry)
    
    -- measure loss and backprop gradients
-   self.loss, carry = self._loss:forward(output, batch:targets(), carry)
+   self.loss, carry = self._loss:forward(self.output.act, batch:targets(), carry)
    return carry
 end
 
 function Optimizer:backward(batch, carry)
    --[[ backpropagate ]]--
    -- estimate gradient of loss w.r.t. outputs, a basetensor
-   self.input, carry = self._loss:backward(output, batch:targets(), carry)
+   self.output.grad, carry = self._loss:backward(self.output.act, batch:targets(), carry)
    
    -- backprop through model
-   self._model:backward{output=istate}
+   self._model:backward(self.output.grad, carry)
 end
 
 function Optimizer:update()

@@ -1,19 +1,11 @@
 --[[TODO]]--
 -- Use Random_seed
--- postpone dataview to model.
--- criterion needs to be decorated for providing dataview
 -- model determines sample type
 -- batch gets classes from targets.
 -- Dataset could be called with sub, index to generate Batch
-
--- Multi-input/target
--- Integrate critera directly into model. Have them update batch for pushing stats?
--- Need model to choose DataTensor from composite. That way can have inputs at different locations
--- Or we can copy torch and force to use parallel and sequential for delayed inputs/targets.
--- Need MoE example
-
 ------------------------------------------------------------------------
 --[[ Sampler ]]--
+-- DataSet iterator
 -- Sequentially samples batches from a dataset.
 ------------------------------------------------------------------------
 local Sampler = torch.class("dp.Sampler")
@@ -23,7 +15,6 @@ function Sampler:__init(...)
    local args, batch_size, sample_type = xlua.unpack(
       {... or {}},
       'Sampler', 
-      'Abstract class. ' ..
       'Samples batches from a set of examples in a dataset. '..
       'Iteration ends after an epoch (sampler-dependent) ',
       {arg='batch_size', type='number', default='64',
@@ -82,6 +73,7 @@ end
 function Sampler:sampleEpoch(dataset, batch)
    dataset = dp.Sampler.toDataset(dataset)
    batch = batch or dataset:emptyBatch()
+   local nSample = dataset:nSample()
    local start = 1
    local stop
    -- build iterator
@@ -109,7 +101,6 @@ function Sampler:sampleEpoch(dataset, batch)
    return epochSamples
 end
 
-
 ------------------------------------------------------------------------
 --[[ ShuffleSampler ]]--
 -- Samples from a multinomial distribution where each examples has a 
@@ -132,7 +123,7 @@ function ShuffleSampler:_init(config)
    )
    self:setRandomSeed(random_seed)
    config.batch_size = batch_size
-   Sampler.__init(self, config)
+   parent.__init(self, config)
 end
 
 function ShuffleSampler:setup(config)
@@ -162,51 +153,33 @@ function ShuffleSampler:randomSeed()
    return self._random_seed
 end
    
-function ShuffleSampler:sampleEpoch(dataset)
-   error"Needs to be harmonized with multi-view paradigm"
-   local dataset = dp.Sampler.toDataset(dataset)
+function ShuffleSampler:sampleEpoch(dataset, batch)
+   dataset = dp.Sampler.toDataset(dataset)
+   batch = batch or dataset:emptyBatch()
    local nSample = dataset:nSample()
-   local batch_size = self._batch_size
    local start = 1
    local stop
-   local dataset_inputs = dataset:inputs()
-   local dataset_targets = dataset:targets()
    -- shuffle before each epoch
    local dataset_indices = torch.randperm(nSample)
    -- build iterator
    local epochSamples = 
       function()
+         stop = math.min(start+self._batch_size-1,nSample)
+         local batch_indices = dataset_indices:sub(start,stop):long()
+         -- inputs
+         dataset:inputs():index(batch:inputs(), batch_indices)
+         -- targets
+         dataset:targets():index(batch:targets(), batch_indices)
+         -- metadata
+         batch:setup{
+            batch_iter=stop, batch_size=self._batch_size,
+            n_sample=stop-start+1, grad_type=self._sample_type, 
+            indices=torch.range(start,stop)
+         }
+         start = start + self._batch_size
          if start >= nSample then
             return
          end
-         stop = math.min(start+batch_size-1,nSample)
-         local batch_indices = dataset_indices:sub(start,stop):long()
-         -- inputs
-         local batch_inputs = {}
-         for i=1,#dataset_inputs do
-            local dv = data_view[i]
-            local dt = dataset_inputs[i]
-            batch_inputs[i] = dt[dv](dt):index(
-                                    1, batch_indices
-                                 ):type(self._sample_type)
-         end
-         -- targets
-         local batch_function = 
-            function(datatensor) 
-               return datatensor:default():index(
-                                    1, batch_indices
-                                 ) --:type(self._sample_type)
-            end
-         local batch_targets = _.map(dataset_targets, batch_function)
-         --TODO support multi-input/target datasets
-         --Dataset should be called with sub, index to generate Batch
-         local batch = dp.Batch{
-            inputs=batch_inputs[1], targets=batch_targets[1], 
-            batch_iter=stop, epoch_size=nSample, batch_size=batch_size, 
-            n_sample=stop-start+1, classes=dataset_targets[1]:classes(),
-            grad_type=self._sample_type, indices=batch_indices
-         }
-         start = start + batch_size
          collectgarbage() 
          return batch
       end

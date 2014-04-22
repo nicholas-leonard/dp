@@ -242,7 +242,7 @@ function DataTensor:feature(...)
    return data
 end
 
---Returns default view of data
+--Returns current view of data
 function DataTensor:data()
    return self._data
 end
@@ -255,11 +255,20 @@ function DataTensor:pairs()
    return pairs{self}
 end
 
---Decorator/Adapter for torch.Tensor
---Returns a batch of data. 
---Note that the batch uses different storage (because of :index())
-function DataTensor:index(indices)
-   return self._data:index(self:b(), indices)
+-- When dt is provided, reuse its data (a torch.Tensor).
+function DataTensor:index(dt, indices)
+   local data
+   if indices then
+      assert(dt.isBaseTensor, "Expecting BaseTensor as first argument")
+      data = dt:data()
+      torch.Tensor.index(data, self._data, self:b(), indices)
+   else
+      data = self._data:index(self:b(), indices)
+   end
+   return torch.factory(torch.typename(self)){
+      data=data, axes=table.copy(self:expandedAxes()),
+      sizes=self:expandedSize():clone()
+   }
 end
 
 --Returns a sub-datatensor narrowed on the batch dimension

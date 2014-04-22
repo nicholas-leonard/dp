@@ -15,10 +15,11 @@ function BaseTensor:nSample()
    error"Not Implemented"
 end
 
---Decorator/Adapter for torch.Tensor
---Returns a batch of data. 
---Note that the batch uses different storage (because of :index())
-function BaseTensor:index(indices)
+-- Returns a subet of data. 
+-- If dt is provided, copy indexed elements into its existing memory.
+-- However, use the metadata found in self.
+-- Providing dt is faster (no memory allocation).
+function BaseTensor:index(dt, indices)
    error"Not Implemented"
 end
 

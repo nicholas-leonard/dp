@@ -42,13 +42,10 @@ function CompositeTensor:nSample()
    end
 end
 
---Decorator/Adapter for torch.Tensor
---Returns a batch of data. 
---Note that the batch uses different storage (because of :index())
-function CompositeTensor:index(indices)
+function CompositeTensor:index(dt, indices)
    return _.map(self._components, 
       function(component) 
-         return component:index(indices)
+         return component:index(dt, indices)
       end
    )
 end

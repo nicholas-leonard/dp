@@ -74,52 +74,22 @@ function RemoteModel:set
 
 ------------------------------------------------------------------------
 --[[ Master ]]--
--- Station
 -- Not Serializable
 -- An object representing the master process of the system
 -- Should run in its own dedicated process for maximum concurrency
 ------------------------------------------------------------------------
-local Master, parent = torch.class("dp.Master", "dp.Station")
+local Master, parent = torch.class("dp.Master")
+Master.isMaster = true
 
 function Master:__init(config)
-   local args, id, serial_mode = xlua.unpack(
+   local args, station_map = xlua.unpack(
       {config or {}},
       'Master', 
       'Represents the master process of the system.'
-      {arg='id', type='dp.ObjectID', req=true},
-      {arg='serial_mode', type='string', default='ascii'}
+      {arg='station_map', type='table'}
    )
-   self._id = id
-   self._mode = mode
-   -- contains all sessions
-   self._session_map = {}
    -- contains all master proxies (slaves)
-   self._slave_map = {}
-   -- server listens to incomming connections
-   self._server = async.tcp.listen({host='localhost', port=8483}, function(client)
-      print('new connection:',client)
-      client.onsplitdata(separator, function(data)
-         print('received #data :', #data)
-         local command = torch.deserialize(data, self._mode)
-         local session = self:session(command:sessionId())
-      end)
-      client.onend(function()
-         print('client ended')
-      end)
-      client.onclose(function()
-         print('closed.')
-         collectgarbage()
-         print(collectgarbage("count") * 1024)
-      end)
-   end)
-end
-
-function Master:newSession()
-   return Session{station=
-end
-
-function Master:session(session_id)
-   return self._session_map[session_id]
+   self._station_map = {}
 end
 
 ------------------------------------------------------------------------

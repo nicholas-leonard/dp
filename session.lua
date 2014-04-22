@@ -9,13 +9,13 @@
 -- It points to the process Station which allows it to communicate commands across the network
 ------------------------------------------------------------------------
 local Session = torch.class("dp.Session")
+Session.isSession = true
 
 function Session:__init(config)
-   local args, id, local_map, shared_map
-      = xlua.unpack(
+   local args, id, local_map, shared_map = xlua.unpack(
          {config or {}},
          'Session', nil,
-         {arg='id', type='number'},
+         {arg='id', type='dp.ObjectID'},
          {arg='local_map', type='dp.ObjectMap',
           help='Session-local object map'},
          {arg='shared_map', type='dp.ObjectMap'}

@@ -1,6 +1,3 @@
-async = require 'async'
-local separator = '<347 SPLIT 879>'
-
 ------------------------------------------------------------------------
 --[[ Command ]]--
 -- Command design pattern
@@ -35,7 +32,6 @@ end
 
 function Forward:execute(session)
    local session_map, shared_map = session:objectMaps()
-   local model = getSharedWithLocalMemento(self._subject_id)
    local output_state, carry_state = model:forward(
       self._input_state, self._carry_state, self._batch_state
    )

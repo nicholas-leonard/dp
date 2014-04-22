@@ -10,7 +10,7 @@ Neural.isNeural = true
 function Neural:__init(config)
    config = config or {}
    local args, input_size, output_size, transfer, dropout, typename, 
-         sparse_init = xlua.unpack(
+         sparse_init, gather_stats = xlua.unpack(
       {config},
       'Neural', 
       'An affine transformation followed by a transfer function.',
@@ -26,8 +26,10 @@ function Neural:__init(config)
       {arg='typename', type='string', default='neural', 
        help='identifies Model type in reports.'},
       {arg='sparse_init', type='boolean', default=true,
-       hel='sparse initialization of weights. See Martens (2010), '..
-       '"Deep learning via Hessian-free optimization"'}
+       help='sparse initialization of weights. See Martens (2010), '..
+       '"Deep learning via Hessian-free optimization"'},
+      {arg='gather_stats', type='boolean', default=false,
+       help='gather statistics on gradients'}
    )
    self._input_size = input_size
    self._output_size = output_size
@@ -38,6 +40,8 @@ function Neural:__init(config)
    parent.__init(self, config)
    self._tags.hasParams = true
    self._uncuda = (torch.typename(self._transfer) == 'nn.SoftMax')
+   self._sparse_init = sparse_init
+   self._gather_stats = gather_stats
    if sparse_init then
       self:sparseInit(self:parameters().weight.param)
    end
@@ -65,10 +69,12 @@ function Neural:sparseInit(W, stdev)
 end
 
 function Neural:zeroStatistics()
-   for param_name, param_table in pairs(self:parameters()) do
-      self._stats[param_name] = {
-         grad={sum=0, mean=0, min=0, max=0, count=0, std=0}
-      }
+   if self._gather_stats then
+      for param_name, param_table in pairs(self:parameters()) do
+         self._stats[param_name] = {
+            grad={sum=0, mean=0, min=0, max=0, count=0, std=0}
+         }
+      end
    end
 end
 
@@ -81,16 +87,11 @@ function Neural:checkParams()
    end
 end
 
-function Neural:setup(config)
-   config.data_view = 'feature'
-   parent.setup(self, config)
-end
-
-function Neural:_forward(cstate)
-   local activation = self.istate.act:feature()
+function Neural:_forward(carry)
+   local activation = self.input.act:feature()
    if self._dropout then
       -- dropout has a different behavior during evaluation vs training
-      self._dropout.train = (not self.gstate.evaluate)
+      self._dropout.train = (not carry.evaluate)
       activation = self._dropout:forward(activation)
       self.mvstate.dropoutAct = activation
    end
@@ -102,40 +103,46 @@ function Neural:_forward(cstate)
       activation = activation:double()
    end
    self.mvstate.affineAct = activation
-   self.ostate.act = self._transfer:forward(activation)
+   activation = self._transfer:forward(activation)
+   -- wrap torch.Tensor in a dp.DataTensor
+   self.output.act = dp.DataTensor{data=activation}
+   return carry
 end
 
-function Neural:_backward(cstate)
-   local scale = cstate.scale or self.gstate.scale
+function Neural:_backward(carry)
+   local scale = carry.scale
    self._report.scale = scale
    local input_act = self.mvstate.affineAct
-   local output_grad = self.ostate.grad
+   local output_grad = self.output.grad
    output_grad = self._transfer:backward(input_act, output_grad, scale)
    if self._recuda then
       output_grad = output_grad:cuda()
    end
    self.mvstate.affineGrad = output_grad
-   input_act = self.mvstate.dropoutAct or self.istate.act
+   input_act = self.mvstate.dropoutAct or self.input.act
    output_grad = self._affine:backward(input_act, output_grad, scale)
    if self._dropout then
       self.mvstate.dropoutGrad = output_grad
-      input_act = self.istate.act
+      input_act = self.input.act
       output_grad = self._dropout:backward(input_act,output_grad,scale)
    end
-   self.istate.grad = output_grad
+   self.input.grad = output_grad
+   return carry
 end
 
 function Neural:_accept(visitor)
    local params = self:parameters()
-   for param_name, param_table in pairs(self:parameters()) do
-      local grad = torch.abs(param_table.grad:double())
-      local grad_stats = self._stats[param_name].grad 
-      grad_stats.sum = grad_stats.sum + grad:sum()
-      grad_stats.min = grad_stats.min + grad:min()
-      grad_stats.max = grad_stats.max + grad:max()
-      grad_stats.mean = grad_stats.mean + grad:mean()
-      grad_stats.std = grad_stats.std + grad:std()
-      grad_stats.count = grad_stats.count + 1
+   if self._gather_stats then
+      for param_name, param_table in pairs(self:parameters()) do
+         local grad = torch.abs(param_table.grad:double())
+         local grad_stats = self._stats[param_name].grad 
+         grad_stats.sum = grad_stats.sum + grad:sum()
+         grad_stats.min = grad_stats.min + grad:min()
+         grad_stats.max = grad_stats.max + grad:max()
+         grad_stats.mean = grad_stats.mean + grad:mean()
+         grad_stats.std = grad_stats.std + grad:std()
+         grad_stats.count = grad_stats.count + 1
+      end
    end
    parent._accept(self, visitor)
 end
@@ -155,7 +162,10 @@ function Neural:type(type)
 end
 
 function Neural:reset()
-   return self._affine:reset()
+   self._affine:reset()
+   if self._sparse_init then
+      self:sparseInit(self:parameters().weight.param)
+   end
 end
 
 -- do not use this to change the type of parameters.
@@ -198,20 +208,27 @@ function Neural:share(neural, ...)
    return self      
 end
 
+function Neural:sharedClone()
+   local clone = self:clone()
+   return self:share(clone, 'weight', 'bias')
+end
+
 function Neural:report()
    local report = parent.report(self) or {}
-   for param_name, param_table in pairs(self:parameters()) do
-      local param_stats = self._stats[param_name]
-      if param_stats and param_stats.grad and param_stats.grad.count > 0 then
-         local grad = param_stats.grad
-         local param_report = self._report[param_name] or {}
-         local count = grad.count
-         local grad_report = {
-               sum=grad.sum/count, mean=grad.mean/count,
-               min=grad.min/count, max=grad.max/count,
-               std=grad.std/count, count=grad.count
-         }
-         self._report[param_name] = {grad=grad_report}
+   if self._gather_stats then
+      for param_name, param_table in pairs(self:parameters()) do
+         local param_stats = self._stats[param_name]
+         if param_stats and param_stats.grad and param_stats.grad.count > 0 then
+            local grad = param_stats.grad
+            local param_report = self._report[param_name] or {}
+            local count = grad.count
+            local grad_report = {
+                  sum=grad.sum/count, mean=grad.mean/count,
+                  min=grad.min/count, max=grad.max/count,
+                  std=grad.std/count, count=grad.count
+            }
+            self._report[param_name] = {grad=grad_report}
+         end
       end
    end
    return table.merge(report, self._report)

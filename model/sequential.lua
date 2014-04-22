@@ -13,60 +13,35 @@ function Sequential:__init(config)
    parent.__init(self, config)
 end
 
-function Sequential:extend(models)
-   for model_idx, model in ipairs(models) do
-      self:add(model)
-   end
-end
-
 function Sequential:setup(config)
    parent.setup(self, config)
-   local predecessor = self._predecessor
    config.container = self
    for i, model in ipairs(self._models) do
       config.id = self:id():create('s'..i)
-      config.predecessor = predecessor
-      predecessor = model
-      config.successor = self._models[i+1] or self._successor
       model:setup(config)
    end
-   self._data_view = self._models[1]:dataView()
 end
 
-function Sequential:add(model)
-   table.insert(self._models, model)
-end
-
-function Sequential:size()
-   return #self._models
-end
-
-function Sequential:get(index)
-   return self._models[index]
-end
-
-function Sequential:_forward(cstate)
-   local istate = self.istate
+function Sequential:_forward(carry)
+   local input = self.input.act
    for i=1,#self._models do 
-      local state = {input=istate,global=self.gstate,carry=cstate}
-      if self.gstate.evaluate then
-         istate, cstate = self._models[i]:evaluate(state)
+      if carry.evaluate then
+         input, carry = self._models[i]:evaluate(input, carry)
       else
-         istate, cstate = self._models[i]:forward(state)
+         input, carry = self._models[i]:forward(input, carry)
       end
    end
-   self.ostate = istate
-   return cstate
+   self.output.act = input
+   return carry
 end
 
-function Sequential:_backward(cstate)
-   local ostate = self.ostate
+function Sequential:_backward(carry)
+   local output = self.output.act
    for i=#self._models,1,-1 do
-      local state = {output=ostate,global=self.gstate,carry=cstate}
-      ostate, cstate = self._models[i]:backward(state)
+      output, carry = self._models[i]:backward(output, carry)
    end
-   self.istate = ostate
-   return cstate
+   self.input.grad = output
+   return carry
 end
 
 function Sequential:__tostring__()
@@ -85,3 +60,17 @@ function Sequential:__tostring__()
    str = str .. line .. '}'
    return str
 end
+
+--[[
+-- experimental
+function Sequential:flux(state)
+   local output = self.output
+   -- setup
+   for i=1,#self._models-1 do
+      self._models[i]:setSuccessor(self._models[i+1])
+   end
+   return self._model[1]:flux()
+   self.input = output
+   return carry
+end
+--]]

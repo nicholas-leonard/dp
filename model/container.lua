@@ -27,7 +27,17 @@ function Container:extend(models)
 end
 
 function Container:add(model)
+   assert(not self._setup, 
+      "Should insert models before calling setup()!")
    table.insert(self._models, model)
+end
+
+function Sequential:size()
+   return #self._models
+end
+
+function Sequential:get(index)
+   return self._models[index]
 end
 
 function Container:type(type)

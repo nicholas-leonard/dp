@@ -10,10 +10,12 @@
 -- Visitor statistics
 ------------------------------------------------------------------------
 local Visitor = torch.class("dp.Visitor")
+Visitor.isVisitor = true
 
-function Visitor:__init(...)
+function Visitor:__init(config)
+   assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, name, include, exclude, observer = xlua.unpack(
-      {... or {}},
+      {config},
       'Visitor', nil,
       {arg='name', type='string', req=true,
        help='identifies visitor in reports.'},
@@ -36,9 +38,10 @@ function Visitor:__init(...)
    self:setObserver(observer)
 end
 
-function Visitor:setup(...)
+function Visitor:setup(config)
+   assert(type(config) == 'table', "Setup requires key-value arguments")
    local args, mediator, model, propagator = xlua.unpack(
-      {... or {}},
+      {config},
       'Visitor:setup', nil,
       {arg='mediator', type='dp.Mediator'},
       {arg='model', type='dp.Model'},

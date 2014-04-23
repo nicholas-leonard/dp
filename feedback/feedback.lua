@@ -74,7 +74,6 @@ end
 --accumulates information from the batch
 function Feedback:add(batch, output, carry, report)
    assert(batch.isBatch, "First argument should be Batch")
-   assert(output.isBaseTensor, "Second argument should be BaseTensor")
    self._n_sample = self._n_sample + batch:nSample()
    self:_add(batch, output, carry, report)
 end

@@ -79,7 +79,7 @@ torch.include('dp', 'propagator/experiment.lua')
 torch.include('dp', 'feedback/feedback.lua')
 torch.include('dp', 'feedback/compositefeedback.lua')
 torch.include('dp', 'feedback/confusion.lua')
-torch.include('dp', 'feedback/criteria.lua')
+--torch.include('dp', 'feedback/criteria.lua')
 
 --[[ visitor ]]--
 torch.include('dp', 'visitor/visitor.lua')

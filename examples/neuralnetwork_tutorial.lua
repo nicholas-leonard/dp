@@ -34,9 +34,9 @@ model = dp.Sequential{
 train = dp.Optimizer{
    loss = dp.NLL(),
    visitor = { -- the ordering here is important:
-      dp.Momentum{momentum_factor = opt.momentum},
+      --dp.Momentum{momentum_factor = opt.momentum},
       dp.Learn{learning_rate = opt.learningRate},
-      dp.MaxNorm{max_out_norm = opt.maxOutNorm}
+      --dp.MaxNorm{max_out_norm = opt.maxOutNorm}
    },
    feedback = dp.Confusion(),
    sampler = dp.ShuffleSampler{batch_size = opt.batchSize},

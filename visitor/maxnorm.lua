@@ -12,6 +12,7 @@ MaxNorm.isMaxNorm = true
 
 function MaxNorm:__init(config)
    config = config or {}
+   assert(not config[1], "Constructor requires key-value arguments")
    local args, max_out_norm, max_in_norm, name = xlua.unpack(
       {config},
       'MaxNorm', 

@@ -39,12 +39,12 @@ function Neural:__init(config)
    self._uncuda = (torch.typename(self._transfer) == 'nn.SoftMax')
    self._sparse_init = sparse_init
    self._gather_stats = gather_stats
-   if sparse_init then
-      self:sparseInit(self:parameters().weight.param)
-   end
    self:checkParams()
    config.typename = typename
    parent.__init(self, config)
+   if sparse_init then
+      self:sparseInit(self:parameters().weight.param)
+   end
    self._tags.hasParams = true
    self:zeroGradParameters()
 end
@@ -130,8 +130,8 @@ function Neural:_backward(carry)
 end
 
 function Neural:_accept(visitor)
-   local params = self:parameters()
    if self._gather_stats then
+      local params = self:parameters()
       for param_name, param_table in pairs(self:parameters()) do
          local grad = torch.abs(param_table.grad:double())
          local grad_stats = self._stats[param_name].grad 

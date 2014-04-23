@@ -9,7 +9,7 @@ local EarlyStopper, parent = torch.class("dp.EarlyStopper", "dp.Observer")
 EarlyStopper.isEarlyStopper = true
 
 function EarlyStopper:__init(config) 
-   config = config or {}
+   assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, start_epoch, error_report, error_channel, maximize, 
          save_strategy, max_epochs, max_error, min_epoch
       = xlua.unpack(
@@ -23,7 +23,7 @@ function EarlyStopper:__init(config)
        help='when to start saving models.'},
       {arg='error_report', type='table', 
        help='a sequence of keys to access error from report. ' ..
-       "Default is {'validator', 'error'}, unless " ..
+       'Default is {"validator", "loss", "avgError"}, unless ' ..
        'of course an error_channel is specified.'},
       {arg='error_channel', type='string | table',
        help='channel to subscribe to for early stopping. Should ' ..
@@ -62,7 +62,7 @@ function EarlyStopper:__init(config)
    assert(self._error_report or self._error_channel)
    assert(not(self._error_report and self._error_channel))
    if not (self._error_report or self._error_channel) then
-      self._error_report = {'validator','loss'}
+      self._error_report = {'validator','loss','avgError'}
    end
    parent.__init(self, "doneEpoch")
 end
@@ -90,6 +90,7 @@ function EarlyStopper:doneEpoch(report, ...)
       for _, name in ipairs(self._error_report) do
          report_cursor = report_cursor[name]
       end
+      print("loss", report_cursor)
       self:compareError(report_cursor, ...)
    end
 end

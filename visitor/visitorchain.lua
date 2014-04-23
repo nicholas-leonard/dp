@@ -3,11 +3,14 @@
 -- Composite, Visitor, Chain of Responsibility
 ------------------------------------------------------------------------
 local VisitorChain, parent = torch.class("dp.VisitorChain", "dp.Visitor")
+VisitorChain.isVisitorChain = true
 
 function VisitorChain:__init(config)
+   assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, visitors = xlua.unpack(
       {config},
-      'VisitorChain', nil,
+      'VisitorChain', 
+      'A composite chain of visitors. The order is important.',
       {arg='visitors', type='table', req=true}
    )
    config.name = 'visitorchain'

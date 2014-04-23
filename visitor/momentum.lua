@@ -3,15 +3,16 @@
 -- ModelVisitor
 -- Applies momentum to parameters
 ------------------------------------------------------------------------
-
 local Momentum, parent = torch.class("dp.Momentum", "dp.Visitor")
+Momentum.isMomentum = true
 
 function Momentum:__init(config)
-   config = config or {}
+   assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, momentum_factor, damping_factor, nesterov, name
       = xlua.unpack(
       {config},
-      'Momentum', 'Applies momentum to parameters',
+      'Momentum', 
+      'Applies momentum to parameters',
       {arg='momentum_factor', type='number', req=true},
       {arg='damping_factor', type='number between 0 and 1', 
        help='Reduces oscillations. Mostly useful for recurrent nets'},

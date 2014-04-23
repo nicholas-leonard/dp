@@ -13,7 +13,8 @@ Mnist._feature_size = 1*28*28
 Mnist._classes = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 
 function Mnist:__init(config) 
-   assert(type(config) == 'table', "Constructor requires key-value arguments")
+   config = config or {}
+   assert(not config[1], "Constructor requires key-value arguments")
    local load_all, input_preprocess, target_preprocess
    self._args, self._valid_ratio, self._train_file, self._test_file, 
          self._data_path, self._scale, self._binarize, self._shuffle,

@@ -36,7 +36,7 @@ function Confusion:_add(batch, output, carry, report)
       require 'optim'
       self._cm = optim.ConfusionMatrix(batch:targets():classes())
    end
-   self._cm:batchAdd(batch:outputs():feature(), batch:targets():class())
+   self._cm:batchAdd(output.act:feature(), batch:targets():class())
 end
 
 function Confusion:_reset()

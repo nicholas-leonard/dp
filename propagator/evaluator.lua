@@ -10,7 +10,7 @@ Evaluator.isEvaluator = true
 
 function Evaluator:propagateBatch(batch, report) 
    local carry = self:evaluate(batch)
-   carry = self:feedback(batch, report, carry) or carry
+   carry = self:monitor(batch, report, carry) or carry
    self:visitModel()
    self:doneBatch(report, carry)
 end

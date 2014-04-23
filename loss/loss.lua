@@ -48,12 +48,16 @@ function Loss:_zeroStatistics()
    self._stats.loss = 0
 end
 
-function Loss:loss()
+function Loss:avgError()
    return self._stats.loss/(self._stats.nSample+0.0000000001)
 end
 
 function Loss:report()
-   self:loss()
-   print(self:id():toString() .. ' loss ' .. loss)
-   return {loss=loss}
+   local err = self:avgError()
+   print(self:id():toString() .. ' avgError ' .. err)
+   local report = {avgError=err}
+   return self._report(report) or report
+end
+
+function Loss:_report(report)
 end

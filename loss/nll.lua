@@ -16,6 +16,7 @@ function NLL:_forward(carry)
    local input = self.input.act:feature()
    local target = self.input.target:class()
    self.loss = self._criterion:forward(input, target)
+   print(self.loss, input:mean(), target:mean())
    return carry
 end
 
@@ -26,16 +27,4 @@ function NLL:_backward(carry)
       self._criterion:backward(input, target)
    )
    return carry
-end
-
-function NLL:_updateStatistics()
-   self._stats.loss = self._stats.loss + self.loss               
-end
-
-function NLL:_zeroStatistics()
-   self._stats.loss = 0
-end
-
-function NLL:report()
-   return {loss=self._stats.loss/self._stats.nSample}
 end

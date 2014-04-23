@@ -3,7 +3,6 @@
 -- Interface, Observer
 -- Simple logger that prints a report every epoch
 ------------------------------------------------------------------------
-
 local FileLogger, parent = torch.class("dp.FileLogger", "dp.Logger")
 FileLogger.isFileLogger = true
 
@@ -20,7 +19,7 @@ function FileLogger:setup(config)
    self._log_dir = paths.concat(self._save_dir, 'log')
    --creates directories if required
    os.execute('mkdir -p ' .. self._log_dir)
-   print(self._save_dir, self._log_dir)
+   print("FileLogger: log will be written to " .. self._log_dir)
 end
 
 function FileLogger:doneEpoch(report)

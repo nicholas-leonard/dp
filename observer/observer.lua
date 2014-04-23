@@ -38,9 +38,10 @@ end
 
 --An observer is setup with a mediator and a subject.
 --The subject is usually the object from which the observer is setup.
-function Observer:setup(...)
+function Observer:setup(config)
+   assert(type(config) == 'table', "Setup requires key-value arguments")
    local args, mediator, subject = xlua.unpack(
-      {... or {}},
+      {config},
       'Observer:setup', nil,
       {arg='mediator', type='dp.Mediator', req=true},
       {arg='subject', type='dp.Experiment | dp.Propagator | ...',

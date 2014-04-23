@@ -5,16 +5,12 @@
 -- propagated gradients and learning rate(s)
 -- Provides for model-local learning rate scales which scale the 
 -- global learning rate. 
-
--- TODO : 
--- Provide interface for mstate (model state) construction.
---  This would allow for initialization of visitor-model variables like
---  learning scalers, etc.
 ------------------------------------------------------------------------
 local Learn, parent = torch.class("dp.Learn", "dp.Visitor")
 Learn.isLearn = true
 
 function Learn:__init(config)
+   assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, learning_rate, name = xlua.unpack(
       {config},
       'Learn', nil,

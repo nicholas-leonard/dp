@@ -28,13 +28,13 @@ end
       
 function Optimizer:propagateBatch(batch, report) 
    local carry = self:forward(batch)
-   carry = self:feedback(batch, report, carry) or carry
+   carry = self:monitor(batch, report, carry) or carry
    carry = self:backward(batch, carry) or carry
    self:update()
    self:doneBatch(report, carry)
 end
 
-function Optimizer:forward(batch, report)
+function Optimizer:forward(batch)
    --[[ feedforward ]]--
    -- evaluate function for complete mini batch
    local carry = batch:carry()

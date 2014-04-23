@@ -3,12 +3,12 @@
 -- Observer
 -- Only works on dp.Learn subject
 ------------------------------------------------------------------------
-local LearningRateSchedule, parent
-   = torch.class("dp.LearningRateSchedule", "dp.Observer")
+local LearningRateSchedule, parent = torch.class("dp.LearningRateSchedule", "dp.Observer")
 
-function LearningRateSchedule:__init(...)
+function LearningRateSchedule:__init(config)
+   assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, schedule = xlua.unpack(
-      {... or {}},
+      {config},
       'LearningRateSchedule', nil,
       {arg='schedule', type='table | tensor', req=true,
        help='Epochs as keys, and learning rates as values'}

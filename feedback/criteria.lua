@@ -1,14 +1,17 @@
+-- TODO
+-- convert for use with dp.Loss instread of nn.Criteria.
+-- make non-composite
 ------------------------------------------------------------------------
---[[ Criteria ]]--
+--[[ LossFeedback ]]--
 -- Feedback
 -- Adapter that feeds back and accumulates the error of one or many
 -- nn.Criterion. Each supplied nn.Criterion requires a name for 
 -- reporting purposes. Default name is typename minus module name(s)
 ------------------------------------------------------------------------
-local Criteria, parent = torch.class("dp.Criteria", "dp.Feedback")
-Criteria.isCriteria = true
+local LossFeedback, parent = torch.class("dp.LossFeedback", "dp.Feedback")
+LossFeedback.isCriteria = true
 
-function Criteria:__init(config)
+function LossFeedback:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, criteria, name, typename_pattern = xlua.unpack(
       {config},
@@ -65,10 +68,10 @@ function Criteria:_reset()
    end
 end
 
-function Criteria:_add(batch)             
+function Criteria:_add(batch, output, carry, report)             
    local current_error
    for k,v in self._criteria do
-      current_error = v:forward(batch:outputs(), batch:targets())
+      current_error = v:forward(output.act:data(), batch:targets():data())
       self._errors[k] =  (
                               ( self._n_sample * self._errors[k] ) 
                               + 

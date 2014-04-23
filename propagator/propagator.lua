@@ -99,7 +99,10 @@ function Propagator:propagateEpoch(dataset, report)
       print('==> epoch # '..(report.epoch + 1)..' for '..self:name())
    end
    
-   for batch in self._sampler:sampleEpoch(dataset, batch) do
+   local sampler = self._sampler:sampleEpoch(dataset)
+   while true do
+      -- reuse the batch object
+      batch = sampler(batch)
       self:propagateBatch(batch, report)
       if self._progress then
          -- disp progress

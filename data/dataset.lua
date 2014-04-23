@@ -34,7 +34,7 @@ end
 
 -- builds a batch (factory method)
 function DataSet:batch(batch_size)
-   dp.Batch{
+   return dp.Batch{
       which_set=self:whichSet(), epoch_size=self:nSample(),
       inputs=self:inputs():sub(1, batch_size),
       targets=self:targets() and self:targets():sub(1, batch_size)

@@ -38,7 +38,7 @@ function BaseTensor:copy(basetensor)
 end
 
 -- return a clone with self's metadata initialized with some data 
-function DataTensor:featureClone(data)
+function BaseTensor:featureClone(data)
    error"Not Implemented"
 end
 

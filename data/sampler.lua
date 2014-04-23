@@ -72,13 +72,13 @@ end
 --Default is to iterate sequentially over all examples
 function Sampler:sampleEpoch(dataset, batch)
    dataset = dp.Sampler.toDataset(dataset)
-   batch = batch or dataset:batch(self._batch_size)
    local nSample = dataset:nSample()
    local start = 1
    local stop
    -- build iterator
    local epochSamples = 
-      function()
+      function(batch)
+         batch = batch or dataset:batch(self._batch_size)
          stop = math.min(start+self._batch_size-1,nSample)
          -- inputs
          batch:inputs():copy(dataset:inputs():sub(start, stop))
@@ -153,9 +153,8 @@ function ShuffleSampler:randomSeed()
    return self._random_seed
 end
    
-function ShuffleSampler:sampleEpoch(dataset, batch)
+function ShuffleSampler:sampleEpoch(dataset)
    dataset = dp.Sampler.toDataset(dataset)
-   batch = batch or dataset:batch(self._batch_size)
    local nSample = dataset:nSample()
    local start = 1
    local stop
@@ -163,7 +162,8 @@ function ShuffleSampler:sampleEpoch(dataset, batch)
    local dataset_indices = torch.randperm(nSample)
    -- build iterator
    local epochSamples = 
-      function()
+      function(batch)
+         batch = batch or dataset:batch(self._batch_size)
          stop = math.min(start+self._batch_size-1,nSample)
          local batch_indices = dataset_indices:sub(start,stop):long()
          -- inputs

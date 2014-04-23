@@ -23,9 +23,9 @@
 local DataTensor, parent = torch.class("dp.DataTensor", "dp.BaseTensor")
 DataTensor.isDataTensor = true
 
-function DataTensor:__init(config)
+function DataTensor:__init(...)
    local args, data, axes, sizes = xlua.unpack(
-      {config or {}},
+      {... or {}},
       'DataTensor', 
       'Builds a dp.DataTensor out of torch.Tensor data.',
       {arg='data', type='torch.Tensor | dp.DataTensor', req=true,
@@ -257,6 +257,8 @@ end
 
 -- When dt is provided, reuse its data (a torch.Tensor).
 function DataTensor:index(dt, indices)
+   local sizes = self:expandedSize():clone()
+   sizes[self:b()] = indices:size(1)
    local data
    if indices then
       assert(dt.isBaseTensor, "Expecting BaseTensor as first argument")
@@ -266,24 +268,24 @@ function DataTensor:index(dt, indices)
       data = self._data:index(self:b(), indices)
    end
    return torch.protoClone(self, {
-      data=data, axes=table.copy(self:expandedAxes()),
-      sizes=self:expandedSize():clone()
+      data=data, sizes=sizes, axes=table.copy(self:expandedAxes())
    })
 end
 
 --Returns a sub-datatensor narrowed on the batch dimension
 function DataTensor:sub(start, stop)
+   local sizes = self:expandedSize():clone()
+   sizes[self:b()] = stop-start+1
    return torch.protoClone(self, {
       data=self._data:narrow(self:b(), start, stop-start+1),
-      axes=table.copy(self:expandedAxes()),
-      sizes=self:expandedSize():clone()
+      axes=table.copy(self:expandedAxes()), sizes=sizes
    })
 end
 
 -- return a clone with self's metadata initialized with some data 
 function DataTensor:featureClone(data)
    local sizes = self:expandedSize():clone()
-   assert(sizes[self:b()] == data:size(self:b()))
+   assert(sizes[self:b()] == data:size(1))
    return torch.protoClone(self, {
       data=data, 
       axes=table.copy(self:expandedAxes()),

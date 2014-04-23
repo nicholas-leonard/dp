@@ -20,11 +20,13 @@ function CompositeTensor:__init(config)
 end
 
 function CompositeTensor:feature(...)
+   local config = {...}
    -- sort keys to get consistent view
    local keys = _.sort(_.keys(self._components))
    local features = _.map(keys, 
       function(key)
-         return self._components[key]:feature(...)
+         local component = self._components[key]
+         return component:feature(unpack(config))
       end
    )
    -- flatten in case of nested composites

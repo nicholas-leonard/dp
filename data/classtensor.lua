@@ -142,13 +142,32 @@ function ClassTensor:feature(config)
    return self:manyhot()
 end
 
+-- returns a batch of examples indexed by indices
+function ClassTensor:index(dt, indices)
+   local sizes = self:expandedSize():clone()
+   sizes[self:b()] = indices:size(1)
+   local data
+   if indices then
+      assert(dt.isBaseTensor, "Expecting BaseTensor as first argument")
+      data = dt:data()
+      torch.Tensor.index(data, self._data, self:b(), indices)
+   else
+      data = self._data:index(self:b(), indices)
+   end
+   return torch.protoClone(self, {
+      data=data, sizes=sizes, axes=table.copy(self:expandedAxes()),
+      classes=table.copy(self._classes)
+   })
+end
+
 --Returns a sub-datatensor narrowed on the batch dimension
 function ClassTensor:sub(start, stop)
+   local sizes=self:expandedSize():clone()
+   sizes[self:b()] = stop-start+1
    return torch.protoClone(self, {
       data=self._data:narrow(self:b(), start, stop-start+1),
       axes=table.copy(self:expandedAxes()),
-      sizes=self:expandedSize():clone(),
-      classes=self:classes()
+      sizes=sizes, classes=table.copy(self:classes())
    })
 end
 

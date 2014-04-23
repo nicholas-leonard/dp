@@ -20,7 +20,6 @@ function torch.isTensor(obj)
    return typepattern(obj, "^torch[.]%a*Tensor$")
 end
 
-
 function typeString_to_tensorType(type_string)
    if type_string == 'cuda' then
       return 'torch.CudaTensor'

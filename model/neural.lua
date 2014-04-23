@@ -126,7 +126,7 @@ function Neural:_backward(carry)
       input_act = self.input.act:feature()
       output_grad = self._dropout:backward(input_act, output_grad, scale)
    end
-   self.input.grad = self.input.act:metaClone(output_grad)
+   self.input.grad = self.input.act:featureClone(output_grad)
    return carry
 end
 

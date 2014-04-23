@@ -48,6 +48,12 @@ function Loss:_zeroStatistics()
    self._stats.loss = 0
 end
 
+function Loss:loss()
+   return self._stats.loss/(self._stats.nSample+0.0000000001)
+end
+
 function Loss:report()
-   return {loss=self._stats.loss/self._stats.nSample}
+   self:loss()
+   print(self:id():toString() .. ' loss ' .. loss)
+   return {loss=loss}
 end

@@ -32,7 +32,7 @@ model = dp.Sequential{
 
 --[[Propagators]]--
 train = dp.Optimizer{
-   criterion = nn.ClassNLLCriterion(),
+   loss = dp.NLL(),
    visitor = { -- the ordering here is important:
       dp.Momentum{momentum_factor = opt.momentum},
       dp.Learn{learning_rate = opt.learningRate},
@@ -43,12 +43,12 @@ train = dp.Optimizer{
    progress = true
 }
 valid = dp.Evaluator{
-   criterion = nn.ClassNLLCriterion(),
+   loss = dp.NLL(),
    feedback = dp.Confusion(),  
    sampler = dp.Sampler{}
 }
 test = dp.Evaluator{
-   criterion = nn.ClassNLLCriterion(),
+   loss = dp.NLL(),
    feedback = dp.Confusion(),
    sampler = dp.Sampler{}
 }

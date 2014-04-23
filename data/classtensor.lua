@@ -153,7 +153,7 @@ function ClassTensor:sub(start, stop)
 end
 
 -- return a clone with self's metadata initialized with some data 
-function ClassTensor:metaClone(data)
+function ClassTensor:featureClone(data)
    local sizes = self:expandedSize():clone()
    assert(sizes[self:b()] == data:size(self:b()))
    return torch.protoClone(self, {

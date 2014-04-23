@@ -32,7 +32,7 @@ function VisitorChain:report()
    -- merge reports
    local report = {}
    for k, visitor in pairs(self._visitors) do
-      merge(report, visitor:report())
+      table.merge(report, visitor:report())
    end
    return report
 end

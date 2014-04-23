@@ -74,6 +74,7 @@ function Propagator:setup(...)
    self:setModel(model)
    self:setMemType(mem_type, overwrite)
    self._sampler:setup{mediator=mediator, model=model}
+   self._loss:setup{mediator=mediator, id=id:create("loss")}
    if self._observer then self._observer:setup{
       mediator=mediator, subject=self
    } end
@@ -173,7 +174,6 @@ function Propagator:report()
    if self._visitor then
       report.visitor = self._visitor:report()
    end
-   print(self:id():toString() .. ' loss ' .. self:loss())
    return report
 end
 

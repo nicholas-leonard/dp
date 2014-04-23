@@ -19,12 +19,12 @@ function CompositeTensor:__init(config)
    self._components = components
 end
 
-function CompositeTensor:feature()
+function CompositeTensor:feature(...)
    -- sort keys to get consistent view
    local keys = _.sort(_.keys(self._components))
    local features = _.map(keys, 
       function(key)
-         return self._components[key]:feature()
+         return self._components[key]:feature(...)
       end
    )
    -- flatten in case of nested composites
@@ -65,6 +65,19 @@ end
 -- return iterator over components
 function CompositeTensor:pairs()
    return pairs(self._components)
+end
+
+-- return a clone with self's metadata initialized with some data 
+function CompositeTensor:featureClone(data)
+   local components = {}
+   local start = 1
+   for i,k in ipairs(_.sort(_.keys(self._components))) do
+      local component = components[k]
+      local size = component:feature(false):size(2)
+      local clone = component:featureClone(data:narrow(2, start, size))
+      components[k] = clone
+   end
+   return dp.CompositeTensor{components=components}
 end
 
 -- copy data into existing memory allocated for data

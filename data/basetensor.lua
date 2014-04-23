@@ -37,6 +37,11 @@ function BaseTensor:copy(basetensor)
    error"Not Implemented"
 end
 
+-- return a clone with self's metadata initialized with some data 
+function DataTensor:featureClone(data)
+   error"Not Implemented"
+end
+
 ---- static methods ----
 function BaseTensor.transpose(axis, new_dim, axes, size, data)
    -- copy

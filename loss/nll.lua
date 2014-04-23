@@ -9,6 +9,7 @@ NLL.isNLL = true
 
 function NLL:__init(config)
    self._criterion = nn.ClassNLLCriterion()
+   self:zeroStatistics()
 end
 
 function NLL:_forward(carry)

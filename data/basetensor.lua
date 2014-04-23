@@ -6,8 +6,14 @@
 local BaseTensor = torch.class("dp.BaseTensor")
 BaseTensor.isBaseTensor = true
 
-function BaseTensor:feature()
-   error"Not Implemented"
+function BaseTensor:feature(inplace, contiguous)
+   -- When true, makes stored data a contiguous view for future use :
+   inplace = inplace or true
+   -- When true makes sure the returned tensor contiguous. 
+   -- Only considered when inplace is false, since inplace
+   -- implicitly makes the returned tensor contiguous :
+   contiguous = contiguous or false
+   return self:_feature(inplace, contiguous)
 end
 
 -- Returns number of samples

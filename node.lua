@@ -7,11 +7,18 @@
 local Node = torch.class("dp.Node")
 Node.isNode = true
 
+function Node:__init()
+   self:zeroStatistics()
+   self:doneBatch()
+end
+
 function Node:setup(config)
+   assert(type(config) == 'table', "Setup requires key-value arguments")
    local args, mediator, id = xlua.unpack(
-      {config or {}},
+      {config},
       'Node:setup', nil,
-      {arg='mediator', type='dp.Mediator'},
+      {arg='mediator', type='dp.Mediator', 
+       help='allows Nodes to signal other object of events.'},
       {arg='id', type='dp.ObjectID',
        help='Uniquely identifies node.'}
    )

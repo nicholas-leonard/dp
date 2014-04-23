@@ -10,6 +10,7 @@ local Sampler = torch.class("dp.Sampler")
 Sampler.isSampler = true
 
 function Sampler:__init(...)
+   assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, batch_size, sample_type = xlua.unpack(
       {... or {}},
       'Sampler', 
@@ -24,9 +25,10 @@ function Sampler:__init(...)
    self._sample_type = typeString_to_tensorType(sample_type)
 end
 
-function Sampler:setup(...)
+function Sampler:setup(config)
+   assert(type(config) == 'table', "Setup requires key-value arguments")
    local args, batch_size, overwrite, mediator = xlua.unpack(
-      {... or {}},
+      {config},
       'Sampler:setup', 
       'Samples batches from a set of examples in a dataset. '..
       'Iteration ends after an epoch (sampler-dependent) ',

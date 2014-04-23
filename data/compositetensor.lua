@@ -8,8 +8,9 @@ local CompositeTensor, parent = torch.class("dp.CompositeTensor", "dp.BaseTensor
 CompositeTensor.isCompositeTensor = true
 
 function CompositeTensor:__init(config)
+   assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, components = xlua.unpack(
-      {config or {}},
+      {config},
       'CompositeTensor', 
       'Builds a dp.CompositeTensor out of a table of dp.BaseTensors',
       {arg='components', type='table of dp.BaseTensor', 
@@ -19,14 +20,13 @@ function CompositeTensor:__init(config)
    self._components = components
 end
 
-function CompositeTensor:feature(...)
-   local config = {...}
+function CompositeTensor:_feature(inplace, contiguous)
    -- sort keys to get consistent view
    local keys = _.sort(_.keys(self._components))
    local features = _.map(keys, 
       function(key)
          local component = self._components[key]
-         return component:feature(unpack(config))
+         return component:feature(inplace, contiguous)
       end
    )
    -- flatten in case of nested composites

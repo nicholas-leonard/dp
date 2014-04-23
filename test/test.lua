@@ -106,7 +106,7 @@ end
 function dptest.neural()
    local tensor = torch.randn(5,10)
    -- dp
-   local input = dp.DataTensor(tensor)
+   local input = dp.DataTensor{data=tensor}
    local layer = dp.Neural{input_size=10, output_size=2, transfer=nn.Tanh()}
    local act, carry = layer:forward(input, {nSample=5})
    local grad = layer:backward(input, carry)

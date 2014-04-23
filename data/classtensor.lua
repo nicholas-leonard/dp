@@ -6,10 +6,11 @@ local ClassTensor, parent = torch.class("dp.ClassTensor", "dp.DataTensor")
 ClassTensor.isClassTensor = true
 
 --TODO validate range of classes
-function ClassTensor:__init(...)
+function ClassTensor:__init(config)
+   assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, data, axes, sizes, classes
       = xlua.unpack(
-      {... or {}},
+      {config},
       'ClassTensor', 
       'Builds a data.ClassTensor out of torch.Tensor data.',
       {arg='data', type='torch.Tensor', 
@@ -58,19 +59,15 @@ function ClassTensor:classes()
    return self._classes
 end
 
-function ClassTensor:multiclass(...)
+function ClassTensor:multiclass(inplace, contiguous)
+   -- When true, makes stored data a contiguous view for future use :
+   inplace = inplace or true
+   -- When true makes sure the returned tensor contiguous. 
+   -- Only considered when inplace is false, since inplace
+   -- implicitly makes the returned tensor contiguous :
+   contiguous = contiguous or false
    local axes = {'b', 't'} 
    local sizes = self:expandedSize()
-   local args, inplace, contiguous = xlua.unpack(
-      {... or {}},
-      'DataTensor:multiclass',
-      'Returns a 2D-tensor of examples by classes: {"b", "t"}',
-      {arg='inplace', type='boolean', default=true, 
-       help='When true, makes self._data a contiguous view of axes '..
-       '{"b", "t"} for future use.'},
-      {arg='contiguous', type='boolean', default=false,
-       help='When true makes sure the returned tensor is contiguous.'}
-   )
    --creates a new view of the same storage
    local data = torch.view(self._data)
    if data:dim() == 2 and table.eq(self._axes, axes) then
@@ -107,19 +104,15 @@ function ClassTensor:multiclass(...)
    return data, self._classes
 end
 
-function ClassTensor:class(...)
+function ClassTensor:class(inplace, contiguous)
+   -- When true, makes stored data a contiguous view for future use :
+   inplace = inplace or true
+   -- When true makes sure the returned tensor contiguous. 
+   -- Only considered when inplace is false, since inplace
+   -- implicitly makes the returned tensor contiguous :
+   contiguous = contiguous or false
    local axes = {'b'} 
    local sizes = self:expandedSize()
-   local args, inplace, contiguous = xlua.unpack(
-      {... or {}},
-      'DataTensor:class',
-      'Returns a 1D-tensor of example classes: {"b"}',
-      {arg='inplace', type='boolean', default=true,
-       help='When true, makes self._data is a contiguous view of '..
-       'axes {"b"} for future use.'},
-      {arg='contiguous', type='boolean', default=false,
-       help='When true makes sure the returned tensor is contiguous.'}
-   )
    --use multiclass:
    local data, classes = self:multiclass{
       inplace=inplace, contiguous=contiguous
@@ -129,17 +122,17 @@ function ClassTensor:class(...)
    return data, classes
 end
 
-function ClassTensor:onehot(...)
+function ClassTensor:onehot(inplace, contiguous)
    error("Not Implemented")
 end
 
-function ClassTensor:manyhot(...)
+function ClassTensor:manyhot(inplace, contiguous)
    error("Not Implemented")
 end
 
-function ClassTensor:feature(config)
+function ClassTensor:feature(inplace, contiguous)
    -- when request as features (usually as inputs), use many-hot view
-   return self:manyhot()
+   return self:manyhot(inplace, contiguous)
 end
 
 -- returns a batch of examples indexed by indices

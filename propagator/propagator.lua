@@ -10,11 +10,12 @@
 local Propagator = torch.class("dp.Propagator")
 Propagator.isPropagator = true
 
-function Propagator:__init(...)   
+function Propagator:__init(config)   
+   assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, loss, visitor, sampler, observer, feedback, 
          mem_type, progress, stats
       = xlua.unpack(
-      {... or {}},
+      {config},
       'Propagator', nil,
       {arg='loss', type='dp.Loss', req=true,
        help='a neural network criterion to evaluate or minimize'},
@@ -46,10 +47,11 @@ function Propagator:__init(...)
    self.output = {}
 end
 
-function Propagator:setup(...)
+function Propagator:setup(config)
+   assert(type(config) == 'table', "Setup requires key-value arguments")
    local args, id, model, mediator, mem_type, dataset, overwrite
       = xlua.unpack(
-      {... or {}},
+      {config},
       'Propagator:setup', nil,
       {arg='id', type='dp.ObjectID'},
       {arg='model', type='nn.Module',

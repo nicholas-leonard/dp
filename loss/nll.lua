@@ -7,7 +7,7 @@
 local NLL, parent = torch.class("dp.NLL", "dp.Loss")
 NLL.isNLL = true
 
-function NLL:__init(config)
+function NLL:__init()
    self._criterion = nn.ClassNLLCriterion()
    self:zeroStatistics()
 end

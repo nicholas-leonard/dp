@@ -8,8 +8,8 @@ local Sequential, parent = torch.class("dp.Sequential", "dp.Container")
 Sequential.isSequential = true
 
 function Sequential:__init(config)
-   config = config or {}
-   config.typename = 'sequential'
+   assert(type(config) == 'table', "Constructor requires key-value arguments")
+   config.typename = config.typename or 'sequential'
    parent.__init(self, config)
 end
 

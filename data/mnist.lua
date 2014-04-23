@@ -12,14 +12,15 @@ Mnist._image_axes = {'b', 'h', 'w', 'c'}
 Mnist._feature_size = 1*28*28
 Mnist._classes = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 
-function Mnist:__init(...) 
+function Mnist:__init(config) 
+   assert(type(config) == 'table', "Constructor requires key-value arguments")
    local load_all, input_preprocess, target_preprocess
    self._args, self._valid_ratio, self._train_file, self._test_file, 
          self._data_path, self._scale, self._binarize, self._shuffle,
          self._download_url, load_all, input_preprocess, 
          target_preprocess
       = xlua.unpack(
-      {... or {}},
+      {config},
       'Mnist', nil,
       {arg='valid_ratio', type='number', default=1/6,
        help='proportion of training set to use for cross-validation.'},

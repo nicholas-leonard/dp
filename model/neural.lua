@@ -8,10 +8,10 @@ local Neural, parent = torch.class("dp.Neural", "dp.Model")
 Neural.isNeural = true
 
 function Neural:__init(config)
-   config = config or {}
+   assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, input_size, output_size, transfer, dropout, typename, 
          sparse_init, gather_stats = xlua.unpack(
-      {config},
+      {config or {}},
       'Neural', 
       'An affine transformation followed by a transfer function.',
       {arg='input_size', type='number', req=true,
@@ -34,20 +34,19 @@ function Neural:__init(config)
    self._input_size = input_size
    self._output_size = output_size
    self._transfer = transfer
-   config.typename = config.typename or typename
    self._affine = nn.Linear(input_size, output_size)
    self._dropout = dropout
-   parent.__init(self, config)
-   self._tags.hasParams = true
    self._uncuda = (torch.typename(self._transfer) == 'nn.SoftMax')
    self._sparse_init = sparse_init
    self._gather_stats = gather_stats
    if sparse_init then
       self:sparseInit(self:parameters().weight.param)
    end
-   self:zeroGradParameters()
    self:checkParams()
-   self:zeroStatistics()
+   config.typename = typename
+   parent.__init(self, config)
+   self._tags.hasParams = true
+   self:zeroGradParameters()
 end
 
 function Neural:sparseInit(W, stdev)

@@ -11,11 +11,12 @@
 local DataSource = torch.class("dp.DataSource")
 DataSource.isDataSource = true
 
-function DataSource:__init(...)
+function DataSource:__init(config)
+   assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, train_set, valid_set, test_set, 
          input_preprocess, output_preprocess
       = xlua.unpack(
-      {... or {}},
+      {config},
       'DataSource', 
       'Abstract Class ' ..
       'Used to generate up to 3 DataSets : train, valid and test. ' ..
@@ -167,7 +168,7 @@ end
 function DataSource.getDataPath(...)
    local args, name, url, data_dir, decompress_file
       = xlua.unpack(
-         {... or {}},
+         {...},
          'getDataPath', 
          'Check locally and download datasource if not found. ' ..
          'Returns the path to the resulting data file. ' ..

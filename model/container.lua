@@ -6,6 +6,7 @@ local Container, parent = torch.class("dp.Container", "dp.Model")
 Container.isContainer = true
 
 function Container:__init(config)
+   assert(type(config) == 'table', "Constructor requires key-value arguments")
    config = config or {}
    local args, models = xlua.unpack(
       {config},

@@ -9,8 +9,9 @@ local Batch, parent = torch.class("dp.Batch", "dp.BaseSet")
 Batch.isBatch = true
 
 function Batch:__init(config)
+   assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, epoch_size = xlua.unpack(
-      {config or {}},
+      {config},
       'Batch', 
       'State of a mini-batch to be fed into a model and criterion.',
       {arg='epoch_size', type='number',
@@ -21,11 +22,12 @@ function Batch:__init(config)
 end
 
 function Batch:setup(config)
+   assert(type(config) == 'table', "Setup requires key-value arguments")
    local args, epoch_size
    args, self._batch_iter, self._batch_size, self._n_sample, 
       self._grad_type, self._indices, epoch_size
       = xlua.unpack(
-      {config or {}},
+      {config},
       'Batch:setup', 
       'post-construction setup. Usually performed by Sampler.',
       {arg='batch_iter', type='number',

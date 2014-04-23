@@ -23,9 +23,10 @@
 local DataTensor, parent = torch.class("dp.DataTensor", "dp.BaseTensor")
 DataTensor.isDataTensor = true
 
-function DataTensor:__init(...)
+function DataTensor:__init(config)
+   assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, data, axes, sizes = xlua.unpack(
-      {... or {}},
+      {config},
       'DataTensor', 
       'Builds a dp.DataTensor out of torch.Tensor data.',
       {arg='data', type='torch.Tensor | dp.DataTensor', req=true,
@@ -190,22 +191,10 @@ function DataTensor:store(new_data, new_axes)
    self._data = new_data
 end
 
-function DataTensor:feature(...)
+function DataTensor:_feature(inplace, contiguous)
    local axes = {'b','f'}
    local sizes = self:expandedSize()
    assert(sizes:size(1) > 1, "Error: cannot guess size of features")
-   local args, inplace, contiguous = xlua.unpack(
-      {... or {}},
-      'DataTensor:feature',
-      'Returns a 2D-tensor of examples by features : {"b", "f"}',
-      {arg='inplace', type='boolean', default=true,
-       help='When true, makes self._data a contiguous view of axes '..
-       '{"b", "f"} for future use.'},
-      {arg='contiguous', type='boolean', default=false,
-       help='When true, makes sure the returned data is contiguous. '..
-       'Only considered when inplace is false, since inplace '..
-       'makes it contiguous anyway.'}
-   )
    --creates a new view of the same storage
    local data = torch.view(self._data)
    if self._data:dim() == 2 and table.eq(self._axes, axes) then

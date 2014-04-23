@@ -6,9 +6,10 @@
 local Model, parent = torch.class("dp.Model", "dp.Node")
 Model.isModel = true
 
-function Model:__init(...)
+function Model:__init(config)
+   assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, typename, tags, mvstate = xlua.unpack(
-      {... or {}},
+      {config},
       'Model', nil,
       {arg='typename', type='string', req=true, 
        help='identifies Model type in reports.'},
@@ -22,13 +23,13 @@ function Model:__init(...)
    self._tags = tags -- tags
    self._report = {} -- stores a report
    self.mvstate = mvstate -- stores stuff for visitors in between passes
-   self:doneBatch()
+   parent.__init(self)
 end
 
 function Model:setup(config)
-   local args, container
-      = xlua.unpack(
-      {config or {}},
+   assert(type(config) == 'table', "Setup requires key-value arguments")
+   local args, container = xlua.unpack(
+      {config},
       'Model:setup', nil,
       {arg='container', type='dp.Container'}
    )

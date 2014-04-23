@@ -5,10 +5,11 @@
 local BaseSet = torch.class("dp.BaseSet")
 BaseSet.isBaseSet = true
 
-function BaseSet:__init(...)
+function BaseSet:__init(config)
+   assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, which_set, inputs, targets
       = xlua.unpack(
-      {... or {}},
+      {config},
       'BaseSet', 
       'Base class inherited by DataSet and Batch.',
       {arg='which_set', type='string',

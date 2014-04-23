@@ -6,10 +6,11 @@ local ImageTensor, parent = torch.class("dp.ImageTensor", "dp.DataTensor")
 ImageTensor.isImageTensor = true
 
 --TODO : enforce image representions, or deny non-image ones
-function ImageTensor:__init(...)
+function ImageTensor:__init(config)
+   assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, data, axes, sizes
       = xlua.unpack(
-      {... or {}},
+      {config},
       'ImageTensor', 
       'Builds a data.ClassTensor out of torch.Tensor data. ',
       {arg='data', type='torch.Tensor', 
@@ -42,11 +43,17 @@ function ImageTensor:__init(...)
    parent.__init(self, {data=data, axes=axes, sizes=sizes})
 end
 
-function ImageTensor:image(...)
-   return self:imageBHWC(...)
+function ImageTensor:image(inplace, contiguous)
+   return self:imageBHWC(inplace, contiguous)
 end
 
-function ImageTensor:imageBHWC(...)
+function ImageTensor:imageBHWC(inplace, contiguous)
+   -- When true, makes stored data a contiguous view for future use :
+   inplace = inplace or true
+   -- When true makes sure the returned tensor contiguous. 
+   -- Only considered when inplace is false, since inplace
+   -- implicitly makes the returned tensor contiguous :
+   contiguous = contiguous or false
    local desired_axes = {'b','h','w','c'}
    local current_axes = self:storedAxes()
    local current_size = self:storedSize()
@@ -57,19 +64,6 @@ function ImageTensor:imageBHWC(...)
       expanded_axes = desired_axes
    end
    assert((expanded_size:size(1) == 4), "Error: no image size provided at construction")
-   local args, inplace, contiguous = xlua.unpack(
-      {... or {}},
-      'DataTensor:images',
-      'Returns a 4D-tensor of axes format : ' .. 
-         table.tostring(desired_axes),
-      {arg='inplace', type='boolean', 
-       help='When true, makes self._data a contiguous view of axes '..
-       table.tostring(desired_axes)..'for future use.', 
-       default=true},
-      {arg='contiguous', type='boolean', 
-       help='When true makes sure the returned tensor contiguous.', 
-       default=false}
-   )
    --creates a new view of the same storage
    local data = torch.view(self._data)
    if data:dim() == 4 and table.eq(current_axes, desired_axes) then
@@ -102,7 +96,9 @@ function ImageTensor:imageBHWC(...)
    return data, desired_axes
 end
 
-function ImageTensor:imageCUDA(...)
+function ImageTensor:imageCUDA(inplace, contiguous)
+   inplace = inplace or true
+   contiguous = contiguous or false
    local axes = {'c','h','w','b'}
    --TODO
    error("Error Not Implemented")

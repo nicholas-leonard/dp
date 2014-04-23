@@ -1,7 +1,5 @@
 --[[TODO]]--
 -- Use Random_seed
--- model determines sample type
--- batch gets classes from targets.
 -- Dataset could be called with sub, index to generate Batch
 ------------------------------------------------------------------------
 --[[ Sampler ]]--

@@ -46,30 +46,6 @@ function Batch:setup(config)
    self._epoch_size = epoch_size or self._epoch_size
 end
 
-function Batch:setOutputs(outputs)
-   self._outputs = outputs
-end
-
-function Batch:outputs()
-   return self._outputs:double()
-end
-
-function Batch:setLoss(loss)
-   self._loss = loss
-end
-
-function Batch:loss()
-   return self._loss
-end
-
-function Batch:setOutputGradients(output_gradients)
-   self._output_gradients = output_gradients
-end
-
-function Batch:outputGradients()
-   return self._output_gradients:type(self._grad_type)
-end
-
 function Batch:batchSize()
    return self._batch_size
 end
@@ -89,4 +65,11 @@ end
 function Batch:indices()
    return self._indices
 end
-   
+
+-- generate a carry table to be passed along through forward/backward
+function Batch:carry()
+   return {
+      nSample=self._n_sample, epochSize=self._epoch_size,
+      batchIter=self._batch_iter
+   }
+end

@@ -3,12 +3,15 @@
 -- Feedback
 -- Composite of many Feedback components
 ------------------------------------------------------------------------
-local CompositeFeedback, parent 
-   = torch.class("dp.CompositeFeedback", "dp.Feedback")
+local CompositeFeedback, parent = torch.class("dp.CompositeFeedback", "dp.Feedback")
+CompositeFeedback.isCompositeFeedback = true
 
 function CompositeFeedback:__init(config)
+   assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, feedbacks = xlua.unpack(
-      'CompositeFeedback', nil,
+      {config},
+      'CompositeFeedback', 
+      'Composite of many Feedback components',
       {arg='feedbacks', type='table'}
    )
    self._feedbacks = feedbacks
@@ -23,6 +26,14 @@ function CompositeFeedback:setup(config)
    end
 end
 
+function CompositeFeedback:_add(batch, output, carry, report)
+   _.map(self._feedbacks, 
+      function(fb) 
+         fb:add(batch, output, carry, report)
+      end
+   )
+end
+
 function CompositeFeedback:report()
    -- merge reports
    local report = {}
@@ -32,7 +43,7 @@ function CompositeFeedback:report()
    return report
 end
 
-function CompositeFeedback:reset()
+function CompositeFeedback:_reset()
    for k, feedback in pairs(self._feedbacks) do
       feedback:reset()
    end

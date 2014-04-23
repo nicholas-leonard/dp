@@ -9,10 +9,11 @@ Confusion.isConfusion = true
    
 function Confusion:__init(config)
    config = config or {}
-   local args, name
-      = xlua.unpack(
+   assert(not config[1], "Constructor requires key-value arguments")
+   local args, name = xlua.unpack(
       {config},
-      'Confusion', nil,
+      'Confusion', 
+      'Adapter for optim.ConfusionMatrix',
       {arg='name', type='string', default='confusion'}
    )
    config.name = name
@@ -25,19 +26,20 @@ function Confusion:setup(config)
 end
 
 function Confusion:doneEpoch(report)
-   print(self._id:toString() .. " accuracy = " .. self._cm.totalValid)
+   if self._cm then
+      print(self._id:toString().." accuracy = "..self._cm.totalValid)
+   end
 end
 
-function Confusion:add(batch)
+function Confusion:_add(batch, output, carry, report)
    if not self._cm then
       require 'optim'
-      self._cm = optim.ConfusionMatrix(batch:classes())
+      self._cm = optim.ConfusionMatrix(batch:targets():classes())
    end
-   self._cm:batchAdd(batch:outputs(), batch:targets())
-   self._samples_seen = self._samples_seen + batch:nSample()
+   self._cm:batchAdd(batch:outputs():feature(), batch:targets():class())
 end
 
-function Confusion:reset()
+function Confusion:_reset()
    if self._cm then
       self._cm:zero()
    end
@@ -67,7 +69,7 @@ function Confusion:report()
          avg_per_class_accuracy = cm.averageValid,
          classes = cm.classes
       },
-      n_sample = self._samples_seen
+      n_sample = self._n_sample
    }
 end
 

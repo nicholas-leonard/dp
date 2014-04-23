@@ -30,20 +30,22 @@
 local Feedback = torch.class("dp.Feedback")
 Feedback.isFeedback = true
 
-function Feedback:__init(...)
+function Feedback:__init(config)
+   assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, name = xlua.unpack(
-      {... or {}},
+      {config},
       'Feedback', nil,
       {arg='name', type='string', req=true,
        help='used to identify report'}
    )
    self._name = name
-   self._samples_seen = 0
+   self._n_sample = 0
 end
 
-function Feedback:setup(...)
+function Feedback:setup(config)
+   assert(type(config) == 'table', "Setup requires key-value arguments")
    local args, mediator, propagator, dataset = xlua.unpack(
-      {... or {}},
+      {config},
       'Feedback:setup', nil,
       {arg='mediator', type='dp.Mediator'},
       {arg='propagator', type='dp.Propagator'},
@@ -70,9 +72,14 @@ function Feedback:name()
 end
 
 --accumulates information from the batch
-function Feedback:add(batch, report)
-   assert(batch.isBatch)
-   self._samples_seen = self._samples_seen + batch:nSample()
+function Feedback:add(batch, output, carry, report)
+   assert(batch.isBatch, "First argument should be Batch")
+   assert(output.isBaseTensor, "Second argument should be BaseTensor")
+   self._n_sample = self._n_sample + batch:nSample()
+   self:_add(batch, output, carry, report)
+end
+
+function Feedback:_add(batch, output, carry, report)
 end
 
 function Feedback:report()
@@ -80,5 +87,9 @@ function Feedback:report()
 end
 
 function Feedback:reset()
-   self._samples_seen = 0
+   self._n_sample = 0
+   self:_reset()
+end
+
+function Feedback:_reset()
 end

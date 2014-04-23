@@ -6,11 +6,11 @@
 -- reporting purposes. Default name is typename minus module name(s)
 ------------------------------------------------------------------------
 local Criteria, parent = torch.class("dp.Criteria", "dp.Feedback")
-
+Criteria.isCriteria = true
 
 function Criteria:__init(config)
-   local args, criteria, name, typename_pattern
-      = xlua.unpack(
+   assert(type(config) == 'table', "Constructor requires key-value arguments")
+   local args, criteria, name, typename_pattern = xlua.unpack(
       {config},
       'Criteria', nil,
       {arg='criteria', type='nn.Criterion | table', req=true,
@@ -58,33 +58,31 @@ function Criteria:__init(config)
    self:reset()
 end
 
-function Criteria:reset()
+function Criteria:_reset()
    -- reset error sums to zero
    for k,v in self._criteria do
       self._errors[k] = 0
    end
-   self._samples_seen = 0
 end
 
-function Criteria:add(batch)             
+function Criteria:_add(batch)             
    local current_error
    for k,v in self._criteria do
       current_error = v:forward(batch:outputs(), batch:targets())
       self._errors[k] =  (
-                              ( self._samples_seen * self._errors[k] ) 
+                              ( self._n_sample * self._errors[k] ) 
                               + 
                               ( batch:nSample() * current_error )
                          ) 
                          / 
-                         self._samples_seen + batch:nSample()
+                         self._n_sample + batch:nSample()
       --TODO gather statistics on backward outputGradients?
    end
-   self._samples_seen = self._samples_seen + batch:nSample()
 end
 
 function Criteria:report()
    return { 
       [self:name()] = self._errors,
-      n_sample = self._samples_seen
+      n_sample = self._n_sample
    }
 end

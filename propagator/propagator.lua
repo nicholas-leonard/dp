@@ -140,7 +140,7 @@ end
 function Propagator:feedback(batch, report, carry)
    -- monitor error 
    if self._feedback then
-      self._feedback:forward(batch, self.output, carry)
+      self._feedback:forward(batch, self.output, carry, report)
    end
    
    --publish report for this optimizer

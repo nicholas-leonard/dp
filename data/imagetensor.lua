@@ -60,10 +60,13 @@ function ImageTensor:imageBHWC(inplace, contiguous)
    local expanded_axes = self:expandedAxes()
    local expanded_size = self:expandedSize()
    if #expanded_axes ~= 4 then
-      print"DataTensor Warning: no image axis provided at construction, assuming {'b','h','w','c'}"
+      if self._warn then
+         print("DataTensor Warning: no image axis provided at "..
+            "construction, assuming {'b','h','w','c'}")
+      end
       expanded_axes = desired_axes
    end
-   assert((expanded_size:size(1) == 4), "Error: no image size provided at construction")
+   assert((expanded_size:size(1) == 4), "No image size provided at construction")
    --creates a new view of the same storage
    local data = torch.view(self._data)
    if data:dim() == 4 and table.eq(current_axes, desired_axes) then

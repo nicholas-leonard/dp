@@ -73,7 +73,7 @@ function ClassTensor:multiclass(inplace, contiguous)
    if data:dim() == 2 and table.eq(self._axes, axes) then
       return self._data
    end
-   assert(table.eq(self._axes, {'b'}) or table.eq(self._axes, {'t', 'b'}),
+   assert(table.eq(self._axes, {'b'}) or table.eq(self._axes, {'t','b'}),
           "Error: DataTensor doesn't support conversion to {'b', 't'}")
    local b = self:b()
    if b == 0 then
@@ -86,7 +86,9 @@ function ClassTensor:multiclass(inplace, contiguous)
    end
    if data:dim() == 1 then
       if sizes:size(1) == 1 then
-         print"DataTensor Warning: Assuming one class per example."
+         if self._warn then
+            print"DataTensor Warning: Assuming one class per example."
+         end
          sizes = torch.LongTensor({self._data:size(1), 1})
       end
       --convert {'b'} to {'b','t'}
@@ -114,9 +116,7 @@ function ClassTensor:class(inplace, contiguous)
    local axes = {'b'} 
    local sizes = self:expandedSize()
    --use multiclass:
-   local data, classes = self:multiclass{
-      inplace=inplace, contiguous=contiguous
-   }
+   local data, classes = self:multiclass(inplace, contiguous)
    --Takes the first class of each example
    data = data:select(2, 1)
    return data, classes
@@ -137,12 +137,12 @@ end
 
 -- returns a batch of examples indexed by indices
 function ClassTensor:index(dt, indices)
+   self:multiclass()
    local sizes = self:expandedSize():clone()
    sizes[self:b()] = indices:size(1)
-   local data
    if indices then
-      assert(dt.isBaseTensor, "Expecting BaseTensor as first argument")
-      data = dt:data()
+      assert(dt.isClassTensor, "Expecting ClassTensor as first argument")
+      data = dt:multiclass()
       torch.Tensor.index(data, self._data, self:b(), indices)
    else
       data = self._data:index(self:b(), indices)
@@ -155,10 +155,11 @@ end
 
 --Returns a sub-datatensor narrowed on the batch dimension
 function ClassTensor:sub(start, stop)
+   local data = self:multiclass()
    local sizes=self:expandedSize():clone()
    sizes[self:b()] = stop-start+1
    return torch.protoClone(self, {
-      data=self._data:narrow(self:b(), start, stop-start+1),
+      data=data:narrow(self:b(), start, stop-start+1),
       axes=table.copy(self:expandedAxes()),
       sizes=sizes, classes=table.copy(self:classes())
    })

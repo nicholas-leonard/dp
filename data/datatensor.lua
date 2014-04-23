@@ -25,7 +25,7 @@ DataTensor.isDataTensor = true
 
 function DataTensor:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, data, axes, sizes = xlua.unpack(
+   local args, data, axes, sizes, warn = xlua.unpack(
       {config},
       'DataTensor', 
       'Builds a dp.DataTensor out of torch.Tensor data.',
@@ -58,7 +58,9 @@ function DataTensor:__init(config)
        'commensurate dimensions in axes. This should be supplied '..
        'if the dimensions of the data is different from the number '..
        'of elements in the axes table, in which case it will be used '..
-       'to : data:reshape(sizes). Default is data:size().'}
+       'to : data:reshape(sizes). Default is data:size().'},
+      {arg='warn', type='boolean', default=false,
+       help='print warnings concerning assumptions made by datatensor'}
    )   
    if data.isDataTensor then
       self._axes = table.copy(data:storedAxes())
@@ -67,6 +69,7 @@ function DataTensor:__init(config)
       data = data:data()
       return
    end
+   self._warn = warn
    self._data = data
    self._axes = axes or {'b','f'}
    -- Keeps track of the most expanded size (the one with more dims) of the
@@ -102,9 +105,11 @@ function DataTensor:__init(config)
                   "the mapping of sizes to axes can't be determined. "..
                   "Please specify full size, or other axes.")
             end
-            print("DataTensor Warning: sizes specifies one dim less than axes. " ..
-                  "Assuming sizes omits 'b' axis. Sizes =" .. 
-                  table.tostring(sizes))
+            if self._warn then
+               print("DataTensor Warning: sizes specifies one dim "..
+               "less than axes. Assuming sizes omits 'b' axis. "..
+               "Sizes ="..table.tostring(sizes))
+            end
          end
       end
       -- convert sizes to LongTensor
@@ -117,9 +122,11 @@ function DataTensor:__init(config)
              "Error: sizes should specify as many dims as axes:" ..
              tostring(sizes) .. " " .. table.tostring(self._axes))
       if self._data:dim() ~= #(self._axes) then
-         print("DataTensor Warning: data:size() is different than sizes. " ..
-               "Assuming data is appropriately contiguous. " ..
+         if self._warn then
+            print("DataTensor Warning: data:size() is different than "..
+               "sizes. Assuming data is appropriately contiguous. " ..
                "Resizing data to sizes")
+            end
          self._data:resize(sizes:storage())
       end
    end

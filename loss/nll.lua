@@ -9,7 +9,7 @@ NLL.isNLL = true
 
 function NLL:__init()
    self._criterion = nn.ClassNLLCriterion()
-   self:zeroStatistics()
+   parent.__init(self)
 end
 
 function NLL:_forward(carry)
@@ -22,7 +22,9 @@ end
 function NLL:_backward(carry)
    local input = self.input.act:feature()
    local target = self.input.target:class()
-   self.input.grad = self._criterion:backward(input, target)
+   self.input.grad = self.input.act:featureClone(
+      self._criterion:backward(input, target)
+   )
    return carry
 end
 

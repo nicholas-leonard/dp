@@ -62,7 +62,6 @@ function Experiment:__init(config)
    self:setRandomSeed(random_seed)
    self._is_done_experiment = false
    self._id = id or dp.ObjectID(dp.uniqueID())
-   print(self:name())
    assert(self._id.isObjectID)
    self._model = model
    self._epoch = epoch

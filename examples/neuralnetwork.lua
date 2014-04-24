@@ -56,13 +56,13 @@ end
 mlp = dp.Sequential{
    models = {
       dp.Neural{
-         input_size = datasource._feature_size, 
+         input_size = datasource:featureSize(), 
          output_size = opt.nHidden, 
          transfer = nn.Tanh()
       },
       dp.Neural{
          input_size = opt.nHidden, 
-         output_size = #(datasource._classes),
+         output_size = #(datasource:classes()),
          transfer = nn.LogSoftMax(),
          dropout = dropout
       }
@@ -78,7 +78,7 @@ end
 
 --[[Propagators]]--
 train = dp.Optimizer{
-   criterion = nn.ClassNLLCriterion(),
+   loss = dp.NLL(),
    visitor = { -- the ordering here is important:
       dp.Momentum{momentum_factor = opt.momentum},
       dp.Learn{
@@ -97,12 +97,12 @@ train = dp.Optimizer{
    progress = true
 }
 valid = dp.Evaluator{
-   criterion = nn.ClassNLLCriterion(),
+   loss = dp.NLL(),
    feedback = dp.Confusion(),  
    sampler = dp.Sampler{sample_type=opt.type}
 }
 test = dp.Evaluator{
-   criterion = nn.ClassNLLCriterion(),
+   loss = dp.NLL(),
    feedback = dp.Confusion(),
    sampler = dp.Sampler{sample_type=opt.type}
 }

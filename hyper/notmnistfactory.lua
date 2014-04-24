@@ -20,14 +20,14 @@ function NotMnistFactory:build(opt)
       self._cache[opt.datasource] = datasource
    elseif opt.datasource == 'notmnist:standardize' then
       datasource = dp.NotMnist{
-         input_preprocess=dp.Standardize, valid_ratio=opt.valid_ratio
+         input_preprocess=dp.Standardize(), valid_ratio=opt.valid_ratio
       }
       self._cache[opt.datasource] = datasource
    else
       error("Unknown datasource : " .. opt.datasource)
    end
    -- to be used by experiment builder
-   opt.feature_size = datasource._feature_size
-   opt.classes = datasource._classes
+   opt.feature_size = datasource:featureSize()
+   opt.classes = datasource:classes()
    return datasource
 end

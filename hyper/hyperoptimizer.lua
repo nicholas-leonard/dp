@@ -8,11 +8,10 @@
 local HyperOptimizer = torch.class("dp.HyperOptimizer")
 HyperOptimizer.isHyperOptimizer = true
 
-function HyperOptimizer:__init(...)
+function HyperOptimizer:__init(config)
    local args, collection_name, hyperparam_sampler, experiment_factory, 
-         datasource_factory, logger, namespace
-      = xlua.unpack(
-      {... or {}},
+         datasource_factory, logger, namespace = xlua.unpack(
+      {config or {}},
       'HyperOptimizer', nil,
       {arg='collection_name', type='string', req=true,
        help='identifies the collection of experiments'},
@@ -26,7 +25,6 @@ function HyperOptimizer:__init(...)
    self._xp_factory = experiment_factory
    self._ds_factory = datasource_factory
    self._logger = logger or dp.FileLogger()
-   self._process_name = process_name
    math.randomseed(os.time())
 end
 
@@ -39,7 +37,6 @@ function HyperOptimizer:hyperReport(id, hyperparam)
    return {
       experiment_id = id:name();
       hyperparam = hyperparam,
-      process_name = self._process_name,
       collection_name = self._collection_name,
       hyperparam_sampler = self._hp_sampler:hyperReport(),
       experiment_factory = self._xp_factory:hyperReport(),

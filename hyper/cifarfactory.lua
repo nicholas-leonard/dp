@@ -27,7 +27,7 @@ function Cifar10Factory:build(opt)
       error("Unknown datasource : " .. opt.datasource)
    end
    -- to be used by experiment builder
-   opt.feature_size = datasource._feature_size
-   opt.classes = datasource._classes
+   opt.feature_size = datasource:featureSize()
+   opt.nClasses = datasource:classes()
    return datasource
 end

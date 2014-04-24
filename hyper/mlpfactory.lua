@@ -71,12 +71,12 @@ function MLPFactory:buildModel(opt)
    -- output layer
    mlp:add(
       dp.Neural{
-         input_size=last_size, output_size=#opt.classes,
+         input_size=last_size, output_size=opt.nClasses,
          transfer=nn.LogSoftMax(), 
          dropout=self:buildDropout(opt.dropout_probs[layer_index])
       }
    )
-   print(#opt.classes.." output neurons")
+   print(opt.nClasses.." output neurons")
    --[[GPU or CPU]]--
    if opt.model_type == 'cuda' then
       require 'cutorch'
@@ -149,7 +149,7 @@ function MLPFactory:buildOptimizer(opt)
    local visitor = self:buildVisitor(opt)
    --[[Propagators]]--
    return dp.Optimizer{
-      criterion = nn.ClassNLLCriterion(),
+      loss = dp.NLL(),
       visitor = visitor,
       feedback = dp.Confusion(),
       sampler = dp.ShuffleSampler{
@@ -161,7 +161,7 @@ end
 
 function MLPFactory:buildValidator(opt)
    return dp.Evaluator{
-      criterion = nn.ClassNLLCriterion(),
+      loss = dp.NLL(),
       feedback = dp.Confusion(),  
       sampler = dp.Sampler{batch_size=1024, sample_type=opt.model_type}
    }
@@ -169,7 +169,7 @@ end
 
 function MLPFactory:buildTester(opt)
    return dp.Evaluator{
-      criterion = nn.ClassNLLCriterion(),
+      loss = dp.NLL(),
       feedback = dp.Confusion(),
       sampler = dp.Sampler{batch_size=1024, sample_type=opt.model_type}
    }

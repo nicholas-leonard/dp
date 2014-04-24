@@ -5,12 +5,12 @@
 -- completed experiments.
 -- Only works with experiments (could do without by using root id...)
 ------------------------------------------------------------------------
-
 local PGDone, parent = torch.class("dp.PGDone", "dp.Observer")
+PGDone.isPGDone = true
 
-function PGDone:__init(...)
+function PGDone:__init(config)
    local args, pg = xlua.unpack(
-      {... or {}},
+      {config or {}},
       'PGDone', nil,
       {arg='pg', type='dp.Postgres',
        help='Postgres connection instance. Default is a dp.Postgres()'}

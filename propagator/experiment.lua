@@ -30,11 +30,12 @@
 local Experiment = torch.class("dp.Experiment")
 Experiment.isExperiment = true
 
-function Experiment:__init(...)
+function Experiment:__init(config)
+   assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, id, description, model, optimizer, validator, tester, 
          observer, random_seed, epoch, mediator, overwrite, max_epoch
       = xlua.unpack(
-      {... or {}},
+      {config},
       'Experiment', nil,
       {arg='id', type='dp.ObjectID',
        help='uniquely identifies the experiment. '..
@@ -61,6 +62,7 @@ function Experiment:__init(...)
    self:setRandomSeed(random_seed)
    self._is_done_experiment = false
    self._id = id or dp.ObjectID(dp.uniqueID())
+   print(self:name())
    assert(self._id.isObjectID)
    self._model = model
    self._epoch = epoch

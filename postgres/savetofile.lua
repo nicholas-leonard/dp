@@ -6,20 +6,18 @@
 -- which is useful when hyper-optimization is distributed on different
 -- machines and file systems.
 ------------------------------------------------------------------------
-
 local PGSaveToFile, parent = torch.class("dp.PGSaveToFile", "dp.SaveToFile")
+PGSaveToFile.isPGSaveToFile = true
 
 function PGSaveToFile:__init(config)
    config = config or {}
-   local args, pg, hostname = xlua.unpack(
+   local args, pg = xlua.unpack(
       {config},
       'PGEarlyStopper', nil,
-      {arg='pg', type='dp.Postgres', help='default is dp.Postgres()'},
-      {arg='hostname', type='string', default='localhost',
-       help='hostname of this host'}
+      {arg='pg', type='dp.Postgres', help='default is dp.Postgres()'}
    )
    self._pg = pg or dp.Postgres()
-   self._hostname = hostname
+   self._hostname = os.hostname()
    parent.__init(self, config)
 end
 

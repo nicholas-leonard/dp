@@ -44,9 +44,9 @@ function Neural:__init(config)
    if sparse_init then
       self:sparseInit(self:parameters().weight.param)
    end
-   self:checkParams()
    self._tags.hasParams = true
    self:zeroGradParameters()
+   self:checkParams()
 end
 
 function Neural:sparseInit(W, stdev)

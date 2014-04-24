@@ -22,8 +22,8 @@ function ImageClassFactory:build(opt)
       }
       self._cache[opt.datasource] = datasource
    end
-   opt.feature_size = datasource._feature_size
-   opt.classes = datasource._classes
+   opt.feature_size = datasource:featureSize()
+   opt.nClasses = #datasource:classes()
    return datasource
 end
 

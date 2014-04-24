@@ -5,8 +5,8 @@ cmd = torch.CmdLine()
 cmd:text()
 cmd:text('PostgreSQL MLP Training/Optimization')
 cmd:text('Example:')
-cmd:text('$> th pgnn.lua --collection "MnistMLP1" --hostname "myhost.mydomain.com" --pid 1 --batchSize 128 --momentum 0.5')
-cmd:text('$> th pgnn.lua --collection "Mnist-MLP-baseline1" --hostname "ub" --pid 1 --batchSize 128 --learningRate 0.1 --momentum 0.995 --modelWidth 1024 --widthScales "{1,0.37109375,0.043945312}" --modelDept 4 --progress')
+cmd:text('$> th pgnn.lua --collection "MnistMLP1" --batchSize 128 --momentum 0.5')
+cmd:text('$> th pgnn.lua --collection "Mnist-MLP-baseline1" --batchSize 128 --learningRate 0.1 --momentum 0.995 --modelWidth 1024 --widthScales "{1,0.37109375,0.043945312}" --modelDept 4 --progress')
 cmd:text('Options:')
 cmd:option('--learningRate', 0.1, 'learning rate at t=0')
 cmd:option('--decayPoints', '{400,600,700}', 'epochs at which learning rate is decayed')
@@ -31,8 +31,6 @@ cmd:option('--zca_gcn', false, 'apply GCN followed by ZCA input preprocessing')
 cmd:option('--standardize', false, 'apply Standardize input preprocessing')
 cmd:option('--lecunLCN', false, 'apply LeCunLCN preprocessing to datasource inputs')
 cmd:option('--collection', 'hyperoptimization example 1', 'identifies a collection of related experiments')
-cmd:option('--hostname', 'localhost', 'hostname for this host')
-cmd:option('--pid', 0, 'identifies process on host.')
 cmd:option('--validRatio', 1/6, 'proportion of train set used for cross-validation')
 cmd:option('--progress', false, 'display progress bar')
 cmd:option('--nopg', false, 'dont use postgresql')
@@ -69,8 +67,6 @@ local hp = {
    activation = opt.activation,
    dropout_probs = table.fromString(opt.dropoutProbs),
    valid_ratio = opt.validRatio,
-   pid = opt.pid,
-   hostname = opt.hostname,
    collection = opt.collection,
    progress = opt.progress,
    zca_gcn = opt.zca_gcn,
@@ -79,22 +75,18 @@ local hp = {
    max_error = opt.minAccuracy
 }
 
-local process_id = opt.hostname .. '.' .. opt.pid
-
 if opt.nopg then
    local logger = dp.FileLogger()
    hyperopt = dp.HyperOptimizer{
       collection_name=opt.collection,
-      id_gen=dp.EIDGenerator(process_id),
       hyperparam_sampler = dp.PriorSampler{--only samples random_seed
          name='MLP+'..opt.datasource..':user_dist', dist=hp 
       },
       experiment_factory = dp.MLPFactory{
          logger=logger,
-         save_strategy=dp.SaveToFile{hostname=opt.hostname}
+         save_strategy=dp.SaveToFile()
       },
       datasource_factory=dp.ImageClassFactory(),
-      process_name=process_id,
       logger=logger
    }
    hyperopt:run()
@@ -103,18 +95,16 @@ end
 local pg = dp.Postgres()
 local logger = dp.PGLogger{pg=pg}
 
-hyperopt = dp.HyperOptimizer{
+hyperopt = dp.PGHyperOptimizer{
    collection_name=opt.collection,
-   id_gen=dp.PGEIDGenerator{pg=pg},
    hyperparam_sampler = dp.PriorSampler{--only samples random_seed
       name='MLP+'..opt.datasource..':user_dist', dist=hp 
    },
    experiment_factory = dp.PGMLPFactory{
       logger=logger, pg=pg, 
-      save_strategy=dp.PGSaveToFile{hostname=opt.hostname, pg=pg}
+      save_strategy=dp.PGSaveToFile{pg=pg}
    },
    datasource_factory=dp.ImageClassFactory(),
-   process_name=process_id,
    logger=logger
 }
 

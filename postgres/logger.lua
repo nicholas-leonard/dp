@@ -6,6 +6,7 @@
 -- a table. Logger can only be used with PGEIDGenerator.
 ------------------------------------------------------------------------
 local PGLogger, parent = torch.class("dp.PGLogger", "dp.Logger")
+PGLogger.isPGLogger = true
 
 function PGLogger:__init(config)
    local args, pg = xlua.unpack(

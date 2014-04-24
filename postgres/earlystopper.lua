@@ -4,9 +4,8 @@
 -- Maintains a postgreSQL table monitoring the epochs and errors of 
 -- successive minima.
 ------------------------------------------------------------------------
-
-local PGEarlyStopper, parent 
-   = torch.class("dp.PGEarlyStopper", "dp.EarlyStopper")
+local PGEarlyStopper, parent = torch.class("dp.PGEarlyStopper", "dp.EarlyStopper")
+PGEarlyStopper.isPGEarlyStopper = true
 
 function PGEarlyStopper:__init(config) 
    config = config or {}

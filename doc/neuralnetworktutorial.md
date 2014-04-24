@@ -102,7 +102,7 @@ the `model`:
 ```lua
 --[[Propagators]]--
 train = dp.Optimizer{
-   criterion = nn.ClassNLLCriterion(),
+   loss = dp.NLL(),
    visitor = { -- the ordering here is important:
       dp.Momentum{momentum_factor = opt.momentum},
       dp.Learn{learning_rate = opt.learningRate},
@@ -113,12 +113,12 @@ train = dp.Optimizer{
    progress = true
 }
 valid = dp.Evaluator{
-   criterion = nn.ClassNLLCriterion(),
+   loss = dp.NLL(),
    feedback = dp.Confusion(),  
    sampler = dp.Sampler{}
 }
 test = dp.Evaluator{
-   criterion = nn.ClassNLLCriterion(),
+   loss = dp.NLL(),
    feedback = dp.Confusion(),
    sampler = dp.Sampler{}
 }
@@ -136,11 +136,12 @@ over a `dataset`). This shuffling is useful for training since the model
 must learn from varying sequences of batches at each epoch, which makes the
 training algorithm more stochastic.
 
-### Criterion ###
-Each propagator must also specify a `criterion` for training or evaluation.
-If you have previously used the `nn` package, there is nothing new here. 
+### Loss ###
+Each propagator must also specify a `loss` for training or evaluation.
+If you have previously used the `nn` package, there is nothing new here, 
+a [Loss](loss/loss.lua) is simply an adapter of [nn.Criterion](https://github.com/torch/nn/blob/master/README.md#nn.Criterion). 
 Each example has a single target class and our model output is `nn.LogSoftMax` so 
-we use [nn.ClassNLLCriterion](https://github.com/torch/nn/blob/master/README.md#nn.ClassNLLCriterion).
+we use a [NLL](loss/nll.lua), which wraps a  [nn.ClassNLLCriterion](https://github.com/torch/nn/blob/master/README.md#nn.ClassNLLCriterion).
 
 ### Feedback ###
 The `feedback` parameter is used to provide us with feedback like performance measures and
@@ -228,51 +229,42 @@ save it onto disk, thereby keeping this snapshot separate from its data
 
 Let's run the [script](../examples/neuralnetwork_tutorial.lua) from the cmd-line:
 ```
-nicholas@ultrabook:~/projects/dp$ th examples/neuralnetwork_tutorial.lua 
+nicholas@xps:~/projects/dp$ th examples/neuralnetwork_tutorial.lua 
 checking for file located at: 	/home/nicholas/data/mnist/mnist-th7.tgz	
-DataTensor Warning: sizes specifies one dim less than axes. Assuming sizes omits 'b' axis. Sizes ={50000,28,28,1}	
-DataTensor Warning: data:size() is different than sizes. Assuming data is appropriately contiguous. Resizing data to sizes	
 checking for file located at: 	/home/nicholas/data/mnist/mnist-th7.tgz	
-DataTensor Warning: sizes specifies one dim less than axes. Assuming sizes omits 'b' axis. Sizes ={10000,28,28,1}	
-DataTensor Warning: data:size() is different than sizes. Assuming data is appropriately contiguous. Resizing data to sizes	
 checking for file located at: 	/home/nicholas/data/mnist/mnist-th7.tgz	
-DataTensor Warning: sizes specifies one dim less than axes. Assuming sizes omits 'b' axis. Sizes ={10000,28,28,1}	
-DataTensor Warning: data:size() is different than sizes. Assuming data is appropriately contiguous. Resizing data to sizes	
-/home/nicholas/save/ultrabook:4966:1396637554:1	/home/nicholas/save/ultrabook:4966:1396637554:1/log	
-ultrabook:4966:1396637554:1:optimizer loss nan	
-ultrabook:4966:1396637554:1:validator loss nan	
-ultrabook:4966:1396637554:1:tester loss nan	
-==> online epoch # 1 for optimizer	
-DataTensor Warning: Assuming one class per example.	
+FileLogger: log will be written to /home/nicholas/save/xps:25044:1398320864:1/log	
+xps:25044:1398320864:1:optimizer:loss avgError 0	
+xps:25044:1398320864:1:validator:loss avgError 0	
+xps:25044:1398320864:1:tester:loss avgError 0	
+==> epoch # 1 for optimizer	
  [================================ 50000/50000 ===============================>] ETA: 0ms | Step: 0ms                              
 
 ==> epoch size = 50000 examples	
-==> batch duration = 0.43626294136047 ms	
-==> epoch duration = 21.813147068024 s	
-==> example speed = 2292.1956123102 examples/second	
-==> batch speed = 17.907778221173 batches/second	
-DataTensor Warning: Assuming one class per example.	
-DataTensor Warning: Assuming one class per example.	
-ultrabook:4966:1396637554:1:optimizer loss 0.0036266571109125	
-ultrabook:4966:1396637554:1:validator loss 0.0045470300605963	
-ultrabook:4966:1396637554:1:tester loss 0.0047816996884622	
-ultrabook:4966:1396637554:1:optimizer:confusion accuracy = 0.89022	
-ultrabook:4966:1396637554:1:validator:confusion accuracy = 0.92568108974359	
-ultrabook:4966:1396637554:1:tester:confusion accuracy = 0.92037259615385	
-==> online epoch # 2 for optimizer	
+==> batch duration = 0.10882427692413 ms	
+==> epoch duration = 5.4412138462067 s	
+==> example speed = 9189.1260687829 examples/s	
+==> batch speed = 71.790047412366 batches/s	
+xps:25044:1398320864:1:optimizer:loss avgError 0.0037200363330228	
+xps:25044:1398320864:1:validator:loss avgError 0.004545687570244	
+xps:25044:1398320864:1:tester:loss avgError 0.0047699521407681	
+xps:25044:1398320864:1:optimizer:confusion accuracy = 0.88723958333333	
+xps:25044:1398320864:1:validator:confusion accuracy = 0.92788461538462	
+xps:25044:1398320864:1:tester:confusion accuracy = 0.92027243589744	
+==> epoch # 2 for optimizer	
  [================================ 50000/50000 ===============================>] ETA: 0ms | Step: 0ms                              
 
 ==> epoch size = 50000 examples	
-==> batch duration = 0.41297492027283 ms	
-==> epoch duration = 20.648746013641 s	
-==> example speed = 2421.4545506525 examples/second	
-==> batch speed = 18.917613676973 batches/second	
-ultrabook:4966:1396637554:1:optimizer loss 0.0022255601718995	
-ultrabook:4966:1396637554:1:validator loss 0.0038820140620319	
-ultrabook:4966:1396637554:1:tester loss 0.0040944348146989	
-ultrabook:4966:1396637554:1:optimizer:confusion accuracy = 0.92598	
-ultrabook:4966:1396637554:1:validator:confusion accuracy = 0.93679887820513	
-ultrabook:4966:1396637554:1:tester:confusion accuracy = 0.9306891025641	
-==> online epoch # 3 for optimizer	
+==> batch duration = 0.10537392139435 ms	
+==> epoch duration = 5.2686960697174 s	
+==> example speed = 9490.0141018538 examples/s	
+==> batch speed = 74.140735170733 batches/s	
+xps:25044:1398320864:1:optimizer:loss avgError 0.0023303674656008	
+xps:25044:1398320864:1:validator:loss avgError 0.0044356466501897	
+xps:25044:1398320864:1:tester:loss avgError 0.0046304688698266	
+xps:25044:1398320864:1:optimizer:confusion accuracy = 0.92375801282051	
+xps:25044:1398320864:1:validator:confusion accuracy = 0.93129006410256	
+xps:25044:1398320864:1:tester:confusion accuracy = 0.92548076923077	
+==> epoch # 3 for optimizer	
  [===============................ 10112/50000 ................................] ETA: 8s540ms | Step: 0ms  
 ```

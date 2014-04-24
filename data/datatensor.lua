@@ -285,7 +285,7 @@ function DataTensor:featureClone(data)
    return torch.protoClone(self, {
       data=data, 
       axes=table.copy(self:expandedAxes()),
-      sizes=self:expandedSize():clone()
+      sizes=sizes
    })
 end
 

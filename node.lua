@@ -67,12 +67,7 @@ function Node:_evaluate(carry)
 end
 
 function Node:backward(output, carry)
-   assert(output.isBaseTensor, "Expecting dp.BaseTensor output")
-   self.output.grad = output
-   carry = self:_backward(carry) or carry
-   assert(self.input.grad.isBaseTensor, "Expecting dp.BaseTensor grad")
-   self.backwarded = true
-   return self.input.grad, carry
+   error"Not Implemented"
 end
 
 function Node:_backward(carry)

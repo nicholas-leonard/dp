@@ -42,6 +42,7 @@ function Optimizer:forward(batch)
    
    -- measure loss and backprop gradients
    self.loss, carry = self._loss:forward(self.output.act, batch:targets(), carry)
+   carry.loss = self.loss
    return carry
 end
 

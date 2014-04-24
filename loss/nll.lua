@@ -16,7 +16,6 @@ function NLL:_forward(carry)
    local input = self.input.act:feature()
    local target = self.input.target:class()
    self.loss = self._criterion:forward(input, target)
-   print(self.loss, input:mean(), target:mean())
    return carry
 end
 

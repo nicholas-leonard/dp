@@ -15,8 +15,8 @@ Mnist._classes = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 function Mnist:__init(config) 
    config = config or {}
    assert(not config[1], "Constructor requires key-value arguments")
-   local load_all, input_preprocess, target_preprocess
-   self._args, self._valid_ratio, self._train_file, self._test_file, 
+   local args, load_all, input_preprocess, target_preprocess
+   args, self._valid_ratio, self._train_file, self._test_file, 
          self._data_path, self._scale, self._binarize, self._shuffle,
          self._download_url, load_all, input_preprocess, 
          target_preprocess

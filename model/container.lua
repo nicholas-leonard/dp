@@ -70,6 +70,8 @@ function Container:doneBatch(...)
    for i=1,#self._models do
       self._models[i]:doneBatch(...)
    end
+   -- stops parent from calling zeroGradParameters (again)
+   self.backwarded = false
    parent.doneBatch(self, ...)
 end
 

@@ -44,7 +44,7 @@ end
 function BaseSet:setInputs(inputs)
    if not torch.typename(inputs) and type(inputs) == 'table' then
       --if list, make CompositeTensor
-      inputs = dp.CompositeObserver(inputs)
+      inputs = dp.CompositeTensor{components=inputs}
    end
    assert(inputs.isBaseTensor, 
       "Error : invalid inputs. Expecting type dp.BaseTensor")
@@ -54,7 +54,7 @@ end
 function BaseSet:setTargets(targets)
    if not torch.typename(targets) and type(targets) == 'table' then
       --if list, make CompositeTensor
-      targets = dp.CompositeObserver(targets)
+      targets = dp.CompositeTensor{components=targets}
    end
    assert(targets.isBaseTensor,
       "Error : invalid targets. Expecting type dp.BaseTensor")

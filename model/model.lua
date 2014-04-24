@@ -43,7 +43,7 @@ function Model:tags()
 end
 
 function Model:parameters()
-   return {}
+   error"Not Implemented"
 end
 
 function Model:forward(input, carry)
@@ -68,6 +68,15 @@ function Model:evaluate(input, carry)
    return self.output.act, carry
 end
 
+function Model:backward(output, carry)
+   assert(output.isBaseTensor, "Expecting dp.BaseTensor output")
+   self.output.grad = output
+   carry = self:_backward(carry) or carry
+   assert(self.input.grad.isBaseTensor, "Expecting dp.BaseTensor grad")
+   self.backwarded = true
+   return self.input.grad, carry
+end
+
 function Model:accept(visitor)
    self.visited = true
    self:_accept(visitor)
@@ -78,10 +87,10 @@ function Model:_accept(visitor)
 end
 
 function Model:doneBatch(...)
-   parent.doneBatch(self, ...)
    if self.backwarded then
       self:zeroGradParameters()
    end
+   parent.doneBatch(self, ...)
    self.visited = false
    self.output = {}
 end

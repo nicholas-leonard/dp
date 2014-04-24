@@ -105,11 +105,12 @@ function dptest.zca()
 end
 function dptest.neural()
    local tensor = torch.randn(5,10)
+   local grad_tensor = torch.randn(5, 2)
    -- dp
    local input = dp.DataTensor{data=tensor}
    local layer = dp.Neural{input_size=10, output_size=2, transfer=nn.Tanh()}
    local act, carry = layer:forward(input, {nSample=5})
-   local grad = layer:backward(input, carry)
+   local grad = layer:backward(dp.DataTensor{data=grad_tensor}, carry)
    -- nn
    local mlp = nn.Sequential()
    local m = nn.Linear(10,2)
@@ -117,7 +118,35 @@ function dptest.neural()
    mlp:add(m)
    mlp:add(nn.Tanh())
    local mlp_act = mlp:forward(tensor)
-   local mlp_grad = mlp:backward(tensor, tensor)
+   local mlp_grad = mlp:backward(tensor, grad_tensor)
+   -- compare nn and dp
+   mytester:assertTensorEq(mlp_act, act:feature(), 0.00001)
+   mytester:assertTensorEq(mlp_grad, grad:feature(), 0.00001)
+end
+function dptest.sequential()
+   local tensor = torch.randn(5,10)
+   local grad_tensor = torch.randn(5, 2)
+   -- dp
+   local input = dp.DataTensor{data=tensor}
+   local model = dp.Sequential{
+      models = {
+         dp.Neural{input_size=10, output_size=4, transfer=nn.Tanh()},
+         dp.Neural{input_size=4, output_size=2, transfer=nn.LogSoftMax()}
+      }
+   }
+   local act, carry = model:forward(input, {nSample=5})
+   local grad, carry = model:backward(dp.DataTensor{data=grad_tensor}, carry)
+   mytester:assert(carry.nSample == 5, "Carry lost an attribute")
+   -- nn
+   local mlp = nn.Sequential()
+   mlp:add(nn.Linear(10,4))
+   mlp:get(1):share(model:get(1)._affine, 'weight', 'bias')
+   mlp:add(nn.Tanh())
+   mlp:add(nn.Linear(4,2))
+   mlp:get(3):share(model:get(2)._affine, 'weight', 'bias')
+   mlp:add(nn.LogSoftMax())
+   local mlp_act = mlp:forward(tensor)
+   local mlp_grad = mlp:backward(tensor, grad_tensor)
    -- compare nn and dp
    mytester:assertTensorEq(mlp_act, act:feature(), 0.00001)
    mytester:assertTensorEq(mlp_grad, grad:feature(), 0.00001)

@@ -30,7 +30,6 @@ model = dp.Sequential{
    }
 }
 
-
 --[[Propagators]]--
 train = dp.Optimizer{
    loss = dp.NLL(),

@@ -36,7 +36,7 @@ function Sequential:_forward(carry)
 end
 
 function Sequential:_backward(carry)
-   local output = self.output.act
+   local output = self.output.grad
    for i=#self._models,1,-1 do
       output, carry = self._models[i]:backward(output, carry)
    end

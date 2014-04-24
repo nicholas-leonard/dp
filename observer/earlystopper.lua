@@ -90,7 +90,6 @@ function EarlyStopper:doneEpoch(report, ...)
       for _, name in ipairs(self._error_report) do
          report_cursor = report_cursor[name]
       end
-      print("loss", report_cursor)
       self:compareError(report_cursor, ...)
    end
 end

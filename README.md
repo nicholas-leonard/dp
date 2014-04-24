@@ -1,7 +1,8 @@
 # dp Package Reference Manual#
 
-__dp__ is a __d__ee__p__ learning library designed for speeding up 
-research and development using the [Torch7](http://torch.ch) distribution.
+__dp__ is a <b>d</b>ee<b>p</b> learning library designed for streamlining 
+research and development using the [Torch7](http://torch.ch) distribution, with an emphasis on flexibility through the elegant use of object-oriented [design patterns](http://en.wikipedia.org/wiki/Design_Patterns).
+
 Inspired by pylearn2/Theano, it provides common datasets like MNIST, CIFAR-10 and CIFAR-100, 
 preprocessing like Zero-Component Analysis whitening, Global Contrast Normalization, 
 Lecunn's Local Contrast Normalization  and facilities for interfacing your own. 
@@ -10,6 +11,8 @@ and [torch7](https://github.com/torch/torch7/blob/master/README.md) package such
 loading datasets and [early stopping](http://en.wikipedia.org/wiki/Early_stopping). 
 The library includes hyperparameter optimization facilities for sampling and running 
 experiments from the command-line or prior hyper-parameter distributions.
+
+We are currently working on providing facilities for distributing the models over different machines.
 
 Finally, we optionally provide facilites for storing and analysing hyperpameters and results using
 a PostgreSQL database backend which facilitates distributing experiments over different machines. 
@@ -23,16 +26,16 @@ In order to help you get up and running we provide a quick [neural network tutor
 	
   * Data Library
     * [Data](doc/data.md) defines objects used for loading data.
-    * [Preprocess](doc/preprocess.md) defines objects used for preprocessing data (TODO).
+    * [Preprocess](doc/preprocess.md) defines objects used for preprocessing data (doc TODO).
   * Model Library
-    * Model defines objects encapsulating nn.Modules (TODO).
-    * Container defines objects encapsulating Models (TODO).
+    * Model defines objects encapsulating nn.Modules (doc TODO).
+    * Container defines objects encapsulating Models (doc TODO).
   * Experiment Library
-    * Propagator defines objects used to propagate (forward/backward) DataSets through models (TODO).
+    * Propagator defines objects used to propagate (forward/backward) DataSets through models (doc TODO).
   * Hyperparameter Library
-    * Hyperoptimizer (TODO)
-    * DatasourceFactory (TODO)
-    * ExperimentFactory (TODO)
+    * Hyperoptimizer (doc TODO)
+    * DatasourceFactory (doc TODO)
+    * ExperimentFactory (doc TODO)
 
 
 <a name="dp.install"/>
@@ -40,7 +43,7 @@ In order to help you get up and running we provide a quick [neural network tutor
 To use this library, we will require some lua rocks:
 ```shell
 $> sudo luarocks install fs
-$> sudo luarocks install underscore
+$> sudo luarocks install moses
 $> sudo luarocks install nnx
 ```
 Optional:

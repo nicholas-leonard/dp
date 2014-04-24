@@ -1,8 +1,10 @@
 # Data #
 
-  * [DataTensor](#dp.DataTensor) :
-    * [ImageTensor](#dp.ImageTensor)
-    * [ClassTensor](#dp.ClassTensor)
+  * [BaseTensor](#dp.BaseTensor) :
+    * [DataTensor](#dp.DataTensor) :
+     * [ImageTensor](#dp.ImageTensor)
+     * [ClassTensor](#dp.ClassTensor)
+    * [CompositeTensor](#dp.CompositeTensor)
   * [DataSet](#dp.DataSet)
   * [DataSource](#dp.DataSource) :
     * Mnist
@@ -10,12 +12,16 @@
     * Cifar10
     * Cifar100 
 
+<a name="dp.BaseTensor"/>
+## BaseTensor ##
+Abstract class to allow for the use of CompositeTensors in models. Adapter (design pattern) for torch.Tensor.
+
 <a name="dp.DataTensor"/>
 ## DataTensor ##
-Encapsulates a torch.Tensor. Provides access to it using different
+Encapsulates a torch.Tensor and provides access to it using different
 viewing methods. A view may reshape the tensor inplace and render it
 contiguous. Views can be used to convert data into new axes formats 
-using torch.Tensor:resize, :transpose, :contiguous. The 
+using torch.Tensor:resize(), :transpose() and :contiguous(). The 
 conversions may be done in-place (default), or may be simply  
 returned using the conversion methods (feature, class, image, etc.). 
 A DataTensor may also holds metadata.
@@ -221,6 +227,10 @@ However, assuming the first index of each example vector represents the primary 
 <a name="dp.ClassTensor.feature"/>
 ### [data] feature([inplace, contiguous]) ###
 Returns a 2D torch.Tensor of examples by features : `{'b','f'}` (see [DataTensor:feature()](#dp.DataTensor.feature)).
+
+<a name="dp.CompositeTensor"/>
+## CompositeTensor ##
+A composite of BaseTensors. Allows for multiple input and multiple target datasets and batches.
 
 
 <a name="dp.DataSet"/>

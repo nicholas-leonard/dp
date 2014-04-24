@@ -8,7 +8,6 @@ local Module, parent = torch.class("dp.Module", "dp.Model")
 Module.isModule = true
 
 function Module:__init(config)
-   config = config or {}
    local args, module = xlua.unpack(
       {config},
       'Module', 
@@ -38,15 +37,19 @@ function Module:__init(config)
    end
 end
 
-function Module:_forward(cstate)
-   self.ostate.act = self._module:forward(self.istate.act)
+function Module:_forward(carry)
+   self.output.act = dp.DataTensor{
+      data=self._module:forward(self.input.act:feature())
+   }
 end
 
-function Module:_backward(cstate)
-   self.istate.grad = self._module:backward(
-      self.istate.act, 
-      self.ostate.grad, 
-      self.gstate.scale
+function Module:_backward(carry)
+   self.input.grad = self.input.act:featureClone(
+      self._module:backward(
+         self.input.act:feature(), 
+         self.output.grad:feature(),
+         carry.scale
+      )
    )
 end
 
@@ -64,7 +67,7 @@ function Module:reset()
 end
 
 function Module:parameters()
-   local params = self._params
+   local params = {}
    local module = self._module
    if module.weight and module.weight:dim() ~= 0 then
       if not params.weight then

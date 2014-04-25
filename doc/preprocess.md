@@ -1,8 +1,8 @@
 <a name="dp.Preprocess"/>
-## Preprocessing ##
+# Preprocessing #
 Preprocessing is used to analyse and optimize the statistical properties of datasets such that they are easier to push through neural networks.
 
-### Preprocess ###
+## Preprocess ##
 Abstract class.
 
 An object that can preprocess a [BaseTensor](data.md#dp.BaseTensor).
@@ -55,7 +55,7 @@ ds = Mnist{input_preprocess=dp.Standardize()}
 ```
 
 <a name="dp.Standardize"/>
-### Standardize ###
+## Standardize ##
 A Preprocess that subtracts the mean and divides by the standard deviation.
 
 <a name="dp.Standardize.__init"/>

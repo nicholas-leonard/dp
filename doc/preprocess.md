@@ -4,7 +4,7 @@
 ### Preprocess ###
 Abstract class.
 
-An object that can preprocess a [BaseTensor](data/#dp.BaseTensor)
+An object that can preprocess a [BaseTensor](data.md#dp.BaseTensor)
 Preprocessing a basetensor implies changing the data that
 a dataset actually stores. This can be useful to save
 memory. If you know you are always going to access only
@@ -28,16 +28,30 @@ Abstract method.
 `can_fit`. When true, the Preprocess can adapt internal parameters based on the contents of a basetensor.
 This is usually true for basetensors taken from the training set. 
 
-Typical usage.
---    # Learn PCA preprocessing and apply it to the training set
---    train_set = MyDataset{which_set='train'}
---    my_pca_preprocess:apply(train_set)
---    # Now apply the same transformation to the test set
---    test_set = MyDataset{which_set='valid'}
---    my_pca_preprocess:apply(test_set)
-function Preprocess:apply(basetensor, can_fit)
-   error("Preprocess subclass does not implement an apply method.")
-end 
+For example, let us preprocess the [Mnist](data.md#dp.Mnist) inputs. First, we load the datasource and create a [Standardize](#dp.Standardize) preprocess.
+```lua
+ds = dp.Mnist()
+st = dp.Standardize()
+```
+Get the `train`, `valid` and `test` set inputs.
+```lua
+train = ds:trainSet():inputs()
+valid = ds:validSet():inputs()
+test = ds:testSet():inputs()
+```
+Fit and apply the preprocess to the `train` basetensor.
+```lua
+st:apply(train, true)
+```
+At this point the `st` preprocess has measured and stored some statistics on the `train` basetensor. Furthermore, the `train` basetensor has been preprocessed. We can apply the same preprocessing (with the same statistics) on the the `valid` and `test` basetensors.
+```lua
+st:apply(valid, false)
+st:apply(test, false)
+```
+Since this is a common pattern in machine learning, we have simplified all this to one line of code.
+```lua
+ds = Mnist{input_preprocess=dp.Standardize()
+```
 
 <a name="dp.Standardize"/>
 ### Standardize ###

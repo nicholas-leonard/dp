@@ -6,11 +6,13 @@
 local Standardize = torch.class("dp.Standardize", "dp.Preprocess")
 Standardize.isStandardize = true
 
-function Standardize:__init(...)
+function Standardize:__init(config)
+   config = config or {}
+   assert(not config[1], "Constructor requires key-value arguments")
    local args
    args, self._global_mean, self._global_std, self._std_eps
       = xlua.unpack(
-      {... or {}},
+      {config},
       'Standardize', nil,
       {arg='global_mean', type='boolean', default=false,
        help='If true, subtract the (scalar) mean over every element '..
@@ -29,6 +31,7 @@ function Standardize:__init(...)
 end
 
 function Standardize:apply(datatensor, can_fit)
+   assert(datatensor.isDataTensor, "Expecting a DataTensor instance")
    local data = datatensor:feature()
    if can_fit then
       self._mean = self._global_mean and data:mean() or data:mean(1)

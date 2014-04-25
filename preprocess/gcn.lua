@@ -14,12 +14,14 @@
 local GCN, parent = torch.class("dp.GCN", "dp.Preprocess")
 GCN.isGCN = true
 
-function GCN:__init(...)
+function GCN:__init(config)
+   config = config or {}
+   assert(not config[1], "Constructor requires key-value arguments")
    local args
    args, self._substract_mean, self._scale, self._sqrt_bias, 
    self._use_std, self._min_divisor, self._batch_size
       = xlua.unpack(
-      {... or {}},
+      {config},
       'GCN', nil,
       {arg='substract_mean', type='boolean', default=true,
        help='Remove the mean across features/pixels before '..

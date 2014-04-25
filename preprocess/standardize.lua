@@ -37,8 +37,8 @@ function Standardize:apply(datatensor, can_fit)
       self._mean = self._global_mean and data:mean() or data:mean(1)
       self._std = self._global_std and data:std() or data:std(1)
    elseif self._mean == nil or self._std == nil then
-          error("can_fit is false, but Standardize object "..
-                "has no stored mean or standard deviation")
+      error("can_fit is false, but Standardize object "..
+            "has no stored mean or standard deviation")
    end
    if self._global_mean then
       data:add(-self._mean)

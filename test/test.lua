@@ -151,6 +151,24 @@ function dptest.sequential()
    mytester:assertTensorEq(mlp_act, act:feature(), 0.00001)
    mytester:assertTensorEq(mlp_grad, grad:feature(), 0.00001)
 end
+function dptest.nll()
+   local input_tensor = torch.randn(5,10)
+   local target_tensor = torch.randperm(10):sub(1,5)
+   -- dp
+   local input = dp.DataTensor{data=input_tensor}
+   local target = dp.ClassTensor{data=target_tensor}
+   local loss = dp.NLL()
+   local err, carry = loss:forward(input, target, {nSample=5})
+   local grad = loss:backward(input, target, carry)
+   -- nn
+   local criterion = nn.ClassNLLCriterion()
+   local c_err = criterion:forward(input_tensor, target_tensor)
+   local c_grad = criterion:backward(input_tensor, target_tensor)
+   -- compare nn and dp
+   mytester:asserteq(c_err, err, 0.00001)
+   mytester:assertTensorEq(c_grad, grad:feature(), 0.00001)
+end
+
 
 function dp.test(tests)
    math.randomseed(os.time())

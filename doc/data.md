@@ -27,7 +27,7 @@ returned using the conversion methods (feature, class, image, etc.).
 A DataTensor may also holds metadata.
 
 <a name="dp.DataTensor.__init"/>
-### dp.DataTensor(data, [axes, sizes]) ###
+### dp.DataTensor{data, [axes, sizes]} ###
 Constructs a dp.DataTensor out of torch.Tensor data. Arguments can also be passed as a table of key-value pairs :
 ```dt = dp.DataTensor{data=torch.Tensor(3,4), axes={'b','f'}, sizes={3,4}}```
 
@@ -106,7 +106,7 @@ Or we can use ImageTensor:feature() (inherited from [DataTensor](#dp.DataTensor.
 ```
 
 <a name="dp.ImageTensor.__init"/>
-### dp.ImageTensor(data, [axes, sizes]) ###
+### dp.ImageTensor{data, [axes, sizes]} ###
 Constructs a dp.ImageTensor out of torch.Tensor data. Arguments can also be passed as a table of key-value pairs:
 ```lua
 > dt = dp.ImageTensor{data=torch.Tensor(10000,28*28), axes={'b','h','w','c'}, sizes={28,28,1}}
@@ -172,7 +172,7 @@ Or we can use ClassTensor:multiclass() (inherited from [DataTensor](#dp.DataTens
 ```
 
 <a name="dp.ClassTensor.__init"/>
-### dp.ClassTensor(data, [axes, sizes]) ###
+### dp.ClassTensor{data, [axes, sizes]} ###
 Constructs a dp.ImageTensor out of torch.Tensor data. Arguments can also be passed as a table of key-value pairs:
 ```lua
 dt = dp.ClassTensor{data=torch.Tensor(10000), axes={'b'}, sizes={10000}}

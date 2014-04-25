@@ -99,3 +99,19 @@ Note that `sqrt_bias = 10`, `use_std = true` and defaults for all other
 parameters corresponds to the preprocessing used in :
 A. Coates, H. Lee and A. Ng. [An Analysis of Single-Layer
 Networks in Unsupervised Feature Learning](http://www.stanford.edu/~acoates/papers/coatesleeng_aistats_2011.pdf). AISTATS 14, 2011.
+
+<a name="dp.ZCA"/>
+## ZCA ##
+Performs Zero Component Analysis Whitening.
+Commonly used for images, but can be used with any [DataTensor](data.md#dp.DataTensor). 
+For a comprehensize explanation of ZCA Whitening please consult the [Standford Whitening article](http://ufldl.stanford.edu/wiki/index.php/Whitening)
+
+<a name="dp.ZCA.__init"/>
+### dp.ZCA{[n_component, n_drop_component, filter_bias]} ###
+Constructor.
+
+`n_component` measures the number of most important eigen components to use for ZCA. The default is to use all of components.
+
+`n_drop_component` is the number of least important eigen components to drop. The default value is 0.
+
+`filter_bias` is a number with a default value of 0.1. Filters are scaled by `1/sqrt(filter_bias + variance)`.

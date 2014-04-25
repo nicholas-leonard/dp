@@ -1,5 +1,6 @@
 <a name="dp.Preprocess"/>
 ## Preprocessing ##
+Preprocessing is used to analyse and optimize the statistical properties of datasets such that they are easier to push through neural networks.
 
 ### Preprocess ###
 Abstract class.
@@ -76,7 +77,7 @@ the vector norm or the standard deviation (across features, for
 each example).
 
 <a name="dp.GCN.__init"/>
-### dp.GCN{substract_mean, scale, sqrt_bias, use_std, min_divisor, batch_size} ###
+### dp.GCN{[substract_mean, scale, sqrt_bias, use_std, min_divisor, batch_size]} ###
 Construstor.
 
 `substract_mean` is a boolean with a default value of true. 
@@ -88,11 +89,9 @@ Note that this is the per-example mean across pixels, not the per-pixel mean acr
 `sqrt_bias` is a number with a default value of 0. A fudge factor added inside the square root.
 Adds this amount inside the square root when computing the standard deviation or the norm.
 
-`use_std` is a boolean with a default value of false.  
-If True uses the standard deviation instead of the norm.
+`use_std` is a boolean with a default value of false. If True uses the standard deviation instead of the norm.
 
-`min_divisor` is a number with a default value of 1e-8.
-If the divisor for an example is less than this value, do not apply it.
+`min_divisor` is a number with a default value of 1e-8. If the divisor for an example is less than this value, do not apply it.
 
 `batch_size` is a number with a default value 0. The size of a batch used internally.
        

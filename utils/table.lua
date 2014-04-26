@@ -111,12 +111,24 @@ function table.channelValues(tbls, channel)
    return values
 end
 
-function table.fromString(str)
+function table.fromString(str,splitter)
    if type(str) == 'table' then
       return str
    end
+   splitter = splitter or '[,]'
    return _.map(
-      _.split(str:sub(2,-2),','), 
-      function(c) return tonumber(c) end
+      _.split(str:sub(2,-2),splitter), 
+      function(k,c) return tonumber(c) end
    )
+end
+
+function string.tomodule(modulename,splitter)
+   splitter = splitter or '[.]'
+   assert(type(modulename) == 'string')
+   local modula = _G
+   for i, name in ipairs(_.split(modulename,splitter)) do
+      print(i, name)
+      modula = modula[name] --or require(modula)
+   end
+   return modula
 end

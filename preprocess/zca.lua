@@ -7,11 +7,13 @@
 local ZCA = torch.class("dp.ZCA", "dp.Preprocess")
 ZCA.isZCA = true
 
-function ZCA:__init(...)
+function ZCA:__init(config)
+   config = config or {}
+   assert(not config[1], "Constructor requires key-value arguments")
    local args
-   args, self._n_components, self._n_drop_components, self._filter_bias
+   args, self._n_component, self._n_drop_component, self._filter_bias
       = xlua.unpack(
-      {... or {}},
+      {config or {}},
       'ZCA', 'ZCA whitening constructor',
       {arg='n_component', type='number',
        help='number of most important eigen components to use for ZCA'},
@@ -41,14 +43,14 @@ function ZCA:fit(X)
    eig_vec = eig_vec:index(2, eig_idx)
    print'done computing eigen values and vectors'
    assert(eig_val:min() > 0)
-   if self._n_components then
-     eig_val = eig_val:sub(1, self.n_components)
-     eig_vec = eig_vec:narrow(2, 1, self.n_components)
+   if self._n_component then
+     eig_val = eig_val:sub(1, self._n_component)
+     eig_vec = eig_vec:narrow(2, 1, self._n_component)
    end
-   if self._n_drop_components then
-      eig_val = eig_val:sub(self.n_drop_component, -1)
-      local size = eig_vec:size(2)-self.n_drop_component
-      eig_vec = eig_vec:narrow(2, self.n_drop_component, size)
+   if self._n_drop_component then
+      eig_val = eig_val:sub(self._n_drop_component, -1)
+      local size = eig_vec:size(2)-self._n_drop_component
+      eig_vec = eig_vec:narrow(2, self._n_drop_component, size)
    end
    
    if self._unit_test then
@@ -68,6 +70,7 @@ function ZCA:fit(X)
 end
 
 function ZCA:apply(datatensor, can_fit)
+   assert(datatensor.isDataTensor, "Expecting DataTensor")
    local X = datatensor:feature()
    local new_X
    if can_fit then

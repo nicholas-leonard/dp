@@ -4,7 +4,7 @@
 --typepattern(torch.Tensor(4), pattern) and
 --typepattern(torch.DoubleTensor(5), pattern) are both true.
 --typepattern(3, pattern)
-function typepattern(obj, pattern)
+function torch.typepattern(obj, pattern)
    local class = type(obj)
    if class == 'userdata' then
       class = torch.typename(obj)
@@ -15,7 +15,20 @@ function typepattern(obj, pattern)
    end
    return match
 end
+-- DEPRECATED:
+typepattern = torch.typepattern
+-- END
 
+function torch.type(obj)
+   local class = type(obj)
+   if class == 'userdata' then
+      class = torch.typename(obj)
+   end
+   return class
+end
+
+
+-- TODO : PR to torch for added isTensor = true to userdata metatable
 function torch.isTensor(obj)
    return typepattern(obj, "^torch[.]%a*Tensor$")
 end
@@ -82,25 +95,35 @@ function torch.deserialize(str, mode)
 end
 
 -- torch.concat([res], tensors, [dim])
-function torch.concat(result, tensors, dim)
+function torch.concat(result, tensors, dim, index)
+   index = index or 1
    if type(result) == 'table' then
       dim = tensors
       tensors = result
-      result = torch.emptyClone(tensors[1])
+      result = torch.emptyClone(tensors[index])
+      print(1, result)
+   elseif result == nil then
+      assert(type(tensors) == 'table', "expecting table at arg 2")
+      result = torch.emptyClone(tensors[index])
    end
+   
+   assert(_.all(tensors, 
+      function(k,v) 
+         torch.isTensor(v) 
+      end),
+      "Expecting table of torch.tensors at arg 1 and 2 : "..torch.type(result)
+   )
+   
    dim = dim or 1
 
    local size
    for i,tensor in ipairs(tensors) do
-      if not size then
-         size = tensor:size():totable()
-      else
-         for i,v in ipairs(tensor:size():totable()) do
-            if i == dim then
-               size[i] = size[i] + v
-            else
-               assert(size[i] == v, "Cannot concat different sizes")
-            end
+      size = size or tensor:size():totable()
+      for i,v in ipairs(tensor:size():totable()) do
+         if i == dim then
+            size[i] = size[i] + v
+         else
+            assert(size[i] == v, "Cannot concat different sizes")
          end
       end
    end

@@ -1,3 +1,13 @@
+function string.tomodule(modulename,splitter)
+   splitter = splitter or '[.]'
+   assert(type(modulename) == 'string')
+   local modula = _G
+   for i, name in ipairs(_.split(modulename,splitter)) do
+      modula = modula[name] or require(modula)
+   end
+   return modula
+end
+
 --[[ From https://github.com/rosejn/lua-util: ]]--
 -- Boolean predicate to determine if a path points to a valid file or directory.
 function is_file(path)

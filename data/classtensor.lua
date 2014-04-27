@@ -122,12 +122,32 @@ function ClassTensor:class(inplace, contiguous)
    return data, classes
 end
 
-function ClassTensor:onehot(inplace, contiguous)
-   error("Not Implemented")
+function ClassTensor:onehot()
+   -- doesn't convert data inplace
+   local t = self:class()
+   assert(self._classes, "onehot requires self._classes to be set")
+   local nClasses = table.length(self._classes)
+   local data = torch.IntTensor(t:size(1), nClasses)
+   for i=1,t:size(1) do
+      data[{i,t[i]}] = 1
+   end
+   return data, self._classes
 end
 
 function ClassTensor:manyhot(inplace, contiguous)
-   error("Not Implemented")
+   -- doesn't convert data inplace
+   local t = self:multiclass()
+   assert(self._classes, "onehot requires self._classes to be set")
+   local nClasses = table.length(self._classes)
+   local data = torch.IntTensor(t:size(1), nClasses)
+   for i=1,t:size(1) do
+      local t_x = t:select(1,i)
+      local data_x = data:select(1,i)
+      for j=1,t:size(2) do
+         data_x[t_x[j]] = 1
+      end
+   end
+   return data, self._classes
 end
 
 function ClassTensor:feature(inplace, contiguous)
@@ -158,11 +178,13 @@ function ClassTensor:sub(start, stop)
    local data = self:multiclass()
    local sizes=self:expandedSize():clone()
    sizes[self:b()] = stop-start+1
-   return torch.protoClone(self, {
+   local clone = torch.protoClone(self, {
       data=data:narrow(self:b(), start, stop-start+1),
       axes=table.copy(self:expandedAxes()),
       sizes=sizes, classes=table.copy(self:classes())
    })
+   assert(clone.isClassTensor, "Clone failed")
+   return clone
 end
 
 -- return a clone with self's metadata initialized with some data 

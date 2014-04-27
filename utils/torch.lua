@@ -20,9 +20,9 @@ typepattern = torch.typepattern
 -- END
 
 function torch.type(obj)
-   local class = type(obj)
-   if class == 'userdata' then
-      class = torch.typename(obj)
+   local class = torch.typename(obj)
+   if not class then
+      class = type(obj)
    end
    return class
 end
@@ -30,7 +30,7 @@ end
 
 -- TODO : PR to torch for added isTensor = true to userdata metatable
 function torch.isTensor(obj)
-   return typepattern(obj, "^torch[.]%a*Tensor$")
+   return torch.typepattern(obj, "^torch[.]%a*Tensor$")
 end
 
 function typeString_to_tensorType(type_string)
@@ -46,26 +46,30 @@ end
 -- warning : doesn't allow non-standard constructors.
 -- need to call constructors explicitly, e.g. :
 function torch.classof(obj)
-   return torch.factory(torch.typename(obj))
+   local obj_t = torch.typename(obj)
+   if not obj_t then
+      error("type"..torch.type(obj).."has no torch.class registered constructor", 2)
+   end
+   local modula = string.tomodule(obj_t)
+   return modula
 end
 
--- returns an empty (zero-dim) clone of an obj
+-- returns an empty clone of an obj
 function torch.emptyClone(obj)
-   return torch.classof(obj)()
+   error("Deprecated use torch.protoClone instead", 2)
 end
+
 
 -- construct an object using a prototype and initialize it with ...
--- won't work with torch.Tensors and other userdata (objects written in C)
--- unless they define __init() constructor.
+-- works with any class registered with torch.class
 function torch.protoClone(proto, ...)
-   local obj = torch.emptyClone(proto)
-   obj:__init(...)
-   return obj
+   local class = torch.classof(proto)
+   return class(...)
 end
 
 -- returns a view of a tensor
 function torch.view(tensor)
-   return torch.emptyClone(tensor):set(tensor)
+   return torch.protoClone(tensor, tensor)
 end
 
 -- simple helpers to serialize/deserialize arbitrary objects/tables
@@ -100,11 +104,10 @@ function torch.concat(result, tensors, dim, index)
    if type(result) == 'table' then
       dim = tensors
       tensors = result
-      result = torch.emptyClone(tensors[index])
-      print(1, result)
+      result = torch.protoClone(tensors[index])
    elseif result == nil then
       assert(type(tensors) == 'table', "expecting table at arg 2")
-      result = torch.emptyClone(tensors[index])
+      result = torch.protoClone(tensors[index])
    end
    
    assert(_.all(tensors, 

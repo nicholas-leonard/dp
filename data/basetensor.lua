@@ -75,12 +75,19 @@ end
 --returns true if all indices in obj_table are instances of BaseTensor
 --else return false and index of first non-element
 function BaseTensor.areInstances(obj_table)
-   local map = _.map(obj_table, function(obj) return obj.isBaseTensor end)
-   return _.all(map), _.indexOf(map, false)
+   local map = _.values(
+      _.map(obj_table, 
+         function(key, obj)
+            return obj.isBaseTensor
+         end
+      )
+   )
+   return _.all(map, function(k,v) return v; end), _.indexOf(map, false)
 end
 
 function BaseTensor.assertInstances(obj_table)
    local areInstances, index = BaseTensor.areInstances(obj_table)
+   index = index or 0
    assert(areInstances, "Error : object at index " .. index .. 
       " is of wrong type. Expecting type dp.DataTensor.")
 end

@@ -28,7 +28,7 @@ end
 
 function CompositeFeedback:_add(batch, output, carry, report)
    _.map(self._feedbacks, 
-      function(fb) 
+      function(key, fb) 
          fb:add(batch, output, carry, report)
       end
    )

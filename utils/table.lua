@@ -122,13 +122,3 @@ function table.fromString(str,splitter)
    )
 end
 
-function string.tomodule(modulename,splitter)
-   splitter = splitter or '[.]'
-   assert(type(modulename) == 'string')
-   local modula = _G
-   for i, name in ipairs(_.split(modulename,splitter)) do
-      print(i, name)
-      modula = modula[name] --or require(modula)
-   end
-   return modula
-end

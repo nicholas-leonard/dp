@@ -33,7 +33,7 @@ function CompositeTensor:_feature(inplace, contiguous)
    features = _.flatten(features)
    -- concat features (emptyClones first torch.Tensor of features)
    -- we also save the memory for later use
-   self._data = torch.concat(self._data, features)
+   self._data = torch.concat(self._data, features, 2)
    return self._data
 end
 
@@ -46,7 +46,7 @@ end
 
 function CompositeTensor:index(dt, indices)
    return _.map(self._components, 
-      function(component) 
+      function(key, component) 
          return component:index(dt, indices)
       end
    )
@@ -54,7 +54,7 @@ end
 
 function CompositeTensor:sub(start, stop)
    return _.map(self._components, 
-      function(component) 
+      function(key, component) 
          return component:sub(start, stop)
       end
    )
@@ -74,7 +74,7 @@ function CompositeTensor:featureClone(data)
    local components = {}
    local start = 1
    for i,k in ipairs(_.sort(_.keys(self._components))) do
-      local component = components[k]
+      local component = self._components[k]
       local size = component:feature(false):size(2)
       local clone = component:featureClone(data:narrow(2, start, size))
       components[k] = clone

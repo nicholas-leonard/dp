@@ -282,11 +282,15 @@ end
 function DataTensor:featureClone(data)
    local sizes = self:expandedSize():clone()
    assert(sizes[self:b()] == data:size(1))
-   return torch.protoClone(self, {
+   local clone = torch.protoClone(self, {
       data=data, 
       axes=table.copy(self:expandedAxes()),
       sizes=sizes
    })
+   if not clone.isDataTensor then
+      error("Clone failed. data:"..torch.type(data).." clone:"..torch.type(clone))
+   end
+   return clone
 end
 
 -- copy data into existing memory allocated for data

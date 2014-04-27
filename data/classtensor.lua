@@ -127,19 +127,19 @@ function ClassTensor:onehot()
    local t = self:class()
    assert(self._classes, "onehot requires self._classes to be set")
    local nClasses = table.length(self._classes)
-   local data = torch.IntTensor(t:size(1), nClasses)
+   local data = torch.IntTensor(t:size(1), nClasses):zero()
    for i=1,t:size(1) do
       data[{i,t[i]}] = 1
    end
    return data, self._classes
 end
 
-function ClassTensor:manyhot(inplace, contiguous)
+function ClassTensor:manyhot()
    -- doesn't convert data inplace
    local t = self:multiclass()
    assert(self._classes, "onehot requires self._classes to be set")
    local nClasses = table.length(self._classes)
-   local data = torch.IntTensor(t:size(1), nClasses)
+   local data = torch.IntTensor(t:size(1), nClasses):zero()
    for i=1,t:size(1) do
       local t_x = t:select(1,i)
       local data_x = data:select(1,i)
@@ -151,7 +151,7 @@ function ClassTensor:manyhot(inplace, contiguous)
 end
 
 function ClassTensor:feature(inplace, contiguous)
-   -- when request as features (usually as inputs), use many-hot view
+   -- when request as features (could be for inputs), use many-hot view
    return self:manyhot(inplace, contiguous)
 end
 

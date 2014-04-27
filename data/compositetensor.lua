@@ -24,14 +24,14 @@ function CompositeTensor:_feature(inplace, contiguous)
    -- sort keys to get consistent view
    local keys = _.sort(_.keys(self._components))
    local features = _.map(keys, 
-      function(key)
+      function(i, key)
          local component = self._components[key]
          return component:feature(inplace, contiguous)
       end
    )
    -- flatten in case of nested composites
    features = _.flatten(features)
-   -- concat features (emptyClones first torch.Tensor of features)
+   -- concat features (protoClone's first torch.Tensor of features)
    -- we also save the memory for later use
    self._data = torch.concat(self._data, features, 2)
    return self._data

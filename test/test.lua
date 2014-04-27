@@ -71,9 +71,9 @@ function dptest.compositetensor()
       components={class_tensor,image_tensor,data_tensor}
    }
    local t = composite_tensor:feature()
-   local size = {8*3,(32*32*3)+10+4}
+   local size = {8,(32*32*3)+10+4}
    mytester:assertTableEq(t:size():totable(), size, 0.0001)
-   local c = torch.concat({class_data, image_data, data}, 2)
+   local c = torch.concat({class_tensor:feature(), image_tensor:feature(), data_tensor:feature()}, 2)
    mytester:assertTensorEq(t, c, 0.00001)
 end
 function dptest.gcn_zero_vector()

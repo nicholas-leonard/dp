@@ -102,6 +102,7 @@ end
 function torch.concat(result, tensors, dim, index)
    index = index or 1
    if type(result) == 'table' then
+      index = dim or 1
       dim = tensors
       tensors = result
       result = torch.protoClone(tensors[index])
@@ -112,7 +113,7 @@ function torch.concat(result, tensors, dim, index)
    
    assert(_.all(tensors, 
       function(k,v) 
-         torch.isTensor(v) 
+         return torch.isTensor(v) 
       end),
       "Expecting table of torch.tensors at arg 1 and 2 : "..torch.type(result)
    )
@@ -121,12 +122,21 @@ function torch.concat(result, tensors, dim, index)
 
    local size
    for i,tensor in ipairs(tensors) do
-      size = size or tensor:size():totable()
-      for i,v in ipairs(tensor:size():totable()) do
-         if i == dim then
-            size[i] = size[i] + v
+      if not size then
+         size = tensor:size():totable()
+         size[dim] = 0
+      end
+      for j,v in ipairs(tensor:size():totable()) do
+         if j == dim then
+            size[j] = (size[j] or 0) + v
          else
-            assert(size[i] == v, "Cannot concat different sizes")
+            if size[j] and size[j] ~= v then
+               error(
+                  "Cannot concat dim "..j.." with different sizes: "..
+                  (size[j] or 'nil').." ~= "..(v or 'nil')..
+                  " for tensor at index "..i, 2
+               )
+            end
          end
       end
    end

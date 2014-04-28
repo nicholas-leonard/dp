@@ -45,19 +45,23 @@ function CompositeTensor:nSample()
 end
 
 function CompositeTensor:index(dt, indices)
-   return _.map(self._components, 
-      function(key, component) 
-         return component:index(dt, indices)
-      end
-   )
+   return torch.protoClone(self, {
+      components = _.map(self._components, 
+         function(key, component) 
+            return component:index(dt, indices)
+         end
+      )
+   })
 end
 
 function CompositeTensor:sub(start, stop)
-   return _.map(self._components, 
-      function(key, component) 
-         return component:sub(start, stop)
-      end
-   )
+   return torch.protoClone(self, {
+      components = _.map(self._components, 
+         function(key, component) 
+            return component:sub(start, stop)
+         end
+      )
+   })
 end
 
 function CompositeTensor:size()

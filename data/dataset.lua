@@ -40,3 +40,11 @@ function DataSet:batch(batch_size)
       targets=self:targets() and self:targets():sub(1, batch_size)
    }
 end
+
+function DataSet:sub(start, stop)
+
+end
+
+function DataSet:index(indices)
+
+end

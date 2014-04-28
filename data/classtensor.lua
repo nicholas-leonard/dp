@@ -12,7 +12,7 @@ function ClassTensor:__init(config)
       = xlua.unpack(
       {config},
       'ClassTensor', 
-      'Builds a data.ClassTensor out of torch.Tensor data.',
+      'Builds a dp.ClassTensor out of torch.Tensor data.',
       {arg='data', type='torch.Tensor', 
        help='A torch.Tensor with 1 dimensions or more.', req=true},
       {arg='axes', type='table', 
@@ -181,7 +181,7 @@ function ClassTensor:sub(start, stop)
    local clone = torch.protoClone(self, {
       data=data:narrow(self:b(), start, stop-start+1),
       axes=table.copy(self:expandedAxes()),
-      sizes=sizes, classes=table.copy(self:classes())
+      sizes=sizes, classes=self:classes()
    })
    assert(clone.isClassTensor, "Clone failed")
    return clone
@@ -195,13 +195,13 @@ function ClassTensor:featureClone(data)
       data=data, 
       axes=table.copy(self:expandedAxes()),
       sizes=self:expandedSize():clone(),
-      classes=table.copy(self:classes())
+      classes=self:classes()
    })
 end
 
 -- copy data into existing memory allocated for data
 function ClassTensor:copy(classtensor)
    parent.copy(self, classtensor)
-   self._classes = table.copy(classtensor:classes())
+   self._classes = classtensor:classes()
 end
 

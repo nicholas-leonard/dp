@@ -29,13 +29,9 @@ function DataSet:probabilities()
 end
 
 -- builds a batch (factory method)
--- doesn't copy the inputs or targets (so don't modify them)
+-- reuses the inputs and targets (so don't modify them)
 function DataSet:batch(batch_size)
-   return dp.Batch{
-      which_set=self:whichSet(), epoch_size=self:nSample(),
-      inputs=self:inputs():sub(1, batch_size),
-      targets=self:targets() and self:targets():sub(1, batch_size)
-   }
+   return self:sub(1, batch_size)
 end
 
 function DataSet:sub(start, stop)

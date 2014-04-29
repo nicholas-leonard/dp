@@ -44,14 +44,19 @@ torch.include('dp', 'test/test.lua')
 
 --[[ data ]]--
 torch.include('dp', 'data/conv2d.lua')
+
 torch.include('dp', 'data/basetensor.lua')
 torch.include('dp', 'data/datatensor.lua')
 torch.include('dp', 'data/imagetensor.lua')
 torch.include('dp', 'data/classtensor.lua')
+torch.include('dp', 'data/wordtensor.lua')
 torch.include('dp', 'data/compositetensor.lua')
+
 torch.include('dp', 'data/baseset.lua')
 torch.include('dp', 'data/dataset.lua')
+torch.include('dp', 'data/sentenceset.lua')
 torch.include('dp', 'data/batch.lua')
+
 torch.include('dp', 'data/datasource.lua')
 torch.include('dp', 'data/mnist.lua')
 torch.include('dp', 'data/sampler.lua')

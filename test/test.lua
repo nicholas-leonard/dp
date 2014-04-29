@@ -94,6 +94,29 @@ function dptest.dataset()
    mytester:assertTensorEq(batch:targets():class(), batch2:targets():class(), 0.00001)
    mytester:assertTensorEq(batch:targets():class(), ds:targets():class():narrow(1,2,3), 0.00001)
 end
+function dptest.sentenceset()
+   local tensor = torch.IntTensor(80, 2):zero()
+   for i=1,8 do
+      -- one sentence
+      local sentence = tensor:narrow(1, ((i-1)*10)+1, 10)
+      -- fill it with a sequence of words
+      sentence:select(2,2):copy(torch.randperm(17):sub(1,10))
+      -- fill it with start sentence delimiters
+      sentence:select(2,1):fill(((i-1)*10)+1)
+   end
+   -- 18 words in vocabulary ("<S>" isn't found in tensor since its redundant to "</S>")
+   local words = {"</S>", "<UNK>", "the", "it", "is", "to", "view", "huh", "hi", "ho", "oh", "I", "you", "we", "see", "do", "have", "<S>"}
+   -- dataset
+   local ds = dp.SentenceSet{which_set='train', data=tensor, words=words, context_size=3, start_id=1, end_id=2}
+   local batch = ds:index(torch.LongTensor{1,2,3})
+   mytester:assertTableEq(batch:inputs():context():size():totable(), {3, 3})
+   local batch2 = ds:sub(1, 3)
+   mytester:assertTensorEq(batch:inputs():context(), batch2:inputs():context(), 0.00001)
+   batch2 = ds:index(batch, torch.LongTensor{2,3,4})
+   mytester:assertTensorEq(batch:inputs():context(), batch2:inputs():context(), 0.00001)
+   mytester:assertTensorEq(batch:targets():class(), batch2:targets():class(), 0.00001)
+   mytester:assertTensorEq(batch:targets():class(), tensor:select(2,2):narrow(1,2,3), 0.00001)
+end 
 function dptest.gcn_zero_vector()
    -- Global Contrast Normalization
    -- Test that passing in the zero vector does not result in

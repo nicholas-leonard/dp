@@ -19,7 +19,7 @@ function WordTensor:words()
 end
 
 function WordTensor:context(inplace, contiguous)
-   return self:manyclass(inplace, contiguous)
+   return self:multiclass(inplace, contiguous)
 end
 
 function WordTensor:feature(inplace, contiguous)

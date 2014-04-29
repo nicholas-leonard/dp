@@ -159,15 +159,15 @@ end
 function ClassTensor:index(dt, indices)
    local data
    if indices then
+      if dt then
+         assert(dt.isClassTensor, "Expecting BaseTensor as first argument")
+      end
       data = dt and dt:multiclass()
       torch.Tensor.index(data, self._data, self:b(), indices)
    end
+   indices = indices or dt
    data = data or self:multiclass():index(self:b(), indices)
    local sizes = self:expandedSize():clone()
-   indices = indices or dt
-   if dt then
-      assert(dt.isClassTensor, "Expecting BaseTensor as first argument")
-   end
    sizes[self:b()] = indices:size(1)
    return torch.protoClone(self, {
       data=data, sizes=sizes, axes=table.copy(self:expandedAxes()),
@@ -194,10 +194,8 @@ function ClassTensor:featureClone(data)
    local sizes = self:expandedSize():clone()
    assert(sizes[self:b()] == data:size(self:b()))
    return torch.protoClone(self, {
-      data=data, 
-      axes=table.copy(self:expandedAxes()),
-      sizes=self:expandedSize():clone(),
-      classes=self:classes()
+      data=data, axes=table.copy(self:expandedAxes()),
+      sizes=self:expandedSize():clone(), classes=self:classes()
    })
 end
 

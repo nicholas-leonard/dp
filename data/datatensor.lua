@@ -255,15 +255,15 @@ end
 function DataTensor:index(dt, indices)
    local data
    if indices then
+      if dt then
+         assert(dt.isDataTensor, "Expecting DataTensor at arg 1")
+      end
       data = dt and dt:feature()
       torch.Tensor.index(data, self._data, self:b(), indices)
    end
+   indices = indices or dt
    data = data or self:feature():index(self:b(), indices)
    local sizes = self:expandedSize():clone()
-   indices = indices or dt
-   if dt then
-      assert(dt.isDataTensor, "Expecting BaseTensor as first argument")
-   end
    sizes[self:b()] = indices:size(1)
    return torch.protoClone(self, {
       data=data, sizes=sizes, axes=table.copy(self:expandedAxes())
@@ -275,7 +275,7 @@ function DataTensor:sub(start, stop)
    local sizes = self:expandedSize():clone()
    sizes[self:b()] = stop-start+1
    return torch.protoClone(self, {
-      data=self._data:narrow(self:b(), start, stop-start+1),
+      data=self:feature():narrow(self:b(), start, stop-start+1),
       axes=table.copy(self:expandedAxes()), sizes=sizes
    })
 end
@@ -285,9 +285,7 @@ function DataTensor:featureClone(data)
    local sizes = self:expandedSize():clone()
    assert(sizes[self:b()] == data:size(1))
    local clone = torch.protoClone(self, {
-      data=data, 
-      axes=table.copy(self:expandedAxes()),
-      sizes=sizes
+      data=data, axes=table.copy(self:expandedAxes()), sizes=sizes
    })
    if not clone.isDataTensor then
       error("Clone failed. data:"..torch.type(data).." clone:"..torch.type(clone))

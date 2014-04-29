@@ -77,13 +77,10 @@ function Sampler:sampleEpoch(dataset, batch)
    local stop
    -- build iterator
    local epochSamples = 
-      function(batch)
-         batch = batch or dataset:batch(self._batch_size)
+      function()
          stop = math.min(start+self._batch_size-1,nSample)
-         -- inputs
-         batch:inputs():copy(dataset:inputs():sub(start, stop))
-         -- targets
-         batch:targets():copy(dataset:targets():sub(start, stop))
+         -- inputs and targets
+         local batch = dataset:sub(start, stop)
          -- metadata
          batch:setup{
             batch_iter=stop, batch_size=self._batch_size,
@@ -166,10 +163,8 @@ function ShuffleSampler:sampleEpoch(dataset)
          batch = batch or dataset:batch(self._batch_size)
          stop = math.min(start+self._batch_size-1,nSample)
          local batch_indices = dataset_indices:sub(start,stop):long()
-         -- inputs
-         dataset:inputs():index(batch:inputs(), batch_indices)
-         -- targets
-         dataset:targets():index(batch:targets(), batch_indices)
+         -- inputs and targets
+         dataset:index(batch, batch_indices)
          -- metadata
          batch:setup{
             batch_iter=stop, batch_size=self._batch_size,

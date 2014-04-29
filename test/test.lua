@@ -76,6 +76,24 @@ function dptest.compositetensor()
    local c = torch.concat({class_tensor:feature(), image_tensor:feature(), data_tensor:feature()}, 2)
    mytester:assertTensorEq(t, c, 0.00001)
 end
+function dptest.dataset()
+   -- class tensor
+   local class_data = torch.randperm(8)
+   local classes = {1,2,3,4,5,6,7,8,9,10}
+   local class_tensor = dp.ClassTensor{data=class_data, classes=classes}
+   -- image tensor
+   local image_data = torch.rand(8,32,32,3)
+   local image_tensor = dp.ImageTensor{data=image_data}
+   -- dataset
+   local ds = dp.DataSet{which_set='train', inputs=image_tensor, targets=class_tensor}
+   local batch = ds:index(torch.LongTensor{1,2,3})
+   local batch2 = ds:sub(1, 3)
+   mytester:assertTensorEq(batch:inputs():image(), batch2:inputs():image(), 0.00001)
+   batch2 = ds:index(batch, torch.LongTensor{2,3,4})
+   mytester:assertTensorEq(batch:inputs():image(), batch2:inputs():image(), 0.00001)
+   mytester:assertTensorEq(batch:targets():class(), batch2:targets():class(), 0.00001)
+   mytester:assertTensorEq(batch:targets():class(), ds:targets():class():narrow(1,2,3), 0.00001)
+end
 function dptest.gcn_zero_vector()
    -- Global Contrast Normalization
    -- Test that passing in the zero vector does not result in

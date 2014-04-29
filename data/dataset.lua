@@ -33,6 +33,7 @@ function DataSet:probabilities()
 end
 
 -- builds a batch (factory method)
+-- doesn't copy the inputs or targets (so don't modify them)
 function DataSet:batch(batch_size)
    return dp.Batch{
       which_set=self:whichSet(), epoch_size=self:nSample(),
@@ -44,15 +45,24 @@ end
 function DataSet:sub(start, stop)
    return dp.Batch{
       which_set=self:whichSet(), epoch_size=self:nSample(),
-      inputs=self:inputs():index(batch:inputs(), batch_indices)
-      targets=self:targets() and self:targets():sub(1, batch_size)
+      inputs=self:inputs():sub(start, stop),
+      targets=self:targets() and self:targets():sub(start, stop)
    }    
 end
 
 function DataSet:index(batch, indices)
-   return dp.Batch{
-      which_set=self:whichSet(), epoch_size=self:nSample(),
-      inputs=self:inputs():index(batch:inputs(), batch_indices)
-      targets=self:targets() and self:targets():sub(1, batch_size)
-   } 
+   if (not batch) or (not indices) then 
+      indices = indices or batch
+      return dp.Batch{
+         which_set=self:whichSet(), epoch_size=self:nSample(),
+         inputs=self:inputs():index(indices),
+         targets=self:targets() and self:targets():index(indices)
+      }
+   end
+   assert(batch.isBatch, "Expecting dp.Batch at arg 1")
+   self:inputs():index(batch:inputs(), indices)
+   if self:targets() then
+      self:targets():index(batch:targets(), indices)
+   end
+   return batch
 end

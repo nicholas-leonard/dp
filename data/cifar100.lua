@@ -2,6 +2,8 @@
 --[[ CIFAR100 ]]--
 -- http://www.cs.toronto.edu/~kriz/cifar.html
 -- A color image set of 100 different objects
+-- Small size makes it hard to generalize from train to test set
+-- Regime : overfitting.
 -------------------------------------------------
 local Cifar100, parent = torch.class("dp.Cifar100", "dp.DataSource")
 Cifar100.isCifar100 = true

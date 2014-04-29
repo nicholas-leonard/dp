@@ -78,10 +78,12 @@ end
 
 --Preprocesses are applied to DataTensors, which means that 
 --DataTensor:image(), :expandedAxes(), etc. can be used.
-function BaseSet:preprocess(...)
+function BaseSet:preprocess(config)
+   config = config or {}
+   assert(not config[1], "Constructor requires key-value arguments")
    local args, input_preprocess, target_preprocess, can_fit
       = xlua.unpack(
-         {... or {}},
+         {config},
          'BaseSet:preprocess',
          'Preprocesses the BaseSet.',
          {arg='input_preprocess', type='dp.Preprocess', 

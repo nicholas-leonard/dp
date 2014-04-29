@@ -21,10 +21,6 @@
 local DataSet, parent = torch.class("dp.DataSet", "dp.BaseSet")
 DataSet.isDataSet = true
 
-function DataSet:write(...)
-   error"DataSet Error: Shouldn't serialize DataSet"
-end
-
 --TODO : allow for examples with different weights (probabilities)
 --Returns set of probabilities torch.Tensor
 function DataSet:probabilities()

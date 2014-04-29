@@ -1,6 +1,8 @@
 ------------------------------------------------------------------------
 --[[ ClassTensor ]]--
--- A DataTensor holding a tensor of classes.
+-- A DataTensor holding a tensor of classes like training targets. 
+-- Can also be used to host text where each word is represented as an 
+-- integer.
 ------------------------------------------------------------------------
 local ClassTensor, parent = torch.class("dp.ClassTensor", "dp.DataTensor")
 ClassTensor.isClassTensor = true

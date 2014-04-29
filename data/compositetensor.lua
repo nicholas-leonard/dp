@@ -44,7 +44,19 @@ function CompositeTensor:nSample()
    end
 end
 
-function CompositeTensor:index(dt, indices)
+function CompositeTensor:index(ct, indices)
+   if indices then
+      assert(ct.isCompositeTensor, "Expecting CompositeTensor as first argument")
+      return torch.protoClone(self, {
+         components = _.map(self._components, 
+            function(key, component) 
+               return component:index(dt, indices)
+            end
+         )
+      })
+   else
+      indices = ct
+   end
    return torch.protoClone(self, {
       components = _.map(self._components, 
          function(key, component) 

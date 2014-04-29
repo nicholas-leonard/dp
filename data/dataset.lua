@@ -42,9 +42,17 @@ function DataSet:batch(batch_size)
 end
 
 function DataSet:sub(start, stop)
-
+   return dp.Batch{
+      which_set=self:whichSet(), epoch_size=self:nSample(),
+      inputs=self:inputs():index(batch:inputs(), batch_indices)
+      targets=self:targets() and self:targets():sub(1, batch_size)
+   }    
 end
 
-function DataSet:index(indices)
-
+function DataSet:index(batch, indices)
+   return dp.Batch{
+      which_set=self:whichSet(), epoch_size=self:nSample(),
+      inputs=self:inputs():index(batch:inputs(), batch_indices)
+      targets=self:targets() and self:targets():sub(1, batch_size)
+   } 
 end

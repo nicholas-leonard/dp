@@ -253,16 +253,18 @@ end
 
 -- When dt is provided, reuse its data (a torch.Tensor).
 function DataTensor:index(dt, indices)
-   local sizes = self:expandedSize():clone()
-   sizes[self:b()] = indices:size(1)
    local data
    if indices then
-      assert(dt.isBaseTensor, "Expecting BaseTensor as first argument")
-      data = dt:data()
+      data = dt and dt:feature()
       torch.Tensor.index(data, self._data, self:b(), indices)
-   else
-      data = self._data:index(self:b(), indices)
    end
+   data = data or self:feature():index(self:b(), indices)
+   local sizes = self:expandedSize():clone()
+   indices = indices or dt
+   if dt then
+      assert(dt.isDataTensor, "Expecting BaseTensor as first argument")
+   end
+   sizes[self:b()] = indices:size(1)
    return torch.protoClone(self, {
       data=data, sizes=sizes, axes=table.copy(self:expandedAxes())
    })

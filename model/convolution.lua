@@ -4,7 +4,7 @@
 -- [dropout] + convolution + max pooling + transfer function
 -- Works on a ImageTensor:imageCUDA() view.
 ------------------------------------------------------------------------
-local Convolution, parent = torch.class("dp.Convolution", "dp.Model")
+local Convolution, parent = torch.class("dp.Convolution", "dp.Neural")
 Convolution.isConvolution = true
 
 function Convolution:__init(config)
@@ -63,96 +63,60 @@ function Convolution:__init(config)
       pool_stride[1], pool_stride[2]
    )
    self._dropout = dropout
+   self._uncuda = false -- TODO (see Neural:__init)
    self._sparse_init = sparse_init
    self._gather_stats = gather_stats
    config.typename = typename
    parent.__init(self, config)
-   self._sparse_init = sparse_init
-   if sparse_init then
-      self:sparseReset()
-   end
+   self:reset()
    self._tags.hasParams = true
    self:zeroGradParameters()
    self:checkParams()
 end
 
-function Convolution:_zeroStatistics()
-   if self._gather_stats then
-      for param_name, param_table in pairs(self:parameters()) do
-         self._stats[param_name] = {
-            grad={sum=0, mean=0, min=0, max=0, count=0, std=0}
-         }
-      end
-   end
-end
-
-function Convolution:checkParams()
-   for param_name,param_table in pairs(self:parameters()) do
-      for k,v in pairs(param_table) do
-         assert(not _.isNaN(v:sum()), 
-                "NaN Error for " .. k .. " " .. param_name)
-      end
-   end
-end
-
 function Convolution:_forward(carry)
-   local activation = self.input.act:feature()
+   local activation = self.input.act:imageCUDA()
    if self._dropout then
       -- dropout has a different behavior during evaluation vs training
       self._dropout.train = (not carry.evaluate)
       activation = self._dropout:forward(activation)
       self.mvstate.dropoutAct = activation
    end
-   activation = self._affine:forward(activation)
+   activation = self._conv:forward(activation)
    if self._uncuda then
       if self._recuda == nil then
          self._recuda = (activation:type() == 'torch.CudaTensor')
       end
       activation = activation:double()
    end
-   self.mvstate.affineAct = activation
+   self.mvstate.convAct = activation
    activation = self._transfer:forward(activation)
    -- wrap torch.Tensor in a dp.DataTensor
-   self.output.act = dp.DataTensor{data=activation}
+   self.output.act = dp.ImageTensor{
+      data=activation, axes={'c','h','w','b'}
+   }
    return carry
 end
 
 function Convolution:_backward(carry)
    local scale = carry.scale
    self._report.scale = scale
-   local input_act = self.mvstate.affineAct
-   local output_grad = self.output.grad:feature()
+   local input_act = self.mvstate.convAct
+   local output_grad = self.output.grad:imageCUDA()
    output_grad = self._transfer:backward(input_act, output_grad, scale)
    if self._recuda then
       output_grad = output_grad:cuda()
    end
-   self.mvstate.affineGrad = output_grad
-   input_act = self.mvstate.dropoutAct or self.input.act:feature()
+   self.mvstate.convGrad = output_grad
+   input_act = self.mvstate.dropoutAct or self.input.act:imageCUDA()
    output_grad = self._affine:backward(input_act, output_grad, scale)
    if self._dropout then
       self.mvstate.dropoutGrad = output_grad
       input_act = self.input.act:feature()
       output_grad = self._dropout:backward(input_act, output_grad, scale)
    end
-   self.input.grad = self.input.act:featureClone(output_grad)
+   self.input.grad = self.input.act:imageCudaClone(output_grad)
    return carry
-end
-
-function Convolution:_accept(visitor)
-   if self._gather_stats then
-      local params = self:parameters()
-      for param_name, param_table in pairs(self:parameters()) do
-         local grad = torch.abs(param_table.grad:double())
-         local grad_stats = self._stats[param_name].grad 
-         grad_stats.sum = grad_stats.sum + grad:sum()
-         grad_stats.min = grad_stats.min + grad:min()
-         grad_stats.max = grad_stats.max + grad:max()
-         grad_stats.mean = grad_stats.mean + grad:mean()
-         grad_stats.std = grad_stats.std + grad:std()
-         grad_stats.count = grad_stats.count + 1
-      end
-   end
-   parent._accept(self, visitor)
 end
 
 function Convolution:zeroGradParameters()
@@ -160,8 +124,9 @@ function Convolution:zeroGradParameters()
 end
 
 function Convolution:type(type)
-   self._affine:type(type)
-   if not self._uncuda then
+   self._conv:type(type)
+   self._pool:type(type)
+   if type ~= 'torch.CudaTensor' and not self._uncuda then
       self._transfer:type(type)
    end
    if self._dropout then
@@ -181,7 +146,7 @@ end
 -- do not use this to change the type of parameters.
 function Convolution:parameters()
    local params = {}
-   local module = self._affine
+   local module = self._conv
    if module.weight and module.weight:dim() ~= 0 then
       params.weight = { param=module.weight, grad=module.gradWeight }
    end
@@ -192,6 +157,7 @@ function Convolution:parameters()
 end
 
 function Convolution:maxNorm(max_out_norm, max_in_norm)
+   -- TODO : max_in_norm is pylearn2's max kernel norm?
    if not self.backwarded then return end
    max_out_norm = self.mvstate.max_out_norm or max_out_norm
    max_in_norm = self.mvstate.max_in_norm or max_in_norm

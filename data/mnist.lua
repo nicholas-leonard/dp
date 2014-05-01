@@ -26,10 +26,10 @@ function Mnist:__init(config)
       {arg='valid_ratio', type='number', default=1/6,
        help='proportion of training set to use for cross-validation.'},
       {arg='train_file', type='string', default='mnist-th7/train.th7',
-       help='name of test_file'},
+       help='name of training file'},
       {arg='test_file', type='string', default='mnist-th7/test.th7',
-       help='name of test_file'},
-      {arg='data_path', type='string', default=dp.DATA_PATH,
+       help='name of test file'},
+      {arg='data_path', type='string', default=dp.DATA_DIR,
        help='path to data repository'},
       {arg='scale', type='table', 
        help='bounds to scale the values between. [Default={0,1}]'},
@@ -107,7 +107,6 @@ function Mnist:createDataSet(data, which_set)
    if self._scale and not self._binarize then
       DataSource.rescale(inputs, self._scale[1], self._scale[2])
    end
-   --inputs:resize(inputs:size(1), unpack(self._image_size))
    local targets = data:narrow(2, self._feature_size+1, 1):clone()
    -- class 0 will have index 1, class 1 index 2, and so on.
    targets:add(1)

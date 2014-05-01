@@ -10,45 +10,48 @@ end
 
 --[[ From https://github.com/rosejn/lua-util: ]]--
 -- Boolean predicate to determine if a path points to a valid file or directory.
-function is_file(path)
-    return paths.filep(path) or paths.dirp(path)
+function dp.is_file(path)
+   return paths.filep(path) or paths.dirp(path)
 end
 
 -- Check that a data directory exists, and create it if not.
-function check_and_mkdir(dir)
-  if not paths.filep(dir) then
-    fs.mkdir(dir)
-  end
+function dp.check_and_mkdir(dir)
+   if not paths.filep(dir) then
+      fs.mkdir(dir)
+   end
 end
 
 -- Download the file at location url.
-function download_file(url)
-    local protocol, scpurl, filename = url:match('(.-)://(.*)/(.-)$')
-    if protocol == 'scp' then
-        os.execute(string.format('%s %s %s', 'scp', scpurl .. '/' .. filename, filename))
-    else
-        os.execute('wget ' .. url)
-    end
+function dp.download_file(url)
+   local protocol, scpurl, filename = url:match('(.-)://(.*)/(.-)$')
+   if protocol == 'scp' then
+       os.execute(string.format('%s %s %s', 'scp', scpurl .. '/' .. filename, filename))
+   else
+       os.execute('wget ' .. url)
+   end
 end
 
 -- Temporarily changes the current working directory to call fn, 
 -- returning its result.
-function do_with_cwd(path, fn)
-    local cur_dir = fs.cwd()
-    fs.chdir(path)
-    local res = fn()
-    fs.chdir(cur_dir)
-    return res
+function dp.do_with_cwd(path, fn)
+   local cur_dir = fs.cwd()
+   fs.chdir(path)
+   local res = fn()
+   fs.chdir(cur_dir)
+   return res
 end
 
 
--- Check that a file exists at path, and if not downloads it from url.
-function check_and_download_file(path, url)
-  if not paths.filep(path) then
-      do_with_cwd(paths.dirname(path), function() download_file(url) end)
-  end
-
-  return path
+-- Check that a file exists at path, and if not downloads it from url
+-- into directory of path
+function dp.check_and_download_file(path, url)
+   if not paths.filep(path) then
+      dp.do_with_cwd(
+         paths.dirname(path), 
+         function() dp.download_file(url) end
+      )
+   end
+   return path
 end
 
 -- Decompress a .tgz or .tar.gz file.
@@ -65,7 +68,6 @@ end
 function dp.gunzip(path)
    os.execute('gunzip ' .. path)
 end
-
 
 function dp.decompress_file(path)
     if string.find(path, ".zip") then

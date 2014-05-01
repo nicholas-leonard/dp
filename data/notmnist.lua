@@ -29,7 +29,7 @@ function NotMnist:__init(...)
        help='name of test_dir'},
       {arg='test_dir', type='string', default='notMNIST_small',
        help='name of test_dir'},
-      {arg='data_path', type='string', default=dp.DATA_PATH,
+      {arg='data_path', type='string', default=dp.DATA_DIR,
        help='path to data repository'},
       {arg='scale', type='table', 
        help='bounds to scale the values between', default={0,1}},

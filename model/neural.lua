@@ -36,35 +36,15 @@ function Neural:__init(config)
    self._transfer = transfer
    self._affine = nn.Linear(input_size, output_size)
    self._dropout = dropout
-   self._uncuda = (torch.typename(self._transfer) == 'nn.SoftMax')
+   self._uncuda = false -- TODO: should detect non-cuda modules
    self._sparse_init = sparse_init
    self._gather_stats = gather_stats
    config.typename = typename
    parent.__init(self, config)
-   if sparse_init then
-      self:sparseInit(self:parameters().weight.param)
-   end
+   self:reset()
    self._tags.hasParams = true
    self:zeroGradParameters()
    self:checkParams()
-end
-
-function Neural:sparseInit(W, stdev)
-   stdev = stdev or 1
-   W:zero()
-   local output_size, input_size = W:size(1), W:size(2)
-   local sparse_init = math.min(math.ceil(input_size/2), 15)
-   -- for each output unit:
-   for i = 1, output_size do
-      -- initialize self.sparse_init input weights:
-      for j = 1, sparse_init do
-         local idx = math.ceil(math.random() * input_size)
-         while W[{i, idx}] ~= 0 do
-            idx = math.ceil(math.random() * input_size)
-         end
-         W[{i, idx}] = torch.normal(0, stdev)
-      end
-   end
 end
 
 function Neural:_zeroStatistics()
@@ -163,7 +143,7 @@ end
 function Neural:reset()
    self._affine:reset()
    if self._sparse_init then
-      self:sparseInit(self:parameters().weight.param)
+      self._sparseReset(self:parameters().weight.param)
    end
 end
 
@@ -231,4 +211,27 @@ function Neural:report()
       end
    end
    return table.merge(report, self._report)
+end
+
+
+-- static method for initializing weights matrices
+-- first dim is for outputs, second is for inputs
+function Neural._sparseReset(W, stdev)
+   assert(W:dim() == 2, 
+      "Model.sparseInit requires a tensor with two dims at arg 1")
+   stdev = stdev or 1
+   W:zero()
+   local output_size, input_size = W:size(1), W:size(2)
+   local sparse_init = math.min(math.ceil(input_size/2), 15)
+   -- for each output unit:
+   for i = 1, output_size do
+      -- initialize self.sparse_init input weights:
+      for j = 1, sparse_init do
+         local idx = math.ceil(math.random() * input_size)
+         while W[{i, idx}] ~= 0 do
+            idx = math.ceil(math.random() * input_size)
+         end
+         W[{i, idx}] = torch.normal(0, stdev)
+      end
+   end
 end

@@ -1,6 +1,3 @@
---[[ TODO ]]--
--- Each preprocess has a unique id, which we can use to cache
-
 ------------------------------------------------------------------------
 --[[ DataSource ]]--
 -- Abstract class.
@@ -165,10 +162,11 @@ end
 
 -- Check locally and download datasource if not found.  
 -- Returns the path to the resulting data file.
-function DataSource.getDataPath(...)
+function DataSource.getDataPath(config)
+   assert(type(config) == 'table', "getDataPath requires key-value arguments")
    local args, name, url, data_dir, decompress_file
       = xlua.unpack(
-         {...},
+         {config},
          'getDataPath', 
          'Check locally and download datasource if not found. ' ..
          'Returns the path to the resulting data file. ' ..
@@ -194,16 +192,16 @@ function DataSource.getDataPath(...)
 
    print("checking for file located at: ", data_path)
 
-   check_and_mkdir(data_dir)
-   check_and_mkdir(datasrc_dir)
-   check_and_download_file(data_path, url)
+   dp.check_and_mkdir(data_dir)
+   dp.check_and_mkdir(datasrc_dir)
+   dp.check_and_download_file(data_path, url)
    
    -- decompress 
    if decompress_file then
       local decompress_path = paths.concat(datasrc_dir, decompress_file)
 
-      if not is_file(decompress_path) then
-        do_with_cwd(datasrc_dir,
+      if not dp.is_file(decompress_path) then
+        dp.do_with_cwd(datasrc_dir,
           function()
               print("decompressing file: ", data_path)
               dp.decompress_file(data_path)

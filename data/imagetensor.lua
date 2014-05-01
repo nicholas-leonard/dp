@@ -100,6 +100,7 @@ function ImageTensor:imageBHWC(inplace, contiguous)
 end
 
 function ImageTensor:imageCUDA(inplace, contiguous)
+   --Depth x Height x Width x Batch (CHWB)
    inplace = inplace or true
    contiguous = contiguous or false
    local axes = {'c','h','w','b'}

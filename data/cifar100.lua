@@ -30,7 +30,7 @@ function Cifar100:__init(...)
     default='cifar-100-binary/train.bin', help='name of test_file'},
    {arg='test_file', type='string', 
     default='cifar-100-binary/test.bin', help='name of test_file'},
-   {arg='data_path', type='string', default=dp.DATA_PATH,
+   {arg='data_path', type='string', default=dp.DATA_DIR,
     help='path to data repository'},
    {arg='scale', type='table', 
     help='bounds to scale the values between', default={0,1}},

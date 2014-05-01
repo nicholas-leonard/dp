@@ -67,30 +67,13 @@ function Convolution:__init(config)
    self._gather_stats = gather_stats
    config.typename = typename
    parent.__init(self, config)
+   self._sparse_init = sparse_init
    if sparse_init then
-      self:sparseInit(self:parameters().weight.param)
+      self:sparseReset()
    end
    self._tags.hasParams = true
    self:zeroGradParameters()
    self:checkParams()
-end
-
-function Convolution:sparseInit(W, stdev)
-   stdev = stdev or 1
-   W:zero()
-   local output_size, input_size = W:size(1), W:size(2)
-   local sparse_init = math.min(math.ceil(input_size/2), 15)
-   -- for each output unit:
-   for i = 1, output_size do
-      -- initialize self.sparse_init input weights:
-      for j = 1, sparse_init do
-         local idx = math.ceil(math.random() * input_size)
-         while W[{i, idx}] ~= 0 do
-            idx = math.ceil(math.random() * input_size)
-         end
-         W[{i, idx}] = torch.normal(0, stdev)
-      end
-   end
 end
 
 function Convolution:_zeroStatistics()
@@ -187,9 +170,11 @@ function Convolution:type(type)
 end
 
 function Convolution:reset()
-   self._affine:reset()
+   self._conv:reset()
    if self._sparse_init then
-      self:sparseInit(self:parameters().weight.param)
+      local W = self:parameters().weight.param
+      W = W:reshape(W:size(1)*W:size(2)*W:size(3), W:size(4))
+      self._sparseReset(W:t())
    end
 end
 

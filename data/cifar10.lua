@@ -29,7 +29,7 @@ function Cifar10:__init(...)
         help='proportion of training set to use for cross-validation.'},
     {arg='data_folder', type='string', default='cifar-10-batches-t7',
         help='name of test_file'},
-    {arg='data_path', type='string', default=dp.DATA_PATH,
+    {arg='data_path', type='string', default=dp.DATA_DIR,
         help='path to data repository'},
     {arg='scale', type='table', 
         help='bounds to scale the values between', default={0,1}},

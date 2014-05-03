@@ -53,12 +53,12 @@ function Convolution:__init(config)
    self._pool_size = pool_size
    self._pool_stride = pool_stride
    self._transfer = transfer
-   self._conv = nn.SpatialConvolutionCUDA(
+   self._conv = nn.SpatialConvolution(
       input_size, output_size, 
       kernel_size[1], kernel_size[2], 
       kernel_stride[1], kernel_stride[2]
    )
-   self._pool = nn.SpatialMaxPoolingCUDA(
+   self._pool = nn.SpatialMaxPooling(
       pool_size[1], pool_size[2],
       pool_stride[1], pool_stride[2]
    )
@@ -124,14 +124,36 @@ function Convolution:zeroGradParameters()
 end
 
 function Convolution:type(type)
-   self._conv:type(type)
-   self._pool:type(type)
+   if type == 'torch.CudaTensor' 
+         and torch.type(self._conv) == 'nn.SpatialConvolution' then
+      self._conv = nn.SpatialConvolutionCUDA(
+         self._input_size, self._output_size, 
+         self._kernel_size[1], self._kernel_size[2], 
+         self._kernel_stride[1], self._kernel_stride[2]
+      )
+      self._pool = nn.SpatialMaxPoolingCUDA(
+         self._pool_size[1], self._pool_size[2],
+         self._pool_stride[1], self._pool_stride[2]
+      )
+   elseif type ~= 'torch.CudaTensor'
+         and torch.type(self._conv) == 'nn.SpatialConvolutionCUDA' then
+      self._conv = nn.SpatialConvolutionCUDA(
+         self._input_size, self._output_size, 
+         self._kernel_size[1], self._kernel_size[2], 
+         self._kernel_stride[1], self._kernel_stride[2]
+      )
+      self._pool = nn.SpatialMaxPoolingCUDA(
+         self._pool_size[1], self._pool_size[2],
+         self._pool_stride[1], self._pool_stride[2]
+      )
+   end
    if type ~= 'torch.CudaTensor' and not self._uncuda then
       self._transfer:type(type)
    end
    if self._dropout then
       self._dropout:type(type)
    end
+   return self
 end
 
 function Convolution:reset()

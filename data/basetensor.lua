@@ -6,14 +6,14 @@
 local BaseTensor = torch.class("dp.BaseTensor")
 BaseTensor.isBaseTensor = true
 
-function BaseTensor:feature(inplace, contiguous)
+function BaseTensor:feature(tensortype, inplace, contiguous)
    -- When true, makes stored data a contiguous view for future use :
    inplace = inplace or true
    -- When true makes sure the returned tensor contiguous. 
    -- Only considered when inplace is false, since inplace
    -- implicitly makes the returned tensor contiguous :
    contiguous = contiguous or false
-   return self:_feature(inplace, contiguous)
+   return self:_feature(tensortype, inplace, contiguous)
 end
 
 -- Returns number of samples
@@ -46,6 +46,25 @@ end
 -- return a clone with self's metadata initialized with some data 
 function BaseTensor:featureClone(data)
    error"Not Implemented"
+end
+
+-- Changes the internal type of the data.
+-- different behavior than torch.Tensor:type() (torch returns a tensor
+-- with new type and keeps old)
+function BaseTensor:type(type)
+   error"Not Implemented"
+end
+
+function BaseTensor:float()
+   return self:type('torch.FloatTensor')
+end
+
+function BaseTensor:double()
+   return self:type('torch.DoubleTensor')
+end
+
+function BaseTensor:cuda()
+   return self:type('torch.CudaTensor')
 end
 
 ---- static methods ----

@@ -7,7 +7,8 @@
 local Node = torch.class("dp.Node")
 Node.isNode = true
 
-function Node:__init()
+function Node:__init(tensor_type)
+   self._tensor_type = tensor_type or torch.getdefaulttensortype()
    self:zeroStatistics()
    self:doneBatch()
 end
@@ -130,8 +131,23 @@ function Node:coroutineClone()
    error"Not Implemented"
 end
 
-function Node:type(type)
+-- changes the type of internal variables inplace (same as nn)
+-- returns self
+function Node:type(new_type)
+   if new_type then
+      self:_type(new_type)
+      self._tensor_type = new_type
+   end
+   return self
+end
+
+function Node:_type(new_type)
    error"Not Implemented"
+end
+
+-- return type of its tensors
+function Node:tensorType()
+   return self._tensor_type or error"Not tensor type"
 end
 
 function Node:float()

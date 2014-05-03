@@ -22,7 +22,7 @@ function Sampler:__init(...)
        help='"cuda" | "float" | "double"'}
    )
    self:setBatchSize(batch_size)
-   self._sample_type = typeString_to_tensorType(sample_type)
+   self._sample_type = torch.typeString_to_tensorType(sample_type)
 end
 
 function Sampler:setup(config)
@@ -171,6 +171,7 @@ function ShuffleSampler:sampleEpoch(dataset)
             n_sample=stop-start+1, grad_type=self._sample_type, 
             indices=torch.range(start,stop)
          }
+         batch:type(self._sample_type)
          start = start + self._batch_size
          if start >= nSample then
             return

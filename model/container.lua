@@ -41,7 +41,7 @@ function Container:get(index)
    return self._models[index]
 end
 
-function Container:type(type)
+function Container:_type(type)
    -- find submodels in classic containers 'models'
    if not _.isEmpty(self._models) then
       for i, model in ipairs(self._models) do

@@ -1,6 +1,5 @@
 require 'torch'
 require 'nn'
-require 'torch'
 require 'string'
 _ = require 'moses'
 require 'xlua'
@@ -138,3 +137,5 @@ torch.include('dp', 'postgres/earlystopper.lua')
 torch.include('dp', 'postgres/done.lua')
 torch.include('dp', 'postgres/mlpfactory.lua')
 torch.include('dp', 'postgres/hyperoptimizer.lua')
+
+return dp

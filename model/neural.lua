@@ -35,6 +35,7 @@ end
 
 function Neural:_forward(carry)
    local activation = self.input.act:feature()
+   activation:type(
    if self._dropout then
       -- dropout has a different behavior during evaluation vs training
       self._dropout.train = (not carry.evaluate)
@@ -80,7 +81,7 @@ function Neural:paramModule()
    return self._affine
 end
 
-function Neural:type(type)
+function Neural:_type(type)
    self._affine:type(type)
    if type ~= 'torch.CudaTensor' and not self._uncuda then
       self._transfer:type(type)
@@ -88,5 +89,6 @@ function Neural:type(type)
    if self._dropout then
       self._dropout:type(type)
    end
+   return self
 end
 

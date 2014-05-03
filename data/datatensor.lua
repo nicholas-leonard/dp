@@ -198,34 +198,34 @@ function DataTensor:store(new_data, new_axes)
    self._data = new_data
 end
 
-function DataTensor:_feature(inplace, contiguous)
+function DataTensor:_feature(tensortype, inplace, contiguous)
    local axes = {'b','f'}
    local sizes = self:expandedSize()
    assert(sizes:size(1) > 1, "Error: cannot guess size of features")
    --creates a new view of the same storage
    local data = torch.view(self._data)
-   if self._data:dim() == 2 and table.eq(self._axes, axes) then
-      return self._data
+   if not (data:dim() == 2 and table.eq(self._axes, axes)) then
+      local b = _.indexOf(self._axes, 'b')
+      if b == 0 then
+         error("No batch ('b') dimension")
+      elseif b ~= 1 then
+         --make (transpose) the batch dim the first dim
+         data = data:transpose(1, b)
+         --make contiguous for a later resize (may result in new storage)
+         data = data:contiguous()
+      end
+      if data:dim() > 2 then
+         --convert non-b axes to f :
+         --reduce tensor down to 2 dimensions: first dim stays the same, 
+         --remainder are flattened
+         --Note.: convert to LongTensor in order to sub...
+         data = data:reshape(
+            data:size(1), 
+            torch.LongTensor(data:size()):sub(2,data:dim()):prod(1)[1]
+         )
+      end
    end
-   local b = _.indexOf(self._axes, 'b')
-   if b == 0 then
-      error("No batch ('b') dimension")
-   elseif b ~= 1 then
-      --make (transpose) the batch dim the first dim
-      data = data:transpose(1, b)
-      --make contiguous for a later resize (may result in new storage)
-      data = data:contiguous()
-   end
-   if data:dim() > 2 then
-      --convert non-b axes to f :
-      --reduce tensor down to 2 dimensions: first dim stays the same, 
-      --remainder are flattened
-      --Note.: convert to LongTensor in order to sub...
-      data = data:reshape(
-         data:size(1), 
-         torch.LongTensor(data:size()):sub(2,data:dim()):prod(1)[1]
-      )
-   end
+   data = data:type(tensortype)
    if contiguous or inplace then
       data = data:contiguous()
    end
@@ -238,6 +238,7 @@ function DataTensor:_feature(inplace, contiguous)
    return data
 end
 
+--DEPRECATED used feature(), etc instead.
 --Returns current view of data
 function DataTensor:data()
    return self._data
@@ -253,12 +254,17 @@ end
 
 -- When dt is provided, reuse its data (a torch.Tensor).
 function DataTensor:index(dt, indices)
+   assert(self._data:type() ~= 'torch.CudaTensor', 
+      "DataTensor:index doesn't work with torch.CudaTensors.")
    local data
-   if indices then
-      if dt then
-         assert(dt.isDataTensor, "Expecting DataTensor at arg 1")
+   if indices and dt then
+      local data_type
+      assert(dt.isDataTensor, "Expecting DataTensor at arg 1")
+      data = dt:feature()
+      if data:type() == 'torch.CudaTensor' then
+         -- dont use datatensor if cuda (can't index)
+         break
       end
-      data = dt and dt:feature()
       torch.Tensor.index(data, self._data, self:b(), indices)
    end
    indices = indices or dt
@@ -302,4 +308,6 @@ function DataTensor:copy(datatensor)
    self._expanded_size = datatensor:expandedSize()
 end
 
-
+function DataTensor:type(type)
+   self._data = self._data:type(type)
+end

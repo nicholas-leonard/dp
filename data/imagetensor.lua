@@ -43,11 +43,15 @@ function ImageTensor:__init(config)
    parent.__init(self, {data=data, axes=axes, sizes=sizes})
 end
 
-function ImageTensor:image(inplace, contiguous)
-   return self:imageBHWC(inplace, contiguous)
+function ImageTensor:image(tensortype, inplace, contiguous)
+   if tensortype == 'torch.cudatensor' then
+      -- assume its for CUDA convolutions
+      return self:imageCUDA(tensortype, inplace, contiguous)
+   end
+   return self:imageBHWC(tensortype, inplace, contiguous)
 end
 
-function ImageTensor:imageBHWC(inplace, contiguous)
+function ImageTensor:imageBHWC(tensortype, inplace, contiguous)
    -- When true, makes stored data a contiguous view for future use :
    inplace = inplace or true
    -- When true makes sure the returned tensor contiguous. 
@@ -69,27 +73,30 @@ function ImageTensor:imageBHWC(inplace, contiguous)
    assert((expanded_size:size(1) == 4), "No image size provided at construction")
    --creates a new view of the same storage
    local data = torch.view(self._data)
-   if data:dim() == 4 and table.eq(current_axes, desired_axes) then
-      return self._data, desired_axes
+   if not (data:dim() == 4 and table.eq(current_axes, desired_axes)) then
+      expanded_axes, expanded_size 
+         = parent.transpose('b', 1, expanded_axes, expanded_size)
+      --resize to image size
+      if data:dim() == 2 and _.contains(current_axes, 'f') then
+         --expand {'b','f'}
+         assert(expanded_size:size(1) == 4, 
+                "Error: sizes doesn't have enough dimensions")
+         current_axes, current_size, data 
+            = parent.transpose('b', 1, current_axes, current_size, data)
+         data:contiguous():resize(expanded_size:storage())      
+      end
+      --convert between image representations
+      expanded_axes, expanded_size, data 
+         = parent.transpose('c', 4, expanded_axes, expanded_size, data)
+      expanded_axes, expanded_size, data 
+         = parent.transpose('h', 2, expanded_axes, expanded_size, data)
+      assert(table.eq(expanded_axes, desired_axes),
+            "Error: unsupported conversion of axes formats")
    end
-   expanded_axes, expanded_size 
-      = parent.transpose('b', 1, expanded_axes, expanded_size)
-   --resize to image size
-   if data:dim() == 2 and _.contains(current_axes, 'f') then
-      --expand {'b','f'}
-      assert(expanded_size:size(1) == 4, 
-             "Error: sizes doesn't have enough dimensions")
-      current_axes, current_size, data 
-         = parent.transpose('b', 1, current_axes, current_size, data)
-      data:contiguous():resize(expanded_size:storage())      
+   data = tensortype and data:type(tensortype) or data
+   if contiguous or inplace then
+      data = data:contiguous()
    end
-   --convert between image representations
-   expanded_axes, expanded_size, data 
-      = parent.transpose('c', 4, expanded_axes, expanded_size, data)
-   expanded_axes, expanded_size, data 
-      = parent.transpose('h', 2, expanded_axes, expanded_size, data)
-   assert(table.eq(expanded_axes, desired_axes),
-         "Error: unsupported conversion of axes formats")
    if contiguous or inplace then
       data = data:contiguous()
       if inplace then
@@ -99,7 +106,7 @@ function ImageTensor:imageBHWC(inplace, contiguous)
    return data, desired_axes
 end
 
-function ImageTensor:imageCUDA(inplace, contiguous)
+function ImageTensor:imageCUDA(tensortype, inplace, contiguous)
    --Depth x Height x Width x Batch (CHWB)
    inplace = inplace or true
    contiguous = contiguous or false

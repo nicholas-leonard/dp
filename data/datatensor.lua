@@ -225,7 +225,7 @@ function DataTensor:_feature(tensortype, inplace, contiguous)
          )
       end
    end
-   data = data:type(tensortype)
+   data = tensortype and data:type(tensortype) or data
    if contiguous or inplace then
       data = data:contiguous()
    end
@@ -261,11 +261,11 @@ function DataTensor:index(dt, indices)
       local data_type
       assert(dt.isDataTensor, "Expecting DataTensor at arg 1")
       data = dt:feature()
-      if data:type() == 'torch.CudaTensor' then
+      if data:type() ~= 'torch.CudaTensor' then
          -- dont use datatensor if cuda (can't index)
-         break
+         torch.Tensor.index(data, self._data, self:b(), indices)
       end
-      torch.Tensor.index(data, self._data, self:b(), indices)
+      
    end
    indices = indices or dt
    data = data or self:feature():index(self:b(), indices)

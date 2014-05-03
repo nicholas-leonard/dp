@@ -33,9 +33,12 @@ function Neural:__init(config)
    parent.__init(self, config)
 end
 
+function Neural:inputAct()
+   return self.input.act:feature(self._tensor_type)
+end
+
 function Neural:_forward(carry)
-   local activation = self.input.act:feature()
-   activation:type(
+   local activation = self:inputAct()
    if self._dropout then
       -- dropout has a different behavior during evaluation vs training
       self._dropout.train = (not carry.evaluate)

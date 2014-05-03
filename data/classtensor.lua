@@ -61,7 +61,7 @@ function ClassTensor:classes()
    return self._classes
 end
 
-function ClassTensor:multiclass(inplace, contiguous)
+function ClassTensor:multiclass(tensortype, inplace, contiguous)
    -- When true, makes stored data a contiguous view for future use :
    inplace = inplace or true
    -- When true makes sure the returned tensor contiguous. 
@@ -72,30 +72,30 @@ function ClassTensor:multiclass(inplace, contiguous)
    local sizes = self:expandedSize()
    --creates a new view of the same storage
    local data = torch.view(self._data)
-   if data:dim() == 2 and table.eq(self._axes, axes) then
-      return self._data
-   end
-   assert(table.eq(self._axes, {'b'}) or table.eq(self._axes, {'t','b'}),
-          "Error: DataTensor doesn't support conversion to {'b', 't'}")
-   local b = self:b()
-   if b == 0 then
-      error("No batch ('b') dimension")
-   elseif b ~= 1 then
-      --make (transpose) the batch dim first
-      data = data:transpose(1, b)
-      --make contiguous (new storage) for a later resize
-      data = data:contiguous()
-   end
-   if data:dim() == 1 then
-      if sizes:size(1) == 1 then
-         if self._warn then
-            print"DataTensor Warning: Assuming one class per example."
-         end
-         sizes = torch.LongTensor({self._data:size(1), 1})
+   if not (data:dim() == 2 and table.eq(self._axes, axes)) then
+      assert(table.eq(self._axes, {'b'}) or table.eq(self._axes, {'t','b'}),
+             "Error: DataTensor doesn't support conversion to {'b', 't'}")
+      local b = self:b()
+      if b == 0 then
+         error("No batch ('b') dimension")
+      elseif b ~= 1 then
+         --make (transpose) the batch dim first
+         data = data:transpose(1, b)
+         --make contiguous (new storage) for a later resize
+         data = data:contiguous()
       end
-      --convert {'b'} to {'b','t'}
-      data:resize(sizes:storage())
+      if data:dim() == 1 then
+         if sizes:size(1) == 1 then
+            if self._warn then
+               print"DataTensor Warning: Assuming one class per example."
+            end
+            sizes = torch.LongTensor({self._data:size(1), 1})
+         end
+         --convert {'b'} to {'b','t'}
+         data:resize(sizes:storage())
+      end
    end
+   data = tensortype and data:type(tensortype) or data
    if contiguous or inplace then
       data = data:contiguous()
    end
@@ -108,7 +108,7 @@ function ClassTensor:multiclass(inplace, contiguous)
    return data, self._classes
 end
 
-function ClassTensor:class(inplace, contiguous)
+function ClassTensor:class(tensortype, inplace, contiguous)
    -- When true, makes stored data a contiguous view for future use :
    inplace = inplace or true
    -- When true makes sure the returned tensor contiguous. 
@@ -118,13 +118,13 @@ function ClassTensor:class(inplace, contiguous)
    local axes = {'b'} 
    local sizes = self:expandedSize()
    --use multiclass:
-   local data, classes = self:multiclass(inplace, contiguous)
+   local data, classes = self:multiclass(tensortype, inplace, contiguous)
    --Takes the first class of each example
    data = data:select(2, 1)
    return data, classes
 end
 
-function ClassTensor:onehot()
+function ClassTensor:onehot(tensortype)
    -- doesn't convert data inplace
    local t = self:class()
    assert(self._classes, "onehot requires self._classes to be set")
@@ -133,10 +133,11 @@ function ClassTensor:onehot()
    for i=1,t:size(1) do
       data[{i,t[i]}] = 1
    end
+   data = tensortype and data:type(tensortype) or data
    return data, self._classes
 end
 
-function ClassTensor:manyhot()
+function ClassTensor:manyhot(tensortype)
    -- doesn't convert data inplace
    local t = self:multiclass()
    assert(self._classes, "onehot requires self._classes to be set")
@@ -149,12 +150,13 @@ function ClassTensor:manyhot()
          data_x[t_x[j]] = 1
       end
    end
+   data = tensortype and data:type(tensortype) or data
    return data, self._classes
 end
 
-function ClassTensor:feature(inplace, contiguous)
+function ClassTensor:feature(tensortype, inplace, contiguous)
    -- when request as features (could be for inputs), use many-hot view
-   return self:manyhot(inplace, contiguous)
+   return self:manyhot(tensortype, inplace, contiguous)
 end
 
 -- returns a batch of examples indexed by indices

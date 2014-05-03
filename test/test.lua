@@ -13,12 +13,15 @@ function dptest.datatensor()
    local data = torch.rand(3,4)
    local axes = {'b','f'}
    local sizes = {3, 4}
-   local d = dp.DataTensor{data=data, axes=axes, sizes=sizes}
-   local t = d:feature()
-   function test() return d:image() end
-   mytester:asserteq(t:dim(),2)
-   mytester:assert(not pcall(test))
-   
+   local dt = dp.DataTensor{data=data, axes=axes, sizes=sizes}
+   local f = dt:feature()
+   mytester:asserteq(f:dim(),2)
+   local indices = torch.LongTensor{2,3}
+   local fi = dt:index(indices)
+   mytester:assertTensorEq(fi:feature(), data:index(1, indices), 0.000001)
+   local dt2 = dp.DataTensor{data=torch.zeros(8,4), axes=axes}
+   local fi2 = dt:index(dt2, indices)
+   mytester:assertTensorEq(fi2:feature(), fi:feature(), 0.0000001)
 end
 function dptest.imagetensor()
    local size = {3,32,32,3}

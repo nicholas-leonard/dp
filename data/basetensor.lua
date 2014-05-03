@@ -16,6 +16,13 @@ function BaseTensor:feature(tensortype, inplace, contiguous)
    return self:_feature(tensortype, inplace, contiguous)
 end
 
+-- this should return the most expanded view of the tensor
+-- or at least the one with the most information
+-- and which is easiest to return and construct from
+function BaseTensor:default(tensortype, inplace, contiguous)
+   return self:feature(tensortype, inplace, contiguous)
+end
+
 -- Returns number of samples
 function BaseTensor:nSample()
    error"Not Implemented"
@@ -25,6 +32,7 @@ end
 -- If dt is provided, copy indexed elements into its existing memory.
 -- However, use the metadata found in self.
 -- Providing dt is faster (no memory allocation).
+-- TODO actually reuse the same dt (not just its torch.Tensor)
 function BaseTensor:index(dt, indices)
    error"Not Implemented"
 end

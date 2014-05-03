@@ -53,8 +53,8 @@ function ClassTensor:__init(config)
    parent.__init(self, {data=data, axes=axes, sizes=sizes})
 end
 
-function ClassTensor:default()
-   return self:class()
+function ClassTensor:default(tensortype, inplace, contiguous)
+   return self:multiclass(tensortype, inplace, contiguous)
 end
 
 function ClassTensor:classes()
@@ -160,23 +160,9 @@ function ClassTensor:feature(tensortype, inplace, contiguous)
 end
 
 -- returns a batch of examples indexed by indices
-function ClassTensor:index(dt, indices)
-   local data
-   if indices then
-      if dt then
-         assert(dt.isClassTensor, "Expecting BaseTensor as first argument")
-      end
-      data = dt and dt:multiclass()
-      torch.Tensor.index(data, self._data, self:b(), indices)
-   end
-   indices = indices or dt
-   data = data or self:multiclass():index(self:b(), indices)
-   local sizes = self:expandedSize():clone()
-   sizes[self:b()] = indices:size(1)
-   return torch.protoClone(self, {
-      data=data, sizes=sizes, axes=table.copy(self:expandedAxes()),
-      classes=self:classes()
-   })
+function ClassTensor:index(dt, indices, config)
+   config = config and table.merge(config, {classes=self:classes()}) or {}
+   return parent.index(self, dt, indices, config)
 end
 
 --Returns a sub-datatensor narrowed on the batch dimension

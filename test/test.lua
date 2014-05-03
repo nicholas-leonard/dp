@@ -16,11 +16,15 @@ function dptest.datatensor()
    local dt = dp.DataTensor{data=data, axes=axes, sizes=sizes}
    local f = dt:feature()
    mytester:asserteq(f:dim(),2)
+   -- indexing
    local indices = torch.LongTensor{2,3}
    local fi = dt:index(indices)
    mytester:assertTensorEq(fi:feature(), data:index(1, indices), 0.000001)
    local dt2 = dp.DataTensor{data=torch.zeros(8,4), axes=axes}
    local fi2 = dt:index(dt2, indices)
+   mytester:assertTensorEq(fi2:feature(), fi:feature(), 0.0000001)
+   mytester:assertTensorEq(dt2._data, fi2:feature(), 0.0000001)
+   local fi3 = dt:index(nil, indices)
    mytester:assertTensorEq(fi2:feature(), fi:feature(), 0.0000001)
 end
 function dptest.imagetensor()
@@ -28,19 +32,29 @@ function dptest.imagetensor()
    local feature_size = {3,32*32*3}
    local data = torch.rand(unpack(size))
    local axes = {'b','h','w','c'}
-   local d = dp.ImageTensor{data=data, axes=axes}
+   local dt = dp.ImageTensor{data=data, axes=axes}
    -- convert to image (shouldn't change anything)
-   local i = d:image()
+   local i = dt:image()
    mytester:assertTensorEq(i, data, 0.0001)
    mytester:assertTableEq(i:size():totable(), size, 0.0001)
    -- convert to feature (should colapse last dims)
-   local t = d:feature()
+   local t = dt:feature()
    mytester:assertTableEq(t:size():totable(), feature_size, 0.0001)
    mytester:assertTensorEq(i, data, 0.00001)
    -- convert to image (should expand last dim)
-   local i = d:image()
+   local i = dt:image()
    mytester:assertTensorEq(i, data, 0.0001)
    mytester:assertTableEq(i:size():totable(), size, 0.0001)
+   -- indexing
+   local indices = torch.LongTensor{2,3}
+   local fi = dt:index(indices)
+   mytester:assertTensorEq(fi:feature(), data:reshape(unpack(feature_size)):index(1, indices), 0.000001)
+   local dt2 = dp.ImageTensor{data=torch.zeros(8,32,32,3), axes=axes}
+   local fi2 = dt:index(dt2, indices)
+   mytester:assertTensorEq(fi2:feature(), fi:feature(), 0.0000001)
+   mytester:assertTensorEq(dt2._data, fi2:feature(), 0.0000001)
+   local fi3 = dt:index(nil, indices)
+   mytester:assertTensorEq(fi2:feature(), fi:feature(), 0.0000001)
 end
 function dptest.classtensor()
    local size = {48,4}

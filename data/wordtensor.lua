@@ -18,11 +18,11 @@ function WordTensor:words()
    return self._classes
 end
 
-function WordTensor:context(inplace, contiguous)
-   return self:multiclass(inplace, contiguous)
+function WordTensor:context(tensortype, inplace, contiguous)
+   return self:multiclass(tensortype, inplace, contiguous)
 end
 
-function WordTensor:feature(inplace, contiguous)
+function WordTensor:feature(tensortype, inplace, contiguous)
    -- when request as features (could be for inputs), use many-hot view
-   return self:context(inplace, contiguous)
+   return self:context(tensortype, inplace, contiguous)
 end

@@ -2,13 +2,7 @@
 --- Allow construction from existing DataTensor.
 --- Transpose expanded_size 'b' dims when data's 'b' is transposed
 --- Default axes depends on size of sizes, or size of data.
---- One-hot encoding
---- Adapt doc to specific tensors
---- Update doc (sizes and axis can be one dim less, sizes can be number)
---- Make private members (_memberName)
 --- print sizes horizontally
---- :b() should be optimized. You set it via a function. setB()
---- type of tensor (:cuda(), :double(), etc. set in constructor)
 
 -----------------------------------------------------------------------
 --[[ DataTensor ]]-- 
@@ -66,7 +60,7 @@ function DataTensor:__init(config)
       self._axes = table.copy(data:storedAxes())
       self._expanded_axes = table.copy(data:expandedAxes())
       self._expanded_size = data:expandedSize():clone()
-      data = data:data()
+      self._data = data._data
       return
    end
    self._warn = warn
@@ -134,6 +128,8 @@ function DataTensor:__init(config)
    self:storeExpandedSize(sizes)
    assert(self._data:dim() == #(self._axes), 
          "Error: data should have as many dims as specified in axes" )
+   -- this makes certain the most expanded size and axes are stored.
+   self:default(false, false)
 end
 
 --Returns the axis of the batch/example index ('b') 
@@ -253,27 +249,35 @@ function DataTensor:pairs()
 end
 
 -- When dt is provided, reuse its data (a torch.Tensor).
-function DataTensor:index(dt, indices)
+-- config is a table of key-values overwriting the clones constructor's
+function DataTensor:index(dt, indices, config)
    assert(self._data:type() ~= 'torch.CudaTensor', 
       "DataTensor:index doesn't work with torch.CudaTensors.")
+   config = config or {}
+   local sizes = self:expandedSize():clone()
    local data
    if indices and dt then
-      local data_type
-      assert(dt.isDataTensor, "Expecting DataTensor at arg 1")
-      data = dt:feature()
-      if data:type() ~= 'torch.CudaTensor' then
-         -- dont use datatensor if cuda (can't index)
-         torch.Tensor.index(data, self._data, self:b(), indices)
+      if torch.type(dt) ~= torch.type(self) then
+         error("Expecting "..torch.type(self).." at arg 1 "..
+               "got "..torch.type(dt).." instead")
       end
-      
+      data = dt:default()
+      -- dont use datatensor if cuda (index not in cutorch yet)
+      if data:type() ~= 'torch.CudaTensor' then
+         torch.Tensor.index(data, self:default(), self:b(), indices)
+         sizes[self:b()] = indices:size(1)
+         dt:__init(table.merge(config, {
+            data=data, sizes=sizes, axes=table.copy(self:expandedAxes())
+         }))
+         return dt
+      end
    end
    indices = indices or dt
-   data = data or self:feature():index(self:b(), indices)
-   local sizes = self:expandedSize():clone()
+   data = self:default():index(self:b(), indices)
    sizes[self:b()] = indices:size(1)
-   return torch.protoClone(self, {
+   return torch.protoClone(self, table.merge(config, {
       data=data, sizes=sizes, axes=table.copy(self:expandedAxes())
-   })
+   }))
 end
 
 --Returns a sub-datatensor narrowed on the batch dimension

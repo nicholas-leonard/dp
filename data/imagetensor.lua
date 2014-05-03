@@ -115,3 +115,7 @@ function ImageTensor:imageCUDA(tensortype, inplace, contiguous)
    error("Error Not Implemented")
 end
 
+function ImageTensor:default(tensortype, inplace, contiguous)
+   return self:image(tensortype, inplace, contiguous)
+end
+

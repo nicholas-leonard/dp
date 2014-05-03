@@ -44,9 +44,9 @@ function ImageTensor:__init(config)
 end
 
 function ImageTensor:image(tensortype, inplace, contiguous)
-   if tensortype == 'torch.cudatensor' then
+   if tensortype and tensortype == 'torch.cudatensor' then
       -- assume its for CUDA convolutions
-      return self:imageCUDA(tensortype, inplace, contiguous)
+      return self:imageCHWB(tensortype, inplace, contiguous)
    end
    return self:imageBHWC(tensortype, inplace, contiguous)
 end
@@ -65,7 +65,7 @@ function ImageTensor:imageBHWC(tensortype, inplace, contiguous)
    local expanded_size = self:expandedSize()
    if #expanded_axes ~= 4 then
       if self._warn then
-         print("DataTensor Warning: no image axis provided at "..
+         print("ImageTensor Warning: no image axis provided at "..
             "construction, assuming {'b','h','w','c'}")
       end
       expanded_axes = desired_axes
@@ -106,13 +106,60 @@ function ImageTensor:imageBHWC(tensortype, inplace, contiguous)
    return data, desired_axes
 end
 
-function ImageTensor:imageCUDA(tensortype, inplace, contiguous)
+function ImageTensor:imageCHWB(tensortype, inplace, contiguous)
    --Depth x Height x Width x Batch (CHWB)
+   -- When true, makes stored data a contiguous view for future use :
    inplace = inplace or true
+   -- When true makes sure the returned tensor contiguous. 
+   -- Only considered when inplace is false, since inplace
+   -- implicitly makes the returned tensor contiguous :
    contiguous = contiguous or false
-   local axes = {'c','h','w','b'}
-   --TODO
-   error("Error Not Implemented")
+   local desired_axes = {'c','h','w','b'}
+   local current_axes = self:storedAxes()
+   local current_size = self:storedSize()
+   local expanded_axes = self:expandedAxes()
+   local expanded_size = self:expandedSize()
+   if #expanded_axes ~= 4 then
+      if self._warn then
+         print("ImageTensor Warning: no image axis provided at "..
+            "construction, assuming {'b','h','w','c'}")
+      end
+      expanded_axes = desired_axes
+   end
+   assert((expanded_size:size(1) == 4), "No image size provided at construction")
+   --creates a new view of the same storage
+   local data = torch.view(self._data)
+   if not (data:dim() == 4 and table.eq(current_axes, desired_axes)) then
+      expanded_axes, expanded_size 
+         = parent.transpose('b', 4, expanded_axes, expanded_size)
+      --resize to image size
+      if data:dim() == 2 and _.contains(current_axes, 'f') then
+         --expand {'b','f'}
+         assert(expanded_size:size(1) == 4, 
+                "Error: sizes doesn't have enough dimensions")
+         current_axes, current_size, data 
+            = parent.transpose('b', 2, current_axes, current_size, data)
+         data:contiguous():resize(expanded_size:storage())      
+      end
+      --convert between image representations
+      expanded_axes, expanded_size, data 
+         = parent.transpose('c', 1, expanded_axes, expanded_size, data)
+      expanded_axes, expanded_size, data 
+         = parent.transpose('h', 2, expanded_axes, expanded_size, data)
+      assert(table.eq(expanded_axes, desired_axes),
+            "Error: unsupported conversion of axes formats")
+   end
+   data = tensortype and data:type(tensortype) or data
+   if contiguous or inplace then
+      data = data:contiguous()
+   end
+   if contiguous or inplace then
+      data = data:contiguous()
+      if inplace then
+         self:store(data, desired_axes)
+      end
+   end
+   return data, desired_axes
 end
 
 function ImageTensor:default(tensortype, inplace, contiguous)

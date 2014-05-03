@@ -78,7 +78,7 @@ end
 ---- static methods ----
 function BaseTensor.transpose(axis, new_dim, axes, size, data)
    -- copy
-   axes = _.omit(axes)
+   axes = table.copy(axes)
    local current_dim = _.indexOf(axes, axis)
    if current_dim == 0 then
       error("Axis " .. axis .. 'is not in axes ' .. axes)

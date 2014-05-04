@@ -7,6 +7,7 @@ cmd:text('Example:')
 cmd:text('$> th runtest.lua --units')
 cmd:text('Options:')
 cmd:option('--units', '', 'comma separated list of unit test function names')
+cmd:option('--test', 'test', 'name of test function to run')
 cmd:text()
 opt = cmd:parse(arg or {})
 
@@ -14,4 +15,5 @@ local tests
 if opt.units ~= '' then 
    tests = _.split(opt.units, ',')
 end
-dp.test(tests)
+
+dp[opt.test](tests)

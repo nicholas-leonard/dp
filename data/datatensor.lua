@@ -129,7 +129,7 @@ function DataTensor:__init(config)
    assert(self._data:dim() == #(self._axes), 
          "Error: data should have as many dims as specified in axes" )
    -- this makes certain the most expanded size and axes are stored.
-   self:default(false, false)
+   self:default(nil, false, false)
 end
 
 --Returns the axis of the batch/example index ('b') 
@@ -215,7 +215,7 @@ function DataTensor:_feature(tensortype, inplace, contiguous)
          --reduce tensor down to 2 dimensions: first dim stays the same, 
          --remainder are flattened
          --Note.: convert to LongTensor in order to sub...
-         data = data:reshape(
+         data = data:resize(
             data:size(1), 
             torch.LongTensor(data:size()):sub(2,data:dim()):prod(1)[1]
          )

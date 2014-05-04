@@ -40,6 +40,7 @@ torch.include('dp', 'mediator.lua')
 torch.include('dp', 'objectid.lua')
 torch.include('dp', 'node.lua')
 torch.include('dp', 'test/test.lua')
+torch.include('dp', 'test/test-cuda.lua')
 
 --[[ data ]]--
 torch.include('dp', 'data/conv2d.lua')

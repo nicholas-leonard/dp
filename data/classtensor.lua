@@ -161,7 +161,8 @@ end
 
 -- returns a batch of examples indexed by indices
 function ClassTensor:index(dt, indices, config)
-   config = config and table.merge(config, {classes=self:classes()}) or {}
+   config = config or {}
+   config = table.merge(config, {classes=self:classes()})
    return parent.index(self, dt, indices, config)
 end
 

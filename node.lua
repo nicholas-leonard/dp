@@ -15,7 +15,7 @@ function Node:__init(config)
       {arg='input_type', type='string', default=default_type,
        'type of input activation and gradient tensors'},
       {arg='output_type', type='string', default=default_type,
-       'type of output activation and gradient tensors'},
+       'type of output activation and gradient tensors'}
    )
    self:inputType(input_type)
    self:outputType(output_type)

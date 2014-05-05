@@ -11,18 +11,15 @@ Sampler.isSampler = true
 
 function Sampler:__init(...)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, batch_size, sample_type = xlua.unpack(
+   local args, batch_size = xlua.unpack(
       {... or {}},
       'Sampler', 
       'Samples batches from a set of examples in a dataset. '..
       'Iteration ends after an epoch (sampler-dependent) ',
       {arg='batch_size', type='number', default='64',
-       help='Number of examples per sampled batches'},
-      {arg='sample_type', type='string', default='double',
-       help='"cuda" | "float" | "double"'}
+       help='Number of examples per sampled batches'}
    )
    self:setBatchSize(batch_size)
-   self._sample_type = torch.typeString_to_tensorType(sample_type)
 end
 
 function Sampler:setup(config)
@@ -171,7 +168,6 @@ function ShuffleSampler:sampleEpoch(dataset)
             n_sample=stop-start+1, grad_type=self._sample_type, 
             indices=torch.range(start,stop)
          }
-         batch:type(self._sample_type)
          start = start + self._batch_size
          if start >= nSample then
             return

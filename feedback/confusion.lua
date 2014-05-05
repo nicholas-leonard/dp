@@ -36,7 +36,11 @@ function Confusion:_add(batch, output, carry, report)
       require 'optim'
       self._cm = optim.ConfusionMatrix(batch:targets():classes())
    end
-   self._cm:batchAdd(output.act:feature(), batch:targets():class())
+   local act = output.act:feature()
+   if act ~= 'torch.DoubleTensor' and act ~= 'torch.FloatTensor' then
+      act = act:type('torch.FloatTensor')
+   end
+   self._cm:batchAdd(act, batch:targets():class())
 end
 
 function Confusion:_reset()

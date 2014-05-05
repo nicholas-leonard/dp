@@ -8,7 +8,7 @@ Model.isModel = true
 
 function Model:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, typename, tags, mvstate = xlua.unpack(
+   local args, typename, tags, mvstate, tensor_type = xlua.unpack(
       {config},
       'Model', nil,
       {arg='typename', type='string', req=true, 
@@ -23,7 +23,7 @@ function Model:__init(config)
    self._tags = tags -- tags
    self._report = {} -- stores a report
    self.mvstate = mvstate -- stores stuff for visitors in between passes
-   parent.__init(self)
+   parent.__init(self, tensor_type)
 end
 
 function Model:setup(config)

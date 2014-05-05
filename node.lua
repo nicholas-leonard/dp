@@ -2,13 +2,23 @@
 --[[ Node ]]--
 -- Abstract Class
 -- Inherited by Node and Loss
--- Forward and backward propagates states.
+-- Forward and backward propagates representations.
 ------------------------------------------------------------------------
 local Node = torch.class("dp.Node")
 Node.isNode = true
 
-function Node:__init(tensor_type)
-   self._tensor_type = tensor_type or torch.getdefaulttensortype()
+function Node:__init(config)
+   local default_type = torch.getdefaulttensortype()
+   local args, input_type, output_type = xlua.unpack(
+      'Node', 
+      'Forward and backward propagates representations.',
+      {arg='input_type', type='string', default=default_type,
+       'type of input activation and gradient tensors'},
+      {arg='output_type', type='string', default=default_type,
+       'type of output activation and gradient tensors'},
+   )
+   self:inputType(input_type)
+   self:outputType(output_type)
    self:zeroStatistics()
    self:doneBatch()
 end
@@ -131,23 +141,30 @@ function Node:coroutineClone()
    error"Not Implemented"
 end
 
+function Node:inputType(input_type)
+   self._input_type = input_type or self._input_type
+   return self._input_type
+end
+
+function Node:outputType(output_type)
+   self._output_type = output_type or self._output_type
+   return self._output_type
+end
+
 -- changes the type of internal variables inplace (same as nn)
 -- returns self
 function Node:type(new_type)
    if new_type then
       self:_type(new_type)
-      self._tensor_type = new_type
+      self._module_type = new_type
    end
    return self
 end
 
+-- this should only change the input, output, module or criteria 
+-- types if the internal module or criteria permits it.
+-- for example, NLL only changes the input type to float or double.
 function Node:_type(new_type)
-   error"Not Implemented"
-end
-
--- return type of its tensors
-function Node:tensorType()
-   return self._tensor_type or error"Not tensor type"
 end
 
 function Node:float()
@@ -160,6 +177,14 @@ end
 
 function Node:cuda()
    return self:type('torch.CudaTensor')
+end
+
+function Node:int()
+   return self:type('torch.IntTensor')
+end
+
+function Node:long()
+   return self:type('torch.LongTensor')
 end
 
 --[[

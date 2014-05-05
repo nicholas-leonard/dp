@@ -7,9 +7,11 @@
 local NLL, parent = torch.class("dp.NLL", "dp.Loss")
 NLL.isNLL = true
 
-function NLL:__init()
+function NLL:__init(config)
    self._criterion = nn.ClassNLLCriterion()
-   parent.__init(self)
+   config = config or {}
+   config.target_type = config.target_type or 'torch.IntTensor'
+   parent.__init(self, config)
 end
 
 function NLL:_forward(carry)
@@ -26,4 +28,12 @@ function NLL:_backward(carry)
       self._criterion:backward(input, target)
    )
    return carry
+end
+
+function NLL:_type(type)
+   if type == 'torch.FloatTensor' or type == 'torch.DoubleTensor' then
+      self._input_type = type
+   elseif type == 'torch.IntTensor' or type == 'torch.LongTensor' then
+      self._output_type = type
+   end
 end

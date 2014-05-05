@@ -45,6 +45,20 @@ function Sequential:_backward(carry)
    return carry
 end
 
+function Sequential:inputType(input_type)
+   if not type then
+      assert(#self._models > 1, "Not models to get input type") 
+      return self._models[1]:inputType()
+   end
+end
+
+function Sequential:outputType(output_type)
+   if not type then
+      assert(#self._models > 1, "Not models to get input type") 
+      return self._models[#self._models]:outputType()
+   end
+end
+
 function Sequential:__tostring__()
    local tab = '  '
    local line = '\n'

@@ -6,6 +6,19 @@
 local Loss, parent = torch.class("dp.Loss", "dp.Node")
 Loss.isLoss = true
 
+function Loss:__init(config)
+   local args
+      args, config.input_type, config.output_type = xlua.unpack(
+      'Loss', 
+      'Adapter of nn.Criterion.',
+      {arg='target_type', type='string', req=true,
+       'type of target tensors'},
+      {arg='input_type', type='string', default='torch.DoubleTensor',
+       'type of input activation and gradient tensors'}
+   )
+   parent.__init(self, config)
+end
+
 function Loss:forward(input, target, carry)
    assert(input.isBaseTensor, "Expecting dp.BaseTensor for input")
    assert(target.isBaseTensor, "Expecting dp.BaseTensor for target")

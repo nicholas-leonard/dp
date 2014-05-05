@@ -33,10 +33,6 @@ function Neural:__init(config)
    parent.__init(self, config)
 end
 
-function Neural:inputAct()
-   return self.input.act:feature(self._tensor_type)
-end
-
 function Neural:_forward(carry)
    local activation = self:inputAct()
    if self._dropout then
@@ -63,7 +59,7 @@ function Neural:_backward(carry)
    local scale = carry.scale
    self._report.scale = scale
    local input_act = self.mvstate.affineAct
-   local output_grad = self.output.grad:feature()
+   local output_grad = self:outputGrad()
    output_grad = self._transfer:backward(input_act, output_grad, scale)
    if self._recuda then
       output_grad = output_grad:cuda()
@@ -85,6 +81,8 @@ function Neural:paramModule()
 end
 
 function Neural:_type(type)
+   self._input_type = type
+   self._output_type = type
    self._affine:type(type)
    if type ~= 'torch.CudaTensor' and not self._uncuda then
       self._transfer:type(type)

@@ -41,6 +41,14 @@ function Container:get(index)
    return self._models[index]
 end
 
+function Container:inputType(input_type)
+   error"Not Implemented"
+end
+
+function Container:outputType(output_type)
+   error"Not Implemented"
+end
+
 function Container:_type(type)
    -- find submodels in classic containers 'models'
    if not _.isEmpty(self._models) then

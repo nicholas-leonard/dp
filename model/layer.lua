@@ -30,6 +30,22 @@ function Layer:__init(config)
    self:checkParams()
 end
 
+function Layer:inputAct()
+   return self.input.act:feature(self._input_type)
+end
+
+function Layer:inputGrad()
+   return self.input.grad:feature(self._input_type)
+end
+
+function Layer:outputAct()
+   return self.output.act:feature(self._output_type)
+end
+
+function Layer:outputGrad()
+   return self.output.grad:feature(self._output_type)
+end
+
 -- this should return a parameterized module
 -- TODO: support a table of modules
 function Layer:paramModule()

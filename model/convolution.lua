@@ -74,8 +74,24 @@ function Convolution:__init(config)
    self:checkParams()
 end
 
+function Convolution:inputAct()
+   return self.input.act:image(self._input_type)
+end
+
+function Convolution:inputGrad()
+   return self.input.grad:image(self._input_type)
+end
+
+function Convolution:outputAct()
+   return self.output.act:image(self._output_type)
+end
+
+function Convolution:outputGrad()
+   return self.output.grad:image(self._output_type)
+end
+
 function Convolution:_forward(carry)
-   local activation = self.input.act:imageCUDA()
+   local activation = self.inputAct()
    if self._dropout then
       -- dropout has a different behavior during evaluation vs training
       self._dropout.train = (not carry.evaluate)
@@ -102,7 +118,7 @@ function Convolution:_backward(carry)
    local scale = carry.scale
    self._report.scale = scale
    local input_act = self.mvstate.convAct
-   local output_grad = self.output.grad:imageCUDA()
+   local output_grad = self:outputGrad()
    output_grad = self._transfer:backward(input_act, output_grad, scale)
    if self._recuda then
       output_grad = output_grad:cuda()
@@ -123,7 +139,9 @@ function Convolution:zeroGradParameters()
    self._affine:zeroGradParameters()
 end
 
-function Convolution:type(type)
+function Convolution:_type(type)
+   self._input_type = type
+   self._output_type = type
    if type == 'torch.CudaTensor' 
          and torch.type(self._conv) == 'nn.SpatialConvolution' then
       self._conv = nn.SpatialConvolutionCUDA(

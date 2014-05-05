@@ -1,6 +1,7 @@
 ------------------------------------------------------------------------
 --[[ SoftmaxTree ]]--
 -- A hierarchy of softmaxes.
+-- Used for computing the likelihood of a leaf class.
 -- Requires a tensor mapping parent_ids to child_ids. 
 -- Root_id defaults to -1.
 -- TODO : sum LogSoftMaxs
@@ -10,7 +11,7 @@ SoftmaxTree.isSoftmaxTree = true
 
 function SoftmaxTree:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, input_size, hierarchy, dropout, typename, 
+   local args, input_size, hierarchy, root_id, dropout, typename, 
          sparse_init, gather_stats = xlua.unpack(
       {config},
       'SoftmaxTree', 
@@ -31,18 +32,35 @@ function SoftmaxTree:__init(config)
       {arg='gather_stats', type='boolean', default=false,
        help='gather statistics on gradients'}
    )
+   self._root_id = root_id
    self._input_size = input_size
    self._transfer = transfer
-   self._tree = {}
-   self._reverse_tree = {}
+   -- index modules by parents
+   parents = {}
+   local children
    for parent_id, children in pairs(hierarchy) do
       assert(children:dim() == 1, "Expecting a 1D tensor of child_ids")
       local node = nn.Sequential()
       node:add(nn.Linear(input_size, children:size(1)))
       node:add(nn.SoftMax())
-      self._tree[parent_id] = {node, children}
-      self._reverse_tree[
+      parents[parent_id] = {node, children}
    end
+   -- extract leafs and index parents by children
+   leafs = {}
+   children = {}
+   for parent_id, node in pairs(parents) do
+      local children = node[2]
+      for i=1,children:size() do
+         local child_id = children[i]
+         if self._parents[child_id] then
+            table.insert(leafs, parent_id)
+         end
+         children[child_id] = parent_id
+      end
+   end
+   self._leafs = leafs
+   self._children = children
+   self._parents = parents
    self._dropout = dropout
    self._sparse_init = sparse_init
    self._gather_stats = gather_stats
@@ -63,8 +81,13 @@ function SoftmaxTree:_forward(carry)
       activation = self._dropout:forward(activation)
       self.mvstate.dropoutAct = activation
    end
-   while true
-      
+   local targets = carry.targets:class()
+   for i=1,activation:size(1) do
+      local input = activation[i]
+      local parent_ = target[i]
+      while true do
+         
+      end
    end
    activation = self._affine:forward(activation)
    if self._uncuda then

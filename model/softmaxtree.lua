@@ -40,9 +40,7 @@ function SoftmaxTree:__init(config)
    local children
    for parent_id, children in pairs(hierarchy) do
       assert(children:dim() == 1, "Expecting a 1D tensor of child_ids")
-      local node = nn.Sequential()
-      node:add(nn.Linear(input_size, children:size(1)))
-      node:add(nn.SoftMax())
+      local node = self.buildNode(input_size, children:size(1))
       parents[parent_id] = {node, children}
    end
    -- extract leafs and index parents by children
@@ -55,12 +53,14 @@ function SoftmaxTree:__init(config)
          if self._parents[child_id] then
             table.insert(leafs, parent_id)
          end
-         children[child_id] = parent_id
+         children[child_id] = {parent_id, i}
       end
    end
    self._leafs = leafs
    self._children = children
    self._parents = parents
+   -- temp fix until indexSelect is added to cutorch:
+   self._arrows = {}
    self._dropout = dropout
    self._sparse_init = sparse_init
    self._gather_stats = gather_stats
@@ -82,22 +82,48 @@ function SoftmaxTree:_forward(carry)
       self.mvstate.dropoutAct = activation
    end
    local targets = carry.targets:class()
+   -- When indexSelect will be part of cutorch, we can build a tree of batches.
+   -- Until then, each sample has its own chain of modules which share params with a arrow in the tree.
+   self._module = nn.Parallel()
    for i=1,activation:size(1) do
       local input = activation[i]
-      local parent_ = target[i]
+      local child_id = target[i]
+      local arrows = self._arrows[i] or {}
+      self._arrows[i] = arrows
+      local concat = nn.ConcatTable() --concat arrows ordered by dept
+      local dept = 1
+      local output_size
       while true do
-         
+         local parent_id, child_idx = unpack(self._children[child_id])
+         local node, children = unpack(self._parents[parent_id])
+         local arrow
+         if dept == 1 then
+            arrow = arrows[dept] or self.buildNode(1,1)
+            output_size = node:get(1).weight:size(1)
+         else
+            arrow = arrows[dept] or self.buildArrow(1,1)
+            -- only multiply probability of parent
+            arrow:get(3).index = child_idx
+            arrow:get(4).nfeatures = output_size
+         end
+         -- share params
+         arrow:get(1):share(node:get(1), 'weight', 'bias')
+         concat:add(arrow)
+         -- cache for next batch
+         arrows[dept] = arrow
+         if parent_id == self._root_id then
+            break
+         end
+         dept = dept + 1
       end
+      -- sample channel
+      local channel = nn.Sequential()
+      channel:add(concat)
+      channel:add(nn.CMulTable())
+      
    end
-   activation = self._affine:forward(activation)
-   if self._uncuda then
-      if self._recuda == nil then
-         self._recuda = (activation:type() == 'torch.CudaTensor')
-      end
-      activation = activation:double()
-   end
-   self.mvstate.affineAct = activation
-   activation = self._transfer:forward(activation)
+   
+   
    -- wrap torch.Tensor in a dp.DataTensor
    self.output.act = dp.DataTensor{data=activation}
    return carry
@@ -141,6 +167,20 @@ function SoftmaxTree:_type(type)
    return self
 end
 
+-- static method
+function SoftmaxTree.buildNode(input_size, output_size)
+   local node = nn.Sequential()
+   node:add(nn.Linear(input_size, output_size))
+   node:add(nn.SoftMax())
+   return node
+end
+
+function SoftmaxTree.buildArrow(input_size, output_size)
+   local node = self.buildNode(input_size, output_size)
+   node:add(nn.Narrow(1, 1, 1))
+   node:add(nn.Replicate(2))
+   return node
+end
 
 local function hsoftmax_test()
    local sol = nn.SparseOutLinear(100, 1000, true, true)

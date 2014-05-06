@@ -5,7 +5,7 @@
 -- Use with TreeNLL Loss.
 -- Requires a tensor mapping parent_ids to child_ids. 
 -- Root_id defaults to -1.
--- TODO : sum LogSoftMaxs
+-- TODO : sum LogSoftMaxs, sparse_init, cache modules
 ------------------------------------------------------------------------
 local SoftmaxTree, parent = torch.class("dp.SoftmaxTree", "dp.Model")
 SoftmaxTree.isSoftmaxTree = true
@@ -129,13 +129,8 @@ function SoftmaxTree:_forward(carry)
    self._module:add(parallel)
    -- outputs a table of sample activation tensors
    activation = self._module:forward(activation)
-   -- wrap table of tensors in dp.ComposteTensor
-   self.output.act = dp.CompositeTensor{
-      components = _.map(activation, function(k,v)
-         return dp.DataTensor{data=v}
-      end)
-   }
-   self._original_targets = targets
+   self:outputAct(activation)
+   --self._original_targets = targets
    -- so it works with NLL
    carry.targets = dp.ClassTensor{data=new_targets}
    return carry
@@ -144,26 +139,33 @@ end
 function SoftmaxTree:_backward(carry)
    local scale = carry.scale
    self._report.scale = scale
-   local input_act = self.mvstate.affineAct
+   local input_act = self.mvstate.dropoutAct or self:inputAct()
    local output_grad = self:outputGrad()
-   output_grad = self._transfer:backward(input_act, output_grad, scale)
-   if self._recuda then
-      output_grad = output_grad:cuda()
-   end
-   self.mvstate.affineGrad = output_grad
-   input_act = self.mvstate.dropoutAct or self.input.act:feature()
-   output_grad = self._affine:backward(input_act, output_grad, scale)
+   output_grad = self._module:backward(input_act, output_grad, scale)
    if self._dropout then
       self.mvstate.dropoutGrad = output_grad
-      input_act = self.input.act:feature()
+      input_act = self:inputAct()
       output_grad = self._dropout:backward(input_act, output_grad, scale)
    end
-   self.input.grad = self.input.act:featureClone(output_grad)
+   self:inputGrad(output_grad)
    return carry
 end
 
 function SoftmaxTree:outputGrad()
-   return self.output.grad:components()(self._output_type)
+   return self.output.grad:multi('feature', self._output_type)
+end
+
+function SoftmaxTree:outputAct(output_act)
+   if output_act then
+      -- wrap table of tensors in dp.ComposteTensor
+      self.output.act = dp.CompositeTensor{
+         components = _.map(activation, function(k,v)
+            return dp.DataTensor{data=v}
+         end)
+      }
+      return
+   end
+   return self.output.act:feature(self._output_type)
 end
 
 function SoftmaxTree:paramModule()

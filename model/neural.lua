@@ -65,11 +65,11 @@ function Neural:_backward(carry)
       output_grad = output_grad:cuda()
    end
    self.mvstate.affineGrad = output_grad
-   input_act = self.mvstate.dropoutAct or self.input.act:feature()
+   input_act = self.mvstate.dropoutAct or self:inputAct()
    output_grad = self._affine:backward(input_act, output_grad, scale)
    if self._dropout then
       self.mvstate.dropoutGrad = output_grad
-      input_act = self.input.act:feature()
+      input_act = self:inputAct()
       output_grad = self._dropout:backward(input_act, output_grad, scale)
    end
    self.input.grad = self.input.act:featureClone(output_grad)

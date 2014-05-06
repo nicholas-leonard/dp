@@ -20,13 +20,13 @@ function CompositeTensor:__init(config)
    self._components = components
 end
 
-function CompositeTensor:_feature(inplace, contiguous)
+function CompositeTensor:_feature(tensortype, inplace, contiguous)
    -- sort keys to get consistent view
    local keys = _.sort(_.keys(self._components))
    local features = _.map(keys, 
       function(i, key)
          local component = self._components[key]
-         return component:feature(inplace, contiguous)
+         return component:feature(tensortype, inplace, contiguous)
       end
    )
    -- flatten in case of nested composites
@@ -35,6 +35,20 @@ function CompositeTensor:_feature(inplace, contiguous)
    -- we also save the memory for later use
    self._data = torch.concat(self._data, features, 2)
    return self._data
+end
+
+function CompositeTensor:multi(view, tensortype, inplace, contiguous)
+   assert(type(view) == 'string', 
+      "expecting a view like 'feature', 'class', etc at arg 1")
+   -- sort keys to get consistent view
+   local keys = _.sort(_.keys(self._components))
+   local tensors = _.map(keys, 
+      function(i, key)
+         local comp = self._components[key]
+         return comp[view](comp, tensortype, inplace, contiguous)
+      end
+   )
+   return tensors
 end
 
 -- Returns number of samples

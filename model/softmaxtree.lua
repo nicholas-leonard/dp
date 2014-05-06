@@ -86,6 +86,7 @@ function SoftmaxTree:_forward(carry)
    -- When indexSelect will be part of cutorch, we can build a tree of batches.
    -- Until then, each sample has its own chain of modules which share params with a path down tree.
    local parallel = nn.ParallelTable()
+   local new_targets = targets:clone()
    for i=1,activation:size(1) do
       local child_id = targets[i]
       local arrows = self._arrows[i] or {}
@@ -100,6 +101,7 @@ function SoftmaxTree:_forward(carry)
          if dept == 1 then
             arrow = arrows[dept] or self.buildNode(1,1)
             output_size = node:get(1).weight:size(1)
+            new_targets[i] = child_idx
          else
             arrow = arrows[dept] or self.buildArrow(1,1)
             -- only multiply probability of parent
@@ -133,6 +135,9 @@ function SoftmaxTree:_forward(carry)
          return dp.DataTensor{data=v}
       end)
    }
+   self._original_targets = targets
+   -- so it works with NLL
+   carry.targets = dp.ClassTensor{data=new_targets}
    return carry
 end
 
@@ -155,6 +160,10 @@ function SoftmaxTree:_backward(carry)
    end
    self.input.grad = self.input.act:featureClone(output_grad)
    return carry
+end
+
+function SoftmaxTree:outputGrad()
+   return self.output.grad:components()(self._output_type)
 end
 
 function SoftmaxTree:paramModule()

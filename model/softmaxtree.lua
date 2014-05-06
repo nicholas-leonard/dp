@@ -2,6 +2,7 @@
 --[[ SoftmaxTree ]]--
 -- A hierarchy of softmaxes.
 -- Used for computing the likelihood of a leaf class.
+-- Use with TreeNLL Loss.
 -- Requires a tensor mapping parent_ids to child_ids. 
 -- Root_id defaults to -1.
 -- TODO : sum LogSoftMaxs
@@ -83,11 +84,10 @@ function SoftmaxTree:_forward(carry)
    end
    local targets = carry.targets:class()
    -- When indexSelect will be part of cutorch, we can build a tree of batches.
-   -- Until then, each sample has its own chain of modules which share params with a arrow in the tree.
-   self._module = nn.Parallel()
+   -- Until then, each sample has its own chain of modules which share params with a path down tree.
+   local parallel = nn.ParallelTable()
    for i=1,activation:size(1) do
-      local input = activation[i]
-      local child_id = target[i]
+      local child_id = targets[i]
       local arrows = self._arrows[i] or {}
       self._arrows[i] = arrows
       local concat = nn.ConcatTable() --concat arrows ordered by dept
@@ -120,12 +120,19 @@ function SoftmaxTree:_forward(carry)
       local channel = nn.Sequential()
       channel:add(concat)
       channel:add(nn.CMulTable())
-      
+      parallel:add(channel)
    end
-   
-   
-   -- wrap torch.Tensor in a dp.DataTensor
-   self.output.act = dp.DataTensor{data=activation}
+   self._module = nn.Sequential()
+   self._module:add(nn.SplitTable(1))
+   self._module:add(parallel)
+   -- outputs a table of sample activation tensors
+   activation = self._module:forward(activation)
+   -- wrap table of tensors in dp.ComposteTensor
+   self.output.act = dp.CompositeTensor{
+      components = _.map(activation, function(k,v)
+         return dp.DataTensor{data=v}
+      end)
+   }
    return carry
 end
 
@@ -180,9 +187,4 @@ function SoftmaxTree.buildArrow(input_size, output_size)
    node:add(nn.Narrow(1, 1, 1))
    node:add(nn.Replicate(2))
    return node
-end
-
-local function hsoftmax_test()
-   local sol = nn.SparseOutLinear(100, 1000, true, true)
-   sol:forward(input, outputIndices)
 end

@@ -50,8 +50,7 @@ function Neural:_forward(carry)
    end
    self.mvstate.affineAct = activation
    activation = self._transfer:forward(activation)
-   -- wrap torch.Tensor in a dp.DataTensor
-   self.output.act = dp.DataTensor{data=activation}
+   self:outputAct(activation)
    return carry
 end
 
@@ -72,7 +71,7 @@ function Neural:_backward(carry)
       input_act = self:inputAct()
       output_grad = self._dropout:backward(input_act, output_grad, scale)
    end
-   self.input.grad = self.input.act:featureClone(output_grad)
+   self:inputGrad(output_grad)
    return carry
 end
 

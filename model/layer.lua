@@ -34,11 +34,20 @@ function Layer:inputAct()
    return self.input.act:feature(self._input_type)
 end
 
-function Layer:inputGrad()
+function Layer:inputGrad(input_grad)
+   if input_grad then
+      self.input.grad = self.input.act:featureClone(input_grad)
+      return
+   end
    return self.input.grad:feature(self._input_type)
 end
 
-function Layer:outputAct()
+function Layer:outputAct(output_act)
+   if output_act then
+      -- wrap torch.Tensor in a dp.DataTensor
+      self.output.act = dp.DataTensor{data=output_act}
+      return
+   end
    return self.output.act:feature(self._output_type)
 end
 

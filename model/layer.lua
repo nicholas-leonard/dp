@@ -122,7 +122,7 @@ function Layer:parameters()
 end
 
 function Layer:maxNorm(max_out_norm, max_in_norm)
-   if not self.backwarded then return end
+   assert(self.backwarded, "Should call maxNorm after a backward pass")
    max_out_norm = self.mvstate.max_out_norm or max_out_norm
    max_in_norm = self.mvstate.max_in_norm or max_in_norm
    local params = self:parameters()

@@ -12,8 +12,8 @@ SoftmaxTree.isSoftmaxTree = true
 
 function SoftmaxTree:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, input_size, hierarchy, root_id, dropout, typename, 
-         sparse_init, gather_stats = xlua.unpack(
+   local args, input_size, hierarchy, root_id, dropout, sparse_init, 
+         gather_stats, typename = xlua.unpack(
       {config},
       'SoftmaxTree', 
       'A hierarchy of softmaxes',
@@ -25,24 +25,27 @@ function SoftmaxTree:__init(config)
        help='id of the root of the tree.'}
       {arg='dropout', type='nn.Dropout', 
        help='applies dropout to the inputs of this model.'},
-      {arg='typename', type='string', default='neural', 
-       help='identifies Model type in reports.'},
       {arg='sparse_init', type='boolean', default=true,
        help='sparse initialization of weights. See Martens (2010), '..
        '"Deep learning via Hessian-free optimization"'},
       {arg='gather_stats', type='boolean', default=false,
-       help='gather statistics on gradients'}
+       help='gather statistics on gradients'},
+      {arg='typename', type='string', default='neural', 
+       help='identifies Model type in reports.'}
    )
    self._root_id = root_id
    self._input_size = input_size
    self._transfer = transfer
    -- index modules by parents
    parents = {}
+   -- any container would do here. We just use it for changing types.
+   self._nodes = nn.Parallel()
    local children
    for parent_id, children in pairs(hierarchy) do
       assert(children:dim() == 1, "Expecting a 1D tensor of child_ids")
       local node = self.buildNode(input_size, children:size(1))
       parents[parent_id] = {node, children}
+      self._nodes:add(node)
    end
    -- extract leafs and index parents by children
    leafs = {}
@@ -87,6 +90,7 @@ function SoftmaxTree:_forward(carry)
    -- Until then, each sample has its own chain of modules which share params with a path down tree.
    local parallel = nn.ParallelTable()
    local new_targets = targets:clone()
+   self._active_nodes = {}
    for i=1,activation:size(1) do
       local child_id = targets[i]
       local arrows = self._arrows[i] or {}
@@ -97,6 +101,7 @@ function SoftmaxTree:_forward(carry)
       while true do
          local parent_id, child_idx = unpack(self._children[child_id])
          local node, children = unpack(self._parents[parent_id])
+         table.insert(self._active_nodes, node)
          local arrow
          if dept == 1 then
             arrow = arrows[dept] or self.buildNode(1,1)
@@ -127,6 +132,8 @@ function SoftmaxTree:_forward(carry)
    self._module = nn.Sequential()
    self._module:add(nn.SplitTable(1))
    self._module:add(parallel)
+   -- make sure it has the right type
+   self._module:type(self:moduleType())
    -- outputs a table of sample activation tensors
    activation = self._module:forward(activation)
    self:outputAct(activation)
@@ -168,21 +175,131 @@ function SoftmaxTree:outputAct(output_act)
    return self.output.act:feature(self._output_type)
 end
 
+-- if after feedforward, returns active nodes 
+-- else returns all nodes
 function SoftmaxTree:paramModule()
-   return self._affine
+   if self.forwarded then
+      return self._module
+   end
+   print"SoftmaxTree:paramModule : warning returning all modules"
+   return self._nodes
 end
 
 function SoftmaxTree:_type(type)
    self._input_type = type
    self._output_type = type
-   self._affine:type(type)
-   if type ~= 'torch.CudaTensor' and not self._uncuda then
-      self._transfer:type(type)
-   end
+   self._nodes:type(type)
    if self._dropout then
       self._dropout:type(type)
    end
+   if self._module then
+      self._module:type(type)
+   end
    return self
+end
+
+function SoftmaxTree:reset()
+   self._nodes:reset()
+   if self._sparse_init then
+      for i, node in ipairs(self._nodes) do
+         self._sparseReset(node:get(1).weight)
+      end
+   end
+end
+
+-- if after feedforward, returns active parameters 
+-- else returns all parameters
+function SoftmaxTree:parameters()
+   local params = {}
+   local nodes
+   if self.forwarded then
+      nodes = self._active_nodes
+   else
+      print"SoftmaxTree:parameters : warning returning all parameters"
+      nodes = _.map(self._parents, function(k,v) return v[1] end)
+   end
+   for i,node in ipairs(nodes) do
+      local module = node:get(1)
+      params['weight'..i] = { param=module.weight, grad=module.gradWeight }
+      params['bias'..i] = { param=module.bias, grad=module.gradBias }
+   end
+   return params
+end
+
+function SoftmaxTree:_zeroStatistics()
+   if self._gather_stats then
+      error"Not Implemented"
+      for param_name, param_table in pairs(self:parameters()) do
+         self._stats[param_name] = {
+            grad={sum=0, mean=0, min=0, max=0, count=0, std=0}
+         }
+      end
+   end
+end
+
+function SoftmaxTree:checkParams()
+   for param_name,param_table in pairs(self:parameters()) do
+      for k,v in pairs(param_table) do
+         assert(not _.isNaN(v:sum()), 
+                "NaN Error for " .. k .. " " .. param_name)
+      end
+   end
+end
+
+function SoftmaxTree:maxNorm(max_out_norm, max_in_norm)
+   assert(self.backwarded, "Should call maxNorm after a backward pass")
+   max_out_norm = self.mvstate.max_out_norm or max_out_norm
+   max_in_norm = self.mvstate.max_in_norm or max_in_norm
+   for param_name, param_table in pairs(self:parameters()) do
+      if param_name:find('weight') then
+         if max_out_norm then
+            -- rows feed into output neurons 
+            dp.constrain_norms(max_out_norm, 2, param_table.param)
+         end
+         if max_in_norm then
+            -- cols feed out from input neurons
+            dp.constrain_norms(max_in_norm, 1, param_table.param)
+         end
+      end
+   end
+end
+
+function SoftmaxTree:share(layer, ...)
+   assert(layer.isSoftmaxTree)
+   local arg = {...}
+   local module = self:paramModule()
+   for i,v in ipairs(arg) do
+      if module[v] ~= nil then
+         module[v]:set(layer:paramModule()[v])
+      end
+   end
+   return self      
+end
+
+function SoftmaxTree:sharedClone()
+   local clone = self:clone()
+   return self:share(clone, 'weight', 'bias')
+end
+
+function SoftmaxTree:report()
+   local report = parent.report(self) or {}
+   if self._gather_stats then
+      for param_name, param_table in pairs(self:parameters()) do
+         local param_stats = self._stats[param_name]
+         if param_stats and param_stats.grad and param_stats.grad.count > 0 then
+            local grad = param_stats.grad
+            local param_report = self._report[param_name] or {}
+            local count = grad.count
+            local grad_report = {
+                  sum=grad.sum/count, mean=grad.mean/count,
+                  min=grad.min/count, max=grad.max/count,
+                  std=grad.std/count, count=grad.count
+            }
+            self._report[param_name] = {grad=grad_report}
+         end
+      end
+   end
+   return table.merge(report, self._report)
 end
 
 -- static method

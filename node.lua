@@ -9,16 +9,19 @@ Node.isNode = true
 
 function Node:__init(config)
    local default_type = torch.getdefaulttensortype()
-   local args, input_type, output_type = xlua.unpack(
+   local args, input_type, output_type, module_type = xlua.unpack(
       'Node', 
       'Forward and backward propagates representations.',
       {arg='input_type', type='string', default=default_type,
        'type of input activation and gradient tensors'},
       {arg='output_type', type='string', default=default_type,
-       'type of output activation and gradient tensors'}
+       'type of output activation and gradient tensors'},
+      {arg='module_type', type='string', default=default_type,
+       'type of modules used in this Node'}
    )
    self:inputType(input_type)
    self:outputType(output_type)
+   self:moduleType(module_type)
    self:zeroStatistics()
    self:doneBatch()
 end
@@ -151,12 +154,17 @@ function Node:outputType(output_type)
    return self._output_type
 end
 
+function Node:moduleType(module_type)
+   self._module_type = module_type or self._module_type
+   return self._module_type
+end
+
 -- changes the type of internal variables inplace (same as nn)
 -- returns self
 function Node:type(new_type)
    if new_type then
       self:_type(new_type)
-      self._module_type = new_type
+      self:moduleType(new_type)
    end
    return self
 end

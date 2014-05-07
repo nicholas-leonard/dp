@@ -5,15 +5,14 @@
 -- Use with TreeNLL Loss.
 -- Requires a tensor mapping parent_ids to child_ids. 
 -- Root_id defaults to -1.
--- TODO : sum LogSoftMaxs, sparse_init, cache modules
+-- TODO : sum LogSoftMaxs, cache modules
 ------------------------------------------------------------------------
 local SoftmaxTree, parent = torch.class("dp.SoftmaxTree", "dp.Model")
 SoftmaxTree.isSoftmaxTree = true
 
 function SoftmaxTree:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, input_size, hierarchy, root_id, dropout, sparse_init, 
-         gather_stats, typename = xlua.unpack(
+   local args, input_size, hierarchy, root_id, typename = xlua.unpack(
       {config},
       'SoftmaxTree', 
       'A hierarchy of softmaxes',
@@ -23,19 +22,11 @@ function SoftmaxTree:__init(config)
        help='A table mapping parent_ids to a tensor of child_ids'},
       {arg='root_id', type='number | string', default=-1,
        help='id of the root of the tree.'}
-      {arg='dropout', type='nn.Dropout', 
-       help='applies dropout to the inputs of this model.'},
-      {arg='sparse_init', type='boolean', default=true,
-       help='sparse initialization of weights. See Martens (2010), '..
-       '"Deep learning via Hessian-free optimization"'},
-      {arg='gather_stats', type='boolean', default=false,
-       help='gather statistics on gradients'},
-      {arg='typename', type='string', default='neural', 
+      {arg='typename', type='string', default='softmaxtree', 
        help='identifies Model type in reports.'}
    )
    self._root_id = root_id
    self._input_size = input_size
-   self._transfer = transfer
    -- index modules by parents
    parents = {}
    -- any container would do here. We just use it for changing types.
@@ -65,15 +56,8 @@ function SoftmaxTree:__init(config)
    self._parents = parents
    -- temp fix until indexSelect is added to cutorch:
    self._arrows = {}
-   self._dropout = dropout
-   self._sparse_init = sparse_init
-   self._gather_stats = gather_stats
    config.typename = typename
    parent.__init(self, config)
-   self:reset()
-   self._tags.hasParams = true
-   self:zeroGradParameters()
-   self:checkParams()
 end
 
 -- requires targets be in carry
@@ -86,10 +70,11 @@ function SoftmaxTree:_forward(carry)
       self.mvstate.dropoutAct = activation
    end
    local targets = carry.targets:class()
-   -- When indexSelect will be part of cutorch, we can build a tree of batches.
-   -- Until then, each sample has its own chain of modules which share params with a path down tree.
-   local parallel = nn.ParallelTable()
-   local new_targets = targets:clone()
+   -- When indexSelect will be part of cutorch, we could ostensibly
+   -- build a tree of batches.
+   -- Until then, each sample has its own chain of modules which share 
+   -- params with a path down tree.
+   self._module = nn.Parallel(1,1)
    self._active_nodes = {}
    for i=1,activation:size(1) do
       local child_id = targets[i]
@@ -97,22 +82,13 @@ function SoftmaxTree:_forward(carry)
       self._arrows[i] = arrows
       local concat = nn.ConcatTable() --concat arrows ordered by dept
       local dept = 1
-      local output_size
       while true do
          local parent_id, child_idx = unpack(self._children[child_id])
          local node, children = unpack(self._parents[parent_id])
          table.insert(self._active_nodes, node)
-         local arrow
-         if dept == 1 then
-            arrow = arrows[dept] or self.buildNode(1,1)
-            output_size = node:get(1).weight:size(1)
-            new_targets[i] = child_idx
-         else
-            arrow = arrows[dept] or self.buildArrow(1,1)
-            -- only multiply probability of parent
-            arrow:get(3).index = child_idx
-            arrow:get(4).nfeatures = output_size
-         end
+         local arrow = arrows[dept] or self.buildArrow(1,1)
+         -- only multiply probability of parent
+         arrow:get(3).index = child_idx
          -- share params
          arrow:get(1):share(node:get(1), 'weight', 'bias')
          concat:add(arrow)
@@ -127,19 +103,13 @@ function SoftmaxTree:_forward(carry)
       local channel = nn.Sequential()
       channel:add(concat)
       channel:add(nn.CMulTable())
-      parallel:add(channel)
+      self._module:add(channel)
    end
-   self._module = nn.Sequential()
-   self._module:add(nn.SplitTable(1))
-   self._module:add(parallel)
    -- make sure it has the right type
    self._module:type(self:moduleType())
-   -- outputs a table of sample activation tensors
+   -- outputs a 1D tensor of likelihoods of targets
    activation = self._module:forward(activation)
    self:outputAct(activation)
-   --self._original_targets = targets
-   -- so it works with NLL
-   carry.targets = dp.ClassTensor{data=new_targets}
    return carry
 end
 
@@ -237,15 +207,6 @@ function SoftmaxTree:_zeroStatistics()
    end
 end
 
-function SoftmaxTree:checkParams()
-   for param_name,param_table in pairs(self:parameters()) do
-      for k,v in pairs(param_table) do
-         assert(not _.isNaN(v:sum()), 
-                "NaN Error for " .. k .. " " .. param_name)
-      end
-   end
-end
-
 function SoftmaxTree:maxNorm(max_out_norm, max_in_norm)
    assert(self.backwarded, "Should call maxNorm after a backward pass")
    max_out_norm = self.mvstate.max_out_norm or max_out_norm
@@ -267,23 +228,33 @@ end
 function SoftmaxTree:share(layer, ...)
    assert(layer.isSoftmaxTree)
    local arg = {...}
-   local module = self:paramModule()
-   for i,v in ipairs(arg) do
-      if module[v] ~= nil then
-         module[v]:set(layer:paramModule()[v])
-      end
-   end
+   layer._arrows = nil
+   -- we share the hierarchy and list of nodes as is to save memory
+   layer._nodes = self._nodes
+   layer._parents = self._parents
+   layer._children = self._children
+   layer._leafs = self._leafs
+   -- make sure they have the same type
+   layer:type(self._module_type)
    return self      
 end
 
 function SoftmaxTree:sharedClone()
-   local clone = self:clone()
+   local clone = dp.SoftmaxTree{
+      input_size=self._input_size, hierarchy={1,torch.IntTensor(1,2,3)},
+      root_id=self._root_id, sparse_init=self._sparse_init,
+      dropout=self._dropout and self._dropout:clone(),
+      typename=self._typename, gather_stats=self._gather_stats, 
+      input_type=self._input_type, output_type=self._output_type,
+      module_type=self._module_type, mvstate=self.mvstate
+   }
    return self:share(clone, 'weight', 'bias')
 end
 
 function SoftmaxTree:report()
    local report = parent.report(self) or {}
    if self._gather_stats then
+      error"Not Implemented"
       for param_name, param_table in pairs(self:parameters()) do
          local param_stats = self._stats[param_name]
          if param_stats and param_stats.grad and param_stats.grad.count > 0 then
@@ -313,6 +284,5 @@ end
 function SoftmaxTree.buildArrow(input_size, output_size)
    local node = self.buildNode(input_size, output_size)
    node:add(nn.Narrow(1, 1, 1))
-   node:add(nn.Replicate(2))
    return node
 end

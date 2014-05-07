@@ -39,15 +39,15 @@ end
 
 function Module:_forward(carry)
    self.output.act = dp.DataTensor{
-      data=self._module:forward(self.input.act:feature())
+      data=self._module:forward(self.input.act:feature(self._input_type))
    }
 end
 
 function Module:_backward(carry)
    self.input.grad = self.input.act:featureClone(
       self._module:backward(
-         self.input.act:feature(), 
-         self.output.grad:feature(),
+         self.input.act:feature(self._input_type), 
+         self.output.grad:feature(self._output_type),
          carry.scale
       )
    )
@@ -57,9 +57,10 @@ function Module:zeroGradParameters()
    self._module:zeroGradParameters()
 end
 
-function Module:type(type)
+function Module:_type(type)
+   self:inputType(type)
+   self:outputType(type)
    self._module:type(type)
-   return parent.type(self, type)
 end
 
 function Module:reset()

@@ -3,7 +3,7 @@ require 'dp'
 --[[command line arguments]]--
 cmd = torch.CmdLine()
 cmd:text()
-cmd:text('MNIST MLP Training/Optimization')
+cmd:text('Image Classification using MLP Training/Optimization')
 cmd:text('Example:')
 cmd:text('$> th neuralnetwork.lua --batchSize 128 --momentum 0.5')
 cmd:text('Options:')
@@ -90,21 +90,18 @@ train = dp.Optimizer{
       dp.MaxNorm{max_out_norm = opt.maxOutNorm}
    },
    feedback = dp.Confusion(),
-   sampler = dp.ShuffleSampler{
-      batch_size = opt.batchSize, 
-      sample_type = opt.type
-   },
+   sampler = dp.ShuffleSampler{batch_size = opt.batchSize},
    progress = true
 }
 valid = dp.Evaluator{
    loss = dp.NLL(),
    feedback = dp.Confusion(),  
-   sampler = dp.Sampler{sample_type=opt.type}
+   sampler = dp.Sampler()
 }
 test = dp.Evaluator{
    loss = dp.NLL(),
    feedback = dp.Confusion(),
-   sampler = dp.Sampler{sample_type=opt.type}
+   sampler = dp.Sampler()
 }
 
 --[[Experiment]]--

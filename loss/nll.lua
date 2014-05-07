@@ -15,18 +15,16 @@ function NLL:__init(config)
 end
 
 function NLL:_forward(carry)
-   local input = self.input.act:feature()
-   local target = self.input.target:class()
+   local input = self:inputAct()
+   local target = self.input.target:class(self._output_type)
    self.loss = self._criterion:forward(input, target)
    return carry
 end
 
 function NLL:_backward(carry)
-   local input = self.input.act:feature()
-   local target = self.input.target:class()
-   self.input.grad = self.input.act:featureClone(
-      self._criterion:backward(input, target)
-   )
+   local input = self:inputAct()
+   local target = self.input.target:class(self._output_type)
+   self:inputGrad(self._criterion:backward(input, target))
    return carry
 end
 

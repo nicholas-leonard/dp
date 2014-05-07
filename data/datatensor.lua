@@ -46,7 +46,7 @@ function DataTensor:__init(config)
        'storage. For example, while an image can be represented '..
        'as a vector, in which case it takes the form of {"b","f"}, '..
        'its expanded axes format could be {"b", "h", "w", "c"}. '..
-       '[Default={"b","f"}]'},
+       '[Default={"b","f"} for 2D data, or {"b"} for 1D data]'},
       {arg='sizes', type='table | torch.LongTensor | torch.LongStorage', 
        help='A table or torch.LongTensor holding the sizes of the '.. 
        'commensurate dimensions in axes. This should be supplied '..
@@ -64,6 +64,9 @@ function DataTensor:__init(config)
       return
    end
    self._warn = warn
+   if data:dim() == 1 and not axes then
+      axes = {'b'}
+   end
    self._data = data
    self._axes = axes or {'b','f'}
    -- Keeps track of the most expanded size (the one with more dims) of the
@@ -74,8 +77,10 @@ function DataTensor:__init(config)
    if b == 0 then
       self._axes = _.concat({'b'},self._axes)
       local b = 1
-      print("DataTensor Warning: no 'b' axis provided, assuming axes=" .. 
-         table.tostring(self._axes))
+      if self._warn then
+         print("DataTensor Warning: no 'b' axis provided, "..
+               "assuming axes="..table.tostring(self._axes))
+      end
    end
       
    self._expanded_axes = self._axes
@@ -126,8 +131,11 @@ function DataTensor:__init(config)
    end
    -- Keep track of the most expanded size
    self:storeExpandedSize(sizes)
-   assert(self._data:dim() == #(self._axes), 
-         "Error: data should have as many dims as specified in axes" )
+   if self._data:dim() ~= #(self._axes) then
+      error("data should have as many dims as specified in axes. "..
+         " data:size()="..table.tostring(self._data:size():totable())..
+         " vs. axes="..table.tostring(self._axes))
+   end
    -- this makes certain the most expanded size and axes are stored.
    self:default(nil, false, false)
 end
@@ -197,7 +205,14 @@ end
 function DataTensor:_feature(tensortype, inplace, contiguous)
    local axes = {'b','f'}
    local sizes = self:expandedSize()
-   assert(sizes:size(1) > 1, "Error: cannot guess size of features")
+   if sizes:size(1) == 1 and table.eq(self._axes, {'b'}) then
+      if self._warn then
+         print("DataTensor:feature Warning: provided data has one "..
+               "dim. Assuming dim is 'b' axis with feature size of 1")
+      end
+      self:store(self._data:resize(self._data:size(1), 1), axes)
+      sizes = self:expandedSize()
+   end
    --creates a new view of the same storage
    local data = torch.view(self._data)
    if not (data:dim() == 2 and table.eq(self._axes, axes)) then

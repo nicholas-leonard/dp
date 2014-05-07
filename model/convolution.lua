@@ -10,8 +10,7 @@ Convolution.isConvolution = true
 function Convolution:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, input_size, output_size, kernel_size, kernel_stride, 
-         pool_size, pool_stride, transfer, dropout, sparse_init, 
-         gather_stats, typename
+         pool_size, pool_stride, transfer, typename
       = xlua.unpack(
       {config},
       'Convolution', 
@@ -36,13 +35,6 @@ function Convolution:__init(config)
       {arg='transfer', type='nn.Module', req=true,
        help='a transfer function like nn.Tanh, nn.Sigmoid, '..
        'nn.ReLU, nn.Identity, etc.'},
-      {arg='dropout', type='nn.Dropout', 
-       help='applies dropout to the inputs of this model.'},
-      {arg='sparse_init', type='boolean', default=true,
-       help='sparse initialization of weights. See Martens (2010), '..
-       '"Deep learning via Hessian-free optimization"'},
-      {arg='gather_stats', type='boolean', default=false,
-       help='gather statistics on gradients'},
       {arg='typename', type='string', default='convolution', 
        help='identifies Model type in reports.'}
    )
@@ -62,16 +54,9 @@ function Convolution:__init(config)
       pool_size[1], pool_size[2],
       pool_stride[1], pool_stride[2]
    )
-   self._dropout = dropout
    self._uncuda = false -- TODO (see Neural:__init)
-   self._sparse_init = sparse_init
-   self._gather_stats = gather_stats
    config.typename = typename
    parent.__init(self, config)
-   self:reset()
-   self._tags.hasParams = true
-   self:zeroGradParameters()
-   self:checkParams()
 end
 
 function Convolution:inputAct()

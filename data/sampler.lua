@@ -81,8 +81,7 @@ function Sampler:sampleEpoch(dataset, batch)
          -- metadata
          batch:setup{
             batch_iter=stop, batch_size=self._batch_size,
-            n_sample=stop-start+1, grad_type=self._sample_type, 
-            indices=torch.range(start,stop)
+            n_sample=stop-start+1, indices=torch.range(start,stop)
          }
          start = start + self._batch_size
          if start >= nSample then
@@ -153,20 +152,19 @@ function ShuffleSampler:sampleEpoch(dataset)
    local start = 1
    local stop
    -- shuffle before each epoch
-   local dataset_indices = torch.randperm(nSample)
+   local dataset_indices = torch.randperm(nSample):long()
    -- build iterator
    local epochSamples = 
       function(batch)
          batch = batch or dataset:batch(self._batch_size)
          stop = math.min(start+self._batch_size-1,nSample)
-         local batch_indices = dataset_indices:sub(start,stop):long()
+         local batch_indices = dataset_indices:sub(start,stop)
          -- inputs and targets
          dataset:index(batch, batch_indices)
          -- metadata
          batch:setup{
             batch_iter=stop, batch_size=self._batch_size,
-            n_sample=stop-start+1, grad_type=self._sample_type, 
-            indices=torch.range(start,stop)
+            n_sample=stop-start+1, indices=torch.range(start,stop)
          }
          start = start + self._batch_size
          if start >= nSample then

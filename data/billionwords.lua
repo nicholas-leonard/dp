@@ -17,7 +17,8 @@ BillionWords._unknown_word = 793469 --"<UNK>"
 
 function BillionWords:__init(config) 
    config = config or {}
-   assert(not config[1], "Constructor requires key-value arguments")
+   assert(torch.type(config) == 'table' and not config[1], 
+      "Constructor requires key-value arguments")
    local args, load_all
    args, self._context_size, self._train_file, self._valid_file, 
          self._test_file, self._word_file, self._data_path, 

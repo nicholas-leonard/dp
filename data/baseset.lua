@@ -80,7 +80,8 @@ end
 --DataTensor:image(), :expandedAxes(), etc. can be used.
 function BaseSet:preprocess(config)
    config = config or {}
-   assert(not config[1], "Constructor requires key-value arguments")
+   assert(torch.type(config) == 'table' and not config[1], 
+      "Constructor requires key-value arguments")
    local args, input_preprocess, target_preprocess, can_fit
       = xlua.unpack(
          {config},

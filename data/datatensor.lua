@@ -280,12 +280,15 @@ function DataTensor:index(dt, indices, config)
       -- dont use datatensor if cuda (index not in cutorch yet)
       if data:type() ~= 'torch.CudaTensor' then
          torch.Tensor.index(data, self:default(), self:b(), indices)
-         sizes[self:b()] = indices:size(1)
-         dt:__init(table.merge(config, {
-            data=data, sizes=sizes, axes=table.copy(self:expandedAxes())
-         }))
-         return dt
+      else
+         data = self:default():index(self:b(), indices)
       end
+      sizes[self:b()] = indices:size(1)
+      dt:__init(table.merge(config, {
+         data=data, sizes=sizes, axes=table.copy(self:expandedAxes())
+      }))
+      --TODO : copy to existing cuda memory + use index cache
+      return dt
    end
    indices = indices or dt
    data = self:default():index(self:b(), indices)

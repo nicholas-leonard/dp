@@ -233,6 +233,26 @@ function dptest.sequential()
    mytester:assertTensorEq(mlp_act, act:feature(), 0.00001)
    mytester:assertTensorEq(mlp_grad, grad:feature(), 0.00001)
 end
+function dptest.softmaxtree()
+   local input_tensor = torch.randn(5,10)
+   local target_tensor = torch.randperm(26-9):narrow(1, 1, 5):add(9)
+   local grad_tensor = torch.randn(5)
+   local hierarchy={
+      [-1]=torch.IntTensor{0,1,2}, [1]=torch.IntTensor{3,4,5}, 
+      [2]=torch.IntTensor{6,7,8}, [3]=torch.IntTensor{9,10,11},
+      [4]=torch.IntTensor{12,13,14}, [5]=torch.IntTensor{15,16,17},
+      [6]=torch.IntTensor{18,19,20}, [7]=torch.IntTensor{21,22,23},
+      [8]=torch.IntTensor{24,25,26}
+   }
+   -- dp
+   local input = dp.DataTensor{data=input_tensor}
+   local target = dp.ClassTensor{data=target_tensor}
+   local model = dp.SoftmaxTree{input_size=10, hierarchy=hierarchy}
+   local act, carry = model:forward(input, {nSample=5, targets=target})
+   local grad, carry = model:backward(dp.DataTensor{data=grad_tensor}, carry)
+   mytester:assertTableEq(act:feature():size():totable(), {5,1}, 0.000001, "Wrong act size")
+   mytester:assertTableEq(grad:feature():size():totable(), {5,10}, 0.000001, "Wrong grad size")
+end
 function dptest.nll()
    local input_tensor = torch.randn(5,10)
    local target_tensor = torch.randperm(10):sub(1,5)

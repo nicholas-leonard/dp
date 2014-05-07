@@ -7,7 +7,7 @@
 -- Root_id defaults to -1.
 -- TODO : sum LogSoftMaxs, cache modules
 ------------------------------------------------------------------------
-local SoftmaxTree, parent = torch.class("dp.SoftmaxTree", "dp.Model")
+local SoftmaxTree, parent = torch.class("dp.SoftmaxTree", "dp.Layer")
 SoftmaxTree.isSoftmaxTree = true
 
 function SoftmaxTree:__init(config)
@@ -21,7 +21,7 @@ function SoftmaxTree:__init(config)
       {arg='hierarchy', type='table', req=true,
        help='A table mapping parent_ids to a tensor of child_ids'},
       {arg='root_id', type='number | string', default=-1,
-       help='id of the root of the tree.'}
+       help='id of the root of the tree.'},
       {arg='typename', type='string', default='softmaxtree', 
        help='identifies Model type in reports.'}
    )
@@ -40,19 +40,18 @@ function SoftmaxTree:__init(config)
    end
    -- extract leafs and index parents by children
    leafs = {}
-   children = {}
+   self._children = {}
    for parent_id, node in pairs(parents) do
       local children = node[2]
-      for i=1,children:size() do
+      for i=1,children:size(1) do
          local child_id = children[i]
-         if self._parents[child_id] then
+         if parents[child_id] then
             table.insert(leafs, parent_id)
          end
-         children[child_id] = {parent_id, i}
+         self._children[child_id] = {parent_id, i}
       end
    end
    self._leafs = leafs
-   self._children = children
    self._parents = parents
    -- temp fix until indexSelect is added to cutorch:
    self._arrows = {}
@@ -69,12 +68,14 @@ function SoftmaxTree:_forward(carry)
       activation = self._dropout:forward(activation)
       self.mvstate.dropoutAct = activation
    end
+   assert(carry.targets and carry.targets.isClassTensor,
+      "carry.targets should refer to a ClassTensor of targets")
    local targets = carry.targets:class()
    -- When indexSelect will be part of cutorch, we could ostensibly
    -- build a tree of batches.
    -- Until then, each sample has its own chain of modules which share 
    -- params with a path down tree.
-   self._module = nn.Parallel(1,1)
+   local parallel = nn.Parallel(1,1)
    self._active_nodes = {}
    for i=1,activation:size(1) do
       local child_id = targets[i]
@@ -90,24 +91,33 @@ function SoftmaxTree:_forward(carry)
          -- only multiply probability of parent
          arrow:get(3).index = child_idx
          -- share params
-         arrow:get(1):share(node:get(1), 'weight', 'bias')
+         local arrow_linear = arrow:get(1)
+         local node_linear = node:get(1)
+         arrow_linear:share(node_linear, 'weight', 'bias')
+         -- resize gradients
+         arrow_linear.gradWeight:resizeAs(node_linear.gradWeight):zero()
+         arrow_linear.gradBias:resizeAs(node_linear.gradBias):zero()
          concat:add(arrow)
          -- cache for next batch
          arrows[dept] = arrow
          if parent_id == self._root_id then
             break
          end
+         child_id = parent_id
          dept = dept + 1
       end
-      -- sample channel
+      -- sample channel (one channel per sample)
       local channel = nn.Sequential()
       channel:add(concat)
       channel:add(nn.CMulTable())
-      self._module:add(channel)
+      parallel:add(channel)
    end
    -- make sure it has the right type
-   self._module:type(self:moduleType())
-   -- outputs a 1D tensor of likelihoods of targets
+   self._module = nn.Sequential()
+   self._module:add(parallel)
+   self._module:add(nn.Reshape(activation:size(1), 1))
+   --self._module:type(self:moduleType())
+   -- outputs a column vector of likelihoods of targets
    activation = self._module:forward(activation)
    self:outputAct(activation)
    return carry
@@ -126,23 +136,6 @@ function SoftmaxTree:_backward(carry)
    end
    self:inputGrad(output_grad)
    return carry
-end
-
-function SoftmaxTree:outputGrad()
-   return self.output.grad:multi('feature', self._output_type)
-end
-
-function SoftmaxTree:outputAct(output_act)
-   if output_act then
-      -- wrap table of tensors in dp.ComposteTensor
-      self.output.act = dp.CompositeTensor{
-         components = _.map(activation, function(k,v)
-            return dp.DataTensor{data=v}
-         end)
-      }
-      return
-   end
-   return self.output.act:feature(self._output_type)
 end
 
 -- if after feedforward, returns active nodes 
@@ -282,7 +275,7 @@ function SoftmaxTree.buildNode(input_size, output_size)
 end
 
 function SoftmaxTree.buildArrow(input_size, output_size)
-   local node = self.buildNode(input_size, output_size)
+   local node = SoftmaxTree.buildNode(input_size, output_size)
    node:add(nn.Narrow(1, 1, 1))
    return node
 end

@@ -7,13 +7,13 @@ end
 
 function Print:updateOutput(input)
    self.output = input
-   print(self.prefix..":input", input)
+   print(self.prefix..":input\n", input)
    return self.output
 end
 
 
 function Print:updateGradInput(input, gradOutput)
-   print(self.prefix.."gradOuput", gradOutput)
+   print(self.prefix.."gradOuput\n", gradOutput)
    self.gradInput = gradOutput
    return self.gradInput
 end

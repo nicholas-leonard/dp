@@ -115,6 +115,7 @@ torch.include('dp', 'model/sequential.lua')
 torch.include('dp', 'model/layer.lua')
 torch.include('dp', 'model/neural.lua')
 torch.include('dp', 'model/module.lua')
+torch.include('dp', 'model/softmaxtree.lua')
 
 --[[ loss ]]--
 torch.include('dp', 'loss/loss.lua')

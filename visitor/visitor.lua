@@ -40,18 +40,20 @@ end
 
 function Visitor:setup(config)
    assert(type(config) == 'table', "Setup requires key-value arguments")
-   local args, mediator, model, propagator = xlua.unpack(
+   local args, mediator, model, propagator, id = xlua.unpack(
       {config},
       'Visitor:setup', nil,
       {arg='mediator', type='dp.Mediator'},
       {arg='model', type='dp.Model'},
-      {arg='propagator', type='dp.Propagator'}
+      {arg='propagator', type='dp.Propagator'},
+      {arg='id', type='dp.ObjectID',
+       help='Set automatically by propagator. Use only for unit tests'}
    )
    self._mediator = mediator
    -- not sure including model is good idea...
    self._model = model
    self._propagator = propagator
-   self._id = propagator:id():create(self._name)
+   self._id = id or propagator:id():create(self._name)
    self._name = nil
    if self._observer then
       self._observer:setup{mediator=mediator, subject=self}

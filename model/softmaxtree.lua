@@ -116,7 +116,7 @@ function SoftmaxTree:_forward(carry)
    self._module = nn.Sequential()
    self._module:add(parallel)
    self._module:add(nn.Reshape(activation:size(1), 1))
-   --self._module:type(self:moduleType())
+   self._module:type(self:moduleType())
    -- outputs a column vector of likelihoods of targets
    activation = self._module:forward(activation)
    self:outputAct(activation)
@@ -218,9 +218,8 @@ function SoftmaxTree:maxNorm(max_out_norm, max_in_norm)
    end
 end
 
-function SoftmaxTree:share(layer, ...)
+function SoftmaxTree:share(layer)
    assert(layer.isSoftmaxTree)
-   local arg = {...}
    layer._arrows = nil
    -- we share the hierarchy and list of nodes as is to save memory
    layer._nodes = self._nodes

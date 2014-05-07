@@ -8,16 +8,20 @@ local Node = torch.class("dp.Node")
 Node.isNode = true
 
 function Node:__init(config)
+   config = config or {}
+   assert(torch.type(config) == 'table' and not config[1], 
+      "Constructor requires key-value arguments")
    local default_type = torch.getdefaulttensortype()
    local args, input_type, output_type, module_type = xlua.unpack(
+      {config},
       'Node', 
       'Forward and backward propagates representations.',
       {arg='input_type', type='string', default=default_type,
-       'type of input activation and gradient tensors'},
+       help='type of input activation and gradient tensors'},
       {arg='output_type', type='string', default=default_type,
-       'type of output activation and gradient tensors'},
+       help='type of output activation and gradient tensors'},
       {arg='module_type', type='string', default=default_type,
-       'type of modules used in this Node'}
+       help='type of modules used in this Node'}
    )
    self:inputType(input_type)
    self:outputType(output_type)

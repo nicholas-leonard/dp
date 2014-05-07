@@ -9,7 +9,8 @@ Sequential.isSequential = true
 
 function Sequential:__init(config)
    config = config or {}
-   assert(not config[1], "Constructor requires key-value arguments")
+   assert(torch.type(config) == 'table' and not config[1], 
+      "Constructor requires key-value arguments")
    config.typename = config.typename or 'sequential'
    parent.__init(self, config)
 end

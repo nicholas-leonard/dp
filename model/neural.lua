@@ -80,12 +80,10 @@ function Neural:paramModule()
 end
 
 function Neural:_type(type)
-   self._input_type = type
-   self._output_type = type
+   self:inputType(type)
+   self:outputType(type)
    self._affine:type(type)
-   if type ~= 'torch.CudaTensor' and not self._uncuda then
-      self._transfer:type(type)
-   end
+   self._transfer:type(type)
    if self._dropout then
       self._dropout:type(type)
    end

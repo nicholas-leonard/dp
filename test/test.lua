@@ -60,14 +60,24 @@ function dptest.classtensor()
    local size = {48,4}
    local data = torch.rand(unpack(size))
    local axes = {'b','t'}
-   local d = dp.ClassTensor{data=data, axes=axes}
-   local t = d:multiclass()
+   local dt = dp.ClassTensor{data=data, axes=axes}
+   local t = dt:multiclass()
    mytester:assertTableEq(t:size():totable(), size, 0.0001)
    mytester:assertTensorEq(t, data, 0.00001)
-   local i = d:class()
+   local i = dt:class()
    mytester:asserteq(i:dim(),1)
    mytester:assertTableEq(i:size(1), size[1], 0.0001)
    mytester:assertTensorEq(i, data:select(2,1), 0.00001)
+   -- indexing
+   local indices = torch.LongTensor{2,3}
+   local fi = dt:index(indices)
+   mytester:assertTensorEq(fi:multiclass(), data:index(1, indices), 0.000001)
+   local dt2 = dp.ClassTensor{data=torch.zeros(8,4), axes=axes}
+   local fi2 = dt:index(dt2, indices)
+   mytester:assertTensorEq(fi2:multiclass(), fi:multiclass(), 0.0000001)
+   mytester:assertTensorEq(dt2._data, fi2:multiclass(), 0.0000001)
+   local fi3 = dt:index(nil, indices)
+   mytester:assertTensorEq(fi2:multiclass(), fi:multiclass(), 0.0000001)
 end
 function dptest.compositetensor()
    -- class tensor

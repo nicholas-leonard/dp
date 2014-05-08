@@ -120,6 +120,7 @@ torch.include('dp', 'model/softmaxtree.lua')
 --[[ loss ]]--
 torch.include('dp', 'loss/loss.lua')
 torch.include('dp', 'loss/nll.lua')
+torch.include('dp', 'loss/treenll.lua')
 
 --[[ hyper ]]--
 torch.include('dp', 'hyper/hyperoptimizer.lua')

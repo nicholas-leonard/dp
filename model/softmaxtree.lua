@@ -143,7 +143,6 @@ function SoftmaxTree:paramModule()
    if self.forwarded then
       return self._module
    end
-   print"SoftmaxTree:paramModule : warning returning all modules"
    return self._nodes
 end
 
@@ -177,7 +176,6 @@ function SoftmaxTree:parameters()
    if self.forwarded then
       nodes = self._active_nodes
    else
-      print"SoftmaxTree:parameters : warning returning all parameters"
       nodes = _.map(self._parents, function(k,v) return v[1] end)
    end
    for i,node in ipairs(nodes) do

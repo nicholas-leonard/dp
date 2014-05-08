@@ -31,7 +31,6 @@ function SoftmaxTree:__init(config)
    parents = {}
    -- any container would do here. We just use it for changing types.
    self._nodes = nn.Parallel()
-   local children
    for parent_id, children in pairs(hierarchy) do
       assert(children:dim() == 1, "Expecting a 1D tensor of child_ids")
       local node = self.buildNode(input_size, children:size(1))
@@ -233,7 +232,7 @@ end
 
 function SoftmaxTree:sharedClone()
    local clone = dp.SoftmaxTree{
-      input_size=self._input_size, hierarchy={1,torch.IntTensor(1,2,3)},
+      input_size=self._input_size, hierarchy={[1]=torch.IntTensor{1,2,3}},
       root_id=self._root_id, sparse_init=self._sparse_init,
       dropout=self._dropout and self._dropout:clone(),
       typename=self._typename, gather_stats=self._gather_stats, 

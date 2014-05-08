@@ -85,8 +85,8 @@ function SoftmaxTree:_forward(carry)
       while true do
          local parent_id, child_idx = unpack(self._children[child_id])
          local node, children = unpack(self._parents[parent_id])
-         table.insert(self._active_nodes, node)
          local arrow = arrows[dept] or self.buildArrow(1,1)
+         table.insert(self._active_nodes, arrow)
          -- only multiply probability of parent
          arrow:get(3).index = child_idx
          -- share params

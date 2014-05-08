@@ -111,14 +111,12 @@ function table.channelValues(tbls, channel)
    return values
 end
 
-function table.fromString(str,splitter)
+function table.fromString(str,splitter, f)
+   f = f or  function(k,c) return tonumber(c) end
    if type(str) == 'table' then
       return str
    end
    splitter = splitter or '[,]'
-   return _.map(
-      _.split(str:sub(2,-2),splitter), 
-      function(k,c) return tonumber(c) end
-   )
+   return _.map(_.split(str:sub(2,-2),splitter), f)
 end
 

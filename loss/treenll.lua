@@ -14,7 +14,7 @@ TreeNLL.isTreeNLL = true
 function TreeNLL:__init(config)
    self._module = nn.Sequential()
    self._module:add(nn.Log())
-   self._module:add(nn.Mean())
+   self._module:add(nn.Mean()) --not in cunn
    config = config or {}
    parent.__init(self, config)
    self._output_grad = torch.Tensor{-1}
@@ -33,9 +33,10 @@ function TreeNLL:_backward(carry)
 end
 
 function TreeNLL:_type(type)
-   self._input_type = type
-   -- this actually doesn't change anything
-   self._output_type = type 
-   self._module:type(type)
-   self._output_grad = self._output_grad:type(type)
+   if type == 'torch.FloatTensor' or type == 'torch.DoubleTensor' then
+      self._input_type = type
+   elseif type == 'torch.IntTensor' or type == 'torch.LongTensor' then
+      -- this actually doesn't change anything:
+      self._output_type = type
+   end
 end

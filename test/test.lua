@@ -338,7 +338,7 @@ function dptest.nll()
    mytester:assertTensorEq(c_grad, grad:feature(), 0.00001)
 end
 function dptest.treenll()
-   local input_tensor = torch.randn(5,10):add(100)
+   local input_tensor = torch.randn(5,10):add(100) -- add for log nans
    local target_tensor = torch.ones(5) --all targets are 1
    -- dp
    local input = dp.DataTensor{data=input_tensor:narrow(2,1,1)}

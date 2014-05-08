@@ -115,8 +115,8 @@ function dptest.sequential()
    local mlp_act = mlp:forward(tensor)
    local mlp_grad = mlp:backward(tensor, grad_tensor)
    -- compare nn and dp
-   mytester:assertTensorEq(mlp_act, act:feature('torch.DoubleTensor'), 0.00001)
-   mytester:assertTensorEq(mlp_grad, grad:feature('torch.DoubleTensor'), 0.00001)
+   mytester:assertTensorEq(mlp_act, act:feature('torch.DoubleTensor'), 0.0001)
+   mytester:assertTensorEq(mlp_grad, grad:feature('torch.DoubleTensor'), 0.0001)
 end
 function dptest.nll()
    local input_tensor = torch.randn(5,10)
@@ -136,6 +136,28 @@ function dptest.nll()
    -- compare nn and dp
    mytester:asserteq(c_err, err, 0.00001)
    mytester:assertTensorEq(c_grad:float(), grad:feature('torch.FloatTensor'), 0.00001)
+end
+function dptest.treenll()
+   local input_tensor = torch.randn(5,10):add(100)
+   local target_tensor = torch.ones(5) --all targets are 1
+   -- dp
+   local input = dp.DataTensor{data=input_tensor:narrow(2,1,1)}
+   local target = dp.ClassTensor{data=target_tensor}
+   local loss = dp.TreeNLL()
+   loss:cuda()
+   -- the targets are actually ignored (SoftmaxTree uses them before TreeNLL)
+   local err, carry = loss:forward(input, target, {nSample=5})
+   local grad = loss:backward(input, target, carry)
+   -- nn
+   local criterion = nn.ClassNLLCriterion()
+   local lg = nn.Log()
+   local l_act = lg:forward(input_tensor)
+   local c_err = criterion:forward(l_act, target_tensor)
+   local c_grad = criterion:backward(l_act, target_tensor)
+   local l_grad = lg:backward(input_tensor, c_grad)
+   -- compare nn and dp
+   mytester:asserteq(c_err, err, 0.00001)
+   mytester:assertTensorEq(l_grad:narrow(2,1,1):float(), grad:feature():float(), 0.00001)
 end
 
 function dp.testCuda(tests)

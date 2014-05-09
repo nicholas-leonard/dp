@@ -56,6 +56,10 @@ function dptest.imagetensor()
    mytester:assertTensorEq(dt2._data, fi2:feature(), 0.0000001)
    local fi3 = dt:index(nil, indices)
    mytester:assertTensorEq(fi2:feature(), fi:feature(), 0.0000001)
+   -- cloning
+   local clone_data = torch.rand(unpack(size))
+   local clone = dt:imageClone(clone_data)
+   mytester:assertTensorEq(dt:image(), clone_data, 0.0001)
 end
 function dptest.classtensor()
    local size = {48,4}

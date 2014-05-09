@@ -310,6 +310,7 @@ end
 
 -- return a clone with self's metadata initialized with some data 
 function DataTensor:featureClone(data)
+   assert(data:dim() == 2, "data is not a feature view")
    local sizes = self:expandedSize():clone()
    assert(sizes[self:b()] == data:size(1))
    local clone = torch.protoClone(self, {

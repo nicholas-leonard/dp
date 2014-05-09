@@ -44,7 +44,7 @@ function SoftmaxTree:__init(config)
       local children = node[2]
       for i=1,children:size(1) do
          local child_id = children[i]
-         if parents[child_id] then
+         if not parents[child_id] then
             table.insert(leafs, parent_id)
          end
          self._children[child_id] = {parent_id, i}
@@ -83,7 +83,11 @@ function SoftmaxTree:_forward(carry)
       local concat = nn.ConcatTable() --concat arrows ordered by dept
       local dept = 1
       while true do
-         local parent_id, child_idx = unpack(self._children[child_id])
+         local parents = self._children[child_id]
+         if not parents then
+            error("Child "..child_id.." has no parents")
+         end
+         local parent_id, child_idx = unpack(parents)
          local node, children = unpack(self._parents[parent_id])
          local arrow = arrows[dept] or self.buildArrow(1,1)
          table.insert(self._active_nodes, arrow)

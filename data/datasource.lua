@@ -27,7 +27,7 @@ function DataSource:__init(config)
       'DataSets by fitting the preprocess (e.g. Standardization) on ' ..
       'only the training set, and reusing the same statistics on ' ..
       'the validation and test sets',
-      {arg='train_set', type='dp.DataSet', req=true,
+      {arg='train_set', type='dp.DataSet', --req=true,
        help='used for optimizing (e.g. backpropagating) a ' ..
       'Criteria to a model. '},
       {arg='valid_set', type='dp.DataSet',

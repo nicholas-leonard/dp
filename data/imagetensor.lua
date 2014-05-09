@@ -132,6 +132,30 @@ function ImageTensor:imageCHWB(tensortype, inplace, contiguous)
 end
 
 function ImageTensor:default(tensortype, inplace, contiguous)
+   -- self:image() depends on tensortype. Used for cloning
+   tensortype = tensortype or torch.typename(self._data)
    return self:image(tensortype, inplace, contiguous)
 end
+
+function ImageTensor:imageClone(data)
+   assert(data:dim() == 4, "data is not an image")
+   local sizes = self:expandedSize():clone()
+   if not (sizes[1] == data:size(1) and sizes[2] == data:size(2) and 
+         sizes[3] == data:size(3) and sizes[4] == data:size(4)) then
+      --data has different size than self, try another view
+      self:image(torch.type(data), false, false)
+      sizes = self:expandedSize():clone()
+      assert(sizes[1] == data:size(1) and sizes[2] == data:size(2)
+         and sizes[3] == data:size(3) and sizes[4] == data:size(4),
+         "Image size doesnt match any known views")
+   end
+   local clone = torch.protoClone(self, {
+      data=data, axes=table.copy(self:expandedAxes()), sizes=sizes
+   })
+   if not clone.isImageTensor then
+      error("Clone failed. data:"..torch.type(data).." clone:"..torch.type(clone))
+   end
+   return clone
+end
+
 

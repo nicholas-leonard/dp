@@ -1,4 +1,3 @@
-require 'dp'
 ------------------------------------------------------------------------
 --[[ BillionWords ]]--
 -- The corpus is derived from the 
@@ -107,15 +106,22 @@ function BillionWords:loadData(file_name, download_url)
    }
    local tensor = torch.load(path)
    assert(tensor:size(2) == 2)
+   collectgarbage()
    return tensor
 end
 
 -- this can be used to initialize a softmaxTree
 function BillionWords:hierarchy(file_name)
-   file_name = file_name or 'word_cluster.th7'
+   file_name = file_name or 'word_tree1.th7'
    local hierarchy = torch.load(
       paths.concat(self._data_path, self._name, file_name)
    )
+   _.map(hierarchy, function(k,v) 
+      assert(torch.type(k) == 'number', 
+         "Hierarchy keys should be numbers")
+      assert(torch.type(v) == 'torch.IntTensor', 
+         "Hierarchy values should be torch.IntTensors")
+   end)
    return hierarchy
 end
 

@@ -39,8 +39,6 @@ torch.include('dp', 'xplog.lua')
 torch.include('dp', 'mediator.lua')
 torch.include('dp', 'objectid.lua')
 torch.include('dp', 'node.lua')
-torch.include('dp', 'test/test.lua')
-torch.include('dp', 'test/test-cuda.lua')
 
 --[[ data ]]--
 torch.include('dp', 'data/conv2d.lua')
@@ -63,6 +61,7 @@ torch.include('dp', 'data/sampler.lua')
 torch.include('dp', 'data/cifar10.lua')
 torch.include('dp', 'data/cifar100.lua')
 torch.include('dp', 'data/notmnist.lua')
+torch.include('dp', 'data/billionwords.lua')
 
 --[[ preprocess ]]--
 torch.include('dp', 'preprocess/preprocess.lua')
@@ -140,5 +139,10 @@ torch.include('dp', 'postgres/earlystopper.lua')
 torch.include('dp', 'postgres/done.lua')
 torch.include('dp', 'postgres/mlpfactory.lua')
 torch.include('dp', 'postgres/hyperoptimizer.lua')
+
+--[[ test ]]--
+torch.include('dp', 'test/test.lua')
+torch.include('dp', 'test/test-cuda.lua')
+torch.include('dp', 'test/test-datasets.lua')
 
 return dp

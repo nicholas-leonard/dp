@@ -45,12 +45,12 @@ train = dp.Optimizer{
 valid = dp.Evaluator{
    loss = dp.NLL(),
    feedback = dp.Confusion(),  
-   sampler = dp.Sampler{}
+   sampler = dp.Sampler()
 }
 test = dp.Evaluator{
    loss = dp.NLL(),
    feedback = dp.Confusion(),
-   sampler = dp.Sampler{}
+   sampler = dp.Sampler()
 }
 
 --[[Experiment]]--

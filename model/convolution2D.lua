@@ -63,11 +63,7 @@ function Convolution2D:__init(config)
    parent.__init(self, config)
 end
 
-function Convolution2D:inputAct(input_act)
-   if input_act then
-      self.input.act = input_act:shallowClone()
-      return
-   end
+function Convolution2D:inputAct()
    return self.input.act:conv2D(self._input_type)
 end
 
@@ -91,11 +87,6 @@ function Convolution2D:outputAct(output_act)
 end
 
 function Convolution2D:outputGrad()
-   if output_grad then
-      self.output.grad = self.output.act:shallowClone()
-      self.output.grad:setData(output_grad)
-      return
-   end
    return self.output.grad:conv2D(self._output_type)
 end
 
@@ -107,7 +98,6 @@ function Convolution2D:_forward(carry)
       activation = self._dropout:forward(activation)
       self.mvstate.dropoutAct = activation
    end
-   print(activation:size())
    activation = self._module:forward(activation)
    self:outputAct(activation)
    return carry

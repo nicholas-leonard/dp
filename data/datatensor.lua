@@ -212,7 +212,7 @@ function DataTensor:feature(tensortype, inplace, contiguous)
          --make (transpose) the batch dim the first dim
          data = data:transpose(1, b)
          --make contiguous for a later resize (may result in new storage)
-         data = data:contiguous() --TODO remove
+         data:set(data:contiguous())
       end
       if data:dim() > 2 then
          --convert non-b axes to f :

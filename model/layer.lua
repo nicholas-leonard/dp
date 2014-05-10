@@ -36,7 +36,9 @@ end
 
 function Layer:inputGrad(input_grad)
    if input_grad then
-      self.input.grad = self.input.act:featureClone(input_grad)
+      assert(torch.isTensor(input_grad))
+      self.input.grad = self.input.act:shallowClone()
+      self.input.grad:setData(input_grad)
       return
    end
    return self.input.grad:feature(self._input_type)
@@ -45,6 +47,7 @@ end
 function Layer:outputAct(output_act)
    if output_act then
       -- wrap torch.Tensor in a dp.DataTensor
+      assert(torch.isTensor(output_act))
       self.output.act = dp.DataTensor{data=output_act}
       return
    end

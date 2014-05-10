@@ -17,7 +17,8 @@ function Model:__init(config)
        help='table of tags used for determining which visitors ' ..
        'are allowed to visit the model'},
       {arg='mvstate', type='table', default={},
-       help='model-visitor state'}
+       help='model-visitor state. Can be used to specify arguments '..
+       'to visitors that will adapt these to the model.'}
    )
    self._typename = typename
    self._tags = tags -- tags
@@ -48,7 +49,7 @@ end
 
 function Model:forward(input, carry)
    assert(input.isBaseTensor, "Expecting dp.BaseTensor input")
-   self.input.act = input
+   self.input.act = input:shallowClone()
    self:updateStatistics(carry)
    carry = self:_forward(carry) or carry
    assert(self.output.act.isBaseTensor, "Expecting dp.BaseTensor output")
@@ -58,7 +59,7 @@ end
 
 function Model:evaluate(input, carry)
    assert(input.isBaseTensor, "Expecting dp.BaseTensor instance")
-   self.input.act = input
+   self.input.act = input:shallowClone()
    carry.evaluate = true
    self:updateStatistics(carry)
    carry = self:_evaluate(carry) or carry
@@ -70,11 +71,27 @@ end
 
 function Model:backward(output, carry)
    assert(output.isBaseTensor, "Expecting dp.BaseTensor output")
-   self.output.grad = output
+   self.output.grad = output:shallowClone()
    carry = self:_backward(carry) or carry
    assert(self.input.grad.isBaseTensor, "Expecting dp.BaseTensor grad")
    self.backwarded = true
    return self.input.grad, carry
+end
+
+function Model:inputAct(input_act)
+   error"Not Implemented"
+end
+
+function Model:inputGrad(input_grad)
+   error"Not Implemented"
+end
+
+function Model:outputAct(output_act)
+   error"Not Implemented"
+end
+
+function Model:outputGrad(output_grad)
+   error"Not Implemented"
 end
 
 function Model:accept(visitor)

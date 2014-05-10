@@ -29,13 +29,13 @@ function dptest.datatensor()
    mytester:assertTensorEq(fi2:feature(), fi:feature(), 0.0000001)
 end
 function dptest.imagetensor()
-   local size = {3,32,32,3}
-   local feature_size = {3,32*32*3}
+   local size = {8,32,32,3}
+   local feature_size = {8,32*32*3}
    local data = torch.rand(unpack(size))
    local axes = {'b','h','w','c'}
    local dt = dp.ImageTensor{data=data, axes=axes}
    -- convert to image (shouldn't change anything)
-   local i = dt:image()
+   local i = dt:imageBHWC()
    mytester:assertTensorEq(i, data, 0.0001)
    mytester:assertTableEq(i:size():totable(), size, 0.0001)
    -- convert to feature (should colapse last dims)
@@ -43,9 +43,22 @@ function dptest.imagetensor()
    mytester:assertTableEq(t:size():totable(), feature_size, 0.0001)
    mytester:assertTensorEq(i, data, 0.00001)
    -- convert to image (should expand last dim)
-   local i = dt:image()
+   local i = dt:imageBHWC()
    mytester:assertTensorEq(i, data, 0.0001)
    mytester:assertTableEq(i:size():totable(), size, 0.0001)
+   -- convert to imageBCHW()
+   local i5 = dt:imageBCHW()
+   mytester:assertTensorEq(i5, data:transpose(2,4):transpose(3,4), 0.0001)
+   mytester:assertTableEq(i5:size():totable(), {8,3,32,32}, 0.0001)
+   -- create from BCHW
+   local dt4 = dp.ImageTensor{data=data:transpose(2,4):transpose(3,4), axes={'b','c','h','w'}}
+   local i4 = dt:imageBHWC()
+   mytester:assertTensorEq(i4, data, 0.0001)
+   mytester:assertTableEq(i4:size():totable(), size, 0.0001)
+   -- convert to imageBCHW()
+   local i6 = dt:imageBCHW()
+   mytester:assertTensorEq(i6, data:transpose(2,4):transpose(3,4), 0.0001)
+   mytester:assertTableEq(i6:size():totable(), {8,3,32,32}, 0.0001)
    -- indexing
    local indices = torch.LongTensor{2,3}
    local fi = dt:index(indices)
@@ -366,8 +379,11 @@ function dptest.treenll()
 end
 function dptest.convolution2D()
    local size = {8,32,32,3}
+   local output_size = {8,20,15,15}
    local data = torch.rand(unpack(size))
+   local grad_tensor = torch.randn(unpack(output_size))
    local axes = {'b','h','w','c'}
+   local output_axes = {'b','c','h','w'}
    -- dp
    local input = dp.ImageTensor{data=data, axes=axes}
    local layer = dp.Convolution2D{
@@ -376,31 +392,34 @@ function dptest.convolution2D()
       transfer=nn.Tanh()
    }
    local act, carry = layer:forward(input, {nSample=8})
-   print(act:size())
-   local grad = layer:backward(dp.DataTensor{data=grad_tensor}, carry)
+   mytester:assertTableEq(act:conv2D():size():totable(), output_size, 0.00001)
+   local grad = layer:backward(dp.ImageTensor{data=grad_tensor,axes=output_axes}, carry)
+   mytester:assertTableEq(grad:conv2D():size():totable(), {8,3,32,32}, 0.00001)
    -- nn
    local mlp = nn.Sequential()
-   local m = nn.Linear(10,2)
-   m:share(layer._affine, 'weight', 'bias')
+   local m = nn.SpatialConvolution(3,20,3,3,1,1)
+   m:share(layer._conv, 'weight', 'bias')
    mlp:add(m)
    mlp:add(nn.Tanh())
-   local mlp_act = mlp:forward(tensor)
-   local mlp_grad = mlp:backward(tensor, grad_tensor)
+   mlp:add(nn.SpatialMaxPooling(2,2,2,2))
+   local mlp_act = mlp:forward(input:imageBCHW())
+   local mlp_grad = mlp:backward(input:imageBCHW(), grad_tensor)
    -- compare nn and dp
-   mytester:assertTensorEq(mlp_act, act:feature(), 0.00001)
-   mytester:assertTensorEq(mlp_grad, grad:feature(), 0.00001)
+   mytester:assertTensorEq(mlp_act, act:conv2D(), 0.00001)
+   mytester:assertTableEq(mlp_grad:size():totable(), grad:conv2D():size():totable(), 0.00001)
+   mytester:assertTensorEq(mlp_grad, grad:conv2D(), 0.00001)
    -- update
-   local act_ten = act:feature():clone()
-   local grad_ten = grad:feature():clone()
+   local act_ten = act:image():clone()
+   local grad_ten = grad:image():clone()
    local visitor = dp.Learn{learning_rate=0.1}
    visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
    layer:accept(visitor)
    layer:doneBatch()
    -- forward backward
    local act2, carry2 = layer:forward(input, {nSample=5})
-   local grad2, carry2 = layer:backward(dp.DataTensor{data=grad_tensor}, carry2)
-   mytester:assertTensorNe(act_ten, act2:feature(), 0.00001)
-   mytester:assertTensorNe(grad_ten, grad2:feature(), 0.00001)
+   local grad2, carry2 = layer:backward(dp.ImageTensor{data=grad_tensor,axes=output_axes}, carry2)
+   mytester:assertTensorNe(act_ten, act2:image(), 0.00001)
+   mytester:assertTensorNe(grad_ten, grad2:image(), 0.00001)
 end
 
 function dp.test(tests)

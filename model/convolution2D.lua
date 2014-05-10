@@ -63,33 +63,6 @@ function Convolution2D:__init(config)
    parent.__init(self, config)
 end
 
-function Convolution2D:inputAct()
-   return self.input.act:conv2D(self._input_type)
-end
-
-function Convolution2D:inputGrad(input_grad)
-   if input_grad then
-      self.input.grad = self.input.act:shallowClone()
-      self.input.grad:setData(input_grad)
-      return
-   end
-   return self.input.grad:conv2D(self._input_type)
-end
-
-function Convolution2D:outputAct(output_act)
-   if output_act then
-      -- output should be the same as input act
-      self.output.act = self.input.act:shallowClone()
-      self.output.act:setData(output_act)
-      return
-   end
-   return self.output.act:conv2D(self._output_type)
-end
-
-function Convolution2D:outputGrad()
-   return self.output.grad:conv2D(self._output_type)
-end
-
 function Convolution2D:_forward(carry)
    local activation = self:inputAct()
    if self._dropout then
@@ -116,6 +89,38 @@ function Convolution2D:_backward(carry)
    end
    self:inputGrad(output_grad)
    return carry
+end
+
+function Convolution2D:inputAct()
+   return self.input.act:conv2D(self._input_type)
+end
+
+function Convolution2D:inputGrad(input_grad)
+   if input_grad then
+      assert(torch.isTensor(input_grad))
+      self.input.grad = self.input.act:shallowClone()
+      self.input.grad:setData(input_grad)
+      return
+   end
+   return self.input.grad:conv2D(self._input_type)
+end
+
+function Convolution2D:outputAct(output_act)
+   if output_act then
+      assert(torch.isTensor(output_act))
+      local axes
+      if self:moduleType() == 'torch.CudaTensor' then
+         axes = {'c','h','w','b'}
+      end
+      axes = axes or {'b','c','h','w'}
+      self.output.act = dp.ImageTensor{data=output_act, axes=axes}
+      return
+   end
+   return self.output.act:conv2D(self._output_type)
+end
+
+function Convolution2D:outputGrad()
+   return self.output.grad:conv2D(self._output_type)
 end
 
 function Convolution2D:zeroGradParameters()

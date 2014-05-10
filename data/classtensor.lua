@@ -139,6 +139,10 @@ function ClassTensor:feature(tensortype, inplace, contiguous)
    return self:manyhot(tensortype, inplace, contiguous)
 end
 
+function ClassTensor:expand(tensortype, inplace, contiguous)
+   return self:multiclass(tensortype, inplace, contiguous)
+end
+
 -- returns a batch of examples indexed by indices
 function ClassTensor:index(dt, indices, config)
    config = config or {}

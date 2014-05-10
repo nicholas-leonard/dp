@@ -137,7 +137,7 @@ function DataTensor:__init(config)
          " vs. axes="..table.tostring(self._axes))
    end
    -- this makes certain the most expanded size and axes are stored.
-   self:default(nil, false, false)
+   self:expand(nil, true, false)
 end
 
 --Returns the axis of the batch/example index ('b') 
@@ -212,7 +212,7 @@ function DataTensor:feature(tensortype, inplace, contiguous)
          --make (transpose) the batch dim the first dim
          data = data:transpose(1, b)
          --make contiguous for a later resize (may result in new storage)
-         data:set(data:contiguous())
+         data:set(data:contiguous()) --dangerous with shallowClone
       end
       if data:dim() > 2 then
          --convert non-b axes to f :
@@ -229,6 +229,11 @@ function DataTensor:feature(tensortype, inplace, contiguous)
    self:_store(data, axes, inplace)
    return data
 end
+
+function DataTensor:expand(tensortype, inplace, contiguous)
+   return self:feature(tensortype, inplace, contiguous)
+end
+   
 
 function DataTensor:_format(data, tensortype, contiguous)
    -- When true makes sure the returned tensor contiguous.
@@ -250,9 +255,9 @@ function DataTensor:_store(data, axes, inplace)
    if inplace then
       self._axes = axes
       self._data = data
+      self:storeExpandedSize(data:size())
+      self:storeExpandedAxes(axes)
    end
-   self:storeExpandedSize(data:size())
-   self:storeExpandedAxes(axes)
 end
 
 --DEPRECATED used feature(), etc instead.
@@ -350,4 +355,29 @@ end
 
 function DataTensor:type(type)
    self._data = self._data:type(type)
+end
+
+---- static methods ----
+function DataTensor.transpose(axis, new_dim, axes, size, data)
+   -- copy
+   axes = table.copy(axes)
+   size = size:clone()
+   local current_dim = _.indexOf(axes, axis)
+   if current_dim == 0 then
+      error("Axis " .. axis .. 'is not in axes ' .. axes)
+   end
+   if new_dim < 0 then
+      new_dim = #axes + 1 - new_dim
+   end
+   if current_dim ~= new_dim then
+      axes[current_dim] = axes[new_dim]
+      axes[new_dim] = axis
+      local new_size = size[new_dim]
+      size[new_dim] = size[current_dim]
+      size[current_dim] = new_size
+      if data then
+         data = data:transpose(new_dim, current_dim)
+      end
+   end
+   return axes, size, data
 end

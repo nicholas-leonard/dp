@@ -63,10 +63,8 @@ function ImageTensor:imageBHWC(tensortype, inplace, contiguous)
          = parent.transpose('b', 1, expanded_axes, expanded_size)
       --resize to image size
       if data:dim() == 2 and _.contains(current_axes, 'f') then
-         --expand {'b','f'}
-         current_axes, current_size, data 
-            = parent.transpose('b', 1, current_axes, current_size, data)
-         data = data:resize(expanded_size:storage())      
+         data = self:feature(nil, false, false)
+         data:resize(expanded_size:storage())      
       elseif data:dim() == 4 then
          current_axes, current_size, data
             = parent.transpose('b', 1, current_axes, current_size, data)
@@ -76,6 +74,8 @@ function ImageTensor:imageBHWC(tensortype, inplace, contiguous)
          = parent.transpose('c', 4, expanded_axes, expanded_size, data)
       expanded_axes, expanded_size, data 
          = parent.transpose('h', 2, expanded_axes, expanded_size, data)
+      expanded_axes, expanded_size, data 
+         = parent.transpose('w', 3, expanded_axes, expanded_size, data)
       assert(table.eq(expanded_axes, desired_axes),
             "Error: unsupported conversion of axes formats")
    end
@@ -109,10 +109,14 @@ function ImageTensor:imageBCHW(tensortype, inplace, contiguous)
    local data = torch.view(self._data)
    if not (data:dim() == 4 and table.eq(self:storedAxes(), desired_axes)) then
       data = self:imageBHWC(nil, false, false)
+      --print(1, data:size(), self:expandedAxes())
       expanded_axes, expanded_size, data
          = parent.transpose('c', 2, self:expandedAxes(), self:expandedSize(), data)
       expanded_axes, expanded_size, data
          = parent.transpose('h', 3, expanded_axes, expanded_size, data)
+      expanded_axes, expanded_size, data
+         = parent.transpose('w', 4, expanded_axes, expanded_size, data)
+      --print(2, data:size())
       if not table.eq(expanded_axes, desired_axes) then
             error("Unsupported conversion of axes formats :"..
                table.tostring(expanded_axes))
@@ -133,8 +137,21 @@ function ImageTensor:conv2D(tensortype, inplace, contiguous)
 end
 
 function ImageTensor:default(tensortype, inplace, contiguous)
-   tensortype = tensortype or torch.typename(self._data)
-   return self:image(tensortype, inplace, contiguous)
+   return self:imageBHWC(tensortype, inplace, contiguous)
 end
+
+function ImageTensor:expand(tensortype, inplace, contiguous, axes)
+   axes = axes or self._axes
+   if table.eq(axes, {'b','h','w','c'}) then
+      return self:imageBHWC(tensortype, inplace, contiguous)
+   elseif table.eq(axes, {'c','h','w','b'}) then
+      return self:imageCHWB(tensortype, inplace, contiguous)
+   elseif table.eq(axes, {'b','c','h','w'}) then
+      return self:imageBCHW(tensortype, inplace, contiguous)
+   else
+      error"Unsupported expansion"
+   end
+end
+      
 
 

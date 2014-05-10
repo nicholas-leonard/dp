@@ -7,13 +7,7 @@ local BaseTensor = torch.class("dp.BaseTensor")
 BaseTensor.isBaseTensor = true
 
 function BaseTensor:feature(tensortype, inplace, contiguous)
-   -- When true, makes stored data a contiguous view for future use :
-   inplace = inplace or true
-   -- When true makes sure the returned tensor contiguous. 
-   -- Only considered when inplace is false, since inplace
-   -- implicitly makes the returned tensor contiguous :
-   contiguous = contiguous or false
-   return self:_feature(tensortype, inplace, contiguous)
+   error"Not Implemented"
 end
 
 -- this should return the most expanded view of the tensor
@@ -51,6 +45,11 @@ function BaseTensor:copy(basetensor)
    error"Not Implemented"
 end
 
+function BaseTensor:shallowClone(config)
+   error"Not Implemented"
+end
+
+-- DEPRECATED
 -- return a clone with self's metadata initialized with some data 
 function BaseTensor:featureClone(data)
    error"Not Implemented"

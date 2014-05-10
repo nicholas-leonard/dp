@@ -58,8 +58,10 @@ function dptest.imagetensor()
    mytester:assertTensorEq(fi2:feature(), fi:feature(), 0.0000001)
    -- cloning
    local clone_data = torch.rand(unpack(size))
-   local clone = dt:imageClone(clone_data)
-   mytester:assertTensorEq(dt:image(), clone_data, 0.0001)
+   local clone = dt:shallowClone()
+   mytester:assertTensorEq(dt:image(), data, 0.0001)
+   clone:setData(clone_data)
+   mytester:assertTensorEq(clone:image(), clone_data, 0.0001)
 end
 function dptest.classtensor()
    local size = {48,4}
@@ -362,7 +364,44 @@ function dptest.treenll()
    mytester:asserteq(c_err, err, 0.00001)
    mytester:assertTensorEq(l_grad:narrow(2,1,1), grad:feature(), 0.00001)
 end
-
+function dptest.convolution2D()
+   local size = {8,32,32,3}
+   local data = torch.rand(unpack(size))
+   local axes = {'b','h','w','c'}
+   -- dp
+   local input = dp.ImageTensor{data=data, axes=axes}
+   local layer = dp.Convolution2D{
+      input_size=3, output_size=20, kernel_size={3,3}, 
+      kernel_stride={1,1}, pool_size={2,2}, pool_stride={2,2},
+      transfer=nn.Tanh()
+   }
+   local act, carry = layer:forward(input, {nSample=8})
+   print(act:size())
+   local grad = layer:backward(dp.DataTensor{data=grad_tensor}, carry)
+   -- nn
+   local mlp = nn.Sequential()
+   local m = nn.Linear(10,2)
+   m:share(layer._affine, 'weight', 'bias')
+   mlp:add(m)
+   mlp:add(nn.Tanh())
+   local mlp_act = mlp:forward(tensor)
+   local mlp_grad = mlp:backward(tensor, grad_tensor)
+   -- compare nn and dp
+   mytester:assertTensorEq(mlp_act, act:feature(), 0.00001)
+   mytester:assertTensorEq(mlp_grad, grad:feature(), 0.00001)
+   -- update
+   local act_ten = act:feature():clone()
+   local grad_ten = grad:feature():clone()
+   local visitor = dp.Learn{learning_rate=0.1}
+   visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
+   layer:accept(visitor)
+   layer:doneBatch()
+   -- forward backward
+   local act2, carry2 = layer:forward(input, {nSample=5})
+   local grad2, carry2 = layer:backward(dp.DataTensor{data=grad_tensor}, carry2)
+   mytester:assertTensorNe(act_ten, act2:feature(), 0.00001)
+   mytester:assertTensorNe(grad_ten, grad2:feature(), 0.00001)
+end
 
 function dp.test(tests)
    math.randomseed(os.time())

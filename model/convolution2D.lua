@@ -1,3 +1,4 @@
+-- WORK IN PROGRESS : NOT READY FOR USE
 ------------------------------------------------------------------------
 --[[ Convolution2D ]]--
 -- Uses CUDA 
@@ -26,7 +27,7 @@ function Convolution2D:__init(config)
        'Note that depending of the size of your kernel, several (of '..
        'the last) columns or rows of the input image might be lost. '..
        'It is up to the user to add proper padding in images.'..
-       'Defaults to {1,1}.'}
+       'Defaults to {1,1}.'},
       {arg='pool_size', type='number tuple', req=true,
        help='The size (height, width) of the spatial max pooling.'},
       {arg='pool_stride', type='number tuple', req=true,
@@ -35,7 +36,7 @@ function Convolution2D:__init(config)
       {arg='transfer', type='nn.Module', req=true,
        help='a transfer function like nn.Tanh, nn.Sigmoid, '..
        'nn.ReLU, nn.Identity, etc.'},
-      {arg='typename', type='string', default='convolution', 
+      {arg='typename', type='string', default='convolution2d', 
        help='identifies Model type in reports.'}
    )
    self._input_size = input_size
@@ -62,39 +63,51 @@ function Convolution2D:__init(config)
    parent.__init(self, config)
 end
 
-function Convolution2D:inputAct()
-   return self.input.act:image(self._input_type)
+function Convolution2D:inputAct(input_act)
+   if input_act then
+      self.input.act = input_act:shallowClone()
+      return
+   end
+   return self.input.act:conv2D(self._input_type)
 end
 
 function Convolution2D:inputGrad(input_grad)
    if input_grad then
-      self.input.grad = self.input.act:imageClone(input_grad)
+      self.input.grad = self.input.act:shallowClone()
+      self.input.grad:setData(input_grad)
       return
    end
-   return self.input.grad:image(self._input_type)
+   return self.input.grad:conv2D(self._input_type)
 end
 
 function Convolution2D:outputAct(output_act)
    if output_act then
-      -- wrap torch.Tensor in a dp.DataTensor
-      self.output.act = dp.ImageTensor{data=output_act}
+      -- output should be the same as input act
+      self.output.act = self.input.act:shallowClone()
+      self.output.act:setData(output_act)
       return
    end
-   return self.output.act:image(self._output_type)
+   return self.output.act:conv2D(self._output_type)
 end
 
 function Convolution2D:outputGrad()
-   return self.output.grad:image(self._output_type)
+   if output_grad then
+      self.output.grad = self.output.act:shallowClone()
+      self.output.grad:setData(output_grad)
+      return
+   end
+   return self.output.grad:conv2D(self._output_type)
 end
 
 function Convolution2D:_forward(carry)
-   local activation = self.inputAct()
+   local activation = self:inputAct()
    if self._dropout then
       -- dropout has a different behavior during evaluation vs training
       self._dropout.train = (not carry.evaluate)
       activation = self._dropout:forward(activation)
       self.mvstate.dropoutAct = activation
    end
+   print(activation:size())
    activation = self._module:forward(activation)
    self:outputAct(activation)
    return carry
@@ -134,16 +147,20 @@ function Convolution2D:_type(type)
          self._pool_size[1], self._pool_size[2],
          self._pool_stride[1], self._pool_stride[2]
       )
+      self._module = nn.Sequential()
+      self._module:add(self._conv)
+      self._module:add(self._transfer)
+      self._module:add(self._pool)
    elseif type ~= 'torch.CudaTensor'
          and torch.type(self._conv) == 'nn.SpatialConvolutionCUDA' then
       error"NotImplemented"
-      self._conv = nn.SpatialConvolutionCUDA(
+      self._conv = nn.SpatialConvolution(
          self._input_size, self._output_size, 
          self._kernel_size[1], self._kernel_size[2], 
          self._kernel_stride[1], self._kernel_stride[2]
       )
       -- TODO: share weights
-      self._pool = nn.SpatialMaxPoolingCUDA(
+      self._pool = nn.SpatialMaxPooling(
          self._pool_size[1], self._pool_size[2],
          self._pool_stride[1], self._pool_stride[2]
       )

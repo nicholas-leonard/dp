@@ -5,7 +5,7 @@
 local ImageTensor, parent = torch.class("dp.ImageTensor", "dp.DataTensor")
 ImageTensor.isImageTensor = true
 
---TODO : enforce image representions, or deny non-image ones
+--TODO : enforce image representations, or deny non-image ones
 function ImageTensor:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, data, axes, sizes
@@ -44,21 +44,12 @@ function ImageTensor:__init(config)
    parent.__init(self, {data=data, axes=axes, sizes=sizes})
 end
 
+-- default view used for image preprocessing
 function ImageTensor:image(tensortype, inplace, contiguous)
-   if tensortype and tensortype == 'torch.CudaTensor' then
-      -- assume its for CUDA convolutions
-      return self:imageCHWB(tensortype, inplace, contiguous)
-   end
    return self:imageBHWC(tensortype, inplace, contiguous)
 end
 
 function ImageTensor:imageBHWC(tensortype, inplace, contiguous)
-   -- When true, makes stored data a contiguous view for future use :
-   inplace = inplace or true
-   -- When true makes sure the returned tensor contiguous. 
-   -- Only considered when inplace is false, since inplace
-   -- implicitly makes the returned tensor contiguous :
-   contiguous = contiguous or false
    local desired_axes = {'b','h','w','c'}
    local current_axes = self:storedAxes()
    local current_size = self:storedSize()
@@ -88,28 +79,14 @@ function ImageTensor:imageBHWC(tensortype, inplace, contiguous)
       assert(table.eq(expanded_axes, desired_axes),
             "Error: unsupported conversion of axes formats")
    end
-   data = tensortype and data:type(tensortype) or data
-   if contiguous or inplace then
-      data = data:contiguous()
-   end
-   if contiguous or inplace then
-      data = data:contiguous()
-      if inplace then
-         self:store(data, desired_axes)
-      end
-   end
-   return data, desired_axes
+   data = self:_format(data, tensortype, contiguous)
+   self:_store(data, desired_axes, inplace)
+   return data
 end
 
 -- View used by SpacialConvolutionCUDA
 function ImageTensor:imageCHWB(tensortype, inplace, contiguous)
-   --Depth x Height x Width x Batch (CHWB)
-   -- When true, makes stored data a contiguous view for future use :
-   inplace = inplace or true
-   -- When true makes sure the returned tensor contiguous. 
-   -- Only considered when inplace is false, since inplace
-   -- implicitly makes the returned tensor contiguous :
-   contiguous = contiguous or false
+   -- Dept/Color x Height x Width x Batch (CHWB)
    local desired_axes = {'c','h','w','b'}
    --creates a new view of the same storage
    local data = torch.view(self._data)
@@ -117,45 +94,47 @@ function ImageTensor:imageCHWB(tensortype, inplace, contiguous)
       data = self:imageBHWC(nil, false, false)
       expanded_axes, expanded_size, data
          = parent.transpose('b', 4, self:expandedAxes(), self:expandedSize(), data)
+      assert(table.eq(expanded_axes, desired_axes),
+            "Error: unsupported conversion of axes formats")
    end
-   data = tensortype and data:type(tensortype) or data
-   if contiguous or inplace then
-      data = data:contiguous()
-   end
-   if contiguous or inplace then
-      data = data:contiguous()
-      if inplace then
-         self:store(data, desired_axes)
+   data = self:_format(data, tensortype, contiguous)
+   self:_store(data, desired_axes, inplace)
+   return data
+end
+
+-- View used by SpacialConvolution
+function ImageTensor:imageBCHW(tensortype, inplace, contiguous)
+   local desired_axes = {'b','c','h','w'}
+   --creates a new view of the same storage
+   local data = torch.view(self._data)
+   if not (data:dim() == 4 and table.eq(self:storedAxes(), desired_axes)) then
+      data = self:imageBHWC(nil, false, false)
+      expanded_axes, expanded_size, data
+         = parent.transpose('c', 2, self:expandedAxes(), self:expandedSize(), data)
+      expanded_axes, expanded_size, data
+         = parent.transpose('h', 3, expanded_axes, expanded_size, data)
+      if not table.eq(expanded_axes, desired_axes) then
+            error("Unsupported conversion of axes formats :"..
+               table.tostring(expanded_axes))
       end
    end
-   return data, desired_axes
+   data = self:_format(data, tensortype, contiguous)
+   self:_store(data, desired_axes, inplace)
+   return data
+end
+
+function ImageTensor:conv2D(tensortype, inplace, contiguous)
+   if tensortype and tensortype == 'torch.CudaTensor' then
+      -- assume its for SpatialConvolutionCUDA
+      return self:imageCHWB(tensortype, inplace, contiguous)
+   end
+   -- works with SpatialConvolution
+   return self:imageBCHW(tensortype, inplace, contiguous)
 end
 
 function ImageTensor:default(tensortype, inplace, contiguous)
-   -- self:image() depends on tensortype. Used for cloning
    tensortype = tensortype or torch.typename(self._data)
    return self:image(tensortype, inplace, contiguous)
-end
-
-function ImageTensor:imageClone(data)
-   assert(data:dim() == 4, "data is not an image")
-   local sizes = self:expandedSize():clone()
-   if not (sizes[1] == data:size(1) and sizes[2] == data:size(2) and 
-         sizes[3] == data:size(3) and sizes[4] == data:size(4)) then
-      --data has different size than self, try another view
-      self:image(torch.type(data), false, false)
-      sizes = self:expandedSize():clone()
-      assert(sizes[1] == data:size(1) and sizes[2] == data:size(2)
-         and sizes[3] == data:size(3) and sizes[4] == data:size(4),
-         "Image size doesnt match any known views")
-   end
-   local clone = torch.protoClone(self, {
-      data=data, axes=table.copy(self:expandedAxes()), sizes=sizes
-   })
-   if not clone.isImageTensor then
-      error("Clone failed. data:"..torch.type(data).." clone:"..torch.type(clone))
-   end
-   return clone
 end
 
 

@@ -191,18 +191,7 @@ function DataTensor:storedAxes()
    return self._axes
 end
 
--- Stores a new representation of the data, where new_axes specifies
--- the format of this new data.
-function DataTensor:store(new_data, new_axes)
-   assert(new_data:nElement() == self._data:nElement(),
-          "new_data should have same number of elements as self._data")
-   self:storeExpandedAxes(new_axes)
-   self:storeExpandedSize(new_data:size())
-   self._axes = new_axes
-   self._data = new_data
-end
-
-function DataTensor:_feature(tensortype, inplace, contiguous)
+function DataTensor:feature(tensortype, inplace, contiguous)
    local axes = {'b','f'}
    local sizes = self:expandedSize()
    if sizes:size(1) == 1 and table.eq(self._axes, {'b'}) then
@@ -210,7 +199,7 @@ function DataTensor:_feature(tensortype, inplace, contiguous)
          print("DataTensor:feature Warning: provided data has one "..
                "dim. Assuming dim is 'b' axis with feature size of 1")
       end
-      self:store(self._data:resize(self._data:size(1), 1), axes)
+      self:_store(self._data:resize(self._data:size(1), 1), axes)
       sizes = self:expandedSize()
    end
    --creates a new view of the same storage
@@ -223,30 +212,47 @@ function DataTensor:_feature(tensortype, inplace, contiguous)
          --make (transpose) the batch dim the first dim
          data = data:transpose(1, b)
          --make contiguous for a later resize (may result in new storage)
-         data = data:contiguous()
+         data = data:contiguous() --TODO remove
       end
       if data:dim() > 2 then
          --convert non-b axes to f :
          --reduce tensor down to 2 dimensions: first dim stays the same, 
          --remainder are flattened
          --Note.: convert to LongTensor in order to sub...
-         data = data:resize(
+         data:resize(
             data:size(1), 
             torch.LongTensor(data:size()):sub(2,data:dim()):prod(1)[1]
          )
       end
    end
+   data = self:_format(data, tensortype, contiguous)
+   self:_store(data, axes, inplace)
+   return data
+end
+
+function DataTensor:_format(data, tensortype, contiguous)
+   -- When true makes sure the returned tensor contiguous.
+   contiguous = contiguous or false
    data = tensortype and data:type(tensortype) or data
-   if contiguous or inplace then
+   if contiguous then
       data = data:contiguous()
    end
-   if inplace then
-      self:store(data, axes)
-   else
-      self:storeExpandedSize(data:size())
-      self:storeExpandedAxes(axes)
-   end
    return data
+end
+
+-- Stores a new representation of the data, where axes specifies
+-- the format of this new data.
+function DataTensor:_store(data, axes, inplace)
+   -- When true, stores data view for future use :
+   inplace = inplace or true
+   assert(data:nElement() == self._data:nElement(),
+      "data should have same number of elements as self._data")
+   if inplace then
+      self._axes = axes
+      self._data = data
+   end
+   self:storeExpandedSize(data:size())
+   self:storeExpandedAxes(axes)
 end
 
 --DEPRECATED used feature(), etc instead.
@@ -308,6 +314,17 @@ function DataTensor:sub(start, stop)
    })
 end
 
+-- returns a clone sharing the same data
+function DataTensor:shallowClone(config)
+   config = config or {}   
+   local clone = torch.protoClone(self, table.merge(config, {
+      data=self._data, axes=table.copy(self:expandedAxes()), 
+      sizes=self:expandedSize():clone()
+   }))
+   return clone
+end
+
+-- DEPRECATED
 -- return a clone with self's metadata initialized with some data 
 function DataTensor:featureClone(data)
    assert(data:dim() == 2, "data is not a feature view")

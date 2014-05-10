@@ -20,7 +20,7 @@ function CompositeTensor:__init(config)
    self._components = components
 end
 
-function CompositeTensor:_feature(tensortype, inplace, contiguous)
+function CompositeTensor:feature(tensortype, inplace, contiguous)
    -- sort keys to get consistent view
    local keys = _.sort(_.keys(self._components))
    local features = _.map(keys, 
@@ -99,6 +99,7 @@ function CompositeTensor:pairs()
    return pairs(self._components)
 end
 
+-- DEPRECATED
 -- return a clone with self's metadata initialized with some data 
 function CompositeTensor:featureClone(data)
    local components = {}

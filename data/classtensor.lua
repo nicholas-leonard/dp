@@ -62,12 +62,6 @@ function ClassTensor:classes()
 end
 
 function ClassTensor:multiclass(tensortype, inplace, contiguous)
-   -- When true, makes stored data a contiguous view for future use :
-   inplace = inplace or true
-   -- When true makes sure the returned tensor contiguous. 
-   -- Only considered when inplace is false, since inplace
-   -- implicitly makes the returned tensor contiguous :
-   contiguous = contiguous or false
    local axes = {'b', 't'} 
    local sizes = self:expandedSize()
    --creates a new view of the same storage
@@ -95,26 +89,12 @@ function ClassTensor:multiclass(tensortype, inplace, contiguous)
          data:resize(sizes:storage())
       end
    end
-   data = tensortype and data:type(tensortype) or data
-   if contiguous or inplace then
-      data = data:contiguous()
-   end
-   if inplace then
-      self:store(data, axes)
-   else
-      self:storeExpandedSize(data:size())
-      self:storeExpandedAxes(axes)
-   end
+   data = self:_format(data, tensortype, contiguous)
+   self:_store(data, axes, inplace)
    return data, self._classes
 end
 
 function ClassTensor:class(tensortype, inplace, contiguous)
-   -- When true, makes stored data a contiguous view for future use :
-   inplace = inplace or true
-   -- When true makes sure the returned tensor contiguous. 
-   -- Only considered when inplace is false, since inplace
-   -- implicitly makes the returned tensor contiguous :
-   contiguous = contiguous or false
    local axes = {'b'} 
    local sizes = self:expandedSize()
    --use multiclass:
@@ -180,6 +160,14 @@ function ClassTensor:sub(start, stop)
    return clone
 end
 
+function ClassTensor:shallowClone(config)
+   config = config or {}
+   return parent.shallowClone(
+      self, table.merge(config, {classes=self:classes()})
+   )
+end
+
+-- DEPRECATED
 -- return a clone with self's metadata initialized with some data 
 function ClassTensor:featureClone(data)
    local sizes = self:expandedSize():clone()
@@ -189,6 +177,7 @@ function ClassTensor:featureClone(data)
       sizes=self:expandedSize():clone(), classes=self:classes()
    })
 end
+
 
 -- copy data into existing memory allocated for data
 function ClassTensor:copy(classtensor)

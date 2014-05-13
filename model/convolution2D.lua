@@ -14,8 +14,8 @@ function Convolution2D:__init(config)
          pool_size, pool_stride, transfer, typename
       = xlua.unpack(
       {config},
-      'Convolution', 
-      '[dropout] + convolution + max pooling + transfer function',
+      'Convolution2D', 
+      '[dropout] + SpartialConvolution + SpatialMaxPooling + transfer function',
       {arg='input_size', type='number', req=true,
        help='Number of input channels or colors'},
       {arg='output_size', type='number', req=true,

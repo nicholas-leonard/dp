@@ -48,6 +48,7 @@ torch.include('dp', 'data/datatensor.lua')
 torch.include('dp', 'data/imagetensor.lua')
 torch.include('dp', 'data/classtensor.lua')
 torch.include('dp', 'data/wordtensor.lua')
+torch.include('dp', 'data/sequencetensor.lua')
 torch.include('dp', 'data/compositetensor.lua')
 
 torch.include('dp', 'data/baseset.lua')

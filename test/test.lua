@@ -76,6 +76,41 @@ function dptest.imagetensor()
    clone:setData(clone_data)
    mytester:assertTensorEq(clone:image(), clone_data, 0.0001)
 end
+function dptest.sequencetensor()
+   local size = {8,10,50}
+   local feature_size = {8,10*50}
+   local data = torch.rand(unpack(size))
+   local axes = {'b','s','f'}
+   local dt = dp.SequenceTensor{data=data, axes=axes}
+   -- convert to sequence (shouldn't change anything)
+   local i = dt:sequenceBSF()
+   mytester:assertTensorEq(i, data, 0.0001)
+   mytester:assertTableEq(i:size():totable(), size, 0.0001)
+   -- convert to feature (should colapse last dims)
+   local t = dt:feature()
+   mytester:assertTableEq(t:size():totable(), feature_size, 0.0001)
+   mytester:assertTensorEq(i, data, 0.00001)
+   -- convert to sequence (should expand last dim)
+   local i = dt:sequenceBSF()
+   mytester:assertTensorEq(i, data, 0.0001)
+   mytester:assertTableEq(i:size():totable(), size, 0.0001)
+   -- indexing
+   local indices = torch.LongTensor{2,3}
+   local fi = dt:index(indices)
+   mytester:assertTensorEq(fi:feature(), data:reshape(unpack(feature_size)):index(1, indices), 0.000001)
+   local dt2 = dp.SequenceTensor{data=torch.zeros(8,10,50), axes=axes}
+   local fi2 = dt:index(dt2, indices)
+   mytester:assertTensorEq(fi2:feature(), fi:feature(), 0.0000001)
+   mytester:assertTensorEq(dt2._data, fi2:feature(), 0.0000001)
+   local fi3 = dt:index(nil, indices)
+   mytester:assertTensorEq(fi2:feature(), fi:feature(), 0.0000001)
+   -- cloning
+   local clone_data = torch.rand(unpack(size))
+   local clone = dt:shallowClone()
+   mytester:assertTensorEq(dt:sequence(), data, 0.0001)
+   clone:setData(clone_data)
+   mytester:assertTensorEq(clone:sequence(), clone_data, 0.0001)
+end
 function dptest.classtensor()
    local size = {48,4}
    local data = torch.rand(unpack(size))

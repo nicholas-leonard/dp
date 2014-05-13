@@ -12,7 +12,7 @@ function ImageTensor:__init(config)
       = xlua.unpack(
       {config},
       'ImageTensor', 
-      'Builds a data.ClassTensor out of torch.Tensor data. ',
+      'Builds an ImageTensor out of torch.Tensor data. ',
       {arg='data', type='torch.Tensor', 
        help='A torch.Tensor with 2 dimensions or more.', req=true},
       {arg='axes', type='table', 

@@ -110,6 +110,14 @@ function BillionWords:loadData(file_name, download_url)
    return tensor
 end
 
+function BillionWords:vocabulary()
+   return self._classes
+end
+
+function BillionWords:vocabularySize()
+   return table.length(self._classes)
+end
+
 -- this can be used to initialize a softmaxTree
 function BillionWords:hierarchy(file_name)
    file_name = file_name or 'word_tree1.th7'
@@ -123,14 +131,4 @@ function BillionWords:hierarchy(file_name)
          "Hierarchy values should be torch.IntTensors")
    end)
    return hierarchy
-end
-
-local function bw_test()
-   local ds = dp.BillionWords{context_size=10}
-   local train = ds:trainSet()
-   local batch = train:sub(10,20)
-   local inputs = batch:inputs()
-   local targets = batch:targets()
-   print("inputs", inputs)
-   print("targets", targets)
 end

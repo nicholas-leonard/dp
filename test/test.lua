@@ -374,44 +374,6 @@ function dptest.softmaxtree()
    mytester:assertTensorEq(act:feature(), act2:feature(), 0.00001)
    mytester:assertTensorEq(grad:feature(), grad2:feature(), 0.00001)
 end
-function dptest.nll()
-   local input_tensor = torch.randn(5,10)
-   local target_tensor = torch.randperm(10):sub(1,5)
-   -- dp
-   local input = dp.DataTensor{data=input_tensor}
-   local target = dp.ClassTensor{data=target_tensor}
-   local loss = dp.NLL()
-   local err, carry = loss:forward(input, target, {nSample=5})
-   local grad = loss:backward(input, target, carry)
-   -- nn
-   local criterion = nn.ClassNLLCriterion()
-   local c_err = criterion:forward(input_tensor, target_tensor)
-   local c_grad = criterion:backward(input_tensor, target_tensor)
-   -- compare nn and dp
-   mytester:asserteq(c_err, err, 0.00001)
-   mytester:assertTensorEq(c_grad, grad:feature(), 0.00001)
-end
-function dptest.treenll()
-   local input_tensor = torch.randn(5,10):add(100) -- add for log nans
-   local target_tensor = torch.ones(5) --all targets are 1
-   -- dp
-   local input = dp.DataTensor{data=input_tensor:narrow(2,1,1)}
-   local target = dp.ClassTensor{data=target_tensor}
-   local loss = dp.TreeNLL()
-   -- the targets are actually ignored (SoftmaxTree uses them before TreeNLL)
-   local err, carry = loss:forward(input, target, {nSample=5})
-   local grad = loss:backward(input, target, carry)
-   -- nn
-   local criterion = nn.ClassNLLCriterion()
-   local lg = nn.Log()
-   local l_act = lg:forward(input_tensor)
-   local c_err = criterion:forward(l_act, target_tensor)
-   local c_grad = criterion:backward(l_act, target_tensor)
-   local l_grad = lg:backward(input_tensor, c_grad)
-   -- compare nn and dp
-   mytester:asserteq(c_err, err, 0.00001)
-   mytester:assertTensorEq(l_grad:narrow(2,1,1), grad:feature(), 0.00001)
-end
 function dptest.convolution2D()
    local size = {8,32,32,3}
    local output_size = {8,20,15,15}
@@ -456,6 +418,77 @@ function dptest.convolution2D()
    mytester:assertTensorNe(act_ten, act2:image(), 0.00001)
    mytester:assertTensorNe(grad_ten, grad2:image(), 0.00001)
 end
+function dptest.dictionary()
+   local size = {8,10}
+   local output_size = {8,10,50}
+   local data = torch.randperm(80):resize(unpack(size))
+   local grad_tensor = torch.randn(unpack(output_size))
+   local axes = {'b','t'}
+   local output_axes = {'b','s','f'}
+   -- dp
+   local input = dp.WordTensor{data=data, axes=axes}
+   local layer = dp.Dictionary{dict_size=100, output_size=50}
+   local act, carry = layer:forward(input, {nSample=8})
+   mytester:assertTableEq(act:conv1D():size():totable(), output_size, 0.00001)
+   local grad = layer:backward(dp.SequenceTensor{data=grad_tensor,axes=output_axes}, carry)
+   mytester:assert(grad == nil)
+   -- nn
+   local mlp = nn.LookupTable(100,50)
+   mlp:share(layer._module, 'weight')
+   local mlp_act = mlp:forward(input:context())
+   mlp:backward(input:context(), grad_tensor)
+   -- compare nn and dp
+   mytester:assertTensorEq(mlp_act, act:conv1D(), 0.00001)
+   -- update
+   local act_ten = act:expand():clone()
+   local visitor = dp.Learn{learning_rate=0.1}
+   visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
+   layer:accept(visitor)
+   layer:doneBatch()
+   -- forward backward
+   local act2, carry2 = layer:forward(input, {nSample=5})
+   local grad2, carry2 = layer:backward(dp.SequenceTensor{data=grad_tensor,axes=output_axes}, carry2)
+   mytester:assertTensorNe(act_ten, act2:conv1D(), 0.00001)
+end
+function dptest.nll()
+   local input_tensor = torch.randn(5,10)
+   local target_tensor = torch.randperm(10):sub(1,5)
+   -- dp
+   local input = dp.DataTensor{data=input_tensor}
+   local target = dp.ClassTensor{data=target_tensor}
+   local loss = dp.NLL()
+   local err, carry = loss:forward(input, target, {nSample=5})
+   local grad = loss:backward(input, target, carry)
+   -- nn
+   local criterion = nn.ClassNLLCriterion()
+   local c_err = criterion:forward(input_tensor, target_tensor)
+   local c_grad = criterion:backward(input_tensor, target_tensor)
+   -- compare nn and dp
+   mytester:asserteq(c_err, err, 0.00001)
+   mytester:assertTensorEq(c_grad, grad:feature(), 0.00001)
+end
+function dptest.treenll()
+   local input_tensor = torch.randn(5,10):add(100) -- add for log nans
+   local target_tensor = torch.ones(5) --all targets are 1
+   -- dp
+   local input = dp.DataTensor{data=input_tensor:narrow(2,1,1)}
+   local target = dp.ClassTensor{data=target_tensor}
+   local loss = dp.TreeNLL()
+   -- the targets are actually ignored (SoftmaxTree uses them before TreeNLL)
+   local err, carry = loss:forward(input, target, {nSample=5})
+   local grad = loss:backward(input, target, carry)
+   -- nn
+   local criterion = nn.ClassNLLCriterion()
+   local lg = nn.Log()
+   local l_act = lg:forward(input_tensor)
+   local c_err = criterion:forward(l_act, target_tensor)
+   local c_grad = criterion:backward(l_act, target_tensor)
+   local l_grad = lg:backward(input_tensor, c_grad)
+   -- compare nn and dp
+   mytester:asserteq(c_err, err, 0.00001)
+   mytester:assertTensorEq(l_grad:narrow(2,1,1), grad:feature(), 0.00001)
+end
+
 
 function dp.test(tests)
    math.randomseed(os.time())

@@ -9,7 +9,7 @@ Dictionary.isDictionary = true
 
 function Dictionary:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, dict_size, output_size, transfer, typename
+   local args, dict_size, output_size, typename
       = xlua.unpack(
       {config},
       'Dictionary', 
@@ -39,6 +39,14 @@ function Dictionary:_forward(carry)
    activation = self._module:forward(activation)
    self:outputAct(activation)
    return carry
+end
+
+function Dictionary:backward(output, carry)
+   assert(output.isSequenceTensor, "Expecting dp.SequenceTensor output")
+   self.output.grad = output:shallowClone()
+   carry = self:_backward(carry) or carry
+   self.backwarded = true
+   return self.input.grad, carry
 end
 
 function Dictionary:_backward(carry)
@@ -124,6 +132,7 @@ function Dictionary:sharedClone()
    clone._dict_size = self._dict_size
    clone._output_size = self._output_size
    clone._module.gradWeight:resizeAs(self._module.gradWeight)
+   clone._module.batchSize = self._module.batchSize
    return self:share(clone, 'weight')
 end
 

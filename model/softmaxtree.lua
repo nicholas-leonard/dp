@@ -233,14 +233,14 @@ function SoftmaxTree:share(layer)
 end
 
 function SoftmaxTree:sharedClone()
-   local clone = dp.SoftmaxTree{
+   local clone = torch.protoClone(self, {
       input_size=self._input_size, hierarchy={[1]=torch.IntTensor{1,2,3}},
       root_id=self._root_id, sparse_init=self._sparse_init,
       dropout=self._dropout and self._dropout:clone(),
       typename=self._typename, gather_stats=self._gather_stats, 
       input_type=self._input_type, output_type=self._output_type,
       module_type=self._module_type, mvstate=self.mvstate
-   }
+   })
    return self:share(clone, 'weight', 'bias')
 end
 

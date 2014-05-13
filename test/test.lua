@@ -374,6 +374,48 @@ function dptest.softmaxtree()
    mytester:assertTensorEq(act:feature(), act2:feature(), 0.00001)
    mytester:assertTensorEq(grad:feature(), grad2:feature(), 0.00001)
 end
+function dptest.convolution1D()
+   local size = {8,10,50}
+   local output_size = {8,4,100}
+   local data = torch.rand(unpack(size))
+   local grad_tensor = torch.randn(unpack(output_size))
+   -- dp
+   local input = dp.SequenceTensor{data=data}
+   local layer = dp.Convolution1D{
+      input_size=50, output_size=100, kernel_size=2, 
+      kernel_stride=1, pool_size=2, pool_stride=2,
+      transfer=nn.Tanh()
+   }
+   local act, carry = layer:forward(input, {nSample=8})
+   mytester:assertTableEq(act:conv1D():size():totable(), output_size, 0.00001)
+   local grad = layer:backward(dp.SequenceTensor{data=grad_tensor}, carry)
+   mytester:assertTableEq(grad:conv1D():size():totable(), size, 0.00001)
+   -- nn
+   local mlp = nn.Sequential()
+   local m = nn.TemporalConvolution(50,100,2,1)
+   m:share(layer._conv, 'weight', 'bias')
+   mlp:add(m)
+   mlp:add(nn.Tanh())
+   mlp:add(nn.TemporalMaxPooling(2,2))
+   local mlp_act = mlp:forward(input:conv1D())
+   local mlp_grad = mlp:backward(input:conv1D(), grad_tensor)
+   -- compare nn and dp
+   mytester:assertTensorEq(mlp_act, act:conv1D(), 0.00001)
+   mytester:assertTableEq(mlp_grad:size():totable(), grad:conv1D():size():totable(), 0.00001)
+   mytester:assertTensorEq(mlp_grad, grad:conv1D(), 0.00001)
+   -- update
+   local act_ten = act:expand():clone()
+   local grad_ten = grad:expand():clone()
+   local visitor = dp.Learn{learning_rate=0.1}
+   visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
+   layer:accept(visitor)
+   layer:doneBatch()
+   -- forward backward
+   local act2, carry2 = layer:forward(input, {nSample=8})
+   local grad2, carry2 = layer:backward(dp.SequenceTensor{data=grad_tensor}, carry2)
+   mytester:assertTensorNe(act_ten, act2:sequence(), 0.00001)
+   mytester:assertTensorNe(grad_ten, grad2:sequence(), 0.00001)
+end
 function dptest.convolution2D()
    local size = {8,32,32,3}
    local output_size = {8,20,15,15}
@@ -413,7 +455,7 @@ function dptest.convolution2D()
    layer:accept(visitor)
    layer:doneBatch()
    -- forward backward
-   local act2, carry2 = layer:forward(input, {nSample=5})
+   local act2, carry2 = layer:forward(input, {nSample=8})
    local grad2, carry2 = layer:backward(dp.ImageTensor{data=grad_tensor,axes=output_axes}, carry2)
    mytester:assertTensorNe(act_ten, act2:image(), 0.00001)
    mytester:assertTensorNe(grad_ten, grad2:image(), 0.00001)

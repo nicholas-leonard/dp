@@ -1,4 +1,3 @@
--- WORK IN PROGRESS : NOT READY FOR USE
 ------------------------------------------------------------------------
 --[[ Dictionary ]]-- 
 -- Adapts a nn.LookupTable

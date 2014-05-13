@@ -166,30 +166,17 @@ function Convolution2D:_type(type)
    if self._dropout then
       self._dropout:type(type)
    end
-   collectgarbage()
    return self
 end
 
 function Convolution2D:reset()
    self._conv:reset()
    if self._sparse_init then
+      print"Warning : this wont work with SpatialConvolutionCUDA"
       local W = self:parameters().weight.param
       W = W:reshape(W:size(1)*W:size(2)*W:size(3), W:size(4))
       self._sparseReset(W:t())
    end
-end
-
--- do not use this to change the type of parameters.
-function Convolution2D:parameters()
-   local params = {}
-   local module = self._conv
-   if module.weight and module.weight:dim() ~= 0 then
-      params.weight = { param=module.weight, grad=module.gradWeight }
-   end
-   if module.bias and module.bias:dim() ~= 0 then
-      params.bias = { param=module.bias, grad=module.gradBias }
-   end
-   return params
 end
 
 function Convolution2D:maxNorm(max_out_norm, max_in_norm)

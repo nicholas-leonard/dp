@@ -22,7 +22,7 @@ function MaxNorm:__init(config)
       {arg='max_out_norm', type='number', default=1,
        help='max norm of output neuron weights'},
       {arg='max_in_norm', type='number', 
-      help='max norm of input neuron weights'},
+       help='max norm of input neuron weights'},
       {arg='name', type='string', default='maxnorm',
        help='identifies visitor in reports.'}
    )

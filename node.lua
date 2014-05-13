@@ -169,6 +169,7 @@ function Node:type(new_type)
    if new_type then
       self:_type(new_type)
       self:moduleType(new_type)
+      collectgarbage()
    end
    return self
 end

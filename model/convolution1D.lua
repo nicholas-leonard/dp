@@ -146,7 +146,7 @@ function Convolution1D:paramModule()
 end
 
 -- number of output frames of the convolution1D layer
-function Convoltuion1D:nOutputFrame(nInputFrame)
+function Convolution1D:nOutputFrame(nInputFrame)
    assert(torch.type(nInputFrame) == 'number', "Expecting number")
    local nFrame = (nInputFrame - self._kernel_size) / self._kernel_stride + 1
    return (nFrame - self._pool_size) / self._pool_stride + 1

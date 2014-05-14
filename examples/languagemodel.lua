@@ -16,17 +16,24 @@ cmd:option('--type', 'double', 'type: double | float | cuda')
 cmd:option('--maxEpoch', 100, 'maximum number of epochs to run')
 cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better local minima for early-stopping')
 cmd:option('--dropout', false, 'apply dropout on hidden neurons, requires "nnx" luarock')
-cmd:option('--inputEmbeddingSize', 100, 'number of neurons per word embedding')
+
 cmd:option('--contextSize', 5, 'number of words preceding the target word used to predict the target work')
+cmd:option('--inputEmbeddingSize', 100, 'number of neurons per word embedding')
+
+cmd:option('--neuralSize', 200, 'number of hidden units used for first hidden layer (used when --convolution is not used)')
+--or
+cmd:option('--convolution', false, 'use a Convolution1D instead of Neural for the first hidden layer')
 cmd:option('--convOutputSize', 200, 'number of output neurons of the convolutional kernel (outputFrameSize)')
 cmd:option('--convKernelSize', 2, 'number of words considered by convolution')
 cmd:option('--convKernelStride', 1, 'stride (step size) of the convolution')
 cmd:option('--convPoolSize', 2, 'number of words max pooled after convolution')
 cmd:option('--convPoolStride', 2, 'stride of the max pooling after the convolution') 
+
 cmd:option('--outputEmbeddingSize', 100, 'number of hidden units at softmaxtree')
+
 cmd:option('--small', false, 'use a small (1/30th) subset of the training set')
 cmd:option('--tiny', false, 'use a tiny (1/100th) subset of the training set')
-cmd:option('--convolution', 
+
 cmd:text()
 opt = cmd:parse(arg or {})
 print(opt)
@@ -38,7 +45,7 @@ if opt.small then
    train_file = 'train_small.th7'
 elseif opt.tiny then 
    train_file = 'train_tiny.th7'
-else
+end
 
 local datasource = dp.BillionWords{
    context_size = opt.contextSize,
@@ -52,8 +59,7 @@ if opt.dropout then
 end
 
 print("Input to first hidden layer has "..
-      opt.contextSize*opt.inputEmbeddingSize.. 
-      " neurons.")
+   opt.contextSize*opt.inputEmbeddingSize.." neurons.")
 
 local hiddenModel, inputSize
 if opt.convolution then
@@ -74,11 +80,11 @@ if opt.convolution then
 else
    hiddenModel = dp.Neural{
       input_size = opt.contextSize*opt.inputEmbeddingSize,
-      output_size = opt.nHidden, 
+      output_size = opt.neuralSize, 
       transfer = nn.Tanh(),
       dropout = opt.dropout and nn.Dropout() or nil
    }
-   inputSize = opt.nHidden
+   inputSize = opt.neuralSize
 end
 
 print("input to second hidden layer has size "..inputSize)
@@ -87,7 +93,7 @@ mlp = dp.Sequential{
    models = {
       dp.Dictionary{
          dict_size = datasource:vocabularySize(),
-         output_size = opt.embeddingSize
+         output_size = opt.inputEmbeddingSize
       },
       hiddenModel,
       dp.Neural{
@@ -125,16 +131,18 @@ train = dp.Optimizer{
       },
       dp.MaxNorm{max_out_norm = opt.maxOutNorm}
    },
-   --feedback = dp.Perplexity(),  
+   feedback = dp.Perplexity(),  
    sampler = dp.ShuffleSampler{batch_size = opt.batchSize},
    progress = true
 }
 valid = dp.Evaluator{
    loss = dp.TreeNLL(),
+   feedback = dp.Perplexity(),  
    sampler = dp.Sampler()
 }
 test = dp.Evaluator{
    loss = dp.TreeNLL(),
+   feedback = dp.Perplexity(),  
    sampler = dp.Sampler()
 }
 

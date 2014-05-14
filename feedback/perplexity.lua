@@ -44,7 +44,7 @@ function Perplexity:_add(batch, output, carry, report)
       act = output.act:feature('torch.FloatTensor')
    end
    -- accumulate the sum of negative log likelihoods
-   self._perplexity = self._perplexity - torch.log(output):sum()
+   self._perplexity = self._perplexity - torch.log(act):sum()
 end
 
 function Perplexity:_reset()

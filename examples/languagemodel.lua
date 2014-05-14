@@ -16,29 +16,34 @@ cmd:option('--type', 'double', 'type: double | float | cuda')
 cmd:option('--maxEpoch', 100, 'maximum number of epochs to run')
 cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better local minima for early-stopping')
 cmd:option('--dropout', false, 'apply dropout on hidden neurons, requires "nnx" luarock')
-cmd:option('--embeddingSize', 100, 'number of neurons per word embedding')
+cmd:option('--inputEmbeddingSize', 100, 'number of neurons per word embedding')
 cmd:option('--contextSize', 5, 'number of words preceding the target word used to predict the target work')
 cmd:option('--convOutputSize', 200, 'number of output neurons of the convolutional kernel (outputFrameSize)')
 cmd:option('--convKernelSize', 2, 'number of words considered by convolution')
 cmd:option('--convKernelStride', 1, 'stride (step size) of the convolution')
 cmd:option('--convPoolSize', 2, 'number of words max pooled after convolution')
 cmd:option('--convPoolStride', 2, 'stride of the max pooling after the convolution') 
-cmd:option('--nHidden', 200, 'number of hidden units at softmaxtree')
+cmd:option('--outputEmbeddingSize', 100, 'number of hidden units at softmaxtree')
 cmd:option('--small', false, 'use a small (1/30th) subset of the training set')
+cmd:option('--tiny', false, 'use a tiny (1/100th) subset of the training set')
+cmd:option('--convolution', 
 cmd:text()
 opt = cmd:parse(arg or {})
 print(opt)
 
 
 --[[data]]--
-local datasource 
+local train_file = 'train_data.th7' 
 if opt.small then 
-   datasource = dp.BillionWords{
-      context_size = opt.contextSize, train_file = 'train_small.th7'
-   }
+   train_file = 'train_small.th7'
+elseif opt.tiny then 
+   train_file = 'train_tiny.th7'
 else
-   datasource = dp.BillionWords{context_size = opt.contextSize}
-end
+
+local datasource = dp.BillionWords{
+   context_size = opt.contextSize,
+   train_file = train_file
+}
 
 --[[Model]]--
 local dropout
@@ -46,9 +51,37 @@ if opt.dropout then
    require 'nnx'
 end
 
--- measure number of output frames of the convolution1D layer
-local nFrame = (opt.contextSize - opt.convKernelSize) / opt.convKernelStride + 1
-nFrame = (nFrame - opt.convPoolSize) / opt.convPoolStride + 1
+print("Input to first hidden layer has "..
+      opt.contextSize*opt.inputEmbeddingSize.. 
+      " neurons.")
+
+local hiddenModel, inputSize
+if opt.convolution then
+   print"Using convolution for first hidden layer"
+   hiddenModel = dp.Convolution1D{
+      input_size = opt.inputEmbeddingSize, 
+      output_size = opt.convOutputSize,
+      kernel_size = opt.convKernelSize,
+      kernel_stride = opt.convKernelStride,
+      pool_size = opt.convPoolSize,
+      pool_stride = opt.convPoolStride,
+      transfer = nn.Tanh(),
+      dropout = opt.dropout and nn.Dropout() or nil
+   }
+   local nOutputFrame = hiddenModel:nOutputFrame(opt.contextSize)
+   print("Convolution has "..nOutputFrame.." output Frames")
+   inputSize = nOutputFrame*opt.convOutputSize
+else
+   hiddenModel = dp.Neural{
+      input_size = opt.contextSize*opt.inputEmbeddingSize,
+      output_size = opt.nHidden, 
+      transfer = nn.Tanh(),
+      dropout = opt.dropout and nn.Dropout() or nil
+   }
+   inputSize = opt.nHidden
+end
+
+print("input to second hidden layer has size "..inputSize)
 
 mlp = dp.Sequential{
    models = {
@@ -56,24 +89,15 @@ mlp = dp.Sequential{
          dict_size = datasource:vocabularySize(),
          output_size = opt.embeddingSize
       },
-      dp.Convolution1D{
-         input_size = opt.embeddingSize, 
-         output_size = opt.convOutputSize,
-         kernel_size = opt.convKernelSize,
-         kernel_stride = opt.convKernelStride,
-         pool_size = opt.convPoolSize,
-         pool_stride = opt.convPoolStride,
-         dropout = opt.dropout and nn.Dropout() or nil,
-         transfer = nn.Tanh()
-      },
+      hiddenModel,
       dp.Neural{
-         input_size = nFrame*opt.convOutputSize, 
-         output_size = opt.nHidden, 
+         input_size = inputSize, 
+         output_size = opt.outputEmbeddingSize, 
          transfer = nn.Tanh(),
          dropout = opt.dropout and nn.Dropout() or nil
       },
       dp.SoftmaxTree{
-         input_size = opt.nHidden, 
+         input_size = opt.outputEmbeddingSize, 
          hierarchy = datasource:hierarchy(),
          dropout = opt.dropout and nn.Dropout() or nil
       }
@@ -82,6 +106,7 @@ mlp = dp.Sequential{
 
 --[[GPU or CPU]]--
 if opt.type == 'cuda' then
+   print"Using CUDA"
    require 'cutorch'
    require 'cunn'
    mlp:cuda()

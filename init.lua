@@ -84,6 +84,7 @@ torch.include('dp', 'propagator/experiment.lua')
 torch.include('dp', 'feedback/feedback.lua')
 torch.include('dp', 'feedback/compositefeedback.lua')
 torch.include('dp', 'feedback/confusion.lua')
+torch.include('dp', 'feedback/perplexity.lua')
 --torch.include('dp', 'feedback/criteria.lua')
 
 --[[ visitor ]]--

@@ -39,7 +39,7 @@ function Confusion:_add(batch, output, carry, report)
    end
    local act = output.act:feature()
    if act ~= 'torch.DoubleTensor' and act ~= 'torch.FloatTensor' then
-      act = act:type('torch.FloatTensor')
+      act = output.act:feature('torch.FloatTensor')
    end
    self._cm:batchAdd(act, batch:targets():class())
 end

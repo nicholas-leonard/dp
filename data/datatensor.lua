@@ -55,7 +55,8 @@ function DataTensor:__init(config)
        'to : data:reshape(sizes). Default is data:size().'},
       {arg='warn', type='boolean', default=false,
        help='print warnings concerning assumptions made by datatensor'}
-   )   
+   )  
+   self._cache = {} 
    if data.isDataTensor then
       self._axes = table.copy(data:storedAxes())
       self._expanded_axes = table.copy(data:expandedAxes())
@@ -238,7 +239,18 @@ end
 function DataTensor:_format(data, tensortype, contiguous)
    -- When true makes sure the returned tensor contiguous.
    contiguous = contiguous or false
-   data = tensortype and data:type(tensortype) or data
+   if tensortype and torch.type(data) ~= tensortype then
+      -- for now the cache is just a memory cache (we need to copy)
+      local cache_data = self._cache[tensortype] 
+      if cache_data then 
+         cache_data:resize(data:size())
+         cache_data:copy(data)
+         data = cache_data
+      else
+         self._cache[tensortype] = data:type(tensortype)
+         return self._cache[tensortype]
+      end
+   end
    if contiguous then
       data = data:contiguous()
    end

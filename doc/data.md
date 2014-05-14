@@ -4,13 +4,21 @@
     * [DataTensor](#dp.DataTensor) :
      * [ImageTensor](#dp.ImageTensor)
      * [ClassTensor](#dp.ClassTensor)
+     * [SequenceTensor](#dp.SequenceTensor)
+     * [WordTensor](#dp.WordTensor)
     * [CompositeTensor](#dp.CompositeTensor)
-  * [DataSet](#dp.DataSet)
+  * [BaseSet](#dp.BaseSet)
+     * [DataSet](#dp.DataSet) :
+      * [SentenceSet](#dp.SentenceSet)
+     * [Batch](#dp.Batch)
   * [DataSource](#dp.DataSource) :
-    * Mnist
-    * NotMnist
-    * Cifar10
-    * Cifar100 
+    * [Mnist](#dp.Mnist)
+    * [NotMnist](#dp.NotMnist)
+    * [Cifar10](#dp.Cifar10)
+    * [Cifar100](#dp.Cifar100)
+    * [BillionWords](#dp.BillionWords)
+  * [Sampler](#dp.Sampler) :
+    * [ShuffleSampler](#dp.ShuffleSampler) 
 
 <a name="dp.BaseTensor"/>
 ## BaseTensor ##
@@ -232,43 +240,43 @@ Returns a 2D torch.Tensor of examples by features : `{'b','f'}` (see [DataTensor
 ## CompositeTensor ##
 A composite of BaseTensors. Allows for multiple input and multiple target datasets and batches.
 
-
-<a name="dp.DataSet"/>
-## DataSet ##
-Generic container for inputs and optional targets. Used for training or evaluating a model. 
-Inputs/targets are tables of DataTensors, which allows for multi-input / multi-target DataSets.
-
-If the provided inputs or targets are torch.Tensors, an attempt is 
-made to convert them to [DataTensor](#dp.DataTensor) using the optionally 
-provided axes and sizes (inputs), classes (targets).
-
-Inputs and targets should be provided as instances of 
-[DataTensor](#dp.DataTensor) to support conversions to other axes formats. 
-Inputs and targets may also be provided as tables of 
-dp.DataTensors. In the case of multiple targets, it is useful for multi-task learning, 
+<a name="dp.BaseSet"/>
+## BaseSet ##
+This is the base (abstract) class inherited by subclasses like [DataSet](#dp.DataSet),
+[SentenceSet](#dp.SentenceSet) and [Batch](#dp.Batch). It is used for training or evaluating a model. 
+It supports multiple-input and multiple-output datasets using [CompositeTensor](#dp.CompositeTensor).
+In the case of multiple targets, it is useful for multi-task learning, 
 or learning from hints . In the case of multiple inputs, richer inputs representations could 
 be created allowing, for example, images to be combined with 
 tags, text with images, etc. Multi-input/target facilities could be used with nn.ParallelTable and 
-nn.ConcatTable.
+nn.ConcatTable. If the BaseSet is used for unsupervised learning, only inputs need to be provided.
 
-If the DataSet is used for unsupervised learning, only inputs need to 
-be provided.
+<a name='dp.BaseSet.__init'/>
+### dp.BaseSet{inputs, [targets, which_set]} ###
+Constructs a dataset from inputs and targets.
+Arguments should be specified as key-value pairs. 
+
+`inputs` is an instance of [BaseTensor](#dp.BaseTensor) or a table of these. In the latter case, they will be 
+automatically encapsulated by a [CompositeTensor](#dp.CompositeTensor). These are used as inputs to a 
+[Model](model.md#dp.Model).
+
+`targets` is an instance of `BaseTensor` or a table of these. In the latter case, they will be 
+automatically encapsulated by a `CompositeTensor`. These are used as targets for 
+training a `Model`. The indices of examples in `targets` must be aligned with those in `inputs`. 
+
+
+`which_set` is a string identifying the purpose of the dataset. Valid values are 
+ * *train* for training, i.e. for fitting a model to a dataset; 
+ * *valid* for cross-validation, i.e. for early-stopping and hyper-optimization; 
+ * *test* for testing, i.e. comparing your model to the current state-of-the-art and such.
+
+<a name="dp.DataSet"/>
+## DataSet ##
+A concrete subclass of [BaseSet](#dp.BaseSet). A 
 
 <a name="dp.DataSet.__init"/>
-### dp.DataSet(which_set, inputs, [targets, axes, sizes]) ###
-Constructs a training, validation or test DataSet from [a set of] [DataTensor](#dp.DataTensor) `inputs` and `targets`.
-
-`which_set` is a string of value `'train'`, `'valid'` or `'test'` for identifying sets used for training, cross-validation and testing, respectively.
-
-`inputs` is either a [DataTensor](#dp.DataTensor), a torch.Tensor or a table. Inputs of the DataSet taking the form of torch.Tensor with 2 dimensions, or more if topological is true. Alternatively, inputs may take the form of a table of such torch.Tensors. The first dimension of the torch.Tensor(s) should be of size number of examples.
-    [targets = dp.DataTensor | torch.Tensor | table]-- Targets of the DataSet taking the form of torch.Tensor with 1-2 dimensions. Alternatively, targets may take the form of a table of such torch.Tensors. The first dimension of the torch.Tensor(s) should index examples.
-    [axes = table]                      -- Optional. Used when supplied inputs is a torch.Tensor, in order to convert it to dp.DataTensor. In which case, it is a table defining the order and nature of each dimension of a tensor. Two common examples would be the archtypical MLP input : {"b", "f"}, or a common image representation :      {"b", "h", "w", "c"}.     Possible axis symbols are :      1. Standard Axes:        "b" : Batch/Example        "f" : Feature        "t" : Class      2. Image Axes        "c" : Color/Channel        "h" : Height        "w" : Width        "d" : Dept      Defaults to the dp.DataTensor default.
-    [sizes = table | torch.LongTensor]  -- Optional. Used when supplied inputs is a torch.Tensor, in order to convert it to dp.DataTensor. In which case, it is a table or torch.LongTensor identifying the sizes of the commensurate dimensions in axes. This should be supplied if the dimensions of the data is different from the number of elements in the axes table, in which case it will be used to : data:resize(sizes). Defaults to dp.DataTensor default.
-}
-
-DataSet{inputs=dp.DataTensor | torch.Tensor | table, which_set=string}
-DataSet(string, ...)
-
+### dp.DataSet(which_set, inputs, [targets]) ###
+Constructs a training, validation or test DataSet from [a set of] [BaseTensor](#dp.BaseTensor) `inputs` and `targets`.
 
 <a name="dp.DataSet.preprocess"/>
 ### preprocess([input_preprocess, target_preprocess, can_fit] ###

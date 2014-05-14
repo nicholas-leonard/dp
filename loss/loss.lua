@@ -59,7 +59,8 @@ end
 
 function Loss:inputGrad(input_grad)
    if input_grad then
-      self.input.grad = self.input.act:featureClone(input_grad)
+      self.input.grad = self.input.act:shallowClone()
+      self.input.grad:setData(input_grad)
       return
    end
    return self.input.grad:feature(self._input_type)

@@ -321,7 +321,7 @@ end
 
 -- returns a clone sharing the same data
 function DataTensor:shallowClone(config)
-   config = config or {}   
+   config = config or {}
    local clone = torch.protoClone(self, table.merge(config, {
       data=self._data, axes=table.copy(self:expandedAxes()), 
       sizes=self:expandedSize():clone()

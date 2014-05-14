@@ -28,7 +28,8 @@ end
 
 function TreeNLL:_backward(carry)
    local input = self:inputAct()
-   self:inputGrad(self._module:backward(input, self._output_grad))
+   local input_grad = self._module:backward(input, self._output_grad)
+   self:inputGrad(input_grad)
    return carry
 end
 

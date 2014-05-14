@@ -5,9 +5,8 @@
 -- TODO: 
 -- Visitors should try to access a model method assigned to 
 -- each visitor (if exists). This would allow models to implement
--- visitor specifics. (already started with dp.Linear model)
+-- visitor specifics. (already started with dp.MaxNorm model)
 -- Visitors accumulate statistics for reporting purposes
--- Visitor statistics
 ------------------------------------------------------------------------
 local Visitor = torch.class("dp.Visitor")
 Visitor.isVisitor = true
@@ -84,7 +83,7 @@ end
 function Visitor:canVisit(model)
    local model_tags = model:tags()
    if self._exclude and not _.isEmpty(self._exclude) then
-      for tag in ipairs(self._exclude) do
+      for i, tag in ipairs(self._exclude) do
          if model_tags[tag] then
             return false
          end

@@ -13,17 +13,18 @@ function Model:__init(config)
       'Model', nil,
       {arg='typename', type='string', req=true, 
        help='identifies Model type in reports.'},
-      {arg='tags', type='table', default={},
-       help='table of tags used for determining which visitors ' ..
-       'are allowed to visit the model'},
-      {arg='mvstate', type='table', default={},
+      {arg='tags', type='table',
+       help='table of tags (as keys) used for determining which ' ..
+       'visitors are allowed to visit the model'},
+      {arg='mvstate', type='table',
        help='model-visitor state. Can be used to specify arguments '..
        'to visitors that will adapt these to the model.'}
    )
    self._typename = typename
-   self._tags = tags -- tags
-   self._report = {} -- stores a report
-   self.mvstate = mvstate -- stores stuff for visitors in between passes
+   self._tags = tags or {}
+   self._report = {}
+   -- stores stuff for visitors in between passes
+   self.mvstate = mvstate or {} 
    parent.__init(self, config)
 end
 
@@ -73,7 +74,7 @@ function Model:backward(output, carry)
    assert(output.isBaseTensor, "Expecting dp.BaseTensor output")
    self.output.grad = output:shallowClone()
    carry = self:_backward(carry) or carry
-   assert(self.input.grad.isBaseTensor, "Expecting dp.BaseTensor grad")
+   assert(self.output.grad.isBaseTensor, "Expecting dp.BaseTensor grad")
    self.backwarded = true
    return self.input.grad, carry
 end

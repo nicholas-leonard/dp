@@ -70,11 +70,7 @@ function SentenceSet:preprocess()
 end
 
 function SentenceSet:batch(batch_size)
-   return dp.Batch{
-      which_set=self:whichSet(), epoch_size=self:nSample(),
-      inputs=self:inputs():sub(1, batch_size),
-      targets=self:targets() and self:targets():sub(1, batch_size)
-   }
+   return self:sub(1, batch_size)
 end
 
 -- TODO add optional batch as first argument (to all BaseSets)

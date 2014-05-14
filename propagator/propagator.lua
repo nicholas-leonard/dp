@@ -117,6 +117,7 @@ function Propagator:propagateEpoch(dataset, report)
       end
       last_batch = batch
    end
+   
    if self._progress and not self._stats then
       print"\n"
    end

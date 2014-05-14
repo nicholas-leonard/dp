@@ -30,6 +30,8 @@ function Dictionary:__init(config)
    self._module = nn.LookupTable(dict_size, output_size)
    config.typename = typename
    config.input_type = 'torch.IntTensor'
+   config.tags = config.tags or {}
+   config.tags['no-maxnorm'] = true
    parent.__init(self, config)
 end
 

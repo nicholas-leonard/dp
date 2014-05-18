@@ -41,15 +41,18 @@ print(opt)
 
 --[[data]]--
 local train_file = 'train_data.th7' 
+local valid_tile = 'valid_data.th7'
 if opt.small then 
    train_file = 'train_small.th7'
 elseif opt.tiny then 
+   valid_file = 'test_data.th7'
    train_file = 'train_tiny.th7'
 end
 
 local datasource = dp.BillionWords{
    context_size = opt.contextSize,
-   train_file = train_file
+   train_file = train_file, 
+   valid_file = valid_file
 }
 
 --[[Model]]--

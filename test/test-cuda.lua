@@ -118,6 +118,71 @@ function dptest.sequential()
    mytester:assertTensorEq(mlp_act, act:feature('torch.DoubleTensor'), 0.0001)
    mytester:assertTensorEq(mlp_grad, grad:feature('torch.DoubleTensor'), 0.0001)
 end
+function dptest.softmaxtree()
+   local input_tensor = torch.randn(5,10)
+   local target_tensor = torch.IntTensor{20,24,27,10,12}
+   local grad_tensor = torch.randn(5)
+   local hierarchy={
+      [-1]=torch.IntTensor{0,1,2}, [1]=torch.IntTensor{3,4,5}, 
+      [2]=torch.IntTensor{6,7,8}, [3]=torch.IntTensor{9,10,11},
+      [4]=torch.IntTensor{12,13,14}, [5]=torch.IntTensor{15,16,17},
+      [6]=torch.IntTensor{18,19,20}, [7]=torch.IntTensor{21,22,23},
+      [8]=torch.IntTensor{24,25,26,27,28}
+   }
+   -- dp
+   local input = dp.DataTensor{data=input_tensor}
+   local target = dp.ClassTensor{data=target_tensor}
+   local model = dp.SoftmaxTree{input_size=10, hierarchy=hierarchy}
+   model:cuda()
+   -- nn
+   local concat = nn.ConcatTable()
+   local indices = {3,3,4}
+   for i,k in ipairs{-1,2,8} do
+      local s = nn.Sequential()
+      s:add(model._parents[k][1]:clone())
+      s:add(nn.Narrow(1,indices[i],1))
+      concat:add(s)
+   end
+   local mlp = nn.Sequential()
+   mlp:add(concat)
+   mlp:add(nn.CMulTable())
+   -- forward backward
+   --- dp
+   local act, carry = model:forward(input, {nSample=5, targets=target})
+   local gradWeight = model:parameters().weight1.grad:clone()
+   local grad, carry = model:backward(dp.DataTensor{data=grad_tensor}, carry)
+   mytester:assertTableEq(act:feature():size():totable(), {5,1}, 0.000001, "Wrong act size")
+   mytester:assertTableEq(grad:feature():size():totable(), {5,10}, 0.000001, "Wrong grad size")
+   local gradWeight2 = model:parameters().weight1.grad:clone()
+   mytester:assertTensorNe(gradWeight, gradWeight2, 0.00001)
+   --- nn
+   local mlp_act = mlp:forward(input_tensor[3])
+   local mlp_grad = mlp:backward(input_tensor[3], grad_tensor[3])
+   -- compare nn and dp
+   mytester:assertTensorEq(mlp_act, act:feature()[3], 0.00001)
+   mytester:assertTensorEq(mlp_grad, grad:feature()[3], 0.00001)
+   -- share
+   local model2 = model:sharedClone()   
+   -- update
+   local weight = model:parameters().weight1.param:clone()
+   local act_ten = act:feature():clone()
+   local grad_ten = grad:feature():clone()
+   local visitor = dp.Learn{learning_rate=0.1}
+   visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
+   model:accept(visitor)
+   local weight2 = model:parameters().weight1.param:clone()
+   mytester:assertTensorNe(weight, weight2, 0.00001)
+   model:doneBatch()
+   -- forward backward
+   local act2, carry2 = model2:forward(input, {nSample=5, targets=target})
+   local grad2, carry2 = model2:backward(dp.DataTensor{data=grad_tensor}, carry2)
+   mytester:assertTensorNe(act_ten, act2:feature(), 0.00001)
+   mytester:assertTensorNe(grad_ten, grad2:feature(), 0.00001)
+   local act, carry = model:forward(input, {nSample=5, targets=target})
+   local grad, carry = model:backward(dp.DataTensor{data=grad_tensor}, carry)
+   mytester:assertTensorEq(act:feature(), act2:feature(), 0.00001)
+   mytester:assertTensorEq(grad:feature(), grad2:feature(), 0.00001)
+end
 function dptest.nll()
    local input_tensor = torch.randn(5,10)
    local target_tensor = torch.randperm(10):sub(1,5)

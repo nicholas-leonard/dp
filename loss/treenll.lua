@@ -3,9 +3,9 @@
 -- Loss subclass
 -- Negative Log Likelihood for SoftmaxTrees.
 -- Used for maximizing the likelihood of SoftmaxTree Model outputs.
--- SoftmaxTree outputs a column tensor representing the likelihood
+-- SoftmaxTree outputs a column tensor representing the log likelihood
 -- of each target in the batch. Thus SoftmaxTree requires the targets.
--- So this Loss only computes the negative log of those outputs, as 
+-- So this Loss only computes the negative of those outputs, as 
 -- well as its corresponding gradients.
 ------------------------------------------------------------------------
 local TreeNLL, parent = torch.class("dp.TreeNLL", "dp.Loss")
@@ -13,7 +13,6 @@ TreeNLL.isTreeNLL = true
 
 function TreeNLL:__init(config)
    self._module = nn.Sequential()
-   self._module:add(nn.Log())
    self._module:add(nn.Mean()) --not in cunn
    config = config or {}
    parent.__init(self, config)

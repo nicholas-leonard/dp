@@ -7,6 +7,7 @@ cmd:text()
 cmd:text('Train a Language Model on BillionWords dataset using SoftmaxTree')
 cmd:text('Example:')
 cmd:text('$> th languagemodel.lua --small --batchSize 512 --momentum 0.5')
+cmd:text('$> th languagemodel.lua --tiny --batchSize 512 --momentum 0.5')
 cmd:text('Options:')
 cmd:option('--learningRate', 0.1, 'learning rate at t=0')
 cmd:option('--maxOutNorm', 1, 'max norm each layers output neuron weights')
@@ -45,8 +46,8 @@ local valid_tile = 'valid_data.th7'
 if opt.small then 
    train_file = 'train_small.th7'
 elseif opt.tiny then 
-   valid_file = 'test_data.th7'
    train_file = 'train_tiny.th7'
+   valid_file = 'test_data.th7'
 end
 
 local datasource = dp.BillionWords{
@@ -108,6 +109,7 @@ mlp = dp.Sequential{
       dp.SoftmaxTree{
          input_size = opt.outputEmbeddingSize, 
          hierarchy = datasource:hierarchy(),
+         root_id = 880542,
          dropout = opt.dropout and nn.Dropout() or nil
       }
    }
@@ -125,14 +127,14 @@ end
 train = dp.Optimizer{
    loss = dp.TreeNLL(),
    visitor = { -- the ordering here is important:
-      dp.Momentum{momentum_factor = opt.momentum},
+      --dp.Momentum{momentum_factor = opt.momentum},
       dp.Learn{
          learning_rate = opt.learningRate, 
          observer = dp.LearningRateSchedule{
             schedule = {[200]=0.01, [400]=0.001}
          }
       },
-      dp.MaxNorm{max_out_norm = opt.maxOutNorm}
+      --dp.MaxNorm{max_out_norm = opt.maxOutNorm}
    },
    feedback = dp.Perplexity(),  
    sampler = dp.ShuffleSampler{batch_size = opt.batchSize},
@@ -141,20 +143,20 @@ train = dp.Optimizer{
 valid = dp.Evaluator{
    loss = dp.TreeNLL(),
    feedback = dp.Perplexity(),  
-   sampler = dp.Sampler()
+   sampler = dp.Sampler{batch_size = 1024}
 }
-test = dp.Evaluator{
+--[[test = dp.Evaluator{
    loss = dp.TreeNLL(),
    feedback = dp.Perplexity(),  
    sampler = dp.Sampler()
-}
+}--]]
 
 --[[Experiment]]--
 xp = dp.Experiment{
    model = mlp,
    optimizer = train,
    validator = valid,
-   tester = test,
+   --tester = test,
    observer = {
       dp.FileLogger(),
       --[[dp.EarlyStopper{

@@ -29,7 +29,7 @@ end
 
 function Perplexity:perplexity()
    -- exponential of the mean NLL
-   return torch.exp(self._perplexity / self._n_sample)
+   return 10^(self._perplexity / (self._n_sample*math.log(10)))
 end
 
 function Perplexity:doneEpoch(report)
@@ -44,7 +44,7 @@ function Perplexity:_add(batch, output, carry, report)
       act = output.act:feature('torch.FloatTensor')
    end
    -- accumulate the sum of negative log likelihoods
-   self._perplexity = self._perplexity - torch.log(act):sum()
+   self._perplexity = self._perplexity - act:sum()
 end
 
 function Perplexity:_reset()

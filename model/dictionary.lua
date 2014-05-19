@@ -86,9 +86,9 @@ function Dictionary:zeroGradParameters()
 end
 
 function Dictionary:_type(type)
-   if type == 'torch.FloatTensor' or type == 'torch.DoubleTensor' then
+   self._module:type(type)
+   if type == 'torch.FloatTensor' or type == 'torch.DoubleTensor' or type == 'torch.CudaTensor' then
       self._output_type = type
-      self._module:type(type)
    elseif type == 'torch.IntTensor' or type == 'torch.LongTensor' then
       self._input_type = type
    end

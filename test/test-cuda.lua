@@ -119,11 +119,12 @@ function dptest.sequential()
    mytester:assertTensorEq(mlp_grad, grad:feature('torch.DoubleTensor'), 0.0001)
 end
 function dptest.softmaxtree()
-   local input_tensor = torch.randn(5,10)
+   local input_tensor = torch.randn(5,10):float()
    local target_tensor = torch.IntTensor{20,24,27,10,12}
-   local grad_tensor = torch.randn(5)
+   local grad_tensor = torch.randn(5):float()
+   local root_id = 29
    local hierarchy={
-      [-1]=torch.IntTensor{0,1,2}, [1]=torch.IntTensor{3,4,5}, 
+      [29]=torch.IntTensor{30,1,2}, [1]=torch.IntTensor{3,4,5}, 
       [2]=torch.IntTensor{6,7,8}, [3]=torch.IntTensor{9,10,11},
       [4]=torch.IntTensor{12,13,14}, [5]=torch.IntTensor{15,16,17},
       [6]=torch.IntTensor{18,19,20}, [7]=torch.IntTensor{21,22,23},
@@ -132,56 +133,50 @@ function dptest.softmaxtree()
    -- dp
    local input = dp.DataTensor{data=input_tensor}
    local target = dp.ClassTensor{data=target_tensor}
-   local model = dp.SoftmaxTree{input_size=10, hierarchy=hierarchy}
+   local model = dp.SoftmaxTree{input_size=10, hierarchy=hierarchy, root_id=root_id}
    model:cuda()
    -- nn
-   local concat = nn.ConcatTable()
-   local indices = {3,3,4}
-   for i,k in ipairs{-1,2,8} do
-      local s = nn.Sequential()
-      s:add(model._parents[k][1]:clone())
-      s:add(nn.Narrow(1,indices[i],1))
-      concat:add(s)
-   end
-   local mlp = nn.Sequential()
-   mlp:add(concat)
-   mlp:add(nn.CMulTable())
+   require 'nnx'
+   local mlp = nn.SoftMaxTree(10, hierarchy, root_id)
+   mlp:float()
+   mlp.weight = model._module.weight:float():clone()
+   mlp.bias = model._module.bias:float():clone()
    -- forward backward
    --- dp
    local act, carry = model:forward(input, {nSample=5, targets=target})
-   local gradWeight = model:parameters().weight1.grad:clone()
+   local gradWeight = model._module.gradWeight:float()
    local grad, carry = model:backward(dp.DataTensor{data=grad_tensor}, carry)
    mytester:assertTableEq(act:feature():size():totable(), {5,1}, 0.000001, "Wrong act size")
    mytester:assertTableEq(grad:feature():size():totable(), {5,10}, 0.000001, "Wrong grad size")
-   local gradWeight2 = model:parameters().weight1.grad:clone()
+   local gradWeight2 = model._module.gradWeight:float()
    mytester:assertTensorNe(gradWeight, gradWeight2, 0.00001)
    --- nn
-   local mlp_act = mlp:forward(input_tensor[3])
-   local mlp_grad = mlp:backward(input_tensor[3], grad_tensor[3])
+   local mlp_act = mlp:forward{input_tensor, target_tensor}
+   local mlp_grad = mlp:backward({input_tensor, target_tensor}, grad_tensor:select(2,1))
    -- compare nn and dp
-   mytester:assertTensorEq(mlp_act, act:feature()[3], 0.00001)
-   mytester:assertTensorEq(mlp_grad, grad:feature()[3], 0.00001)
+   mytester:assertTensorEq(mlp_act, act:feature('torch.FloatTensor'), 0.00001)
+   mytester:assertTensorEq(mlp_grad, grad:feature('torch.FloatTensor'), 0.00001)
    -- share
    local model2 = model:sharedClone()   
    -- update
-   local weight = model:parameters().weight1.param:clone()
+   local weight = model._module.weight:clone()
    local act_ten = act:feature():clone()
    local grad_ten = grad:feature():clone()
    local visitor = dp.Learn{learning_rate=0.1}
    visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
    model:accept(visitor)
-   local weight2 = model:parameters().weight1.param:clone()
+   local weight2 = model._module.weight
    mytester:assertTensorNe(weight, weight2, 0.00001)
    model:doneBatch()
    -- forward backward
    local act2, carry2 = model2:forward(input, {nSample=5, targets=target})
    local grad2, carry2 = model2:backward(dp.DataTensor{data=grad_tensor}, carry2)
-   mytester:assertTensorNe(act_ten, act2:feature(), 0.00001)
-   mytester:assertTensorNe(grad_ten, grad2:feature(), 0.00001)
+   mytester:assertTensorNe(act_ten, act2:feature('torch.FloatTensor'), 0.00001)
+   mytester:assertTensorNe(grad_ten, grad2:feature('torch.FloatTensor'), 0.00001)
    local act, carry = model:forward(input, {nSample=5, targets=target})
    local grad, carry = model:backward(dp.DataTensor{data=grad_tensor}, carry)
-   mytester:assertTensorEq(act:feature(), act2:feature(), 0.00001)
-   mytester:assertTensorEq(grad:feature(), grad2:feature(), 0.00001)
+   mytester:assertTensorEq(act:feature('torch.FloatTensor'), act2:feature('torch.FloatTensor'), 0.00001)
+   mytester:assertTensorEq(grad:feature('torch.FloatTensor'), grad2:feature('torch.FloatTensor'), 0.00001)
 end
 function dptest.nll()
    local input_tensor = torch.randn(5,10)
@@ -215,14 +210,11 @@ function dptest.treenll()
    local grad = loss:backward(input, target, carry)
    -- nn
    local criterion = nn.ClassNLLCriterion()
-   local lg = nn.Log()
-   local l_act = lg:forward(input_tensor)
-   local c_err = criterion:forward(l_act, target_tensor)
-   local c_grad = criterion:backward(l_act, target_tensor)
-   local l_grad = lg:backward(input_tensor, c_grad)
+   local c_err = criterion:forward(input_tensor, target_tensor)
+   local c_grad = criterion:backward(input_tensor, target_tensor)
    -- compare nn and dp
    mytester:asserteq(c_err, err, 0.00001)
-   mytester:assertTensorEq(l_grad:narrow(2,1,1):float(), grad:feature():float(), 0.00001)
+   mytester:assertTensorEq(c_grad:narrow(2,1,1):float(), grad:feature():float(), 0.00001)
 end
 
 function dp.testCuda(tests)

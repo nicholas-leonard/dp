@@ -515,14 +515,11 @@ function dptest.treenll()
    local grad = loss:backward(input, target, carry)
    -- nn
    local criterion = nn.ClassNLLCriterion()
-   local lg = nn.Log()
-   local l_act = lg:forward(input_tensor)
-   local c_err = criterion:forward(l_act, target_tensor)
-   local c_grad = criterion:backward(l_act, target_tensor)
-   local l_grad = lg:backward(input_tensor, c_grad)
+   local c_err = criterion:forward(input_tensor, target_tensor)
+   local c_grad = criterion:backward(input_tensor, target_tensor)
    -- compare nn and dp
    mytester:asserteq(c_err, err, 0.00001)
-   mytester:assertTensorEq(l_grad:narrow(2,1,1), grad:feature(), 0.00001)
+   mytester:assertTensorEq(c_grad:narrow(2,1,1), grad:feature(), 0.00001)
 end
 
 

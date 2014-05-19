@@ -58,5 +58,3 @@ $> sudo apt-get install libpq-dev
 $> sudo luarocks install luasql-postgres PGSQL_INCDIR=/usr/include/postgresql
 $> sudo apt-get install liblapack-dev
 ```
-
-If you are encountering problems related to BLAS, please refer to Torch7's [BLAS and LAPACK installation manual] (https://github.com/torch/torch7-distro/blob/master/pkg/dok/dokinstall/blas.dok)

@@ -72,12 +72,14 @@ function SoftmaxTree:paramModule()
 end
 
 function SoftmaxTree:_type(type)
-   self._input_type = type
-   self._output_type = type
-   if self._dropout then
-      self._dropout:type(type)
+   if type == 'torch.FloatTensor' or type == 'torch.DoubleTensor' then
+      self._input_type = type
+      self._output_type = type
+      if self._dropout then
+         self._dropout:type(type)
+      end
+      self._module:type(type)
    end
-   self._module:type(type)
    return self
 end
 

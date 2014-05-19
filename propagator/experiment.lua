@@ -121,7 +121,9 @@ function Experiment:run(datasource)
       self._epoch = self._epoch + 1
       self._optimizer:propagateEpoch(train_set, report)
       self._validator:propagateEpoch(valid_set, report)
-      self._tester:propagateEpoch(test_set, report)
+      if self._tester then
+         self._tester:propagateEpoch(test_set, report)
+      end
       report = self:report()
       self._mediator:publish("doneEpoch", report)
    until (self:isDoneExperiment() or self._epoch >= self._max_epoch)
@@ -165,7 +167,7 @@ function Experiment:report()
    local report = {
       optimizer = self:optimizer():report(),
       validator = self:validator():report(),
-      tester = self:tester():report(),
+      tester = self:tester() and self:tester():report(),
       epoch = self:epoch(),
       random_seed = self:randomSeed(),
       model = self._model:report(),

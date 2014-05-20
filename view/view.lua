@@ -8,7 +8,6 @@ View.isView = true
 
 function View:__init()
    -- caches
-   self._modules = {}
    self._tensors = {}
    self._warn = false
 end
@@ -114,8 +113,8 @@ end
 -- In the case of multiple output models having called backwardPut, 
 -- the different gradInputs must be accumulated (sum grads).
 function View:backwardGet(view, tensor_type)
-   if (torch.typename(self._data) ~= tensor_type) then
-      error"backwardGet will be called with the same type as self._data"
+   if (torch.typename(self._input) ~= tensor_type) then
+      error"backwardGet sould be called with the same type as self._data"
    end
    local view, gradOutput, gradInput
    
@@ -209,15 +208,6 @@ function View:bf()
    return modula or nn.Identity()
 end
 
-
-function View:backward(view, gradInputORtype)
-   assert(torch.type(view) == 'string', "Expecting string at arg 1")
-   if torch.type(input) == 'string' then
-      return self:forwardGet(view, inputORtype)
-   end
-   return self:forwardPut(view, inputORtype)
-end
-
 --Returns the axis of the batch/example index ('b') 
 function View:b()
    local b = _.indexOf(self:storedAxes(), 'b')
@@ -232,12 +222,6 @@ function View:nSample()
       "Error : unequal number of axis for size and axes")
    return self:storedSize()[self:b()]
 end
-
---Returns current view of data
-function View:data()
-   return self._input
-end
-
 
 function View:pairs()
    return pairs{self}

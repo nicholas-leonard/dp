@@ -15,12 +15,25 @@ function dptest.view()
    local axes = 'bf'
    local sizes = {3, 4}
    local v = dp.View()
+   -- forward
    v:forward('bf', data)
    local f = v:forward('bf', 'torch.DoubleTensor')
    mytester:asserteq(f:dim(),2)
    mytester:assertTensorEq(f,data, 0.00001)
    local f2 = v:forward('bf', 'torch.FloatTensor')
    mytester:assertTensorEq(f:float(),f2, 0.00001)
+   -- backward
+   local g = f:clone()
+   g[1][1] = 0
+   local g2 = f2:clone()
+   g2[1][2] = 0
+   v:backward('bf', g)
+   v:backward('bf', g2)
+   local b = v:backward('bf', 'torch.DoubleTensor')
+   mytester:asserteq(b:dim(),2)
+   local r = g2:clone():double()
+   r:add(g)
+   mytester:assertTensorEq(b,r, 0.00001)
    --[[ indexing
    local indices = torch.LongTensor{2,3}
    local fi = dt:index(indices)

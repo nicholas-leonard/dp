@@ -40,6 +40,9 @@ torch.include('dp', 'mediator.lua')
 torch.include('dp', 'objectid.lua')
 torch.include('dp', 'node.lua')
 
+--[[ view ]]--
+torch.include('dp', 'view/view.lua')
+
 --[[ data ]]--
 torch.include('dp', 'data/conv2d.lua')
 

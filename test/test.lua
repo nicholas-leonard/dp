@@ -10,14 +10,18 @@ function dptest.uid()
    mytester:assertne(uid1, uid2, 'uid1 ~= uid2')
    mytester:assertne(uid2, uid3, 'uid2 ~= uid3')
 end
-function dptest.datatensor()
+function dptest.view()
    local data = torch.rand(3,4)
-   local axes = {'b','f'}
+   local axes = 'bf'
    local sizes = {3, 4}
-   local dt = dp.DataTensor{data=data, axes=axes, sizes=sizes}
-   local f = dt:feature()
+   local v = dp.View()
+   v:forward('bf', data)
+   local f = v:forward('bf', 'torch.DoubleTensor')
    mytester:asserteq(f:dim(),2)
-   -- indexing
+   mytester:assertTensorEq(f,data, 0.00001)
+   local f2 = v:forward('bf', 'torch.FloatTensor')
+   mytester:assertTensorEq(f:float(),f2, 0.00001)
+   --[[ indexing
    local indices = torch.LongTensor{2,3}
    local fi = dt:index(indices)
    mytester:assertTensorEq(fi:feature(), data:index(1, indices), 0.000001)
@@ -26,7 +30,7 @@ function dptest.datatensor()
    mytester:assertTensorEq(fi2:feature(), fi:feature(), 0.0000001)
    mytester:assertTensorEq(dt2._data, fi2:feature(), 0.0000001)
    local fi3 = dt:index(nil, indices)
-   mytester:assertTensorEq(fi2:feature(), fi:feature(), 0.0000001)
+   mytester:assertTensorEq(fi2:feature(), fi:feature(), 0.0000001)--]]
 end
 function dptest.imagetensor()
    local size = {8,32,32,3}

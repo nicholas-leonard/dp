@@ -9,7 +9,7 @@
 -- reporting purposes. Default name is typename minus module name(s)
 ------------------------------------------------------------------------
 local LossFeedback, parent = torch.class("dp.LossFeedback", "dp.Feedback")
-LossFeedback.isCriteria = true
+LossFeedback.isLossFeedback = true
 
 function LossFeedback:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")

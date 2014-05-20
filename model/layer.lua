@@ -31,7 +31,14 @@ function Layer:__init(config)
 end
 
 function Layer:inputAct()
-   return self.input.act:feature(self._input_type)
+   local act = self.input.act:feature()
+   if torch.typename(act) ~= self._input_type then
+      if not self._inputCopy then
+         self._inputCopy = nn.Copy(torch.typename(act), self._input_type)
+      end
+      act = self._inputCopy:forward(act)
+   end
+   return act
 end
 
 function Layer:inputGrad(input_grad)
@@ -41,7 +48,7 @@ function Layer:inputGrad(input_grad)
       self.input.grad:setData(input_grad)
       return
    end
-   return self.input.grad:feature(self._input_type)
+   return self.input.grad:feature()
 end
 
 function Layer:outputAct(output_act)
@@ -51,11 +58,18 @@ function Layer:outputAct(output_act)
       self.output.act = dp.DataTensor{data=output_act}
       return
    end
-   return self.output.act:feature(self._output_type)
+   return self.output.act:feature()
 end
 
 function Layer:outputGrad()
-   return self.output.grad:feature(self._output_type)
+   local grad = self.output.grad:feature()
+   if torch.typename(grad) ~= self._output_type then
+      if not self._outputCopy then
+         self._outputCopy = nn.Copy(self._output_type, torch.typename(grad))
+      end
+      grad = self._outputCopy:backward(nil, grad)
+   end
+   return grad
 end
 
 -- this should return a parameterized module

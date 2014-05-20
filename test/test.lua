@@ -45,38 +45,39 @@ function dptest.view()
    local fi3 = dt:index(nil, indices)
    mytester:assertTensorEq(fi2:feature(), fi:feature(), 0.0000001)--]]
 end
-function dptest.imagetensor()
+function dptest.imageview()
    local size = {8,32,32,3}
    local feature_size = {8,32*32*3}
    local data = torch.rand(unpack(size))
-   local axes = {'b','h','w','c'}
-   local dt = dp.ImageTensor{data=data, axes=axes}
+   local v = dp.ImageView()
+   v:forward('bhwc', data)
    -- convert to image (shouldn't change anything)
-   local i = dt:imageBHWC()
+   local i = v:forward('bhwc', 'torch.DoubleTensor')
    mytester:assertTensorEq(i, data, 0.0001)
    mytester:assertTableEq(i:size():totable(), size, 0.0001)
    -- convert to feature (should colapse last dims)
-   local t = dt:feature()
-   mytester:assertTableEq(t:size():totable(), feature_size, 0.0001)
-   mytester:assertTensorEq(i, data, 0.00001)
-   -- convert to image (should expand last dim)
-   local i = dt:imageBHWC()
-   mytester:assertTensorEq(i, data, 0.0001)
-   mytester:assertTableEq(i:size():totable(), size, 0.0001)
-   -- convert to imageBCHW()
-   local i5 = dt:imageBCHW()
-   mytester:assertTensorEq(i5, data:transpose(2,4):transpose(3,4), 0.0001)
-   mytester:assertTableEq(i5:size():totable(), {8,3,32,32}, 0.0001)
-   -- create from BCHW
-   local dt4 = dp.ImageTensor{data=data:transpose(2,4):transpose(3,4), axes={'b','c','h','w'}}
-   local i4 = dt:imageBHWC()
+   local f = v:forward('bf', 'torch.DoubleTensor')
+   mytester:assertTableEq(f:size():totable(), feature_size, 0.0001)
+   mytester:assertTensorEq(f, data, 0.00001)
+   -- convert to image (shouldn't change anything)
+   local i2 = v:forward('bhwc', 'torch.DoubleTensor')
+   mytester:assertTensorEq(i2, data, 0.0001)
+   mytester:assertTableEq(i2:size():totable(), size, 0.0001)
+   -- convert to image bchw
+   local i3 = v:forward('bchw', 'torch.DoubleTensor')
+   mytester:assertTensorEq(i3, data:transpose(2,4):transpose(3,4), 0.0001)
+   mytester:assertTableEq(i3:size():totable(), {8,3,32,32}, 0.0001)
+   -- create from bchw
+   local v2 = dp.ImageView()
+   v2:forward('bchw', i3)
+   local i4 = v:forward('bhwc', 'torch.DoubleTensor')
    mytester:assertTensorEq(i4, data, 0.0001)
    mytester:assertTableEq(i4:size():totable(), size, 0.0001)
-   -- convert to imageBCHW()
-   local i6 = dt:imageBCHW()
-   mytester:assertTensorEq(i6, data:transpose(2,4):transpose(3,4), 0.0001)
-   mytester:assertTableEq(i6:size():totable(), {8,3,32,32}, 0.0001)
-   -- indexing
+   -- convert to bchw()
+   local i5 = v:forward('bchw', 'torch.DoubleTensor')
+   mytester:assertTensorEq(i5, data:transpose(2,4):transpose(3,4), 0.0001)
+   mytester:assertTableEq(i5:size():totable(), {8,3,32,32}, 0.0001)
+   --[[ indexing
    local indices = torch.LongTensor{2,3}
    local fi = dt:index(indices)
    mytester:assertTensorEq(fi:feature(), data:reshape(unpack(feature_size)):index(1, indices), 0.000001)
@@ -85,13 +86,7 @@ function dptest.imagetensor()
    mytester:assertTensorEq(fi2:feature(), fi:feature(), 0.0000001)
    mytester:assertTensorEq(dt2._data, fi2:feature(), 0.0000001)
    local fi3 = dt:index(nil, indices)
-   mytester:assertTensorEq(fi2:feature(), fi:feature(), 0.0000001)
-   -- cloning
-   local clone_data = torch.rand(unpack(size))
-   local clone = dt:shallowClone()
-   mytester:assertTensorEq(dt:image(), data, 0.0001)
-   clone:setData(clone_data)
-   mytester:assertTensorEq(clone:image(), clone_data, 0.0001)
+   mytester:assertTensorEq(fi2:feature(), fi:feature(), 0.0000001)--]]
 end
 function dptest.sequencetensor()
    local size = {8,10,50}

@@ -112,7 +112,7 @@ function dptest.languagemodel()
    for i = 1,#nn_inputs do
       groundtruth = mlp:forward(nn_inputs[i][1])
    end
-   tm2.nn = a:time().real
+   tm3.nn = a:time().real
    print("softmax focused Time ".. a:time().real)
 end
 

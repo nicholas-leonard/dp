@@ -154,32 +154,11 @@ function View:backwardGet(view, tensor_type)
    return self._gradInput
 end
 
----------------------- MISC ----------------------------
-
-function View:findAxis(axis_char, view)
-   view = view or self._view
-   local axis_pos = view:find(axis_char)
-   if not axis_pos then
-      error("Provided view '"..view.."' has no axis '"..axis_char.."'", 2)
-   end
-   return axis_pos
-end
-
-function View:sampleSize(b_pos, view, data)
-   b_pos = b_pos or self:findAxis('b', view)
-   data = data or self._input
-   local size = 1
-   for i=1,data:dim() do
-      if i ~= b_pos then
-         size = size * self._input:size(i)
-      end
-   end
-   return size
-end
+---------------------- VIEWS ---------------------------
 
 -- batch feature
 function View:bf()
-   local view, data, dim = self._view, self._input, self._dim
+   local view, dim = self._view, self._dim
    local b_pos = self:findAxis('b', view)
    -- was b
    if dim == 1 then
@@ -208,19 +187,33 @@ function View:bf()
    return modula or nn.Identity()
 end
 
---Returns the axis of the batch/example index ('b') 
-function View:b()
-   local b = _.indexOf(self:storedAxes(), 'b')
-   assert(b ~= 0, "Error : no batch axis")
-   
-   return b
+---------------------- MISC ----------------------------
+
+function View:findAxis(axis_char, view)
+   view = view or self._view
+   local axis_pos = view:find(axis_char)
+   if not axis_pos then
+      error("Provided view '"..view.."' has no axis '"..axis_char.."'", 2)
+   end
+   return axis_pos
+end
+
+function View:sampleSize(b_pos, view, data)
+   b_pos = b_pos or self:findAxis('b', view)
+   data = data or self._input
+   local size = 1
+   for i=1,data:dim() do
+      if i ~= b_pos then
+         size = size * self._input:size(i)
+      end
+   end
+   return size
 end
 
 -- Returns number of samples
-function View:nSample()
-   assert(#self:storedAxes() == self:storedSize():nElement(),
-      "Error : unequal number of axis for size and axes")
-   return self:storedSize()[self:b()]
+function View:nSample(b_pos)
+   b_pos = b_pos or self:findAxis('b')
+   return self._input:size(b_pos)
 end
 
 function View:pairs()
@@ -270,16 +263,6 @@ function View:sub(start, stop)
       data=self:feature():narrow(self:b(), start, stop-start+1),
       axes=table.copy(self:expandedAxes()), sizes=sizes
    })
-end
-
--- returns a clone sharing the same data
-function View:shallowClone(config)
-   config = config or {}
-   local clone = torch.protoClone(self, table.merge(config, {
-      data=self._input, axes=table.copy(self:expandedAxes()), 
-      sizes=self:expandedSize():clone()
-   }))
-   return clone
 end
 
 function View:type(type)

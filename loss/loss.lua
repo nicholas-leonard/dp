@@ -20,8 +20,8 @@ function Loss:__init(config)
 end
 
 function Loss:forward(input, target, carry)
-   assert(input.isBaseTensor, "Expecting dp.BaseTensor for input")
-   assert(target.isBaseTensor, "Expecting dp.BaseTensor for target")
+   assert(input.isView, "Expecting dp.View for input")
+   assert(target.isView, "Expecting dp.View for target")
    self.input.act = input
    self.input.target = target
    carry = self:_forward(carry) or carry
@@ -31,8 +31,8 @@ function Loss:forward(input, target, carry)
 end
 
 function Loss:evaluate(input, target, carry)
-   assert(input.isBaseTensor, "Expecting dp.BaseTensor for input")
-   assert(target.isBaseTensor, "Expecting dp.BaseTensor for target")
+   assert(input.isView, "Expecting dp.View for input")
+   assert(target.isView, "Expecting dp.View for target")
    self.input.act = input
    self.input.target = target
    carry = self:_evaluate(carry) or carry
@@ -43,12 +43,12 @@ function Loss:evaluate(input, target, carry)
 end
 
 function Loss:backward(input, target, carry)
-   assert(input.isBaseTensor, "Expecting dp.BaseTensor for input")
-   assert(target.isBaseTensor, "Expecting dp.BaseTensor for target")
+   assert(input.isView, "Expecting dp.View for input")
+   assert(target.isView, "Expecting dp.View for target")
    self.input.act = input
    self.input.target = target
    carry = self:_backward(carry) or carry
-   assert(self.input.grad.isBaseTensor, "Expecting dp.BaseTensor grad")
+   assert(self.input.grad.isView, "Expecting dp.View grad")
    self.backwarded = true
    return self.input.grad, carry
 end

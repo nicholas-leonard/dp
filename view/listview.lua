@@ -1,4 +1,4 @@
--- WORK IN PROGRESS : DO NOT USE
+-- WORK IN PROGRESS : (only works for forward('bf')
 -----------------------------------------------------------------------
 --[[ ListView ]]-- 
 -- Composite (design pattern) of component Views

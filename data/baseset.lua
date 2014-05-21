@@ -14,14 +14,14 @@ function BaseSet:__init(config)
       'Base class inherited by DataSet and Batch.',
       {arg='which_set', type='string',
        help='"train", "valid" or "test" set'},
-      {arg='inputs', type='dp.BaseTensor | table of dp.BaseTensors', 
-       help='Sample inputs to a model. These can be DataTensors or '..
-       'a table of BaseTensors (in which case these are converted '..
-       'to a CompositeTensor', req=true},
-      {arg='targets', type='dp.BaseTensor | table of dp.BaseTensors', 
-       help='Sample targets to a model. These can be BaseTensors or '..
-       'a table of BaseTensors (in which case these are converted '..
-       'to a CompositeTensor. The indices of examples must be '..
+      {arg='inputs', type='dp.View | table of dp.Views', 
+       help='Sample inputs to a model. These can be Views or '..
+       'a table of Views (in which case these are converted '..
+       'to a ListView', req=true},
+      {arg='targets', type='dp.View | table of dp.Views', 
+       help='Sample targets to a model. These can be Views or '..
+       'a table of Views (in which case these are converted '..
+       'to a ListView. The indices of examples must be '..
        'in both inputs and targets must be aligned.'}
    )
    self:setWhichSet(which_set)
@@ -46,8 +46,8 @@ function BaseSet:setInputs(inputs)
       --if list, make CompositeTensor
       inputs = dp.CompositeTensor{components=inputs}
    end
-   assert(inputs.isBaseTensor, 
-      "Error : invalid inputs. Expecting type dp.BaseTensor")
+   assert(inputs.isView, 
+      "Error : invalid inputs. Expecting type dp.View")
    self._inputs = inputs
 end
 
@@ -56,8 +56,8 @@ function BaseSet:setTargets(targets)
       --if list, make CompositeTensor
       targets = dp.CompositeTensor{components=targets}
    end
-   assert(targets.isBaseTensor,
-      "Error : invalid targets. Expecting type dp.BaseTensor")
+   assert(targets.isView,
+      "Error : invalid targets. Expecting type dp.View")
    self._targets = targets
 end
 
@@ -66,18 +66,18 @@ function BaseSet:nSample()
    return self._inputs:nSample()
 end
 
---Returns input dp.DataTensors
+--Returns input dp.View
 function BaseSet:inputs()
    return self._inputs
 end
 
---Returns target dp.DataTensors
+--Returns target dp.View
 function BaseSet:targets()
    return self._targets
 end
 
 --Preprocesses are applied to DataTensors, which means that 
---DataTensor:image(), :expandedAxes(), etc. can be used.
+-- View:forward(), can be used.
 function BaseSet:preprocess(config)
    config = config or {}
    assert(torch.type(config) == 'table' and not config[1], 
@@ -88,13 +88,11 @@ function BaseSet:preprocess(config)
          'BaseSet:preprocess',
          'Preprocesses the BaseSet.',
          {arg='input_preprocess', type='dp.Preprocess', 
-          help='Preprocess applied to the input DataTensor(s) of ' .. 
-          'the BaseSet'},
+          help='Preprocess applied to the input View of the BaseSet'},
          {arg='target_preprocess', type='dp.Preprocess',
-          help='Preprocess applied to the target DataTensor(s) of ' ..
-          'the BaseSet'},
+          help='Preprocess applied to the target View of the BaseSet'},
          {arg='can_fit', type='boolean',
-          help='Allows measuring of statistics on the DataTensor(s) ' .. 
+          help='Allows measuring of statistics on the View ' .. 
           'of BaseSet to initialize the preprocess. Should normally ' .. 
           'only be done on the training set. Default is to fit the ' ..
           'training set.'}

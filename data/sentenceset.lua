@@ -6,9 +6,9 @@
 -- and a tensor holding the start index of the sentence of its 
 -- commensurate word id (the one at the same index).
 -- Unlike DataSet, for memory efficiency reasons, 
--- this class does not store its data in BaseTensors.
+-- this class does not store its data in Views.
 -- However, the outputs of batch(), sub(), index() are dp.Batches
--- containing WordTensors (inputs) and ClassTensors (targets).
+-- containing ClassViews of inputs and targets.
 ------------------------------------------------------------------------
 local SentenceSet, parent = torch.class("dp.SentenceSet", "dp.DataSet")
 SentenceSet.isSentenceSet = true
@@ -74,10 +74,28 @@ function SentenceSet:batch(batch_size)
 end
 
 -- TODO add optional batch as first argument (to all BaseSets)
-function SentenceSet:sub(start, stop)
+function SentenceSet:sub(start, stop, new)
    local data = self._data:sub(start, stop)
    local words = self._data:select(2, 2)
-   local inputs = torch.IntTensor(data:size(1), self._context_size)
+   local input_v, inputs, target_v
+   if new then
+      inputs = torch.IntTensor()
+      input_v = dp.ClassView()
+      target_v = dp.ClassView()
+   else
+      input_v = self._input_cache
+      target_v = self._target_cache
+      if not input_v or not target_v then
+         input_v = dp.ClassView()
+         target_v = dp.ClassView()
+         inputs = torch.IntTensor()
+         self._input_cache = input_v
+         self._target_cache = target_v
+      else
+         inputs = input_v:input()
+      end
+   end
+   inputs:resize(data:size(1), self._context_size)
    -- fill tensor with sentence start tags : <S>
    inputs:fill(self._start_id)
    for i=1,data:size(1) do
@@ -92,28 +110,32 @@ function SentenceSet:sub(start, stop)
          ):copy(context)
       end
    end   
-   -- encapsulate in dp.BaseTensors
-   inputs = dp.WordTensor{
-      data=inputs, axes={'b','t'}, classes=self._words
-   }
-   targets = dp.ClassTensor{data=data:select(2,2), classes=self._words}
+   -- encapsulate in dp.ClassViews
+   input_v:forward('bt', inputs)
+   input_v:setClasses(self._words)
+   
+   target_v:forward('b', data:select(2,2))
+   target_v:setClasses(self._words)
    return dp.Batch{
       which_set=self:whichSet(), epoch_size=self:nSample(),
-      inputs=inputs, targets=targets
+      inputs=input_v, targets=target_v
    }   
 end
 
 function SentenceSet:index(batch, indices)
-   local inputs
-   local targets
+   local inputs, targets, input_v, target_v
    if (not batch) or (not indices) then 
       indices = indices or batch
       inputs = torch.IntTensor(indices:size(1), self._context_size)
       targets = torch.IntTensor(indices:size(1))
+      input_v = dp.ClassView()
+      target_v = dp.ClassView()
    else
-      inputs = batch:inputs():context()
+      input_v = batch:inputs()
+      inputs = input_v:input()
       inputs:resize(indices:size(1), self._context_size)
-      targets = batch:targets():class()
+      target_v = batch:targets()
+      targets = target_v:input()
       targets:resize(indices:size(1))
    end
    -- fill tensor with sentence start tags : <S>
@@ -137,13 +159,15 @@ function SentenceSet:index(batch, indices)
    end   
    -- targets
    targets:copy(data:select(2,2))
-   -- encapsulate in dp.BaseTensors
-   inputs = dp.WordTensor{
-      data=inputs, axes={'b','t'}, classes=self._words
-   }
-   local targets = dp.ClassTensor{data=targets, classes=self._words}
+   
+   -- encapsulate in dp.Views
+   input_v:forward('bt', inputs)
+   input_v:setClasses(self._words)
+   
+   target_v:forward('b', targets)
+   target_v:setClasses(self._words)
    return dp.Batch{
       which_set=self:whichSet(), epoch_size=self:nSample(),
-      inputs=inputs, targets=targets
+      inputs=input_v, targets=target_v
    }   
 end

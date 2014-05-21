@@ -49,32 +49,32 @@ function Model:parameters()
 end
 
 function Model:forward(input, carry)
-   assert(input.isBaseTensor, "Expecting dp.BaseTensor input")
+   assert(input.isView, "Expecting dp.View input")
    self.input.act = input:shallowClone()
    self:updateStatistics(carry)
    carry = self:_forward(carry) or carry
-   assert(self.output.act.isBaseTensor, "Expecting dp.BaseTensor output")
+   assert(self.output.act.isView, "Expecting dp.View output")
    self.forwarded = true
    return self.output.act, carry
 end
 
 function Model:evaluate(input, carry)
-   assert(input.isBaseTensor, "Expecting dp.BaseTensor instance")
+   assert(input.isView, "Expecting dp.View instance")
    self.input.act = input:shallowClone()
    carry.evaluate = true
    self:updateStatistics(carry)
    carry = self:_evaluate(carry) or carry
-   assert(self.output.act.isBaseTensor, "Expecting dp.BaseTensor output")
+   assert(self.output.act.isView, "Expecting dp.View output")
    self.evaluated = true
    self.forwarded = true
    return self.output.act, carry
 end
 
 function Model:backward(output, carry)
-   assert(output.isBaseTensor, "Expecting dp.BaseTensor output")
+   assert(output.isView, "Expecting dp.View output")
    self.output.grad = output:shallowClone()
    carry = self:_backward(carry) or carry
-   assert(self.output.grad.isBaseTensor, "Expecting dp.BaseTensor grad")
+   assert(self.output.grad.isView, "Expecting dp.View grad")
    self.backwarded = true
    return self.input.grad, carry
 end

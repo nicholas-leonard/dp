@@ -241,7 +241,9 @@ function DataView:sub(start, stop, new)
          self._v = v
       end
    end
-   assert(self._view == v._view, "Expecting arg 1 to have same view")
+   if v._view then
+      assert(self._view == v._view, "Expecting arg 1 to have same view")
+   end
    v:forward(self._view, data)
    return v
 end
@@ -249,6 +251,10 @@ end
 function DataView:type(type)
    error"Not Implemented"
    self._input = self._input:type(type)
+end
+
+function DataView:input()
+   return self._input
 end
 
 -- a generic function for transposing images

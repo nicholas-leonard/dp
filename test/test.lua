@@ -170,19 +170,22 @@ function dptest.dataset()
    -- class tensor
    local class_data = torch.randperm(8)
    local classes = {1,2,3,4,5,6,7,8,9,10}
-   local class_tensor = dp.ClassTensor{data=class_data, classes=classes}
+   local class_v = dp.ClassView()
+   class_v:forward('b', class_data)
+   class_v:setClasses(classes)
    -- image tensor
    local image_data = torch.rand(8,32,32,3)
-   local image_tensor = dp.ImageTensor{data=image_data}
+   local image_v = dp.ImageView()
+   image_v:forward('bhwc', image_data)
    -- dataset
-   local ds = dp.DataSet{which_set='train', inputs=image_tensor, targets=class_tensor}
+   local ds = dp.DataSet{which_set='train', inputs=image_v, targets=class_v}
    local batch = ds:index(torch.LongTensor{1,2,3})
    local batch2 = ds:sub(1, 3)
-   mytester:assertTensorEq(batch:inputs():image(), batch2:inputs():image(), 0.00001)
+   mytester:assertTensorEq(batch:inputs():forward('bhwc'), batch2:inputs():forward('bhwc'), 0.00001)
    batch2 = ds:index(batch, torch.LongTensor{2,3,4})
-   mytester:assertTensorEq(batch:inputs():image(), batch2:inputs():image(), 0.00001)
-   mytester:assertTensorEq(batch:targets():class(), batch2:targets():class(), 0.00001)
-   mytester:assertTensorEq(batch:targets():class(), ds:targets():class():narrow(1,2,3), 0.00001)
+   mytester:assertTensorEq(batch:inputs():forward('bhwc'), batch2:inputs():forward('bhwc'), 0.00001)
+   mytester:assertTensorEq(batch:targets():forward('bt'), batch2:targets():forward('bt'), 0.00001)
+   mytester:assertTensorEq(batch:targets():forward('bt'), ds:targets():forward('bt'):narrow(1,2,3), 0.00001)
 end
 function dptest.sentenceset()
    local tensor = torch.IntTensor(80, 2):zero()
@@ -199,13 +202,13 @@ function dptest.sentenceset()
    -- dataset
    local ds = dp.SentenceSet{which_set='train', data=tensor, words=words, context_size=3, start_id=1, end_id=2}
    local batch = ds:index(torch.LongTensor{1,2,3})
-   mytester:assertTableEq(batch:inputs():context():size():totable(), {3, 3})
+   mytester:assertTableEq(batch:inputs():forward('bt'):size():totable(), {3, 3})
    local batch2 = ds:sub(1, 3)
-   mytester:assertTensorEq(batch:inputs():context(), batch2:inputs():context(), 0.00001)
+   mytester:assertTensorEq(batch:inputs():forward('bt'), batch2:inputs():forward('bt'), 0.00001)
    batch2 = ds:index(batch, torch.LongTensor{2,3,4})
-   mytester:assertTensorEq(batch:inputs():context(), batch2:inputs():context(), 0.00001)
-   mytester:assertTensorEq(batch:targets():class(), batch2:targets():class(), 0.00001)
-   mytester:assertTensorEq(batch:targets():class(), tensor:select(2,2):narrow(1,2,3), 0.00001)
+   mytester:assertTensorEq(batch:inputs():forward('bt'), batch2:inputs():forward('bt'), 0.00001)
+   mytester:assertTensorEq(batch:targets():forward('b'), batch2:targets():forward('b'), 0.00001)
+   mytester:assertTensorEq(batch:targets():forward('b'), tensor:select(2,2):narrow(1,2,3), 0.00001)
 end 
 function dptest.gcn_zero_vector()
    -- Global Contrast Normalization

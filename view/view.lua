@@ -223,47 +223,51 @@ end
 
 -- When dt is provided, reuse its data (a torch.Tensor).
 -- config is a table of key-values overwriting the clones constructor's
-function View:index(dt, indices, config)
+function View:index(v, indices)
    assert(self._input:type() ~= 'torch.CudaTensor', 
       "View:index doesn't work with torch.CudaTensors.")
-   config = config or {}
-   local sizes = self:expandedSize():clone()
+   local b_pos = self:findAxis('b')
    local data
    if indices and dt then
-      if torch.type(dt) ~= torch.type(self) then
+      if torch.type(v) ~= torch.type(self) then
          error("Expecting "..torch.type(self).." at arg 1 "..
-               "got "..torch.type(dt).." instead")
+               "got "..torch.type(v).." instead")
       end
-      data = dt:data()
+      data = v._input
       -- dont use datatensor if cuda (index not in cutorch yet)
       if data:type() ~= 'torch.CudaTensor' then
-         torch.Tensor.index(data, self:default(), self:b(), indices)
+         torch.Tensor.index(data, self._input, b_pos, indices)
       else
-         data = self:default():index(self:b(), indices)
+         data = self._data:index(b_pos, indices)
       end
-      sizes[self:b()] = indices:size(1)
-      dt:__init(table.merge(config, {
-         data=data, sizes=sizes, axes=table.copy(self:expandedAxes())
-      }))
-      --TODO : copy to existing cuda memory + use index cache
-      return dt
+      assert(self._view == v._view, "Expecting arg 1 to have same view")
+      v:forward(self._view, data)
+      return v
    end
-   indices = indices or dt
-   data = self:default():index(self:b(), indices)
-   sizes[self:b()] = indices:size(1)
-   return torch.protoClone(self, table.merge(config, {
-      data=data, sizes=sizes, axes=table.copy(self:expandedAxes())
-   }))
+   indices = indices or v
+   data = self._input:index(b_pos, indices)
+   v = torch.protoClone(self)
+   v:forward(self._view, data)
+   return v
 end
 
 --Returns a sub-datatensor narrowed on the batch dimension
-function View:sub(start, stop)
-   local sizes = self:expandedSize():clone()
-   sizes[self:b()] = stop-start+1
-   return torch.protoClone(self, {
-      data=self:feature():narrow(self:b(), start, stop-start+1),
-      axes=table.copy(self:expandedAxes()), sizes=sizes
-   })
+function View:sub(start, stop, new)
+   local b_pos = self:findAxis('b')
+   local data = self._input:narrow(b_pos, start, stop-start+1)
+   local v
+   if new then
+      v = torch.protoClone(self)
+   else
+      v = self._v
+      if not v then
+         v = torch.protoClone(self)
+         self._v = v
+      end
+   end
+   assert(self._view == v._view, "Expecting arg 1 to have same view")
+   v:forward(self._view, data)
+   return v
 end
 
 function View:type(type)

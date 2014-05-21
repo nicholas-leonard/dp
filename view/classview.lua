@@ -62,23 +62,16 @@ function ClassView:bf()
 end
 
 -- returns a batch of examples indexed by indices
-function ClassView:index(v, indices, config)
-   config = config or {}
-   config = table.merge(config, {classes=self:classes()})
-   return parent.index(self, v, indices, config)
+function ClassView:index(v, indices)
+   local v = parent.index(self, v, indices)
+   v:setClasses(self._classes)
+   return v
 end
 
 --Returns a sub-datatensor narrowed on the batch dimension
 function ClassView:sub(start, stop)
-   local data = self:multiclass()
-   local sizes=self:expandedSize():clone()
-   sizes[self:b()] = stop-start+1
-   local clone = torch.protoClone(self, {
-      data=data:narrow(self:b(), start, stop-start+1),
-      axes=table.copy(self:expandedAxes()),
-      sizes=sizes, classes=self:classes()
-   })
-   assert(clone.isClassView, "Clone failed")
-   return clone
+   local v = parent.sub(self, start, stop)
+   v:setClasses(self._classes)
+   return v
 end
 

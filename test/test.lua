@@ -33,16 +33,17 @@ function dptest.view()
    local r = g2:clone():double()
    r:add(g)
    mytester:assertTensorEq(b,r, 0.00001)
-   --[[ indexing
+   -- indexing
    local indices = torch.LongTensor{2,3}
-   local fi = dt:index(indices)
-   mytester:assertTensorEq(fi:feature(), data:index(1, indices), 0.000001)
-   local dt2 = dp.DataTensor{data=torch.zeros(8,4), axes=axes}
-   local fi2 = dt:index(dt2, indices)
-   mytester:assertTensorEq(fi2:feature(), fi:feature(), 0.0000001)
-   mytester:assertTensorEq(dt2._data, fi2:feature(), 0.0000001)
-   local fi3 = dt:index(nil, indices)
-   mytester:assertTensorEq(fi2:feature(), fi:feature(), 0.0000001)--]]
+   local v2 = v:index(indices)
+   mytester:assertTensorEq(v2:forward('bf', 'torch.DoubleTensor'), data:index(1, indices), 0.000001)
+   local v3 = dp.View()
+   v3:forward('bf', torch.zeros(8,4))
+   local v3 = v:index(v3, indices)
+   mytester:assertTensorEq(v2:forward('bf', 'torch.DoubleTensor'), v3:forward('bf', 'torch.DoubleTensor'), 0.0000001)
+   mytester:assertTensorEq(v3._input, v2:forward('bf', 'torch.DoubleTensor'), 0.0000001)
+   local v4 = v:index(nil, indices)
+   mytester:assertTensorEq(v4:forward('bf', 'torch.DoubleTensor'), v2:forward('bf', 'torch.DoubleTensor'), 0.0000001)
 end
 function dptest.imageview()
    local size = {8,32,32,3}

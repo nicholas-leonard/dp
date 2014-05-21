@@ -145,28 +145,25 @@ function dptest.classview()
    mytester:assertTensorEq(v5:forward('bt', 'torch.DoubleTensor'), v2:forward('bt', 'torch.DoubleTensor'), 0.0000001)
    mytester:assertTableEq(v:classes(), v5:classes())
 end
-function dptest.compositetensor()
-   -- class tensor
-   local class_size = {8}
-   local class_data = torch.randperm(8)
-   local classes = {1,2,3,4,5,6,7,8,9,10}
-   local class_tensor = dp.ClassTensor{data=class_data, classes=classes}
+function dptest.listview()
    -- image tensor
    local image_size = {8,32,32,3}
    local feature_size = {8,32*32*3}
    local image_data = torch.rand(unpack(image_size))
-   local image_tensor = dp.ImageTensor{data=image_data}
+   local image_v = dp.ImageView()
    -- data tensor
    local data = torch.rand(8,4)
-   local data_tensor = dp.DataTensor{data=data}
+   local data_v = dp.DataView()
    -- composite tensor
-   local composite_tensor = dp.CompositeTensor{
-      components={class_tensor,image_tensor,data_tensor}
-   }
-   local t = composite_tensor:feature()
-   local size = {8,(32*32*3)+10+4}
+   local list_v = dp.ListView({image_v,data_v})
+   list_v:forward({'bhwc', 'bf'}, {image_data, data}) 
+   local t = list_v:forward('bf', 'torch.FloatTensor')
+   local size = {8,(32*32*3)+4}
    mytester:assertTableEq(t:size():totable(), size, 0.0001)
-   local c = torch.concat({class_tensor:feature(), image_tensor:feature(), data_tensor:feature()}, 2)
+   local c = torch.concat({
+      image_v:forward('bf', 'torch.FloatTensor'), 
+      data_v:forward('bf', 'torch.FloatTensor')
+   }, 2)
    mytester:assertTensorEq(t, c, 0.00001)
 end
 function dptest.dataset()

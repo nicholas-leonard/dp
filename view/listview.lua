@@ -1,3 +1,4 @@
+-- WORK IN PROGRESS : DO NOT USE
 -----------------------------------------------------------------------
 --[[ ListView ]]-- 
 -- Composite (design pattern) of component Views
@@ -12,21 +13,19 @@ function ListView:__init(components)
    self._modules = {}
 end
 
-function ListView:forwardPut(view, inputs)
-   if view ~= 'bf' then
-      error("only works with bf (concatenate tensors on f axis)", 2)
-   end
+function ListView:forwardPut(views, inputs)
    local tensors = {}
    for i=1,#self._components do
-      self._components[i]:forwardPut(view, inputs[i])
+      self._components[i]:forwardPut(views[i], inputs[i])
    end
    self._tensors = {}
    self._gradOutputs = {}
 end
 
 function ListView:forwardGet(view, tensor_type)
+   -- TODO this should work with 'table' view
    if view ~= 'bf' then
-      error("only works with bf (concatenate tensors on f axis)", 2)
+      error("only works with bf(concatenate tensors on f axis)", 2)
    end
    local viewTable = self._tensors[view]
    if not viewTable then
@@ -54,7 +53,7 @@ function ListView:tensorFromModule(view, tensor_type)
    local modula = moduleTable[tensor_type]
    if not modula then
       -- no moduleTable: build a module
-      local modula = self[view](self)
+      modula = self[view](self)
       modula:type(tensor_type)
       moduleTable[tensor_type] = modual
       self._modules[view] = moduleTable
@@ -117,7 +116,7 @@ function ListView:backwardGet(view, tensor_type)
 end
 
 function ListView:bf()   
-   return nn.JoinTable(self:findAxis('f', view)) 
+   return nn.JoinTable(2)
 end
 
 -- Returns number of samples
@@ -142,7 +141,7 @@ function ListView:index(v, indices)
       indices = v
    end
    return torch.protoClone(self, 
-      components = _.map(self._components, 
+      _.map(self._components, 
          function(key, component) 
             return component:index(v, indices)
          end
@@ -152,13 +151,13 @@ end
 
 function ListView:sub(start, stop)
    error"Not Implemented"
-   return torch.protoClone(self, {
-      components = _.map(self._components, 
+   return torch.protoClone(self,
+      _.map(self._components, 
          function(key, component) 
             return component:sub(start, stop)
          end
       )
-   })
+   )
 end
 
 function ListView:size()

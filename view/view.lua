@@ -2,6 +2,7 @@
 --[[ View ]]-- 
 -- Abstract class
 -- Adapter (design pattern) for torch.Tensor 
+-- TODO : table view
 ------------------------------------------------------------------------
 local View = torch.class("dp.View")
 View.isView = true
@@ -12,13 +13,15 @@ function View:__init()
    self._warn = false
 end
 
+-- view is a string or a table of strings
 function View:forward(view, inputORtype)
-   assert(torch.type(view) == 'string', "Expecting string at arg 1")
-   if torch.type(inputORtype) == 'string' then
+   local arg_type = torch.type(inputORtype)
+   if arg_type == 'string' or arg_type == 'nil' then
       return self:forwardGet(view, inputORtype)
    end
    return self:forwardPut(view, inputORtype)
 end
+
 
 -- This method should be called by a maximum of one input Model.
 -- It is assumed that any input Tensor to forward is represented as
@@ -34,14 +37,14 @@ function View:forwardGet(view, tensor_type)
    error"Not Implemented"
 end
 
+-- view is a string or a table of strings
 function View:backward(view, gradOutputORtype)
-   assert(torch.type(view) == 'string', "Expecting string at arg 1")
-   if torch.type(gradOutputORtype) == 'string' then
+   local arg_type = torch.type(gradInputORtype)
+   if arg_type == 'string' or arg_type == 'nil' then
       return self:backwardGet(view, gradOutputORtype)
    end
    return self:backwardPut(view, gradOutputORtype)
 end
-
 -- This method could be called from multiple output Models
 function View:backwardPut(view, gradOutput)
    error"Not Implemented"
@@ -54,7 +57,7 @@ function View:backwardGet(view, tensor_type)
    error"Not Implemented"
 end
 
-function DataView:findAxis(axis_char, view)
+function View:findAxis(axis_char, view)
    view = view or self._view
    local axis_pos = view:find(axis_char)
    if not axis_pos then
@@ -82,6 +85,11 @@ end
 
 -- return iterator over component Views
 function View:pairs()
+   error"Not Implemented"
+end
+
+-- return current view of data
+function View:default()
    error"Not Implemented"
 end
 

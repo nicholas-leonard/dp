@@ -35,6 +35,7 @@ end
    
 -- This method could be called from multiple output Models
 function DataView:forwardGet(view, tensor_type)
+   tensor_type = tensor_type or self._type
    -- retrieve a viewTable
    local viewTable = self._tensors[view]
    if not viewTable then
@@ -92,6 +93,7 @@ end
 -- In the case of multiple output models having called backwardPut, 
 -- the different gradInputs must be accumulated (sum grads).
 function DataView:backwardGet(view, tensor_type)
+   tensor_type = tensor_type or self._type
    if (self._type ~= tensor_type) then
       error"backwardGet sould be called with the same type as self._data"
    end
@@ -164,6 +166,11 @@ function DataView:bf()
       end
    end
    return modula or nn.Identity()
+end
+
+-- returns the current view of the data
+function DataView:default()
+   return nn.Identity()
 end
 
 ---------------------- MISC ----------------------------

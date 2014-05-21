@@ -4,7 +4,7 @@
 -- Can also be used to host text where each word is represented as an 
 -- integer.
 ------------------------------------------------------------------------
-local ClassView, parent = torch.class("dp.ClassView", "dp.View")
+local ClassView, parent = torch.class("dp.ClassView", "dp.DataView")
 ClassView.isClassView = true
 
 function ClassView:setClasses(classes)

@@ -2,7 +2,7 @@
 --[[ ImageView ]]-- 
 -- A View holding a tensor of images.
 ------------------------------------------------------------------------
-local ImageView, parent = torch.class("dp.ImageView", "dp.View")
+local ImageView, parent = torch.class("dp.ImageView", "dp.DataView")
 ImageView.isImageView = true
 
 -- batch x height x width x channels/colors

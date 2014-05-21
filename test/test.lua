@@ -10,10 +10,10 @@ function dptest.uid()
    mytester:assertne(uid1, uid2, 'uid1 ~= uid2')
    mytester:assertne(uid2, uid3, 'uid2 ~= uid3')
 end
-function dptest.view()
+function dptest.dataview()
    local data = torch.rand(3,4)
    local sizes = {3, 4}
-   local v = dp.View()
+   local v = dp.DataView()
    -- forward
    v:forward('bf', data)
    local f = v:forward('bf', 'torch.DoubleTensor')
@@ -37,7 +37,7 @@ function dptest.view()
    local indices = torch.LongTensor{2,3}
    local v2 = v:index(indices)
    mytester:assertTensorEq(v2:forward('bf', 'torch.DoubleTensor'), data:index(1, indices), 0.000001)
-   local v3 = dp.View()
+   local v3 = dp.DataView()
    v3:forward('bf', torch.zeros(8,4))
    local v3 = v:index(v3, indices)
    mytester:assertTensorEq(v2:forward('bf', 'torch.DoubleTensor'), v3:forward('bf', 'torch.DoubleTensor'), 0.0000001)

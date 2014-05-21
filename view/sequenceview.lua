@@ -4,7 +4,7 @@
 -- Has view = bwc 
 -- Output of nn.LookupTable, input of nn.Temporal*
 ------------------------------------------------------------------------
-local SequenceView, parent = torch.class("dp.SequenceView", "dp.View")
+local SequenceView, parent = torch.class("dp.SequenceView", "dp.DataView")
 SequenceView.isSequenceView = true
 
 -- batch x width x channels

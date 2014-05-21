@@ -228,7 +228,7 @@ function View:index(v, indices)
       "View:index doesn't work with torch.CudaTensors.")
    local b_pos = self:findAxis('b')
    local data
-   if indices and dt then
+   if indices and v then
       if torch.type(v) ~= torch.type(self) then
          error("Expecting "..torch.type(self).." at arg 1 "..
                "got "..torch.type(v).." instead")

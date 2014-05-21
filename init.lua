@@ -44,6 +44,7 @@ torch.include('dp', 'node.lua')
 torch.include('dp', 'view/view.lua')
 torch.include('dp', 'view/imageview.lua')
 torch.include('dp', 'view/classview.lua')
+torch.include('dp', 'view/sequenceview.lua')
 
 --[[ data ]]--
 torch.include('dp', 'data/conv2d.lua')

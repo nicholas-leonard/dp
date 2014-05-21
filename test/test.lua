@@ -12,7 +12,6 @@ function dptest.uid()
 end
 function dptest.view()
    local data = torch.rand(3,4)
-   local axes = 'bf'
    local sizes = {3, 4}
    local v = dp.View()
    -- forward
@@ -88,25 +87,25 @@ function dptest.imageview()
    local fi3 = dt:index(nil, indices)
    mytester:assertTensorEq(fi2:feature(), fi:feature(), 0.0000001)--]]
 end
-function dptest.sequencetensor()
+function dptest.sequenceview()
    local size = {8,10,50}
    local feature_size = {8,10*50}
    local data = torch.rand(unpack(size))
-   local axes = {'b','s','f'}
-   local dt = dp.SequenceTensor{data=data, axes=axes}
+   local v = dp.SequenceView()
+   v:forward('bwc', data)
    -- convert to sequence (shouldn't change anything)
-   local i = dt:sequenceBSF()
-   mytester:assertTensorEq(i, data, 0.0001)
-   mytester:assertTableEq(i:size():totable(), size, 0.0001)
+   local s = v:forward('bwc', 'torch.DoubleTensor')
+   mytester:assertTensorEq(s, data, 0.0001)
+   mytester:assertTableEq(s:size():totable(), size, 0.0001)
    -- convert to feature (should colapse last dims)
-   local t = dt:feature()
-   mytester:assertTableEq(t:size():totable(), feature_size, 0.0001)
-   mytester:assertTensorEq(i, data, 0.00001)
+   local f = v:forward('bf', 'torch.DoubleTensor')
+   mytester:assertTableEq(f:size():totable(), feature_size, 0.0001)
+   mytester:assertTensorEq(f, data, 0.00001)
    -- convert to sequence (should expand last dim)
-   local i = dt:sequenceBSF()
-   mytester:assertTensorEq(i, data, 0.0001)
-   mytester:assertTableEq(i:size():totable(), size, 0.0001)
-   -- indexing
+   local s2 = v:forward('bwc', 'torch.DoubleTensor')
+   mytester:assertTensorEq(s2, data, 0.0001)
+   mytester:assertTableEq(s2:size():totable(), size, 0.0001)
+   --[[ indexing
    local indices = torch.LongTensor{2,3}
    local fi = dt:index(indices)
    mytester:assertTensorEq(fi:feature(), data:reshape(unpack(feature_size)):index(1, indices), 0.000001)
@@ -115,27 +114,23 @@ function dptest.sequencetensor()
    mytester:assertTensorEq(fi2:feature(), fi:feature(), 0.0000001)
    mytester:assertTensorEq(dt2._data, fi2:feature(), 0.0000001)
    local fi3 = dt:index(nil, indices)
-   mytester:assertTensorEq(fi2:feature(), fi:feature(), 0.0000001)
-   -- cloning
-   local clone_data = torch.rand(unpack(size))
-   local clone = dt:shallowClone()
-   mytester:assertTensorEq(dt:sequence(), data, 0.0001)
-   clone:setData(clone_data)
-   mytester:assertTensorEq(clone:sequence(), clone_data, 0.0001)
+   mytester:assertTensorEq(fi2:feature(), fi:feature(), 0.0000001)--]]
 end
-function dptest.classtensor()
+function dptest.classview()
    local size = {48,4}
    local data = torch.rand(unpack(size))
    local axes = {'b','t'}
-   local dt = dp.ClassTensor{data=data, axes=axes}
-   local t = dt:multiclass()
-   mytester:assertTableEq(t:size():totable(), size, 0.0001)
-   mytester:assertTensorEq(t, data, 0.00001)
-   local i = dt:class()
-   mytester:asserteq(i:dim(),1)
-   mytester:assertTableEq(i:size(1), size[1], 0.0001)
-   mytester:assertTensorEq(i, data:select(2,1), 0.00001)
-   -- indexing
+   local v = dp.ClassView()
+   v:forward('bt', data)
+   -- multiclass
+   local c = v:forward('bt', 'torch.DoubleTensor')
+   mytester:assertTableEq(c:size():totable(), size, 0.0001)
+   mytester:assertTensorEq(c, data, 0.00001)
+   local c2 = v:forward('b', 'torch.DoubleTensor')
+   mytester:asserteq(c2:dim(),1)
+   mytester:assertTableEq(c2:size(1), size[1], 0.0001)
+   mytester:assertTensorEq(c2, data:select(2,1), 0.00001)
+   --[[ indexing
    local indices = torch.LongTensor{2,3}
    local fi = dt:index(indices)
    mytester:assertTensorEq(fi:multiclass(), data:index(1, indices), 0.000001)
@@ -144,7 +139,7 @@ function dptest.classtensor()
    mytester:assertTensorEq(fi2:multiclass(), fi:multiclass(), 0.0000001)
    mytester:assertTensorEq(dt2._data, fi2:multiclass(), 0.0000001)
    local fi3 = dt:index(nil, indices)
-   mytester:assertTensorEq(fi2:multiclass(), fi:multiclass(), 0.0000001)
+   mytester:assertTensorEq(fi2:multiclass(), fi:multiclass(), 0.0000001)--]]
 end
 function dptest.compositetensor()
    -- class tensor

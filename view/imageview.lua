@@ -28,20 +28,3 @@ function ImageView:bchw()
    end
    return self:transpose('bchw')
 end
-
--- a generic function for transposing images
-function ImageView:transpose(new_view)
-   local view = _.split(self._view)
-   local transpositions = {}
-   for i=1,4 do
-      local j = _.indexOf(view, new_view:sub(i,i))
-      if i ~= j then
-         local char = view[i]
-         view[i] = view[j]
-         view[j] = char
-         table.insert(transpositions, {j, i})
-      end
-   end
-   return nn.Transpose(unpack(transpositions))
-end
-

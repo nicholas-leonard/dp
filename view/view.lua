@@ -12,7 +12,8 @@ function View:__init()
    self._warn = false
 end
 
-------------------- FORWARD -----------------------
+---------------------- FORWARD -----------------------
+
 -- View is a string. Acceptable views include:
 -- b, bf, bhwc, chwb, bchw, bsf, bfs, etc.
 function View:forward(view, inputORtype)

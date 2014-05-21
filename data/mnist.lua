@@ -8,7 +8,7 @@ Mnist.isMnist = true
 
 Mnist._name = 'mnist'
 Mnist._image_size = {28, 28, 1}
-Mnist._image_axes = {'b', 'h', 'w', 'c'}
+Mnist._image_axes = 'bhwc'
 Mnist._feature_size = 1*28*28
 Mnist._classes = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 
@@ -108,17 +108,16 @@ function Mnist:createDataSet(data, which_set)
    if self._scale and not self._binarize then
       DataSource.rescale(inputs, self._scale[1], self._scale[2])
    end
-   local targets = data:narrow(2, self._feature_size+1, 1):clone()
+   local targets = data:select(2, self._feature_size+1):clone()
    -- class 0 will have index 1, class 1 index 2, and so on.
    targets:add(1)
-   targets:resize(targets:size(1))
-   -- construct inputs and targets datatensors 
-   inputs = dp.ImageTensor{
-      data=inputs, axes=self._image_axes, sizes=self._image_size
-   }
-   targets = dp.ClassTensor{data=targets, classes=self._classes}
+   -- construct inputs and targets dp.Views 
+   local input_v, target_v = dp.ImageView(), dp.ClassView()
+   input_v:forward(self._image_axis, inputs)
+   target_v:forward('b', targets)
+   target_v:setClasses(self._classes)
    -- construct dataset
-   return dp.DataSet{inputs=inputs,targets=targets,which_set=which_set}
+   return dp.DataSet{inputs=input_v,targets=target_v,which_set=which_set}
 end
 
 

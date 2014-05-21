@@ -5,20 +5,18 @@ local dptest = {}
 local mediator = dp.Mediator()
 
 function dptest.billionwords()
-   local ds = dp.BillionWords{context_size=10}
-   local input_tensor = torch.randn(5,10)
-   local target_tensor = torch.IntTensor{20,24,27,10,12}
-   local grad_tensor = torch.randn(5)
+   local ds = dp.BillionWords{train_file='train_tiny.th7', context_size=10}
    local hierarchy= ds:hierarchy()
    mytester:assert(torch.type(hierarchy) == 'table')
    local root = hierarchy[-1]
    mytester:assert(torch.type(root) == 'torch.IntTensor')
    -- dp
-   local input = dp.DataTensor{data=input_tensor}
-   local target = dp.ClassTensor{data=target_tensor}
+   local batch = ds:sub(1, 100)
+   local input = ds:inputs()
+   local target = dp.targets()
    local model = dp.SoftmaxTree{input_size=10, hierarchy=hierarchy}
    -- forward backward
-   local act, carry = model:forward(input, {nSample=5, targets=target})
+   local act, carry = model:forward(input, batch:carry())
    local gradWeight = model:parameters().weight1.grad:clone()
    local grad, carry = model:backward(dp.DataTensor{data=grad_tensor}, carry)
    mytester:assertTableEq(act:feature():size():totable(), {5,1}, 0.000001, "Wrong act size")

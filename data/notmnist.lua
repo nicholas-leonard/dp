@@ -10,7 +10,7 @@ NotMnist.isNotMnist= true
 
 NotMnist._name = 'notMnist'
 NotMnist._image_size = {28, 28, 1}
-NotMnist._image_axes = {'b', 'h', 'w', 'c'}
+NotMnist._image_axes = 'bhwc'
 NotMnist._feature_size = 1*28*28
 NotMnist._classes = {'A','B','C','D','E','F','G','H','I','J'}
 
@@ -116,14 +116,14 @@ function NotMnist:createDataSet(inputs, targets, which_set)
    end
    if self._scale and not self._binarize then
       DataSource.rescale(inputs, self._scale[1], self._scale[2])
-   end
-   -- construct inputs and targets datatensors 
-   inputs = dp.ImageTensor{
-      data=inputs, axes=self._image_axes, sizes=self._image_size
-   }
-   targets = dp.ClassTensor{data=targets, classes=self._classes}
+   end   
+   -- construct inputs and targets dp.Views 
+   local input_v, target_v = dp.ImageView(), dp.ClassView()
+   input_v:forward(self._image_axis, inputs)
+   target_v:forward('b', targets)
+   target_v:setClasses(self._classes)
    -- construct dataset
-   return dp.DataSet{inputs=inputs,targets=targets,which_set=which_set}
+   return dp.DataSet{inputs=input_v,targets=target_v,which_set=which_set}
 end
 
 

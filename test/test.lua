@@ -107,21 +107,21 @@ function dptest.sequenceview()
    local s2 = v:forward('bwc', 'torch.DoubleTensor')
    mytester:assertTensorEq(s2, data, 0.0001)
    mytester:assertTableEq(s2:size():totable(), size, 0.0001)
-   --[[ indexing
+   -- indexing
    local indices = torch.LongTensor{2,3}
-   local fi = dt:index(indices)
-   mytester:assertTensorEq(fi:feature(), data:reshape(unpack(feature_size)):index(1, indices), 0.000001)
-   local dt2 = dp.SequenceTensor{data=torch.zeros(8,10,50), axes=axes}
-   local fi2 = dt:index(dt2, indices)
-   mytester:assertTensorEq(fi2:feature(), fi:feature(), 0.0000001)
-   mytester:assertTensorEq(dt2._data, fi2:feature(), 0.0000001)
-   local fi3 = dt:index(nil, indices)
-   mytester:assertTensorEq(fi2:feature(), fi:feature(), 0.0000001)--]]
+   local v2 = v:index(indices)
+   mytester:assertTensorEq(v2:forward('bf', 'torch.DoubleTensor'), data:reshape(unpack(feature_size)):index(1, indices), 0.000001)
+   local v3 = dp.SequenceView()
+   v3:forward('bwc', torch.zeros(8,10,50))
+   local v4 = v:index(v3, indices)
+   mytester:assertTensorEq(v4:forward('bf', 'torch.DoubleTensor'), v2:forward('bf', 'torch.DoubleTensor'), 0.0000001)
+   mytester:assertTensorEq(v2._input, v4:forward('bwc', 'torch.DoubleTensor'), 0.0000001)
+   local v5 = v:index(nil, indices)
+   mytester:assertTensorEq(v4:forward('bf', 'torch.DoubleTensor'), v5:forward('bf', 'torch.DoubleTensor'), 0.0000001)
 end
 function dptest.classview()
    local size = {48,4}
    local data = torch.rand(unpack(size))
-   local axes = {'b','t'}
    local v = dp.ClassView()
    v:forward('bt', data)
    -- multiclass
@@ -132,16 +132,18 @@ function dptest.classview()
    mytester:asserteq(c2:dim(),1)
    mytester:assertTableEq(c2:size(1), size[1], 0.0001)
    mytester:assertTensorEq(c2, data:select(2,1), 0.00001)
-   --[[ indexing
+   -- indexing
    local indices = torch.LongTensor{2,3}
-   local fi = dt:index(indices)
-   mytester:assertTensorEq(fi:multiclass(), data:index(1, indices), 0.000001)
-   local dt2 = dp.ClassTensor{data=torch.zeros(8,4), axes=axes}
-   local fi2 = dt:index(dt2, indices)
-   mytester:assertTensorEq(fi2:multiclass(), fi:multiclass(), 0.0000001)
-   mytester:assertTensorEq(dt2._data, fi2:multiclass(), 0.0000001)
-   local fi3 = dt:index(nil, indices)
-   mytester:assertTensorEq(fi2:multiclass(), fi:multiclass(), 0.0000001)--]]
+   local v2 = v:index(indices)
+   mytester:assertTensorEq(v2:forward('bt', 'torch.DoubleTensor'), data:index(1, indices), 0.000001)
+   local v3 = dp.ClassView()
+   v3:forward('bt', torch.zeros(8,4))
+   local v4 = v:index(v3, indices)
+   mytester:assertTensorEq(v4:forward('bt', 'torch.DoubleTensor'), v2:forward('bt', 'torch.DoubleTensor'), 0.0000001)
+   mytester:assertTensorEq(v3._input, v4:forward('bt', 'torch.DoubleTensor'), 0.0000001)
+   local v5 = v:index(nil, indices)
+   mytester:assertTensorEq(v5:forward('bt', 'torch.DoubleTensor'), v2:forward('bt', 'torch.DoubleTensor'), 0.0000001)
+   mytester:assertTableEq(v:classes(), v5:classes())
 end
 function dptest.compositetensor()
    -- class tensor

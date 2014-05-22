@@ -39,7 +39,7 @@ end
 
 -- view is a string or a table of strings
 function View:backward(view, gradOutputORtype)
-   local arg_type = torch.type(gradInputORtype)
+   local arg_type = torch.type(gradOutputORtype)
    if arg_type == 'string' or arg_type == 'nil' then
       return self:backwardGet(view, gradOutputORtype)
    end

@@ -38,19 +38,12 @@ function Module:__init(config)
 end
 
 function Module:_forward(carry)
-   self.output.act = dp.DataTensor{
-      data=self._module:forward(self.input.act:feature(self._input_type))
-   }
+   self:outputAct(self._module:forward(self:inputAct()))
 end
 
 function Module:_backward(carry)
-   self.input.grad = self.input.act:featureClone(
-      self._module:backward(
-         self.input.act:feature(self._input_type), 
-         self.output.grad:feature(self._output_type),
-         carry.scale
-      )
-   )
+   local act, grad = self:inputAct(), self:outputGrad()
+   self:inputGrad(self._module:backward(act, grad, carry.scale))
 end
 
 function Module:zeroGradParameters()
@@ -67,22 +60,10 @@ function Module:reset()
    return self._module:reset()
 end
 
+-- use at your own risk. 
+-- dp.Visitors expect each param/paramGrad to be identified by a 
+-- unique key that stays the same from batch to batch.
+-- This wont be true for modules like nnx.SoftMaxTree or nnx.LookupTable
 function Module:parameters()
-   local params = {}
-   local module = self._module
-   if module.weight and module.weight:dim() ~= 0 then
-      if not params.weight then
-         params.weight = {}
-      end
-      params.weight.param=module.weight
-      params.weight.grad=module.gradWeight
-   end
-   if module.bias and module.bias:dim() ~= 0 then
-      if not params.bias then
-         params.bias = {}
-      end
-      params.bias.param=module.bias
-      params.bias.grad=module.gradBias
-   end
-   return params
+   return self._module:parameters()
 end

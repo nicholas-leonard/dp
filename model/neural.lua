@@ -28,8 +28,10 @@ function Neural:__init(config)
    self._output_size = output_size
    self._transfer = transfer
    self._affine = nn.Linear(input_size, output_size)
-   self._uncuda = false -- TODO: should detect non-cuda modules
    config.typename = typename
+   config.output = dp.DataView()
+   config.input_view = 'bf'
+   config.output_view = 'bf'
    parent.__init(self, config)
 end
 
@@ -42,12 +44,6 @@ function Neural:_forward(carry)
       self.mvstate.dropoutAct = activation
    end
    activation = self._affine:forward(activation)
-   if self._uncuda then
-      if self._recuda == nil then
-         self._recuda = (activation:type() == 'torch.CudaTensor')
-      end
-      activation = activation:double()
-   end
    self.mvstate.affineAct = activation
    activation = self._transfer:forward(activation)
    self:outputAct(activation)
@@ -60,9 +56,6 @@ function Neural:_backward(carry)
    local input_act = self.mvstate.affineAct
    local output_grad = self:outputGrad()
    output_grad = self._transfer:backward(input_act, output_grad, scale)
-   if self._recuda then
-      output_grad = output_grad:cuda()
-   end
    self.mvstate.affineGrad = output_grad
    input_act = self.mvstate.dropoutAct or self:inputAct()
    output_grad = self._affine:backward(input_act, output_grad, scale)

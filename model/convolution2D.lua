@@ -60,6 +60,8 @@ function Convolution2D:__init(config)
    self._module:add(self._transfer)
    self._module:add(self._pool)
    config.typename = typename
+   config.input_view = 'bchw'
+   config.output_view = 'bchw'
    parent.__init(self, config)
 end
 
@@ -91,38 +93,6 @@ function Convolution2D:_backward(carry)
    return carry
 end
 
-function Convolution2D:inputAct()
-   return self.input.act:conv2D(self._input_type)
-end
-
-function Convolution2D:inputGrad(input_grad)
-   if input_grad then
-      assert(torch.isTensor(input_grad))
-      self.input.grad = self.input.act:shallowClone()
-      self.input.grad:setData(input_grad)
-      return
-   end
-   return self.input.grad:conv2D(self._input_type)
-end
-
-function Convolution2D:outputAct(output_act)
-   if output_act then
-      assert(torch.isTensor(output_act))
-      local axes
-      if self:moduleType() == 'torch.CudaTensor' then
-         axes = {'c','h','w','b'}
-      end
-      axes = axes or {'b','c','h','w'}
-      self.output.act = dp.ImageTensor{data=output_act, axes=axes}
-      return
-   end
-   return self.output.act:conv2D(self._output_type)
-end
-
-function Convolution2D:outputGrad()
-   return self.output.grad:conv2D(self._output_type)
-end
-
 function Convolution2D:zeroGradParameters()
    self._conv:zeroGradParameters()
 end
@@ -146,6 +116,8 @@ function Convolution2D:_type(type)
       self._module:add(self._conv)
       self._module:add(self._transfer)
       self._module:add(self._pool)
+      self._input_view = 'chwb'
+      self._output_view = 'chwb'
    elseif type ~= 'torch.CudaTensor'
          and torch.type(self._conv) == 'nn.SpatialConvolutionCUDA' then
       error"NotImplemented"
@@ -180,6 +152,7 @@ function Convolution2D:reset()
 end
 
 function Convolution2D:maxNorm(max_out_norm, max_in_norm)
+   error"Not Implemented"
    -- TODO : max_in_norm is pylearn2's max kernel norm?
    if not self.backwarded then return end
    max_out_norm = self.mvstate.max_out_norm or max_out_norm

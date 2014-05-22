@@ -26,12 +26,8 @@ function WeightDecay:__init(config)
 end
 
 function WeightDecay:_visitModel(model)
-   local params = model:parameters()
-   for param_name, param_table in pairs(params) do
-      -- this means that modules with many biases should ensure 
-      -- the name contains 'bias'
-      if not string.find(param_name,'bias') then
-         param_table.grad:add(self.wd_factor, param_table.param)
-      end
+   local params, gradParams = model:parameters()
+   for k, param in pairs(params) do
+      gradParams[k]:add(self._wd_factor, param)
    end
 end

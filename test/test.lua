@@ -265,10 +265,12 @@ function dptest.neural()
    local tensor = torch.randn(5,10)
    local grad_tensor = torch.randn(5, 2)
    -- dp
-   local input = dp.DataTensor{data=tensor}
    local layer = dp.Neural{input_size=10, output_size=2, transfer=nn.Tanh()}
-   local act, carry = layer:forward(input, {nSample=5})
-   local grad = layer:backward(dp.DataTensor{data=grad_tensor}, carry)
+   local input = dp.DataView()
+   input:forward('bf', tensor)
+   local output, carry = layer:forward(input, {nSample=5})
+   output:backward('bf', grad_tensor)
+   input = layer:backward(output, carry)
    -- nn
    local mlp = nn.Sequential()
    local m = nn.Linear(10,2)
@@ -278,34 +280,37 @@ function dptest.neural()
    local mlp_act = mlp:forward(tensor)
    local mlp_grad = mlp:backward(tensor, grad_tensor)
    -- compare nn and dp
-   mytester:assertTensorEq(mlp_act, act:feature(), 0.00001)
-   mytester:assertTensorEq(mlp_grad, grad:feature(), 0.00001)
+   mytester:assertTensorEq(mlp_act, output:forward('bf'), 0.00001)
+   mytester:assertTensorEq(mlp_grad, input:backward('bf'), 0.00001)
    -- update
-   local act_ten = act:feature():clone()
-   local grad_ten = grad:feature():clone()
+   local act_ten = output:forward('bf'):clone()
+   local grad_ten = input:backward('bf'):clone()
    local visitor = dp.Learn{learning_rate=0.1}
    visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
    layer:accept(visitor)
    layer:doneBatch()
    -- forward backward
-   local act2, carry2 = layer:forward(input, {nSample=5})
-   local grad2, carry2 = layer:backward(dp.DataTensor{data=grad_tensor}, carry2)
-   mytester:assertTensorNe(act_ten, act2:feature(), 0.00001)
-   mytester:assertTensorNe(grad_ten, grad2:feature(), 0.00001)
+   output, carry2 = layer:forward(input, {nSample=5})
+   output:backward('bf', grad_tensor)
+   input, carry2 = layer:backward(output, carry2)
+   mytester:assertTensorNe(act_ten, output:forward('bf'), 0.00001)
+   mytester:assertTensorNe(grad_ten, input:backward('bf'), 0.00001)
 end
 function dptest.sequential()
    local tensor = torch.randn(5,10)
    local grad_tensor = torch.randn(5, 2)
    -- dp
-   local input = dp.DataTensor{data=tensor}
+   local input = dp.DataView()
+   input:forward('bf', tensor)
    local model = dp.Sequential{
       models = {
          dp.Neural{input_size=10, output_size=4, transfer=nn.Tanh()},
          dp.Neural{input_size=4, output_size=2, transfer=nn.LogSoftMax()}
       }
    }
-   local act, carry = model:forward(input, {nSample=5})
-   local grad, carry = model:backward(dp.DataTensor{data=grad_tensor}, carry)
+   local output, carry = model:forward(input, {nSample=5})
+   output:backward('bf', grad_tensor)
+   input, carry = model:backward(output, carry)
    mytester:assert(carry.nSample == 5, "Carry lost an attribute")
    -- nn
    local mlp = nn.Sequential()
@@ -318,8 +323,8 @@ function dptest.sequential()
    local mlp_act = mlp:forward(tensor)
    local mlp_grad = mlp:backward(tensor, grad_tensor)
    -- compare nn and dp
-   mytester:assertTensorEq(mlp_act, act:feature(), 0.00001)
-   mytester:assertTensorEq(mlp_grad, grad:feature(), 0.00001)
+   mytester:assertTensorEq(mlp_act, output:forward('bf'), 0.00001)
+   mytester:assertTensorEq(mlp_grad, input:backward('bf'), 0.00001)
 end
 function dptest.softmaxtree()
    local input_tensor = torch.randn(5,10)
@@ -334,8 +339,10 @@ function dptest.softmaxtree()
       [8]=torch.IntTensor{24,25,26,27,28}
    }
    -- dp
-   local input = dp.DataTensor{data=input_tensor}
-   local target = dp.ClassTensor{data=target_tensor}
+   local input = dp.DataView()
+   input:forward('bf', input_tensor)
+   local target = dp.ClassView()
+   target:forward('bt', target_tensor)
    local model = dp.SoftmaxTree{input_size=10, hierarchy=hierarchy, root_id=root_id}
    -- nn
    require 'nnx'

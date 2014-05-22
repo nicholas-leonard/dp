@@ -10,7 +10,8 @@ function Model:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, typename, tags, mvstate = xlua.unpack(
       {config},
-      'Model', nil,
+      'Model', 
+      'Adapter of nn.Modules',
       {arg='typename', type='string', req=true, 
        help='identifies Model type in reports.'},
       {arg='tags', type='table',
@@ -44,39 +45,38 @@ function Model:tags()
    return self._tags
 end
 
+-- return 2-3 tables : params, gradParams, scales
+-- each param must be identified by a unique key, i.e. the tensors
+-- associated to each key must be the same from batch to batch
 function Model:parameters()
    error"Not Implemented"
 end
 
 function Model:forward(input, carry)
    assert(input.isView, "Expecting dp.View input")
-   self.input.act = input:shallowClone()
+   self.input = input
    self:updateStatistics(carry)
    carry = self:_forward(carry) or carry
-   assert(self.output.act.isView, "Expecting dp.View output")
    self.forwarded = true
-   return self.output.act, carry
+   return self.output, carry
 end
 
 function Model:evaluate(input, carry)
    assert(input.isView, "Expecting dp.View instance")
-   self.input.act = input:shallowClone()
+   self.input = input
    carry.evaluate = true
    self:updateStatistics(carry)
    carry = self:_evaluate(carry) or carry
-   assert(self.output.act.isView, "Expecting dp.View output")
    self.evaluated = true
    self.forwarded = true
-   return self.output.act, carry
+   return self.output, carry
 end
 
 function Model:backward(output, carry)
    assert(output.isView, "Expecting dp.View output")
-   self.output.grad = output:shallowClone()
    carry = self:_backward(carry) or carry
-   assert(self.output.grad.isView, "Expecting dp.View grad")
    self.backwarded = true
-   return self.input.grad, carry
+   return self.input, carry
 end
 
 function Model:inputAct(input_act)
@@ -110,7 +110,6 @@ function Model:doneBatch(...)
    end
    parent.doneBatch(self, ...)
    self.visited = false
-   self.output = {}
 end
 
 function Model:_doneBatch(...)

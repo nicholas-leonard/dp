@@ -51,6 +51,8 @@ function Convolution1D:__init(config)
    self._module:add(self._transfer)
    self._module:add(self._pool)
    config.typename = typename
+   config.input_view = 'bwc'
+   config.output_view = 'bwc'
    parent.__init(self, config)
 end
 
@@ -80,33 +82,6 @@ function Convolution1D:_backward(carry)
    end
    self:inputGrad(output_grad)
    return carry
-end
-
-function Convolution1D:inputAct()
-   return self.input.act:conv1D(self._input_type)
-end
-
-function Convolution1D:inputGrad(input_grad)
-   if input_grad then
-      assert(torch.isTensor(input_grad))
-      self.input.grad = self.input.act:shallowClone()
-      self.input.grad:setData(input_grad)
-      return
-   end
-   return self.input.grad:conv1D(self._input_type)
-end
-
-function Convolution1D:outputAct(output_act)
-   if output_act then
-      assert(torch.isTensor(output_act))
-      self.output.act = dp.SequenceTensor{data=output_act}
-      return
-   end
-   return self.output.act:conv1D(self._output_type)
-end
-
-function Convolution1D:outputGrad()
-   return self.output.grad:conv1D(self._output_type)
 end
 
 function Convolution1D:zeroGradParameters()

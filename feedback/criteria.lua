@@ -1,4 +1,4 @@
--- TODO
+-- WORK IN PROGRESS : DO NOT USE
 -- convert for use with dp.Loss instread of nn.Criteria.
 -- make non-composite
 ------------------------------------------------------------------------

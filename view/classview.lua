@@ -1,6 +1,6 @@
 ------------------------------------------------------------------------
 --[[ ClassView ]]--
--- A DataTensor holding a tensor of classes like training targets. 
+-- A DataView holding a tensor of classes like training targets. 
 -- Can also be used to host text where each word is represented as an 
 -- integer.
 ------------------------------------------------------------------------

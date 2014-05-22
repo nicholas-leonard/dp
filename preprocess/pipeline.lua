@@ -11,8 +11,8 @@ function Pipeline:__init(items)
    self._items = items or {}
 end
 
-function Pipeline:apply(datatensor, can_fit)
+function Pipeline:apply(dv, can_fit)
    for i, item in ipairs(self._items) do
-      item:apply(datatensor, can_fit)
+      item:apply(dv, can_fit)
    end
 end

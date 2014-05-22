@@ -2,7 +2,7 @@
 --[[ ParallelPreprocess ]]--
 -- Preprocess subclass
 -- Composite of Preprocesses
--- Used for preprocessing CompositeTensors
+-- Used for preprocessing ListViews
 ------------------------------------------------------------------------
 local ParallelPreprocess = torch.class("ParallelPreprocess", "dp.Preprocess")
 ParallelPreprocess.isParallelPreprocess = true
@@ -18,15 +18,15 @@ function ParallelPreprocess:__init(items)
    self._items = items
 end
 
-function ParallelPreprocess:apply(compositetensor, can_fit)
-   assert(compositetensor.isCompositeTensor, 
-      "ParallelPreprocess error : expecting CompositeTensor")
+function ParallelPreprocess:apply(listview, can_fit)
+   assert(ListView.isListView, 
+      "ParallelPreprocess error : expecting ListView")
    local nPP = table.length(self._items)
-   local nDT =table.length(compositetensor:data())
-   assert(nPP == nDT, "ParallelPreprocess error : Unequal amount of "..
-      "elements in preprocess vs datatensor : "..nPP.." ~= "..nDT..","..
+   local nDV = table.length(listview:components())
+   assert(nPP == nDV, "ParallelPreprocess error : Unequal amount of "..
+      "elements in preprocess vs listview : "..nPP.." ~= "..nDT..","..
       "respectively.")
    for k, preprocess in pairs(self._items) do
-      preprocess:apply(compositetensor:data()[k], can_fit)
+      preprocess:apply(listview:components()[k], can_fit)
    end
 end 

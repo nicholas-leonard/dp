@@ -76,7 +76,7 @@ function BaseSet:targets()
    return self._targets
 end
 
---Preprocesses are applied to DataTensors, which means that 
+--Preprocesses are applied to DataViews, which means that 
 -- View:forward(), can be used.
 function BaseSet:preprocess(config)
    config = config or {}

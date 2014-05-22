@@ -6,6 +6,13 @@
 local DataView, parent = torch.class("dp.DataView", "dp.View")
 DataView.isDataView = true
 
+function DataView:__init(view, input)
+   parent.__init(self)
+   if view and input then
+      self:forward(view, input)
+   end
+end
+
 ---------------------- FORWARD -----------------------
 
 -- This method should be called by a maximum of one input Model.
@@ -93,6 +100,7 @@ end
 -- In the case of multiple output models having called backwardPut, 
 -- the different gradInputs must be accumulated (sum grads).
 function DataView:backwardGet(view, tensor_type)
+   view = view or self._view
    tensor_type = tensor_type or self._type
    if (self._type ~= tensor_type) then
       error"backwardGet sould be called with the same type as self._data"
@@ -197,6 +205,21 @@ function DataView:pairs()
    return pairs{self}
 end
 
+-- Used by dp.Preprocess instances to replace the input
+-- see dp.ZCA:apply() for an example
+function DataView:replace(view, output)
+   self:backward(view, output)
+   output = self:backward()
+   self:input(output)
+   self:flush()
+end
+
+-- flush module and tensor cache
+function DataView:flush()
+   self._tensors = {}
+   self._modules = {}
+end
+
 -- When dt is provided, reuse its data (a torch.Tensor).
 -- config is a table of key-values overwriting the clones constructor's
 function DataView:index(v, indices)
@@ -253,7 +276,11 @@ function DataView:type(type)
    self._input = self._input:type(type)
 end
 
-function DataView:input()
+function DataView:input(input)
+   if input then
+      self._input = input
+      return 
+   end
    return self._input
 end
 

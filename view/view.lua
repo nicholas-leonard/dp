@@ -130,5 +130,5 @@ function View.assertInstances(obj_table)
    local areInstances, index = View.areInstances(obj_table)
    index = index or 0
    assert(areInstances, "Error : object at index " .. index .. 
-      " is of wrong type. Expecting type dp.DataTensor.")
+      " is of wrong type. Expecting type dp.DataView.")
 end

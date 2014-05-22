@@ -36,10 +36,9 @@ function LeCunLCN:_gaussian_filter(kernel_size)
    return x / x:sum()
 end
 
-function LeCunLCN:apply(datatensor, can_fit)
+function LeCunLCN:apply(dv, can_fit)
    print ('Start LeCunLCN Preprocessing ... ')
-   local data, axes = datatensor:image()
-   assert(table.eq(axes, {'b', 'h', 'w', 'c'}), 'data axes is not equal to {b ,h, w, c}')
+   local data = dv:forward('bhwc')
           
    local filters = self:_gaussian_filter(self._kernel_size)
    print('start convolving data')
@@ -62,5 +61,5 @@ function LeCunLCN:apply(datatensor, can_fit)
    divisor = divisor:apply(function(x) return x>self._threshold and x or self._threshold end)
    print ('LeCunLCN Preprocessing completed')
    local new_X = centered_X:cdiv(divisor)
-   datatensor:setData(new_X)
+   dv:replace('bhwc', new_X)
 end

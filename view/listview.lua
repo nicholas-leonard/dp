@@ -11,6 +11,7 @@ function ListView:__init(components)
    parent.assertInstances(components)
    self._components = components
    self._modules = {}
+   parent.__init(self)
 end
 
 function ListView:forwardPut(views, inputs)

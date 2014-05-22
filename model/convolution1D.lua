@@ -53,6 +53,7 @@ function Convolution1D:__init(config)
    config.typename = typename
    config.input_view = 'bwc'
    config.output_view = 'bwc'
+   config.output = dp.SequenceView()
    parent.__init(self, config)
 end
 
@@ -101,8 +102,7 @@ end
 function Convolution1D:reset()
    self._conv:reset()
    if self._sparse_init then
-      local W = self:parameters().weight.param
-      self._sparseReset(W:t())
+      self._sparseReset(self._conv.weight:t())
    end
 end
 

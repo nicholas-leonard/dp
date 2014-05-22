@@ -62,6 +62,7 @@ function Convolution2D:__init(config)
    config.typename = typename
    config.input_view = 'bchw'
    config.output_view = 'bchw'
+   config.output = dp.ImageView()
    parent.__init(self, config)
 end
 

@@ -34,6 +34,7 @@ function Dictionary:__init(config)
    config.tags['no-maxnorm'] = true
    config.input_view = 'bt'
    config.output_view = 'bwc'
+   config.output = dp.SequenceView()
    parent.__init(self, config)
 end
 

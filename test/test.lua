@@ -393,16 +393,16 @@ function dptest.convolution1D()
    local data = torch.rand(unpack(size))
    local grad_tensor = torch.randn(unpack(output_size))
    -- dp
-   local input = dp.SequenceTensor{data=data}
+   local input = dp.SequenceView('bwc', data)
    local layer = dp.Convolution1D{
       input_size=50, output_size=100, kernel_size=2, 
       kernel_stride=1, pool_size=2, pool_stride=2,
       transfer=nn.Tanh()
    }
-   local act, carry = layer:forward(input, {nSample=8})
-   mytester:assertTableEq(act:conv1D():size():totable(), output_size, 0.00001)
-   local grad = layer:backward(dp.SequenceTensor{data=grad_tensor}, carry)
-   mytester:assertTableEq(grad:conv1D():size():totable(), size, 0.00001)
+   local output, carry = layer:forward(input, {nSample=8})
+   mytester:assertTableEq(output:forward('bwc'):size():totable(), output_size, 0.00001)
+   input = layer:backward(dp.SequenceView('bwc', grad_tensor), carry)
+   mytester:assertTableEq(input:backward('bwc'):size():totable(), size, 0.00001)
    -- nn
    local mlp = nn.Sequential()
    local m = nn.TemporalConvolution(50,100,2,1)
@@ -410,24 +410,24 @@ function dptest.convolution1D()
    mlp:add(m)
    mlp:add(nn.Tanh())
    mlp:add(nn.TemporalMaxPooling(2,2))
-   local mlp_act = mlp:forward(input:conv1D())
-   local mlp_grad = mlp:backward(input:conv1D(), grad_tensor)
+   local mlp_act = mlp:forward(data)
+   local mlp_grad = mlp:backward(data, grad_tensor)
    -- compare nn and dp
-   mytester:assertTensorEq(mlp_act, act:conv1D(), 0.00001)
-   mytester:assertTableEq(mlp_grad:size():totable(), grad:conv1D():size():totable(), 0.00001)
-   mytester:assertTensorEq(mlp_grad, grad:conv1D(), 0.00001)
+   mytester:assertTensorEq(mlp_act, output:forward('bwc'), 0.00001)
+   mytester:assertTableEq(mlp_grad:size():totable(), input:backward('bwc'):size():totable(), 0.00001)
+   mytester:assertTensorEq(mlp_grad, input:backward('bwc'), 0.00001)
    -- update
-   local act_ten = act:expand():clone()
-   local grad_ten = grad:expand():clone()
+   local act_ten = output:forward('bwc'):clone()
+   local grad_ten = input:backward('bwc'):clone()
    local visitor = dp.Learn{learning_rate=0.1}
    visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
    layer:accept(visitor)
    layer:doneBatch()
    -- forward backward
-   local act2, carry2 = layer:forward(input, {nSample=8})
-   local grad2, carry2 = layer:backward(dp.SequenceTensor{data=grad_tensor}, carry2)
-   mytester:assertTensorNe(act_ten, act2:sequence(), 0.00001)
-   mytester:assertTensorNe(grad_ten, grad2:sequence(), 0.00001)
+   output, carry2 = layer:forward(input, {nSample=8})
+   input, carry2 = layer:backward(output, carry2)
+   mytester:assertTensorNe(act_ten, output:forward('bwc'), 0.00001)
+   mytester:assertTensorNe(grad_ten, input:backward('bwc'), 0.00001)
 end
 function dptest.convolution2D()
    local size = {8,32,32,3}

@@ -37,7 +37,7 @@ local datasource
 if opt.dataset == 'Mnist' then
    datasource = dp.Mnist{input_preprocess = input_preprocess}
 elseif opt.dataset == 'NotMnist' then
-   datasource = dp.NotMnist{input_preprocess = input_preprocess}
+   datasource = dp.NotMnist{train_dir='notMNIST_large', input_preprocess = input_preprocess}
 elseif opt.dataset == 'Cifar10' then
    datasource = dp.Cifar10{input_preprocess = input_preprocess}
 elseif opt.dataset == 'Cifar100' then

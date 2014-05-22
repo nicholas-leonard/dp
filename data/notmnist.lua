@@ -11,7 +11,7 @@ NotMnist.isNotMnist= true
 NotMnist._name = 'notMnist'
 NotMnist._image_size = {28, 28, 1}
 NotMnist._image_axes = 'bhwc'
-NotMnist._feature_size = 1*28*28
+NotMnist._feature_size = 28*28*1
 NotMnist._classes = {'A','B','C','D','E','F','G','H','I','J'}
 
 function NotMnist:__init(...) 

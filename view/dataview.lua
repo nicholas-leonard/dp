@@ -64,6 +64,8 @@ function DataView:tensorFromModule(view, tensor_type)
    if not moduleTable then
       -- no moduleTable: build a module
       local modula = self[view](self)
+      -- make sure it accepts the right input type
+      modula:type(self._type)
       local copy = nn.Copy(input_type, tensor_type)
       self._modules[view] = {modula, {[tensor_type] = copy}}
       local tensor = modula:forward(self._input)
@@ -207,6 +209,7 @@ end
 
 ---------------------- MISC ----------------------------
 
+-- number of features in each sample
 function DataView:sampleSize(b_pos, view, data)
    b_pos = b_pos or self:findAxis('b', view)
    data = data or self._input
@@ -261,11 +264,11 @@ function DataView:index(v, indices)
                "got "..torch.type(v).." instead")
       end
       data = v._input
-      -- dont use datatensor if cuda (index not in cutorch yet)
+      -- dont reuse tensor if cuda (index not in cutorch yet)
       if data:type() ~= 'torch.CudaTensor' then
-         torch.Tensor.index(data, self._input, b_pos, indices)
+         data:index(self._input, b_pos, indices)
       else
-         data = self._data:index(b_pos, indices)
+         data = self._input:index(b_pos, indices)
       end
       assert(self._view == v._view, "Expecting arg 1 to have same view")
       v:forward(self._view, data)
@@ -273,8 +276,7 @@ function DataView:index(v, indices)
    end
    indices = indices or v
    data = self._input:index(b_pos, indices)
-   v = torch.protoClone(self)
-   v:forward(self._view, data)
+   v = torch.protoClone(self, self._view, data)
    return v
 end
 
@@ -312,7 +314,7 @@ function DataView:input(input)
    return self._input
 end
 
--- a generic function for transposing images
+-- a generic function for transposing views
 function DataView:transpose(new_view)
    local view = _.split(self._view)
    local transpositions = {}

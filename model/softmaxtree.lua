@@ -94,10 +94,7 @@ function SoftmaxTree:reset()
 end
 
 function SoftmaxTree:zeroGradParameters()
-   local params, gradParams = self._module:parameters()
-   for k,gradParam in pairs(gradParams) do
-      gradParam:zero()
-   end
+  self._module:zeroGradParameters(true)
 end
 
 -- if after feedforward, returns active parameters 

@@ -21,7 +21,14 @@ function Sampler:__init(config)
        'Default is to use then entire dataset per epoch'}
    )
    self:setBatchSize(batch_size)
-   self._epoch_size = (epoch_size == -1) and nil or epoch_size
+   self._epoch_size = epoch_size
+   if epoch_size > 0 then
+      if batch_size > epoch_size then
+         error("positive epoch_size should be greater than batch_size", 2)
+      end
+   else
+      self._epoch_size = nil
+   end
 end
 
 function Sampler:setup(config)
@@ -78,8 +85,10 @@ function Sampler:sampleEpoch(dataset)
    local stop
    -- build iterator
    local epochSamples = 
-      function(batch)
-         batch = batch or dataset:batch(self._batch_size)
+      function()
+         if nSampled > epochSize then
+            return
+         end
          stop = math.min(self._start+self._batch_size-1,nSample)
          -- inputs and targets
          local batch = dataset:sub(self._start, stop)
@@ -90,13 +99,10 @@ function Sampler:sampleEpoch(dataset)
             n_sample=stop-self._start+1, 
             indices=indices:range(self._start,stop)
          }
+         nSampled = nSampled + stop - self._start + 1
          self._start = self._start + self._batch_size
          if self._start >= nSample then
             self._start = 1
-         end
-         nSampled = nSampled + self._batch_size
-         if nSampled > epochSize then
-            return
          end
          --http://bitsquid.blogspot.ca/2011/08/fixing-memory-issues-in-lua.html
          collectgarbage() 
@@ -170,6 +176,9 @@ function ShuffleSampler:sampleEpoch(dataset)
    -- build iterator
    local epochSamples = 
       function(batch)
+         if nSampled > epochSize then
+            return
+         end
          batch = batch or dataset:batch(self._batch_size)
          stop = math.min(self._start+self._batch_size-1,nSample)
          local batch_indices = dataset_indices:sub(self._start,stop)
@@ -182,13 +191,10 @@ function ShuffleSampler:sampleEpoch(dataset)
             n_sample=stop-self._start+1, 
             indices=indices:range(self._start,stop)
          }
+         nSampled = nSampled + stop - self._start + 1
          self._start = self._start + self._batch_size
          if self._start >= nSample then
             self._start = 1
-         end
-         nSampled = nSampled + self._batch_size
-         if nSampled > epochSize then
-            return
          end
          collectgarbage() 
          return batch, math.min(nSampled, epochSize), epochSize

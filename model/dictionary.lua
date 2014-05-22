@@ -45,14 +45,6 @@ function Dictionary:_forward(carry)
    return carry
 end
 
-function Dictionary:backward(output, carry)
-   assert(output.isSequenceTensor, "Expecting dp.SequenceTensor output")
-   self.output.grad = output:shallowClone()
-   carry = self:_backward(carry) or carry
-   self.backwarded = true
-   return self.input.grad, carry
-end
-
 function Dictionary:_backward(carry)
    local scale = carry.scale
    self._report.scale = scale

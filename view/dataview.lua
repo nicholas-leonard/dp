@@ -125,6 +125,9 @@ function DataView:backwardGet(view, tensor_type)
    end
    
    -- slower : many-to-one backward
+   if not self._gradOutputs or #self._gradOutputs == 0 then 
+      error("Cannot backwardGet without a previous backwardPut", 2)
+   end
    if not self._gradInput then
       self._gradInput = self._input:clone()
    end

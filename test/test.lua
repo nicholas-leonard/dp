@@ -479,32 +479,32 @@ function dptest.dictionary()
    local output_size = {8,10,50}
    local data = torch.randperm(80):resize(unpack(size))
    local grad_tensor = torch.randn(unpack(output_size))
-   local axes = {'b','t'}
-   local output_axes = {'b','s','f'}
    -- dp
-   local input = dp.WordTensor{data=data, axes=axes}
+   local input = dp.ClassView('bt', data)
    local layer = dp.Dictionary{dict_size=100, output_size=50}
-   local act, carry = layer:forward(input, {nSample=8})
-   mytester:assertTableEq(act:conv1D():size():totable(), output_size, 0.00001)
-   local grad = layer:backward(dp.SequenceTensor{data=grad_tensor,axes=output_axes}, carry)
-   mytester:assert(grad == nil)
+   local output, carry = layer:forward(input, {nSample=8})
+   mytester:assertTableEq(output:forward('bwc'):size():totable(), output_size, 0.00001)
+   output:backward('bwc', grad_tensor)
+   input = layer:backward(output, carry)
+   -- should be able to get input gradients
+   mytester:assert(not pcall(function() input:backward('bt') end ))
    -- nn
    local mlp = nn.LookupTable(100,50)
    mlp:share(layer._module, 'weight')
-   local mlp_act = mlp:forward(input:context())
-   mlp:backward(input:context(), grad_tensor)
+   local mlp_act = mlp:forward(input:forward('bt'))
    -- compare nn and dp
-   mytester:assertTensorEq(mlp_act, act:conv1D(), 0.00001)
+   mytester:assertTensorEq(mlp_act, output:forward('bwc'), 0.00001)
    -- update
-   local act_ten = act:expand():clone()
+   local act_ten = output:forward('bwc'):clone()
    local visitor = dp.Learn{learning_rate=0.1}
    visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
    layer:accept(visitor)
    layer:doneBatch()
    -- forward backward
-   local act2, carry2 = layer:forward(input, {nSample=5})
-   local grad2, carry2 = layer:backward(dp.SequenceTensor{data=grad_tensor,axes=output_axes}, carry2)
-   mytester:assertTensorNe(act_ten, act2:conv1D(), 0.00001)
+   output, carry2 = layer:forward(input, {nSample=5})
+   output:backward('bwc', grad_tensor)
+   input, carry2 = layer:backward(output, carry2)
+   mytester:assertTensorNe(act_ten, output:forward('bwc'), 0.00001)
 end
 function dptest.nll()
    local input_tensor = torch.randn(5,10)

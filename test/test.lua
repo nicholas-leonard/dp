@@ -529,19 +529,19 @@ function dptest.treenll()
    local input_tensor = torch.randn(5,10):add(100) -- add for log nans
    local target_tensor = torch.ones(5) --all targets are 1
    -- dp
-   local input = dp.DataView{data=input_tensor:narrow(2,1,1)}
-   local target = dp.ClassTensor{data=target_tensor}
+   local input = dp.DataView('bf', input_tensor:narrow(2,1,1))
+   local target = dp.ClassView('b', target_tensor)
    local loss = dp.TreeNLL()
    -- the targets are actually ignored (SoftmaxTree uses them before TreeNLL)
    local err, carry = loss:forward(input, target, {nSample=5})
-   local grad = loss:backward(input, target, carry)
+   input = loss:backward(input, target, carry)
    -- nn
    local criterion = nn.ClassNLLCriterion()
    local c_err = criterion:forward(input_tensor, target_tensor)
    local c_grad = criterion:backward(input_tensor, target_tensor)
    -- compare nn and dp
    mytester:asserteq(c_err, err, 0.00001)
-   mytester:assertTensorEq(c_grad:narrow(2,1,1), grad:feature(), 0.00001)
+   mytester:assertTensorEq(c_grad:narrow(2,1,1), input:backward('bf'), 0.00001)
 end
 
 

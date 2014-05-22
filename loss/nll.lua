@@ -29,9 +29,9 @@ function NLL:_backward(carry)
 end
 
 function NLL:_type(type)
-   self._criterion:type(type)
    if type == 'torch.FloatTensor' or type == 'torch.DoubleTensor' then
       self._input_type = type
+      self._criterion:type(type)
    elseif type == 'torch.IntTensor' or type == 'torch.LongTensor' then
       self._output_type = type
    end

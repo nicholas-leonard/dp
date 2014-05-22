@@ -183,6 +183,23 @@ function DataView:bf()
    return modula or nn.Identity()
 end
 
+-- vector view. 
+-- Only works with bf with size(f) is 1
+function DataView:b()
+   local view, dim = self._view, self._dim
+   local b_pos = self:findAxis('b', view)
+   -- was bf
+   if view == 'bf' then
+      if self._input:size(2) ~= 1 then
+         error("Cannot convert view bf with size(f) > 1 to b", 2)
+      end
+      return nn.Select(2, 1)
+   elseif view ~= 'b' then
+      error("Cannot convert view "..view.." to b", 2)
+   end
+   return nn.Identity()
+end
+
 -- returns the current view of the data
 function DataView:default()
    return nn.Identity()

@@ -340,7 +340,7 @@ function dptest.softmaxtree()
    local input = dp.DataView()
    input:forward('bf', input_tensor)
    local target = dp.ClassView()
-   target:forward('bt', target_tensor)
+   target:forward('b', target_tensor)
    local model = dp.SoftmaxTree{input_size=10, hierarchy=hierarchy, root_id=root_id}
    -- nn
    require 'nnx'
@@ -349,25 +349,26 @@ function dptest.softmaxtree()
    mlp.bias = model._module.bias:clone()
    -- forward backward
    --- dp
-   local act, carry = model:forward(input, {nSample=5, targets=target})
+   local output, carry = model:forward(input, {nSample=5, targets=target})
    local gradWeight = model._module.gradWeight:clone()
-   local grad, carry = model:backward(dp.DataView{data=grad_tensor}, carry)
-   mytester:assertTableEq(act:feature():size():totable(), {5,1}, 0.000001, "Wrong act size")
-   mytester:assertTableEq(grad:feature():size():totable(), {5,10}, 0.000001, "Wrong grad size")
+   output:backward('b', grad_tensor)
+   input, carry = model:backward(output, carry)
+   mytester:assertTableEq(output:forward('bf'):size():totable(), {5,1}, 0.000001, "Wrong act size")
+   mytester:assertTableEq(input:backward('bf'):size():totable(), {5,10}, 0.000001, "Wrong grad size")
    local gradWeight2 = model._module.gradWeight
    mytester:assertTensorNe(gradWeight, gradWeight2, 0.00001)
    --- nn
    local mlp_act = mlp:forward{input_tensor, target_tensor}
-   local mlp_grad = mlp:backward({input_tensor, target_tensor}, grad_tensor:select(2,1))
+   local mlp_grad = mlp:backward({input_tensor, target_tensor}, grad_tensor)
    -- compare nn and dp
-   mytester:assertTensorEq(mlp_act, act:feature(), 0.00001)
-   mytester:assertTensorEq(mlp_grad, grad:feature(), 0.00001)
+   mytester:assertTensorEq(mlp_act, output:forward('bf'), 0.00001)
+   mytester:assertTensorEq(mlp_grad, input:backward('bf'), 0.00001)
    -- share
    local model2 = model:sharedClone()   
    -- update
    local weight = model._module.weight:clone()
-   local act_ten = act:feature():clone()
-   local grad_ten = grad:feature():clone()
+   local act_ten = output:forward('bf'):clone()
+   local grad_ten = input:backward('bf'):clone()
    local visitor = dp.Learn{learning_rate=0.1}
    visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
    model:accept(visitor)
@@ -375,14 +376,16 @@ function dptest.softmaxtree()
    mytester:assertTensorNe(weight, weight2, 0.00001)
    model:doneBatch()
    -- forward backward
-   local act2, carry2 = model2:forward(input, {nSample=5, targets=target})
-   local grad2, carry2 = model2:backward(dp.DataView{data=grad_tensor}, carry2)
-   mytester:assertTensorNe(act_ten, act2:feature(), 0.00001)
-   mytester:assertTensorNe(grad_ten, grad2:feature(), 0.00001)
-   local act, carry = model:forward(input, {nSample=5, targets=target})
-   local grad, carry = model:backward(dp.DataView{data=grad_tensor}, carry)
-   mytester:assertTensorEq(act:feature(), act2:feature(), 0.00001)
-   mytester:assertTensorEq(grad:feature(), grad2:feature(), 0.00001)
+   local output2, carry2 = model2:forward(input:clone(), {nSample=5, targets=target})
+   output2:backward('b', grad_tensor)
+   local input2, carry2 = model2:backward(output2, carry2)
+   mytester:assertTensorNe(act_ten, output2:forward('bf'), 0.00001)
+   mytester:assertTensorNe(grad_ten, input2:backward('bf'), 0.00001)
+   local output, carry = model:forward(input2:clone(), {nSample=5, targets=target})
+   output:backward('b', grad_tensor)
+   local input, carry = model:backward(output, carry)
+   mytester:assertTensorEq(output:forward('bf'), output2:forward('bf'), 0.00001)
+   mytester:assertTensorEq(input:backward('bf'), input2:backward('bf'), 0.00001)
 end
 function dptest.convolution1D()
    local size = {8,10,50}

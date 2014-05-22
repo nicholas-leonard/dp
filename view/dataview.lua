@@ -205,6 +205,10 @@ function DataView:pairs()
    return pairs{self}
 end
 
+function DataView:clone()
+   return torch.protoClone(self, self._view, self._input:clone())
+end
+
 -- Used by dp.Preprocess instances to replace the input
 -- see dp.ZCA:apply() for an example
 function DataView:replace(view, output)

@@ -28,8 +28,9 @@ function SoftmaxTree:__init(config)
    require 'nnx'
    self._module = nn.SoftMaxTree(self._input_size, hierarchy, root_id)
    config.typename = typename
+   config.output = dp.DataView()
    config.input_view = 'bf'
-   config.output_view = 'bf'
+   config.output_view = 'b'
    parent.__init(self, config)
 end
 
@@ -44,7 +45,7 @@ function SoftmaxTree:_forward(carry)
    end
    assert(carry.targets and carry.targets.isClassView,
       "carry.targets should refer to a ClassView of targets")
-   local targets = carry.targets:class()
+   local targets = carry.targets:forward('b')
    -- outputs a column vector of likelihoods of targets
    activation = self._module:forward{activation, targets}
    self:outputAct(activation)
@@ -55,10 +56,10 @@ function SoftmaxTree:_backward(carry)
    local scale = carry.scale
    self._report.scale = scale
    local input_act = self.mvstate.dropoutAct or self:inputAct()
-   local output_grad = self:outputGrad():select(2,1)
+   local output_grad = self:outputGrad()
    assert(carry.targets and carry.targets.isClassView,
       "carry.targets should refer to a ClassView of targets")
-   local targets = carry.targets:class()
+   local targets = carry.targets:forward('b')
    output_grad = self._module:backward({input_act, targets}, output_grad, scale)
    if self._dropout then
       self.mvstate.dropoutGrad = output_grad

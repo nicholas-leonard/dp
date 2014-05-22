@@ -74,6 +74,7 @@ end
 
 function Model:backward(output, carry)
    assert(output.isView, "Expecting dp.View output")
+   self.output = output
    carry = self:_backward(carry) or carry
    self.backwarded = true
    return self.input, carry

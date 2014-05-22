@@ -434,19 +434,18 @@ function dptest.convolution2D()
    local output_size = {8,20,15,15}
    local data = torch.rand(unpack(size))
    local grad_tensor = torch.randn(unpack(output_size))
-   local axes = {'b','h','w','c'}
-   local output_axes = {'b','c','h','w'}
    -- dp
-   local input = dp.ImageTensor{data=data, axes=axes}
+   local input = dp.ImageView('bhwc', data)
    local layer = dp.Convolution2D{
       input_size=3, output_size=20, kernel_size={3,3}, 
       kernel_stride={1,1}, pool_size={2,2}, pool_stride={2,2},
       transfer=nn.Tanh()
    }
-   local act, carry = layer:forward(input, {nSample=8})
-   mytester:assertTableEq(act:conv2D():size():totable(), output_size, 0.00001)
-   local grad = layer:backward(dp.ImageTensor{data=grad_tensor,axes=output_axes}, carry)
-   mytester:assertTableEq(grad:conv2D():size():totable(), {8,3,32,32}, 0.00001)
+   local output, carry = layer:forward(input, {nSample=8})
+   mytester:assertTableEq(output:forward('bchw'):size():totable(), output_size, 0.00001)
+   output:backward('bchw', grad_tensor)
+   input = layer:backward(output, carry)
+   mytester:assertTableEq(input:backward('bhwc'):size():totable(), size, 0.00001)
    -- nn
    local mlp = nn.Sequential()
    local m = nn.SpatialConvolution(3,20,3,3,1,1)
@@ -454,24 +453,26 @@ function dptest.convolution2D()
    mlp:add(m)
    mlp:add(nn.Tanh())
    mlp:add(nn.SpatialMaxPooling(2,2,2,2))
-   local mlp_act = mlp:forward(input:imageBCHW())
-   local mlp_grad = mlp:backward(input:imageBCHW(), grad_tensor)
+   local mlp_act = mlp:forward(input:forward('bchw'))
+   local mlp_grad = mlp:backward(input:forward('bchw'), grad_tensor)
    -- compare nn and dp
-   mytester:assertTensorEq(mlp_act, act:conv2D(), 0.00001)
-   mytester:assertTableEq(mlp_grad:size():totable(), grad:conv2D():size():totable(), 0.00001)
-   mytester:assertTensorEq(mlp_grad, grad:conv2D(), 0.00001)
+   mlp_grad = dp.ImageView('bchw', mlp_grad):forward('bhwc')
+   mytester:assertTensorEq(mlp_act, output:forward('bchw'), 0.00001)
+   mytester:assertTableEq(mlp_grad:size():totable(), input:backward('bhwc'):size():totable(), 0.00001)
+   mytester:assertTensorEq(mlp_grad, input:backward('bhwc'), 0.00001)
    -- update
-   local act_ten = act:image():clone()
-   local grad_ten = grad:image():clone()
+   local act_ten = output:forward('bhwc'):clone()
+   local grad_ten = input:backward('bhwc'):clone()
    local visitor = dp.Learn{learning_rate=0.1}
    visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
    layer:accept(visitor)
    layer:doneBatch()
    -- forward backward
-   local act2, carry2 = layer:forward(input, {nSample=8})
-   local grad2, carry2 = layer:backward(dp.ImageTensor{data=grad_tensor,axes=output_axes}, carry2)
-   mytester:assertTensorNe(act_ten, act2:image(), 0.00001)
-   mytester:assertTensorNe(grad_ten, grad2:image(), 0.00001)
+   output, carry2 = layer:forward(input, {nSample=8})
+   output:backward('bchw', grad_tensor)
+   input, carry2 = layer:backward(output, carry2)
+   mytester:assertTensorNe(act_ten, output:forward('bhwc'), 0.00001)
+   mytester:assertTensorNe(grad_ten, input:backward('bhwc'), 0.00001)
 end
 function dptest.dictionary()
    local size = {8,10}

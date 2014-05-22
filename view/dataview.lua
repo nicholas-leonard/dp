@@ -100,11 +100,15 @@ end
 -- In the case of multiple output models having called backwardPut, 
 -- the different gradInputs must be accumulated (sum grads).
 function DataView:backwardGet(view, tensor_type)
-   view = view or self._view
-   tensor_type = tensor_type or self._type
-   if (self._type ~= tensor_type) then
+   if view and view ~= self._view then
+      error("backwardGet should be called with same view used for "..
+         "last forward (or nil) i.e. ".. self._view .. " not " .. view)
+   end
+   if tensor_type and self._type ~= tensor_type then
       error"backwardGet sould be called with the same type as self._data"
    end
+   tensor_type = tensor_type or self._type
+   
    local view, gradOutput, gradInput
    
    -- optimization : one-to-one backward

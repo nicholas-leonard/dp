@@ -146,7 +146,7 @@ function Convolution2D:reset()
    self._conv:reset()
    if self._sparse_init then
       print"Warning : this wont work with SpatialConvolutionCUDA"
-      local W = self:parameters().weight.param
+      local W = self._conv.weight
       W = W:reshape(W:size(1)*W:size(2)*W:size(3), W:size(4))
       self._sparseReset(W:t())
    end

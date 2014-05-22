@@ -510,18 +510,20 @@ function dptest.nll()
    local input_tensor = torch.randn(5,10)
    local target_tensor = torch.randperm(10):sub(1,5)
    -- dp
-   local input = dp.DataView{data=input_tensor}
-   local target = dp.ClassTensor{data=target_tensor}
+   local input = dp.DataView('bf', input_tensor)
+   local target = dp.ClassView('b', target_tensor)
    local loss = dp.NLL()
+   -- test conversion
+   loss:float()
    local err, carry = loss:forward(input, target, {nSample=5})
-   local grad = loss:backward(input, target, carry)
+   input = loss:backward(input, target, carry)
    -- nn
-   local criterion = nn.ClassNLLCriterion()
-   local c_err = criterion:forward(input_tensor, target_tensor)
-   local c_grad = criterion:backward(input_tensor, target_tensor)
+   local criterion = nn.ClassNLLCriterion():float()
+   local c_err = criterion:forward(input_tensor:float(), target_tensor:float())
+   local c_grad = criterion:backward(input_tensor:float(), target_tensor:float())
    -- compare nn and dp
-   mytester:asserteq(c_err, err, 0.00001)
-   mytester:assertTensorEq(c_grad, grad:feature(), 0.00001)
+   mytester:asserteq(c_err, err, 0.000001)
+   mytester:assertTensorEq(c_grad, input:backward('bf'):float(), 0.00001)
 end
 function dptest.treenll()
    local input_tensor = torch.randn(5,10):add(100) -- add for log nans

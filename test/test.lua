@@ -401,7 +401,8 @@ function dptest.convolution1D()
    }
    local output, carry = layer:forward(input, {nSample=8})
    mytester:assertTableEq(output:forward('bwc'):size():totable(), output_size, 0.00001)
-   input = layer:backward(dp.SequenceView('bwc', grad_tensor), carry)
+   output:backward('bwc', grad_tensor)
+   input = layer:backward(output, carry)
    mytester:assertTableEq(input:backward('bwc'):size():totable(), size, 0.00001)
    -- nn
    local mlp = nn.Sequential()
@@ -425,6 +426,7 @@ function dptest.convolution1D()
    layer:doneBatch()
    -- forward backward
    output, carry2 = layer:forward(input, {nSample=8})
+   output:backward('bwc', grad_tensor)
    input, carry2 = layer:backward(output, carry2)
    mytester:assertTensorNe(act_ten, output:forward('bwc'), 0.00001)
    mytester:assertTensorNe(grad_ten, input:backward('bwc'), 0.00001)

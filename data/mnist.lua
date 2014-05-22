@@ -102,6 +102,7 @@ function Mnist:createDataSet(data, which_set)
       data = data:index(1, torch.randperm(data:size(1)):long())
    end
    local inputs = data:narrow(2, 1, self._feature_size):clone()
+   inputs:resize(inputs:size(1), unpack(self._image_size))
    if self._binarize then
       DataSource.binarize(inputs, 128)
    end
@@ -113,7 +114,7 @@ function Mnist:createDataSet(data, which_set)
    targets:add(1)
    -- construct inputs and targets dp.Views 
    local input_v, target_v = dp.ImageView(), dp.ClassView()
-   input_v:forward(self._image_axis, inputs)
+   input_v:forward(self._image_axes, inputs)
    target_v:forward('b', targets)
    target_v:setClasses(self._classes)
    -- construct dataset

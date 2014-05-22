@@ -130,7 +130,7 @@ function Cifar100:createDataSet(data, which_set)
    self._coarse_targets = dp.ClassView()
    self._fine_targets = dp.ClassView()
    
-   input_v:forward(self._image_axis, inputs)
+   input_v:forward(self._image_axes, inputs)
    self._coarse_targets:forward('b', coarse_targets)
    self._fine_targets:forward('b', fine_targets)
    

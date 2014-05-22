@@ -119,7 +119,7 @@ function NotMnist:createDataSet(inputs, targets, which_set)
    end   
    -- construct inputs and targets dp.Views 
    local input_v, target_v = dp.ImageView(), dp.ClassView()
-   input_v:forward(self._image_axis, inputs)
+   input_v:forward(self._image_axes, inputs)
    target_v:forward('b', targets)
    target_v:setClasses(self._classes)
    -- construct dataset

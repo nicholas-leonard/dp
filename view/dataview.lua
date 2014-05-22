@@ -119,8 +119,8 @@ function DataView:backwardGet(view, tensor_type)
       assert(moduleTable, "backward must follow a forward")
       local modula, copyTable = unpack(moduleTable)
       assert(copyTable, "backward must follow a forward")
-      gradInput = copyTable[tensor_type]:backward(nil, gradOutput)
-      gradInput = modula:backward(nil, gradInput)
+      gradInput = copyTable[tensor_type]:backward(self._input, gradOutput)
+      gradInput = modula:backward(self._input, gradInput)
       return gradInput
    end
    
@@ -138,8 +138,8 @@ function DataView:backwardGet(view, tensor_type)
       local modula, copyTable = unpack(moduleTable)
       assert(copyTable, "backward must follow a forward")
       tensor_type = torch.typename(gradOutput)
-      gradInput = copyTable[tensor_type]:backward(nil, gradOutput)
-      gradInput = modula:backward(nil, gradInput)
+      gradInput = copyTable[tensor_type]:backward(self._input, gradOutput)
+      gradInput = modula:backward(self._input, gradInput)
       -- accumulate
       if i == 1 then
          self._gradInput:copy(gradInput)

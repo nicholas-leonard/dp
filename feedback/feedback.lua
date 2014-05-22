@@ -34,7 +34,8 @@ function Feedback:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, name = xlua.unpack(
       {config},
-      'Feedback', nil,
+      'Feedback', 
+      'strategies for processing predictions and targets.',
       {arg='name', type='string', req=true,
        help='used to identify report'}
    )
@@ -46,7 +47,8 @@ function Feedback:setup(config)
    assert(type(config) == 'table', "Setup requires key-value arguments")
    local args, mediator, propagator, dataset = xlua.unpack(
       {config},
-      'Feedback:setup', nil,
+      'Feedback:setup', 
+      'setup the Feedback for mediation and such',
       {arg='mediator', type='dp.Mediator'},
       {arg='propagator', type='dp.Propagator'},
       {arg='dataset', type='dp.DataSet', 

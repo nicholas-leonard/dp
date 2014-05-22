@@ -17,8 +17,8 @@ function dptest.languagemodel()
    local a = torch.Timer()
    for i=1,10000,512 do
       local batch = train:sub(i,i+511)
-      local targets = batch:targets():class()
-      table.insert(nn_inputs, {batch:inputs():context(), targets})
+      local targets = batch:targets():forward('b')
+      table.insert(nn_inputs, {batch:inputs():forward('bt'), targets})
       table.insert(dp_inputs, batch)
    end
    print("input Time ".. a:time().real)

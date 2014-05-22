@@ -43,8 +43,8 @@ function GCN:__init(config)
    )
 end
     
-function GCN:apply(datatensor, can_fit)
-   local data = datatensor:feature()
+function GCN:apply(dv, can_fit)
+   local data = dv:forward('bf')
    print('begin GCN preprocessing...')
    if self._batch_size == 0 then
       self:_transform(data)
@@ -61,7 +61,7 @@ function GCN:apply(datatensor, can_fit)
          self:_transform(data:sub(i,stop))
       end
    end
-   datatensor:setData(data)
+   dv:replace('bf', data)
    print('GCN preprocessing completed')
 end
 

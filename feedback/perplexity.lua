@@ -39,9 +39,9 @@ function Perplexity:doneEpoch(report)
 end
 
 function Perplexity:_add(batch, output, carry, report)
-   local act = output.act:feature()
+   local act = output:forward('bf')
    if act ~= 'torch.DoubleTensor' and act ~= 'torch.FloatTensor' then
-      act = output.act:feature('torch.FloatTensor')
+      act = output:forward('bf', 'torch.FloatTensor')
    end
    -- accumulate the sum of negative log likelihoods
    self._perplexity = self._perplexity - act:sum()

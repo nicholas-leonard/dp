@@ -32,6 +32,9 @@ function Dictionary:__init(config)
    config.input_type = 'torch.IntTensor'
    config.tags = config.tags or {}
    config.tags['no-maxnorm'] = true
+   config.input_view = 'bt'
+   config.output_view = 'bwc'
+   config.output = dp.SequenceView()
    parent.__init(self, config)
 end
 
@@ -42,14 +45,6 @@ function Dictionary:_forward(carry)
    return carry
 end
 
-function Dictionary:backward(output, carry)
-   assert(output.isSequenceTensor, "Expecting dp.SequenceTensor output")
-   self.output.grad = output:shallowClone()
-   carry = self:_backward(carry) or carry
-   self.backwarded = true
-   return self.input.grad, carry
-end
-
 function Dictionary:_backward(carry)
    local scale = carry.scale
    self._report.scale = scale
@@ -57,28 +52,6 @@ function Dictionary:_backward(carry)
    local input_act = self:inputAct()
    self._module:backward(input_act, output_grad, scale)
    return carry
-end
-
-function Dictionary:inputAct()
-   return self.input.act:context(self._input_type)
-end
-
-function Dictionary:inputGrad()
-   -- has no input gradient
-   self.input.grad = nil
-end
-
-function Dictionary:outputAct(output_act)
-   if output_act then
-      assert(torch.isTensor(output_act))
-      self.output.act = dp.SequenceTensor{data=output_act}
-      return
-   end
-   return self.output.act:conv1D(self._output_type)
-end
-
-function Dictionary:outputGrad()
-   return self.output.grad:conv1D(self._output_type)
 end
 
 function Dictionary:zeroGradParameters()
@@ -100,22 +73,19 @@ function Dictionary:reset()
 end
 
 function Dictionary:parameters()
-   local params = {}
+   local params, gradParams, scales = {}, {}, {}
    local module = self._module
    if self.forwarded then
       -- only return the parameters affected by the forward/backward
       for k,nBackward in pairs(module.inputs) do
          local kscale = module:scaleUpdateByKey(k)
-         params[k] = {
-            param = module.weight:select(1, k),
-            grad = module.gradWeight:select(1, k),
-            learn_scale = module:scaleUpdateByKey(k)
-         }
+         params[k] = module.weight:select(1, k)
+         gradParams[k] = module.gradWeight:select(1, k)
+         scales[k] = module:scaleUpdateByKey(k)
       end
-   else
-      params.weight = { param=module.weight, grad=module.gradWeight }
+      return params, gradParams, scales
    end
-   return params
+   return module:parameters()
 end
 
 function Dictionary:share(dict, ...)

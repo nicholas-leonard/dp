@@ -25,7 +25,7 @@ function Sequential:setup(config)
 end
 
 function Sequential:_forward(carry)
-   local input = self.input.act
+   local input = self.input
    for i=1,#self._models do 
       if carry.evaluate then
          input, carry = self._models[i]:evaluate(input, carry)
@@ -33,29 +33,29 @@ function Sequential:_forward(carry)
          input, carry = self._models[i]:forward(input, carry)
       end
    end
-   self.output.act = input
+   self.output = input
    return carry
 end
 
 function Sequential:_backward(carry)
-   local output = self.output.grad
+   local output = self.output
    for i=#self._models,1,-1 do
       output, carry = self._models[i]:backward(output, carry)
    end
-   self.input.grad = output
+   self.input = output
    return carry
 end
 
 function Sequential:inputType(input_type)
-   if not type then
-      assert(#self._models > 1, "Not models to get input type") 
+   if not input_type then
+      assert(#self._models > 1, "No models to get input type") 
       return self._models[1]:inputType()
    end
 end
 
 function Sequential:outputType(output_type)
-   if not type then
-      assert(#self._models > 1, "Not models to get input type") 
+   if not output_type then
+      assert(#self._models > 1, "No models to get input type") 
       return self._models[#self._models]:outputType()
    end
 end

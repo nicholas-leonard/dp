@@ -10,9 +10,9 @@ function Binarize:__init(threshold)
    self._threshold = threshold
 end
 
-function Binarize:apply(datatensor)
-   local data = datatensor:data()
-   inputs[data:lt(self._threshold)] = 0;
-   inputs[data:ge(self._threshold)] = 1;
-   datatensor:setData(data)
+function Binarize:apply(dv)
+   local data = dv:input()
+   data[data:lt(self._threshold)] = 0;
+   data[data:ge(self._threshold)] = 1;
+   dv:input(data)
 end

@@ -34,6 +34,8 @@ cmd:option('--outputEmbeddingSize', 100, 'number of hidden units at softmaxtree'
 
 cmd:option('--small', false, 'use a small (1/30th) subset of the training set')
 cmd:option('--tiny', false, 'use a tiny (1/100th) subset of the training set')
+cmd:option('--trainEpochSize', 1000000, 'number of train examples seen between each epoch')
+cmd:option('--validEpochSize', 100000, 'number of valid examples used for early stopping and cross-validation') 
 
 cmd:text()
 opt = cmd:parse(arg or {})
@@ -42,18 +44,14 @@ print(opt)
 
 --[[data]]--
 local train_file = 'train_data.th7' 
-local valid_tile = 'valid_data.th7'
 if opt.small then 
    train_file = 'train_small.th7'
 elseif opt.tiny then 
    train_file = 'train_tiny.th7'
-   valid_file = 'test_data.th7'
 end
 
 local datasource = dp.BillionWords{
-   context_size = opt.contextSize,
-   train_file = train_file, 
-   valid_file = valid_file
+   context_size = opt.contextSize, train_file = train_file
 }
 
 --[[Model]]--
@@ -137,26 +135,31 @@ train = dp.Optimizer{
       --dp.MaxNorm{max_out_norm = opt.maxOutNorm}
    },
    feedback = dp.Perplexity(),  
-   sampler = dp.ShuffleSampler{batch_size = opt.batchSize},
+   sampler = dp.ShuffleSampler{
+      epoch_size = opt.trainEpochSize, batch_size = opt.batchSize
+   },
    progress = true
 }
 valid = dp.Evaluator{
    loss = dp.TreeNLL(),
    feedback = dp.Perplexity(),  
-   sampler = dp.Sampler{batch_size = 1024}
+   sampler = dp.ShuffleSampler{
+      epoch_size = opt.validEpochSize, batch_size = 1024
+   },
+   progress = true
 }
---[[test = dp.Evaluator{
+test = dp.Evaluator{
    loss = dp.TreeNLL(),
    feedback = dp.Perplexity(),  
    sampler = dp.Sampler()
-}--]]
+}
 
 --[[Experiment]]--
 xp = dp.Experiment{
    model = mlp,
    optimizer = train,
    validator = valid,
-   --tester = test,
+   tester = test,
    observer = {
       dp.FileLogger(),
       --[[dp.EarlyStopper{

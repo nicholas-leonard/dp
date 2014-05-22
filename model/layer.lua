@@ -8,21 +8,28 @@ Layer.isLayer = true
 
 function Layer:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, dropout, sparse_init, gather_stats = xlua.unpack(
+   local args, input_view, output_view, output, dropout, sparse_init 
+      = xlua.unpack(
       {config},
       'Layer', 
       'An abstract parameterized layer.',
+      {arg='input_view', type='string', req=true,
+       help='view of the input like "bf", "bhwc", etc.'},
+      {arg='output_view', type='string', req=true,
+       help='view of the output like "bf", "bhwc", etc.'},
+      {arg='output', type='dp.View', req=true,
+       help='the View used for communicating outputs and gradOutputs'},
       {arg='dropout', type='nn.Dropout', 
        help='applies dropout to the inputs of this model.'},
       {arg='sparse_init', type='boolean', default=true,
        help='sparse initialization of weights. See Martens (2010), '..
-       '"Deep learning via Hessian-free optimization"'},
-      {arg='gather_stats', type='boolean', default=false,
-       help='gather statistics on gradients and such.'}
+       '"Deep learning via Hessian-free optimization"'}
    )
+   self:inputView(input_view)
+   self:outputView(output_view)
+   self.output = output
    self._dropout = dropout
    self._sparse_init = sparse_init
-   self._gather_stats = gather_stats
    parent.__init(self, config)
    self:reset()
    self._tags.hasParams = true
@@ -30,46 +37,22 @@ function Layer:__init(config)
    self:checkParams()
 end
 
+-- Get
 function Layer:inputAct()
-   local act = self.input.act:feature()
-   if torch.typename(act) ~= self._input_type then
-      if not self._inputCopy then
-         self._inputCopy = nn.Copy(torch.typename(act), self._input_type)
-      end
-      act = self._inputCopy:forward(act)
-   end
-   return act
-end
-
-function Layer:inputGrad(input_grad)
-   if input_grad then
-      assert(torch.isTensor(input_grad))
-      self.input.grad = self.input.act:shallowClone()
-      self.input.grad:setData(input_grad)
-      return
-   end
-   return self.input.grad:feature()
-end
-
-function Layer:outputAct(output_act)
-   if output_act then
-      -- wrap torch.Tensor in a dp.DataTensor
-      assert(torch.isTensor(output_act))
-      self.output.act = dp.DataTensor{data=output_act}
-      return
-   end
-   return self.output.act:feature()
+   return self.input:forward(self._input_view, self._input_type)
 end
 
 function Layer:outputGrad()
-   local grad = self.output.grad:feature()
-   if torch.typename(grad) ~= self._output_type then
-      if not self._outputCopy then
-         self._outputCopy = nn.Copy(self._output_type, torch.typename(grad))
-      end
-      grad = self._outputCopy:backward(nil, grad)
-   end
-   return grad
+   return self.output:backward(self._output_view, self._output_type)
+end
+
+-- Set
+function Layer:inputGrad(input_grad)
+   self.input:backward(self._input_view, input_grad)
+end
+
+function Layer:outputAct(output_act)
+   self.output:forward(self._output_view, output_act)
 end
 
 -- this should return a parameterized module
@@ -78,40 +61,13 @@ function Layer:paramModule()
    error"Not Implemented"
 end
 
-function Layer:_zeroStatistics()
-   if self._gather_stats then
-      for param_name, param_table in pairs(self:parameters()) do
-         self._stats[param_name] = {
-            grad={sum=0, mean=0, min=0, max=0, count=0, std=0}
-         }
-      end
-   end
-end
-
 function Layer:checkParams()
-   for param_name,param_table in pairs(self:parameters()) do
-      for k,v in pairs(param_table) do
-         assert(not _.isNaN(v:sum()), 
-                "NaN Error for " .. k .. " " .. param_name)
+   local params = self:parameters()
+   for k,param in pairs(params) do
+      if _.isNaN(param:sum()) then
+         error("NaN Error for param at index" ..k)
       end
    end
-end
-
-function Layer:_accept(visitor)
-   if self._gather_stats then
-      local params = self:parameters()
-      for param_name, param_table in pairs(self:parameters()) do
-         local grad = torch.abs(param_table.grad:double())
-         local grad_stats = self._stats[param_name].grad 
-         grad_stats.sum = grad_stats.sum + grad:sum()
-         grad_stats.min = grad_stats.min + grad:min()
-         grad_stats.max = grad_stats.max + grad:max()
-         grad_stats.mean = grad_stats.mean + grad:mean()
-         grad_stats.std = grad_stats.std + grad:std()
-         grad_stats.count = grad_stats.count + 1
-      end
-   end
-   parent._accept(self, visitor)
 end
 
 function Layer:zeroGradParameters()
@@ -121,38 +77,40 @@ end
 function Layer:reset()
    self:paramModule():reset()
    if self._sparse_init then
-      self._sparseReset(self:parameters().weight.param)
+      local params = self:parameters()
+      -- Only affects 2D parameters.
+      -- Assumes that 2D parameters are aranged (output_dim x input_dim)
+      for k,param in pairs(params) do
+         if param:dim() == 2 then
+            self._sparseReset(param)
+         end
+      end
    end
 end
 
 -- do not use this to change the type of parameters.
 function Layer:parameters()
-   local params = {}
-   local module = self:paramModule()
-   if module.weight and module.weight:dim() ~= 0 then
-      params.weight = { param=module.weight, grad=module.gradWeight }
-   end
-   if module.bias and module.bias:dim() ~= 0 then
-      params.bias = { param=module.bias, grad=module.gradBias }
-   end
-   return params
+   return self:paramModule():parameters()
 end
 
+-- Only affects 2D parameters.
+-- Assumes that 2D parameters are aranged (output_dim x input_dim)
 function Layer:maxNorm(max_out_norm, max_in_norm)
    assert(self.backwarded, "Should call maxNorm after a backward pass")
    max_out_norm = self.mvstate.max_out_norm or max_out_norm
    max_in_norm = self.mvstate.max_in_norm or max_in_norm
-   local params = self:parameters()
-   local weight = params.weight.param
-   assert(weight:dim() == 2, "Only works with two dims. "..
-      "Re-implement your own version in the subclass that calls this.")
-   if max_out_norm then
-      -- rows feed into output neurons 
-      dp.constrain_norms(max_out_norm, 2, weight)
-   end
-   if max_in_norm then
-      -- cols feed out from input neurons
-      dp.constrain_norms(max_in_norm, 1, weight)
+   local params, gradParams = self:parameters()
+   for k,param in pairs(params) do
+      if param:dim() == 2 then
+         if max_out_norm then
+            -- rows feed into output neurons 
+            dp.constrain_norms(max_out_norm, 2, param)
+         end
+         if max_in_norm then
+            -- cols feed out from input neurons
+            dp.constrain_norms(max_in_norm, 1, param)
+         end
+      end
    end
 end
 
@@ -171,27 +129,6 @@ end
 function Layer:sharedClone()
    local clone = self:clone()
    return self:share(clone, 'weight', 'bias')
-end
-
-function Layer:report()
-   local report = parent.report(self) or {}
-   if self._gather_stats then
-      for param_name, param_table in pairs(self:parameters()) do
-         local param_stats = self._stats[param_name]
-         if param_stats and param_stats.grad and param_stats.grad.count > 0 then
-            local grad = param_stats.grad
-            local param_report = self._report[param_name] or {}
-            local count = grad.count
-            local grad_report = {
-                  sum=grad.sum/count, mean=grad.mean/count,
-                  min=grad.min/count, max=grad.max/count,
-                  std=grad.std/count, count=grad.count
-            }
-            self._report[param_name] = {grad=grad_report}
-         end
-      end
-   end
-   return table.merge(report, self._report)
 end
 
 -- static method for initializing weights matrices

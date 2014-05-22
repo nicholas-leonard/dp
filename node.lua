@@ -114,7 +114,6 @@ function Node:doneBatch(...)
    self.forwarded = false
    self.backwarded = false
    self.evaluated = false
-   self.input = {}
 end
 
 function Node:_doneBatch(...)
@@ -146,6 +145,21 @@ end
 -- shares parameters and statistics (use to share nodes between coroutines)
 function Node:coroutineClone()
    error"Not Implemented"
+end
+
+function Node:inputView(input_view)
+   self._input_view = input_view or self._input_view
+   return self._input_view
+end
+
+function Node:outputView(output_view)
+   self._output_view = output_view or self._output_view
+   return self._output_view
+end
+
+function Node:outputType(output_type)
+   self._output_type = output_type or self._output_type
+   return self._output_type
 end
 
 function Node:inputType(input_type)

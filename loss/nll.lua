@@ -11,19 +11,19 @@ function NLL:__init(config)
    self._criterion = nn.ClassNLLCriterion()
    config = config or {}
    config.target_type = config.target_type or 'torch.IntTensor'
+   config.target_view = 'b'
+   config.input_view = 'bf'
    parent.__init(self, config)
 end
 
 function NLL:_forward(carry)
-   local input = self:inputAct()
-   local target = self.input.target:class(self._output_type)
+   local input, target = self:inputAct(), self:targetAct()
    self.loss = self._criterion:forward(input, target)
    return carry
 end
 
 function NLL:_backward(carry)
-   local input = self:inputAct()
-   local target = self.input.target:class(self._output_type)
+   local input, target = self:inputAct(), self:targetAct()
    self:inputGrad(self._criterion:backward(input, target))
    return carry
 end
@@ -31,6 +31,7 @@ end
 function NLL:_type(type)
    if type == 'torch.FloatTensor' or type == 'torch.DoubleTensor' then
       self._input_type = type
+      self._criterion:type(type)
    elseif type == 'torch.IntTensor' or type == 'torch.LongTensor' then
       self._output_type = type
    end

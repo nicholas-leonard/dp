@@ -12,7 +12,7 @@ Cifar10.isCifar10 = true
 Cifar10._name = 'cifar10'
 Cifar10._image_size = {3, 32, 32}
 Cifar10._feature_size = 3*32*32
-Cifar10._image_axes = {'b', 'c', 'w', 'h'}
+Cifar10._image_axes = 'bcwh'
 Cifar10._classes = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 
 function Cifar10:__init(...)
@@ -92,22 +92,22 @@ end
 function Cifar10:createDataSet(data, which_set)
    local inputs = data:narrow(2, 1, self._feature_size):clone()
    inputs = inputs:type('torch.DoubleTensor')
-
+   inputs:resize(inputs:size(1), unpack(self._image_size))
    if self._scale then
       parent.rescale(inputs, self._scale[1], self._scale[2])
    end
    --inputs:resize(inputs:size(1), unpack(self._image_size))
-   local targets = data:narrow(2, self._feature_size+1, 1):clone()
+   local targets = data:select(2, self._feature_size+1):clone()
    -- class 0 will have index 1, class 1 index 2, and so on.
    targets:add(1)
-   targets:resize(targets:size(1))
    targets = targets:type('torch.DoubleTensor')
-   -- construct inputs and targets datatensors 
-   inputs = dp.ImageTensor{data=inputs, axes=self._image_axes, 
-                          sizes=self._image_size}
-   targets = dp.ClassTensor{data=targets, classes=self._classes}
+   -- construct inputs and targets dp.Views 
+   local input_v, target_v = dp.ImageView(), dp.ClassView()
+   input_v:forward(self._image_axes, inputs)
+   target_v:forward('b', targets)
+   target_v:setClasses(self._classes)
    -- construct dataset
-   return dp.DataSet{inputs=inputs,targets=targets,which_set=which_set}
+   return dp.DataSet{inputs=input_v,targets=target_v,which_set=which_set}
 end
 
 --Returns a 50,000 x 3073 tensor, where each image is 32*32*3 = 3072 values in the

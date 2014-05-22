@@ -69,9 +69,9 @@ function ZCA:fit(X)
    assert(not _.isNaN(self._P:sum()))
 end
 
-function ZCA:apply(datatensor, can_fit)
-   assert(datatensor.isDataTensor, "Expecting DataTensor")
-   local X = datatensor:feature()
+function ZCA:apply(dv, can_fit)
+   assert(dv.isDataView, "Expecting DataView")
+   local X = dv:forward('bf')
    local new_X
    if can_fit then
       self:fit(X)
@@ -79,5 +79,5 @@ function ZCA:apply(datatensor, can_fit)
    else
       new_X = torch.mm(torch.add(X, -self._mean:expandAs(X)), self._P)
    end
-   datatensor:setData(new_X)
+   dv:replace('bf', new_X)
 end

@@ -3,7 +3,7 @@
 -- BaseSet subclass
 -- Not Serializable
 -- Contains inputs and optional targets. Used for training or
--- evaluating a model. Inputs and targets are tables of BaseTensors.
+-- evaluating a model. Inputs and targets are tables of Views.
 
 -- Unsupervised Learning :
 -- If the DataSet is for unsupervised learning, only inputs need to 
@@ -11,12 +11,11 @@
 
 -- Multiple inputs and outputs :
 -- Inputs and targets should be provided as instances of 
--- dp.BaseTensor to support conversions to other axes formats. 
--- Inputs and targets may also be provided as dp.CompositeTensors. 
+-- dp.View to support conversions to other axes formats. 
+-- Inputs and targets may also be provided as dp.ListTensors. 
 -- Allowing for multiple targets is useful for multi-task learning
 -- or learning from hints. In the case of multiple inputs, 
 -- images can be combined with tags to provided for richer inputs, etc. 
--- Multiple inputs and targets are ready to be used with dp.Parallel.
 ------------------------------------------------------------------------
 local DataSet, parent = torch.class("dp.DataSet", "dp.BaseSet")
 DataSet.isDataSet = true
@@ -34,7 +33,7 @@ function DataSet:batch(batch_size)
    return self:sub(1, batch_size)
 end
 
-function DataSet:sub(start, stop)
+function DataSet:sub(start, stop, new)
    return dp.Batch{
       which_set=self:whichSet(), epoch_size=self:nSample(),
       inputs=self:inputs():sub(start, stop),

@@ -29,19 +29,19 @@ end
 
 function Learn:_visitModel(model)
    if not self:canVisit(model) then return end
-   local params = model:parameters()
+   local params, gradParams, scales = model:parameters()
    local mvstate = model.mvstate
-   for param_name, param_table in pairs(params) do
+   for k, param in pairs(params) do
       -- learning rates can be scaled by Model or Parameter
       local learn_rate = self._learning_rate
       if mvstate.learn_scale then
          learn_rate = learn_rate * mvstate.learn_scale
       end
-      if param_table.learn_scale then
+      if scales and scales[k] then
          -- this is useful when each param has a different scale
-         learn_rate = learn_rate * param_table.learn_scale
+         learn_rate = learn_rate * scales[k]
       end
-      param_table.param:add(-learn_rate, param_table.grad)
+      param:add(-learn_rate, gradParams[k])
    end
 end
 

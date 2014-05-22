@@ -15,26 +15,27 @@ function TreeNLL:__init(config)
    self._module = nn.Sequential()
    self._module:add(nn.Mean()) --not in cunn
    config = config or {}
+   config.target_type = config.target_type or 'torch.IntTensor'
+   config.target_view = 'b'
+   config.input_view = 'bf' -- nn.Mean() will fail with b
    parent.__init(self, config)
    self._output_grad = torch.Tensor{-1}
 end
 
 function TreeNLL:_forward(carry)
-   local input = self:inputAct()
-   self.loss = -self._module:forward(input)[1]
+   self.loss = -self._module:forward(self:inputAct())[1]
    return carry
 end
 
 function TreeNLL:_backward(carry)
-   local input = self:inputAct()
-   local input_grad = self._module:backward(input, self._output_grad)
-   self:inputGrad(input_grad)
+   self:inputGrad(self._module:backward(self:inputAct(), self._output_grad))
    return carry
 end
 
 function TreeNLL:_type(type)
    if type == 'torch.FloatTensor' or type == 'torch.DoubleTensor' then
       self._input_type = type
+      self._module:type(type)
    elseif type == 'torch.IntTensor' or type == 'torch.LongTensor' then
       -- this actually doesn't change anything:
       self._output_type = type

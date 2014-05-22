@@ -20,10 +20,10 @@ function Evaluator:evaluate(batch, report)
    -- evaluate function for complete mini batch
    local carry = batch:carry()
    carry.evaluate = true
-   self.output.act, carry = self._model:evaluate(batch:inputs(), carry)
+   self.output, carry = self._model:evaluate(batch:inputs(), carry)
    
    -- measure loss and backprop gradients
-   self.loss, carry = self._loss:evaluate(self.output.act, batch:targets(), carry)
+   self.loss, carry = self._loss:evaluate(self.output, batch:targets(), carry)
    return carry
 end
 

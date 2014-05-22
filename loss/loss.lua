@@ -7,23 +7,31 @@ local Loss, parent = torch.class("dp.Loss", "dp.Node")
 Loss.isLoss = true
 
 function Loss:__init(config)
-   local args
-      args, config.input_type, config.output_type = xlua.unpack(
+    assert(torch.type(config) == 'table' and not config[1], 
+      "Constructor requires key-value arguments")
+   local args, input_view, target_view, target_type 
+      = xlua.unpack(
+      {config},
       'Loss', 
       'Adapter of nn.Criterion.',
+      {arg='input_view', type='string', req=true,
+       help='view of the input like "bf", "bhwc", etc.'},
+      {arg='target_view', type='string', req=true,
+       help='view of the target like "bt", "b", etc.'},
       {arg='target_type', type='string', req=true,
-       'type of target tensors'},
-      {arg='input_type', type='string', default='torch.DoubleTensor',
-       'type of input activation and gradient tensors'}
+       'type of target tensors'}
    )
+   self:inputView(input_view)
+   self:outputView(target_view)
+   config.output_type = target_type
    parent.__init(self, config)
 end
 
 function Loss:forward(input, target, carry)
-   assert(input.isBaseTensor, "Expecting dp.BaseTensor for input")
-   assert(target.isBaseTensor, "Expecting dp.BaseTensor for target")
-   self.input.act = input
-   self.input.target = target
+   assert(input.isView, "Expecting dp.View for input")
+   assert(target.isView, "Expecting dp.View for target")
+   self.input = input
+   self.target = target
    carry = self:_forward(carry) or carry
    self:updateStatistics(carry)
    self.forwarded = true
@@ -31,10 +39,10 @@ function Loss:forward(input, target, carry)
 end
 
 function Loss:evaluate(input, target, carry)
-   assert(input.isBaseTensor, "Expecting dp.BaseTensor for input")
-   assert(target.isBaseTensor, "Expecting dp.BaseTensor for target")
-   self.input.act = input
-   self.input.target = target
+   assert(input.isView, "Expecting dp.View for input")
+   assert(target.isView, "Expecting dp.View for target")
+   self.input = input
+   self.target = target
    carry = self:_evaluate(carry) or carry
    self:updateStatistics(carry)
    self.evaluated = true
@@ -43,27 +51,27 @@ function Loss:evaluate(input, target, carry)
 end
 
 function Loss:backward(input, target, carry)
-   assert(input.isBaseTensor, "Expecting dp.BaseTensor for input")
-   assert(target.isBaseTensor, "Expecting dp.BaseTensor for target")
-   self.input.act = input
-   self.input.target = target
+   assert(input.isView, "Expecting dp.View for input")
+   assert(target.isView, "Expecting dp.View for target")
+   self.input = input
+   self.target = target
    carry = self:_backward(carry) or carry
-   assert(self.input.grad.isBaseTensor, "Expecting dp.BaseTensor grad")
    self.backwarded = true
-   return self.input.grad, carry
+   return self.input, carry
 end
 
+-- Get
 function Loss:inputAct()
-   return self.input.act:feature(self._input_type)
+   return self.input:forward(self._input_view, self._input_type)
 end
 
+function Loss:targetAct()
+   return self.target:forward(self._output_view, self._output_type)
+end
+
+-- Set
 function Loss:inputGrad(input_grad)
-   if input_grad then
-      self.input.grad = self.input.act:shallowClone()
-      self.input.grad:setData(input_grad)
-      return
-   end
-   return self.input.grad:feature(self._input_type)
+   self.input:backward(self._input_view, input_grad)
 end
 
 function Loss:_updateStatistics()

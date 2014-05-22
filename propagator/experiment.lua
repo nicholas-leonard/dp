@@ -101,7 +101,6 @@ function Experiment:setup(datasource)
    self._setup = true
 end
 
---TODO : make this support explicit dataset specification (xlua.unpack)
 --loops through the propagators until a doneExperiment is received or
 --experiment reaches max_epochs
 function Experiment:run(datasource)

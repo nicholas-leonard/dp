@@ -1,9 +1,9 @@
 ------------------------------------------------------------------------
 --[[ Preprocess ]]--
 --Abstract class.
---An object that can preprocess a basetensor.
---Preprocessing a basetensor implies changing the data that
---a dataset actually stores. This can be useful to save
+--An object that can preprocess a View.
+--Preprocessing a View implies changing the data that
+--a View actually stores. This can be useful to save
 --memory. If you know you are always going to access only
 --the same processed version of the dataset, it is better
 --to process it once and discard the original.
@@ -19,9 +19,9 @@
 local Preprocess = torch.class("dp.Preprocess")
 Preprocess.isPreprocess = true
 
--- basetensor: The DataTensor to act upon. An instance of dp.DataTensor.
+-- basetensor: The DataView to act upon. An instance of dp.DataView.
 -- can_fit: If True, the Preprocess can adapt internal parameters
 --    based on the contents of dataset.
-function Preprocess:apply(basetensor, can_fit)
+function Preprocess:apply(view, can_fit)
    error("Preprocess subclass does not implement an apply method.")
 end 

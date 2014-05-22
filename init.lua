@@ -40,16 +40,16 @@ torch.include('dp', 'mediator.lua')
 torch.include('dp', 'objectid.lua')
 torch.include('dp', 'node.lua')
 
+--[[ view ]]--
+torch.include('dp', 'view/view.lua')
+torch.include('dp', 'view/dataview.lua')
+torch.include('dp', 'view/imageview.lua')
+torch.include('dp', 'view/classview.lua')
+torch.include('dp', 'view/sequenceview.lua')
+torch.include('dp', 'view/listview.lua')
+
 --[[ data ]]--
 torch.include('dp', 'data/conv2d.lua')
-
-torch.include('dp', 'data/basetensor.lua')
-torch.include('dp', 'data/datatensor.lua')
-torch.include('dp', 'data/imagetensor.lua')
-torch.include('dp', 'data/classtensor.lua')
-torch.include('dp', 'data/wordtensor.lua')
-torch.include('dp', 'data/sequencetensor.lua')
-torch.include('dp', 'data/compositetensor.lua')
 
 torch.include('dp', 'data/baseset.lua')
 torch.include('dp', 'data/dataset.lua')

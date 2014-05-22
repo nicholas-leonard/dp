@@ -30,9 +30,9 @@ function Standardize:__init(config)
    )
 end
 
-function Standardize:apply(datatensor, can_fit)
-   assert(datatensor.isDataTensor, "Expecting a DataTensor instance")
-   local data = datatensor:feature()
+function Standardize:apply(dv, can_fit)
+   assert(dv.isDataView, "Expecting a DataView instance")
+   local data = dv:forward('bf')
    if can_fit then
       self._mean = self._global_mean and data:mean() or data:mean(1)
       self._std = self._global_std and data:std() or data:std(1)
@@ -51,5 +51,5 @@ function Standardize:apply(datatensor, can_fit)
    else
       data:cdiv(self._std:expandAs(data) + self._std_eps)
    end
-   datatensor:setData(data)
+   dv:replace('bf', data)
 end

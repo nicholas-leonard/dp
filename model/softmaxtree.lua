@@ -28,6 +28,9 @@ function SoftmaxTree:__init(config)
    require 'nnx'
    self._module = nn.SoftMaxTree(self._input_size, hierarchy, root_id)
    config.typename = typename
+   config.output = dp.DataView()
+   config.input_view = 'bf'
+   config.output_view = 'b'
    parent.__init(self, config)
 end
 
@@ -40,9 +43,9 @@ function SoftmaxTree:_forward(carry)
       activation = self._dropout:forward(activation)
       self.mvstate.dropoutAct = activation
    end
-   assert(carry.targets and carry.targets.isClassTensor,
-      "carry.targets should refer to a ClassTensor of targets")
-   local targets = carry.targets:class()
+   assert(carry.targets and carry.targets.isClassView,
+      "carry.targets should refer to a ClassView of targets")
+   local targets = carry.targets:forward('b')
    -- outputs a column vector of likelihoods of targets
    activation = self._module:forward{activation, targets}
    self:outputAct(activation)
@@ -53,10 +56,10 @@ function SoftmaxTree:_backward(carry)
    local scale = carry.scale
    self._report.scale = scale
    local input_act = self.mvstate.dropoutAct or self:inputAct()
-   local output_grad = self:outputGrad():select(2,1)
-   assert(carry.targets and carry.targets.isClassTensor,
-      "carry.targets should refer to a ClassTensor of targets")
-   local targets = carry.targets:class()
+   local output_grad = self:outputGrad()
+   assert(carry.targets and carry.targets.isClassView,
+      "carry.targets should refer to a ClassView of targets")
+   local targets = carry.targets:forward('b')
    output_grad = self._module:backward({input_act, targets}, output_grad, scale)
    if self._dropout then
       self.mvstate.dropoutGrad = output_grad
@@ -91,51 +94,13 @@ function SoftmaxTree:reset()
 end
 
 function SoftmaxTree:zeroGradParameters()
-   local params, grads = self._module:parameters()
-   for i=1,#grads do
-      grads[i]:zero()
-   end
+  self._module:zeroGradParameters(true)
 end
 
 -- if after feedforward, returns active parameters 
 -- else returns all parameters
 function SoftmaxTree:parameters()
-   local params = {}
-   local param_list, grad_list = self._module:parameters()
-   for i=1,#param_list do
-      local param = param_list[i]
-      local grad = grad_list[i]
-      if param:dim() == 2 then
-         params['weight'..i] = { param=param, grad=grad }
-      else
-         params['bias'..i] = { param=param, grad=grad }
-      end
-   end
-   return params
-end
-
-function SoftmaxTree:_zeroStatistics()
-   if self._gather_stats then
-      error"Not Implemented"
-   end
-end
-
-function SoftmaxTree:maxNorm(max_out_norm, max_in_norm)
-   assert(self.backwarded, "Should call maxNorm after a backward pass")
-   max_out_norm = self.mvstate.max_out_norm or max_out_norm
-   max_in_norm = self.mvstate.max_in_norm or max_in_norm
-   for param_name, param_table in pairs(self:parameters()) do
-      if param_name:find('weight') then
-         if max_out_norm then
-            -- rows feed into output neurons 
-            dp.constrain_norms(max_out_norm, 2, param_table.param)
-         end
-         if max_in_norm then
-            -- cols feed out from input neurons
-            dp.constrain_norms(max_in_norm, 1, param_table.param)
-         end
-      end
-   end
+   return self._module:parameters(true)
 end
 
 function SoftmaxTree:share(layer)
@@ -153,6 +118,7 @@ function SoftmaxTree:share(layer)
    layer._module.parentChildren = self._module.parentChildren
    layer._module.childParent = self._module.childParent
    layer._module.rootId = self._module.rootId
+   layer._module.maxParentId = self._module.maxParentId
    --TODO copy other stuff over
    return self      
 end
@@ -169,10 +135,3 @@ function SoftmaxTree:sharedClone()
    return self:share(clone, 'weight', 'bias')
 end
 
-function SoftmaxTree:report()
-   local report = parent.report(self) or {}
-   if self._gather_stats then
-      error"Not Implemented"
-   end
-   return table.merge(report, self._report)
-end

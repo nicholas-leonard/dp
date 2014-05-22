@@ -11,7 +11,7 @@ Cifar100.isCifar100 = true
 Cifar100._name = 'cifar100'
 Cifar100._image_size = {3, 32, 32}
 Cifar100._feature_size = 3*32*32
-Cifar100._image_axes = {'b', 'c', 'w', 'h'}
+Cifar100._image_axes = 'bcwh'
 
 function Cifar100:__init(...)
    local load_all, input_preprocess, target_preprocess
@@ -113,7 +113,7 @@ end
 
 function Cifar100:createDataSet(data, which_set)
    local inputs = data:narrow(2, 3, self._feature_size):clone():double()
-
+   inputs:resize(inputs:size(1), unpack(self._image_size))
    if self._scale then
       parent.rescale(inputs, self._scale[1], self._scale[2])
    end
@@ -125,20 +125,19 @@ function Cifar100:createDataSet(data, which_set)
    coarse_targets:add(1):resize(coarse_targets:size(1)):float()
    fine_targets:add(1):resize(fine_targets:size(1)):float()
    
-   -- construct inputs and targets datatensors 
-   inputs = dp.ImageTensor{
-      data=inputs, axes=self._image_axes, sizes=self._image_size
-   }
-   self._coarse_targets = dp.ClassTensor{
-      data=coarse_targets, classes=self._coarse_classes
-   }
-   self._fine_targets = dp.ClassTensor{
-      data=fine_targets, classes=self._fine_classes
-   }
+   -- construct inputs and targets dp.Views 
+   local input_v = dp.ImageView()
+   self._coarse_targets = dp.ClassView()
+   self._fine_targets = dp.ClassView()
+   
+   input_v:forward(self._image_axes, inputs)
+   self._coarse_targets:forward('b', coarse_targets)
+   self._fine_targets:forward('b', fine_targets)
+   
+   self._coarse_targets:setClasses(self._classes)
+   self._fine_targets:setClasses(self._classes)
    -- construct dataset
-   return dp.DataSet{
-      inputs=inputs, targets=self._fine_targets, which_set=which_set
-   }
+   return dp.DataSet{inputs=input_v,targets=self._fine_targets,which_set=which_set}
 end
 
 --Returns a 10,000 or 50,000 x 3074 tensor, 

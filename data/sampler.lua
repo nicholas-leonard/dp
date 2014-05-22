@@ -1,6 +1,3 @@
---[[TODO]]--
--- Use Random_seed
--- Dataset could be called with sub, index to generate Batch
 ------------------------------------------------------------------------
 --[[ Sampler ]]--
 -- DataSet iterator
@@ -9,17 +6,22 @@
 local Sampler = torch.class("dp.Sampler")
 Sampler.isSampler = true
 
-function Sampler:__init(...)
+function Sampler:__init(config)
+   config = config or {}
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, batch_size = xlua.unpack(
-      {... or {}},
+   local args, batch_size, epoch_size = xlua.unpack(
+      {config},
       'Sampler', 
       'Samples batches from a set of examples in a dataset. '..
       'Iteration ends after an epoch (sampler-dependent) ',
-      {arg='batch_size', type='number', default='64',
-       help='Number of examples per sampled batches'}
+      {arg='batch_size', type='number', default='1024',
+       help='Number of examples per sampled batches'},
+      {arg='epoch_size', type='number', default=-1,
+       help='Number of examples presented per epoch. '..
+       'Default is to use then entire dataset per epoch'}
    )
    self:setBatchSize(batch_size)
+   self._epoch_size = (epoch_size == -1) and nil or epoch_size
 end
 
 function Sampler:setup(config)
@@ -67,29 +69,38 @@ end
 
 --Returns an iterator over samples for one epoch
 --Default is to iterate sequentially over all examples
-function Sampler:sampleEpoch(dataset, batch)
+function Sampler:sampleEpoch(dataset)
    dataset = dp.Sampler.toDataset(dataset)
    local nSample = dataset:nSample()
-   local start = 1
+   local epochSize = self._epoch_size or nSample
+   self._start = self._start or 1
+   local nSampled = 0
    local stop
    -- build iterator
    local epochSamples = 
-      function()
-         stop = math.min(start+self._batch_size-1,nSample)
+      function(batch)
+         batch = batch or dataset:batch(self._batch_size)
+         stop = math.min(self._start+self._batch_size-1,nSample)
          -- inputs and targets
-         local batch = dataset:sub(start, stop)
+         local batch = dataset:sub(self._start, stop)
+         local indices = batch:indices() or torch.Tensor()
          -- metadata
          batch:setup{
             batch_iter=stop, batch_size=self._batch_size,
-            n_sample=stop-start+1, indices=torch.range(start,stop)
+            n_sample=stop-self._start+1, 
+            indices=indices:range(self._start,stop)
          }
-         start = start + self._batch_size
-         if start >= nSample then
+         self._start = self._start + self._batch_size
+         if self._start >= nSample then
+            self._start = 1
+         end
+         nSampled = nSampled + self._batch_size
+         if nSampled > epochSize then
             return
          end
          --http://bitsquid.blogspot.ca/2011/08/fixing-memory-issues-in-lua.html
          collectgarbage() 
-         return batch
+         return batch, math.min(nSampled, epochSize), epochSize
       end
    return epochSamples
 end
@@ -102,13 +113,15 @@ end
 local ShuffleSampler, parent = torch.class("dp.ShuffleSampler", "dp.Sampler")
 
 function ShuffleSampler:_init(config)
+   config = config or {}
+   assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, batch_size, random_seed = xlua.unpack(
-      {config or {}},
+      {config},
       'ShuffleSampler', 
       'Samples batches from a shuffled set of examples in dataset. '..
       'Iteration ends after all examples have been sampled once (for one epoch). '..
       'Examples are shuffled at the start of the iteration. ',
-      {arg='batch_size', type='number', default='64',
+      {arg='batch_size', type='number', default='128',
        help='Number of examples per sampled batches'},
       {arg='random_seed', type='number', req=true,
        help='Used to initialize the shuffle generator.' ..
@@ -149,29 +162,36 @@ end
 function ShuffleSampler:sampleEpoch(dataset)
    dataset = dp.Sampler.toDataset(dataset)
    local nSample = dataset:nSample()
-   local start = 1
-   local stop
+   local epochSize = self._epoch_size or nSample
+   self._start = self._start or 1
+   local nSampled = 0
    -- shuffle before each epoch
    local dataset_indices = torch.randperm(nSample):long()
    -- build iterator
    local epochSamples = 
       function(batch)
          batch = batch or dataset:batch(self._batch_size)
-         stop = math.min(start+self._batch_size-1,nSample)
-         local batch_indices = dataset_indices:sub(start,stop)
+         stop = math.min(self._start+self._batch_size-1,nSample)
+         local batch_indices = dataset_indices:sub(self._start,stop)
          -- inputs and targets
          dataset:index(batch, batch_indices)
+         local indices = batch:indices() or torch.Tensor()
          -- metadata
          batch:setup{
             batch_iter=stop, batch_size=self._batch_size,
-            n_sample=stop-start+1, indices=torch.range(start,stop)
+            n_sample=stop-self._start+1, 
+            indices=indices:range(self._start,stop)
          }
-         start = start + self._batch_size
-         if start >= nSample then
+         self._start = self._start + self._batch_size
+         if self._start >= nSample then
+            self._start = 1
+         end
+         nSampled = nSampled + self._batch_size
+         if nSampled > epochSize then
             return
          end
          collectgarbage() 
-         return batch
+         return batch, math.min(nSampled, epochSize), epochSize
       end
    return epochSamples
 end

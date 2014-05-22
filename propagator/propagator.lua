@@ -95,7 +95,7 @@ function Propagator:propagateEpoch(dataset, report)
    
    -- local vars
    local start_time = sys.clock()
-   local batch, last_batch
+   local batch, last_batch, i, n
    
    if self._stats then
       print('==> epoch # '..(report.epoch + 1)..' for '..self:name())
@@ -104,7 +104,7 @@ function Propagator:propagateEpoch(dataset, report)
    local sampler = self._sampler:sampleEpoch(dataset)
    while true do
       -- reuse the batch object
-      batch = sampler(batch)
+      batch, i, n = sampler(batch)
       if not batch then 
          -- for aesthetics :
          xlua.progress(last_batch:epochSize(), last_batch:epochSize())
@@ -113,7 +113,7 @@ function Propagator:propagateEpoch(dataset, report)
       self:propagateBatch(batch, report)
       if self._progress then
          -- disp progress
-         xlua.progress(batch:batchIter(), batch:epochSize())
+         xlua.progress(i, n)
       end
       last_batch = batch
    end

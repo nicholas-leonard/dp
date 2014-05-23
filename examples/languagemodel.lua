@@ -107,6 +107,7 @@ else
    softmax = dp.Neural{
       input_size = opt.outputEmbeddingSize,
       output_size = table.length(datasource:classes()),
+      transfer = nn.SoftMax(),
       dropout = opt.dropout and nn.Dropout() or nil
    }
 end
@@ -177,10 +178,7 @@ xp = dp.Experiment{
    tester = test,
    observer = {
       dp.FileLogger(),
-      dp.EarlyStopper{
-         maximize = true,
-         max_epochs = opt.maxTries
-      }
+      dp.EarlyStopper{max_epochs = opt.maxTries}
    },
    random_seed = os.time(),
    max_epoch = opt.maxEpoch

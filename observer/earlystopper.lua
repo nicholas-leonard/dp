@@ -59,7 +59,6 @@ function EarlyStopper:__init(config)
    end
    self._max_epochs = max_epochs
    self._max_error = max_error * self._sign
-   assert(self._error_report or self._error_channel)
    assert(not(self._error_report and self._error_channel))
    if not (self._error_report or self._error_channel) then
       self._error_report = {'validator','loss','avgError'}

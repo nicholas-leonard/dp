@@ -1,5 +1,4 @@
 require 'dp'
---error"Work in progress: not ready for use"
 
 --[[command line arguments]]--
 cmd = torch.CmdLine()
@@ -21,6 +20,7 @@ cmd:option('--dropout', false, 'apply dropout on hidden neurons, requires "nnx" 
 cmd:option('--contextSize', 5, 'number of words preceding the target word used to predict the target work')
 cmd:option('--inputEmbeddingSize', 100, 'number of neurons per word embedding')
 
+--[[ first hidden layer ]]--
 cmd:option('--neuralSize', 200, 'number of hidden units used for first hidden layer (used when --convolution is not used)')
 --or
 cmd:option('--convolution', false, 'use a Convolution1D instead of Neural for the first hidden layer')
@@ -32,6 +32,10 @@ cmd:option('--convPoolStride', 2, 'stride of the max pooling after the convoluti
 
 cmd:option('--outputEmbeddingSize', 100, 'number of hidden units at softmaxtree')
 
+--[[ output layer ]]--
+cmd:option('--softmaxtree', false, 'use the softmaxtree instead of the inefficient (full) softmax')
+
+--[[ data ]]--
 cmd:option('--small', false, 'use a small (1/30th) subset of the training set')
 cmd:option('--tiny', false, 'use a tiny (1/100th) subset of the training set')
 cmd:option('--trainEpochSize', 1000000, 'number of train examples seen between each epoch')
@@ -91,6 +95,22 @@ end
 
 print("input to second hidden layer has size "..inputSize)
 
+local softmax
+if opt.softmaxtree then
+   softmax = dp.SoftmaxTree{
+      input_size = opt.outputEmbeddingSize, 
+      hierarchy = datasource:hierarchy(),
+      root_id = 880542,
+      dropout = opt.dropout and nn.Dropout() or nil
+   }
+else
+   softmax = dp.Neural{
+      input_size = opt.outputEmbeddingSize,
+      output_size = table.length(datasource:classes()),
+      dropout = opt.dropout and nn.Dropout() or nil
+   }
+end
+
 mlp = dp.Sequential{
    models = {
       dp.Dictionary{
@@ -104,12 +124,7 @@ mlp = dp.Sequential{
          transfer = nn.Tanh(),
          dropout = opt.dropout and nn.Dropout() or nil
       },
-      dp.SoftmaxTree{
-         input_size = opt.outputEmbeddingSize, 
-         hierarchy = datasource:hierarchy(),
-         root_id = 880542,
-         dropout = opt.dropout and nn.Dropout() or nil
-      }
+      softmax
    }
 }
 
@@ -162,10 +177,10 @@ xp = dp.Experiment{
    tester = test,
    observer = {
       dp.FileLogger(),
-      --[[dp.EarlyStopper{
+      dp.EarlyStopper{
          maximize = true,
          max_epochs = opt.maxTries
-      }--]]
+      }
    },
    random_seed = os.time(),
    max_epoch = opt.maxEpoch

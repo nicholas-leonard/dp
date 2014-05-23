@@ -125,17 +125,17 @@ end
 train = dp.Optimizer{
    loss = dp.TreeNLL(),
    visitor = { -- the ordering here is important:
-      --dp.Momentum{momentum_factor = opt.momentum},
+      dp.Momentum{momentum_factor = opt.momentum},
       dp.Learn{
          learning_rate = opt.learningRate, 
          observer = dp.LearningRateSchedule{
             schedule = {[200]=0.01, [400]=0.001}
          }
       },
-      --dp.MaxNorm{max_out_norm = opt.maxOutNorm}
+      dp.MaxNorm{max_out_norm = opt.maxOutNorm}
    },
    feedback = dp.Perplexity(),  
-   sampler = dp.ShuffleSampler{
+   sampler = dp.Sampler{ --shuffle sample takes too much mem
       epoch_size = opt.trainEpochSize, batch_size = opt.batchSize
    },
    progress = true
@@ -143,7 +143,7 @@ train = dp.Optimizer{
 valid = dp.Evaluator{
    loss = dp.TreeNLL(),
    feedback = dp.Perplexity(),  
-   sampler = dp.ShuffleSampler{
+   sampler = dp.Sampler{
       epoch_size = opt.validEpochSize, batch_size = 1024
    },
    progress = true

@@ -59,7 +59,6 @@ local datasource = dp.BillionWords{
 }
 
 --[[Model]]--
-local dropout
 if opt.dropout then
    require 'nnx'
 end
@@ -93,7 +92,7 @@ else
    inputSize = opt.neuralSize
 end
 
-print("input to second hidden layer has size "..inputSize)
+print("Input to second hidden layer has size "..inputSize)
 
 local softmax
 if opt.softmaxtree then
@@ -104,6 +103,9 @@ if opt.softmaxtree then
       dropout = opt.dropout and nn.Dropout() or nil
    }
 else
+   print("Warning: you are using full SoftMax for last layer, which "..
+      "is really slow (800,000 x outputEmbeddingSize multiply adds "..
+      "per example. Try --softmaxtree instead.")
    softmax = dp.Neural{
       input_size = opt.outputEmbeddingSize,
       output_size = table.length(datasource:classes()),
@@ -139,7 +141,7 @@ end
 
 --[[Propagators]]--
 train = dp.Optimizer{
-   loss = dp.TreeNLL(),
+   loss = opt.softmaxtree and dp.TreeNLL() or dp.NLL(),
    visitor = { -- the ordering here is important:
       dp.Momentum{momentum_factor = opt.momentum},
       dp.Learn{
@@ -157,7 +159,7 @@ train = dp.Optimizer{
    progress = true
 }
 valid = dp.Evaluator{
-   loss = dp.TreeNLL(),
+   loss = opt.softmaxtree and dp.TreeNLL() or dp.NLL(),
    feedback = dp.Perplexity(),  
    sampler = dp.Sampler{
       epoch_size = opt.validEpochSize, batch_size = 1024
@@ -165,7 +167,7 @@ valid = dp.Evaluator{
    progress = true
 }
 test = dp.Evaluator{
-   loss = dp.TreeNLL(),
+   loss = opt.softmaxtree and dp.TreeNLL() or dp.NLL(),
    feedback = dp.Perplexity(),  
    sampler = dp.Sampler()
 }

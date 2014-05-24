@@ -107,7 +107,8 @@ function DataView:backwardGet(view, tensor_type)
          "last forward (or nil) i.e. ".. self._view .. " not " .. view)
    end
    if tensor_type and self._type ~= tensor_type then
-      error"backwardGet sould be called with the same type as self._data"
+      error("backwardGet sould be called with the same type as "..
+           "forwarded input")
    end
    tensor_type = tensor_type or self._type
    
@@ -121,7 +122,10 @@ function DataView:backwardGet(view, tensor_type)
       assert(moduleTable, "backward must follow a forward")
       local modula, copyTable = unpack(moduleTable)
       assert(copyTable, "backward must follow a forward")
-      gradInput = copyTable[tensor_type]:backward(self._input, gradOutput)
+      local copy = copyTable[tensor_type]
+      assert(copy, "backwardPut should have been called with same "..
+         "type as its commensurate forwardGet or the forwardPut.")
+      gradInput = copy:backward(self._input, gradOutput)
       gradInput = modula:backward(self._input, gradInput)
       return gradInput
    end

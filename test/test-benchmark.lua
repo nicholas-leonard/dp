@@ -2,7 +2,7 @@ require 'dp'
 local dptest = {}
 local precision_forward = 1e-4
 local precision_backward = 1e-2
-local nloop = 1
+local nloop = 10
 local times = {}
 local dptestx = {}
 

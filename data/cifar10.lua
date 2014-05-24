@@ -15,49 +15,51 @@ Cifar10._feature_size = 3*32*32
 Cifar10._image_axes = 'bcwh'
 Cifar10._classes = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 
-function Cifar10:__init(...)
-    local load_all, input_preprocess, target_preprocess
-    
-    self.args, self._valid_ratio,
-    self._data_folder, self._data_path,
-    self._scale, self._download_url, load_all, 
-    input_preprocess, target_preprocess
-    = xlua.unpack( 
-    {... or {}},
-    'Cifar10', nil,
-    {arg='valid_ratio', type='number', default=1/5,
+function Cifar10:__init(config)
+   config = config or {}
+   assert(torch.type(config) == 'table' and not config[1], 
+      "Constructor requires key-value arguments")
+   local load_all, input_preprocess, target_preprocess
+
+   self.args, self._valid_ratio, self._data_folder, self._data_path,
+   self._scale, self._download_url, load_all, 
+   input_preprocess, target_preprocess
+      = xlua.unpack( 
+      {config},
+      'Cifar10', nil,
+      {arg='valid_ratio', type='number', default=1/5,
         help='proportion of training set to use for cross-validation.'},
-    {arg='data_folder', type='string', default='cifar-10-batches-t7',
+      {arg='data_folder', type='string', default='cifar-10-batches-t7',
         help='name of test_file'},
-    {arg='data_path', type='string', default=dp.DATA_DIR,
+      {arg='data_path', type='string', default=dp.DATA_DIR,
         help='path to data repository'},
-    {arg='scale', type='table', 
+      {arg='scale', type='table', 
         help='bounds to scale the values between', default={0,1}},
-    {arg='download_url', type='string',
+      {arg='download_url', type='string',
         default='http://data.neuflow.org/data/cifar10.t7.tgz',
         help='URL from which to download dataset if not found on disk.'},
-    {arg='load_all', type='boolean', 
+      {arg='load_all', type='boolean', 
         help='Load all datasets : train, valid, test.', default=true},
-    {arg='input_preprocess', type='table | dp.Preprocess',
+      {arg='input_preprocess', type='table | dp.Preprocess',
         help='to be performed on set inputs, measuring statistics ' ..
         '(fitting) on the train_set only, and reusing these to ' ..
         'preprocess the valid_set and test_set.'},
-    {arg='target_preprocess', type='table | dp.Preprocess',
+      {arg='target_preprocess', type='table | dp.Preprocess',
         help='to be performed on set targets, measuring statistics ' ..
         '(fitting) on the train_set only, and reusing these to ' ..
         'preprocess the valid_set and test_set.'}  
-    )
+   )
 
-    if load_all then
-        self:loadTrain()
-        self:loadValid()
-        self:loadTest()
-    end
-    parent.__init(self, {train_set=self:trainSet(), 
-                            valid_set=self:validSet(),
-                            test_set=self:testSet(),
-                            input_preprocess=input_preprocess,
-                            target_preprocess=target_preprocess})
+   if load_all then
+      self:loadTrain()
+      self:loadValid()
+      self:loadTest()
+   end
+   parent.__init(self, {train_set=self:trainSet(), 
+                        valid_set=self:validSet(),
+                        test_set=self:testSet(),
+                        input_preprocess=input_preprocess,
+                        target_preprocess=target_preprocess})
 end
 
 function Cifar10:loadTrain()

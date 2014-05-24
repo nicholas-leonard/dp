@@ -13,14 +13,17 @@ Cifar100._image_size = {3, 32, 32}
 Cifar100._feature_size = 3*32*32
 Cifar100._image_axes = 'bcwh'
 
-function Cifar100:__init(...)
+function Cifar100:__init(config)
+   config = config or {}
+   assert(torch.type(config) == 'table' and not config[1], 
+      "Constructor requires key-value arguments")
    local load_all, input_preprocess, target_preprocess
 
    self.args, self._valid_ratio, self._shuffle, self._train_file, 
    self._test_file, self._data_path, self._scale, self._download_url, 
    load_all, input_preprocess, target_preprocess
    = xlua.unpack( 
-   {... or {}},
+   {config},
    'Cifar100', nil,
    {arg='valid_ratio', type='number', default=1/5,
     help='proportion of training set to use for cross-validation.'},

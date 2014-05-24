@@ -14,14 +14,17 @@ NotMnist._image_axes = 'bhwc'
 NotMnist._feature_size = 28*28*1
 NotMnist._classes = {'A','B','C','D','E','F','G','H','I','J'}
 
-function NotMnist:__init(...) 
+function NotMnist:__init(config) 
+   config = config or {}
+   assert(torch.type(config) == 'table' and not config[1], 
+      "Constructor requires key-value arguments")
    local load_all, input_preprocess, target_preprocess
    self._args, self._valid_ratio, self._train_dir, self._test_dir, 
          self._data_path, self._scale, self._binarize, 
          self._download_url, load_all, input_preprocess, 
          target_preprocess
       = xlua.unpack(
-      {... or {}},
+      {config},
       'NotMnist', nil,
       {arg='valid_ratio', type='number', default=1/6,
        help='proportion of training set to use for cross-validation.'},

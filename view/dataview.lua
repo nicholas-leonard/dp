@@ -255,11 +255,8 @@ function DataView:flush()
    self._modules = {}
 end
 
--- When dt is provided, reuse its data (a torch.Tensor).
--- config is a table of key-values overwriting the clones constructor's
+-- When v is provided, reuse its data (a torch.Tensor).
 function DataView:index(v, indices)
-   assert(self._input:type() ~= 'torch.CudaTensor', 
-      "DataView:index doesn't work with torch.CudaTensors.")
    local b_pos = self:findAxis('b')
    local data
    if indices and v then
@@ -267,13 +264,8 @@ function DataView:index(v, indices)
          error("Expecting "..torch.type(self).." at arg 1 "..
                "got "..torch.type(v).." instead")
       end
-      data = v._input
-      -- dont reuse tensor if cuda (index not in cutorch yet)
-      if data:type() ~= 'torch.CudaTensor' then
-         data:index(self._input, b_pos, indices)
-      else
-         data = self._input:index(b_pos, indices)
-      end
+      data = v:input()
+      data:index(self:input(), b_pos, indices)
       assert(self._view == v._view, "Expecting arg 1 to have same view")
       v:forward(self._view, data)
       return v

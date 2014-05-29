@@ -2,7 +2,6 @@
 --[[ View ]]-- 
 -- Abstract class
 -- Adapter (design pattern) for torch.Tensor 
--- TODO : table view
 ------------------------------------------------------------------------
 local View = torch.class("dp.View")
 View.isView = true

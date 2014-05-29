@@ -1,12 +1,11 @@
 # Data #
 
-  * [BaseTensor](#dp.BaseTensor) :
-    * [DataTensor](#dp.DataTensor) :
-     * [ImageTensor](#dp.ImageTensor)
-     * [ClassTensor](#dp.ClassTensor)
-     * [SequenceTensor](#dp.SequenceTensor)
-     * [WordTensor](#dp.WordTensor)
-    * [CompositeTensor](#dp.CompositeTensor)
+  * [View](#dp.View) :
+    * [DataView](#dp.DataView) :
+     * [ImageView](#dp.ImageView)
+     * [ClassView](#dp.ClassView)
+     * [SequenceView](#dp.SequenceView)
+    * [ListView](#dp.ListView)
   * [BaseSet](#dp.BaseSet)
      * [DataSet](#dp.DataSet) :
       * [SentenceSet](#dp.SentenceSet)
@@ -20,24 +19,30 @@
   * [Sampler](#dp.Sampler) :
     * [ShuffleSampler](#dp.ShuffleSampler) 
 
-<a name="dp.BaseTensor"/>
-## BaseTensor ##
-Abstract class to allow for the use of CompositeTensors in models. Adapter (design pattern) for torch.Tensor.
+<a name="dp.View"/>
+## View ##
+Abstract class to allow for the use of ListViews in models. Adapter (design pattern) for torch.Tensor.
 
-<a name="dp.DataTensor"/>
-## DataTensor ##
-Encapsulates a torch.Tensor and provides access to it using different
-viewing methods. A view may reshape the tensor inplace and render it
-contiguous. Views can be used to convert data into new axes formats 
-using torch.Tensor:resize(), :transpose() and :contiguous(). The 
-conversions may be done in-place (default), or may be simply  
-returned using the conversion methods (feature, class, image, etc.). 
-A DataTensor may also holds metadata.
+<a name="dp.DataView"/>
+## DataView ##
+Encapsulates an `input` torch.Tensor having a given `view` and `tensor_type` through [forwardPut](#dp.DataView.forwardPut). 
+Models can request different `views` and `tensor_types` of the `input` through [forwardGet](#dp.DataView.forwardGet). 
+If these differ from the base `input`, then the necessary nn.Reshape, nn.Transpose and nn.Copy are combined to efficiently 
+provide the requested `view` and `tensor_type`. Modules are created once they are first requested and reused from batch 
+to batch. Furthermore, the resulting tensors of these `forwardGets` calls are cached so that modules which may call for the 
+same forwardGet will not incur multiple Module:forwards.
 
-<a name="dp.DataTensor.__init"/>
-### dp.DataTensor{data, [axes, sizes]} ###
-Constructs a dp.DataTensor out of torch.Tensor data. Arguments can also be passed as a table of key-value pairs :
-```dt = dp.DataTensor{data=torch.Tensor(3,4), axes={'b','f'}, sizes={3,4}}```
+For any View used in a Model or DataSet, we expect forwardPut to be called only once per batch propagation, while forwardGet can 
+be called with different views and tensor_types from different Models. The converse is true for backwardPut and backwardGet: 
+we expect backwardGet to be called only once, while backwardPuts can come from different Models. We 
+expect any forwardGet to preceed a corresponding backwardPut, i.e. one with the same view and tensor_type. 
+During a backwardGet, any tensors provided via backwardPut are first backward propagated through any Modules to get the base
+view and tensor_type (provided in forwardPut), and then accumulated these with a sum.
+
+<a name="dp.DataView.__init"/>
+### dp.DataView{data, [axes, sizes]} ###
+Constructs a dp.DataView out of torch.Tensor data. Arguments can also be passed as a table of key-value pairs :
+```dt = dp.DataView{data=torch.Tensor(3,4), axes={'b','f'}, sizes={3,4}}```
 
 `data` is a torch.Tensor with at least 1 dimensions. 
 
@@ -58,7 +63,7 @@ The provided `axes` should be the most expanded version of the `data` (the versi
 
 `sizes` can be a table, a torch.LongTensor or a torch.LongStorage. A table or torch.LongTensor holding the `sizes` of the commensurate dimensions in `axes`. This should be supplied if the dimensions of the data is different from the number of elements in `axes`, in which case it will be used to : `data:reshape(sizes)`. If the sizes has one less elements than `axes`, then it assumes that the missing element is the batch dimension `b` and further extrapolates its size from `data`. Defaults to data:size(). 
 
-<a name="dp.DataTensor.feature"/>
+<a name="dp.DataView.feature"/>
 ### [data] feature([inplace, contiguous]) ###
 Returns a 2D torch.Tensor of examples by features : `{'b','f'}`.
 
@@ -69,14 +74,14 @@ Returns a 2D torch.Tensor of examples by features : `{'b','f'}`.
 Since `inplace` makes it contiguous anyway, this parameter is only considered when `inplace=false`. Defaults to false.
 
 
-<a name="dp.ImageTensor"/>
-## ImageTensor ##
-A DataTensor subclass used for providing access to a tensor of images. This is useful since it allows for automatic reshaping. For example, let us suppose that we will be using a set of 10 images with 3x3 pixels and 1 channel (black and white).  
+<a name="dp.ImageView"/>
+## ImageView ##
+A DataView subclass used for providing access to a tensor of images. This is useful since it allows for automatic reshaping. For example, let us suppose that we will be using a set of 10 images with 3x3 pixels and 1 channel (black and white).  
 ```lua
-> dt = dp.ImageTensor{data=torch.rand(10,3*3), axes={'b','h','w','c'}, sizes={10,3,3,1}}
-DataTensor Warning: data:size() is different than sizes. Assuming data is appropriately contiguous. Resizing data to sizes.
+> dt = dp.ImageView{data=torch.rand(10,3*3), axes={'b','h','w','c'}, sizes={10,3,3,1}}
+DataView Warning: data:size() is different than sizes. Assuming data is appropriately contiguous. Resizing data to sizes.
 ```
-We can use an ImageTensor:image() for obtaining a representation suitable for convolutions and image preprocessing:
+We can use an ImageView:image() for obtaining a representation suitable for convolutions and image preprocessing:
 ```lua
 > =dt:image()
 (1,1,.,.) = 
@@ -97,7 +102,7 @@ We can use an ImageTensor:image() for obtaining a representation suitable for co
 [torch.DoubleTensor of dimension 10x3x3x1]
 
 ```
-Or we can use ImageTensor:feature() (inherited from [DataTensor](#dp.DataTensor.feature) to obtain a representation suitable for MLPs and feature preprocessing:
+Or we can use ImageView:feature() (inherited from [DataView](#dp.DataView.feature) to obtain a representation suitable for MLPs and feature preprocessing:
 ```lua
 > =dt:feature()
 0.4230  0.3545  0.8071  0.1717  0.6072  0.9120  0.6389  0.5002  0.0237
@@ -113,11 +118,11 @@ Or we can use ImageTensor:feature() (inherited from [DataTensor](#dp.DataTensor.
 [torch.DoubleTensor of dimension 10x9]
 ```
 
-<a name="dp.ImageTensor.__init"/>
-### dp.ImageTensor{data, [axes, sizes]} ###
-Constructs a dp.ImageTensor out of torch.Tensor data. Arguments can also be passed as a table of key-value pairs:
+<a name="dp.ImageView.__init"/>
+### dp.ImageView{data, [axes, sizes]} ###
+Constructs a dp.ImageView out of torch.Tensor data. Arguments can also be passed as a table of key-value pairs:
 ```lua
-> dt = dp.ImageTensor{data=torch.Tensor(10000,28*28), axes={'b','h','w','c'}, sizes={28,28,1}}
+> dt = dp.ImageView{data=torch.Tensor(10000,28*28), axes={'b','h','w','c'}, sizes={28,28,1}}
 ```
 
 `data` is a torch.Tensor with at least 2 dimensions.  
@@ -128,7 +133,7 @@ It should be the most expanded version of the `data`. For example, while an indi
 `sizes` can be a table, a torch.LongTensor or a torch.LongStorage. A table or torch.LongTensor holding the `sizes` of the commensurate dimensions in `axes`. This should be supplied if the dimensions of the data is different from the number of elements in `axes`, in which case it will be used to : `data:reshape(sizes)`. Defaults to data:size().
 
 
-<a name="dp.ImageTensor.image"/>
+<a name="dp.ImageView.image"/>
 ### [data, axes] image([inplace, contiguous]) ###
 Returns a 4D-tensor of axes format : `{'b','h','w','c'}`.
 
@@ -139,22 +144,22 @@ Returns a 4D-tensor of axes format : `{'b','h','w','c'}`.
 Since `inplace` makes it contiguous anyway, this parameter is only considered when `inplace=false`. Defaults to false.
 
 
-<a name="dp.ImageTensor.feature"/>
+<a name="dp.ImageView.feature"/>
 ### [data] feature([inplace, contiguous]) ###
-Returns a 2D torch.Tensor of examples by features : `{'b','f'}` (see [DataTensor:feature()](#dp.DataTensor.feature)).
+Returns a 2D torch.Tensor of examples by features : `{'b','f'}` (see [DataView:feature()](#dp.DataView.feature)).
 
 
-<a name="dp.ClassTensor"/>
-## ClassTensor ##
-A DataTensor subclass used for providing access to a tensor of classes. This is useful since it allows for automatic reshaping. For example, let us suppose that we will be using a set of 8 samples picked from the following set of 4 classes : `{0,1,2,3}`.  
+<a name="dp.ClassView"/>
+## ClassView ##
+A DataView subclass used for providing access to a tensor of classes. This is useful since it allows for automatic reshaping. For example, let us suppose that we will be using a set of 8 samples picked from the following set of 4 classes : `{0,1,2,3}`.  
 ```lua
-> dt = dp.ClassTensor{data=torch.IntTensor{4,1,3,4,1,2,3,1}, classes={0,1,2,3}}
+> dt = dp.ClassView{data=torch.IntTensor{4,1,3,4,1,2,3,1}, classes={0,1,2,3}}
 ```
 
-We can use an ClassTensor:class() for obtaining a representation suitable for use as targets in nn.ClassNLLCriterion:
+We can use an ClassView:class() for obtaining a representation suitable for use as targets in nn.ClassNLLCriterion:
 ```lua
 > =dt:class()
-DataTensor Warning: Assuming one class per example.	
+DataView Warning: Assuming one class per example.	
  4
  1
  3
@@ -165,7 +170,7 @@ DataTensor Warning: Assuming one class per example.
  1
 [torch.IntTensor of dimension 8]
 ```
-Or we can use ClassTensor:multiclass() (inherited from [DataTensor](#dp.DataTensor.feature) to obtain a representation with an extra dimension that permits each example to have multiple target classes.
+Or we can use ClassView:multiclass() (inherited from [DataView](#dp.DataView.feature) to obtain a representation with an extra dimension that permits each example to have multiple target classes.
 ```lua
 > =dt:multiclass()
  4
@@ -179,11 +184,11 @@ Or we can use ClassTensor:multiclass() (inherited from [DataTensor](#dp.DataTens
 [torch.IntTensor of dimension 8x1]
 ```
 
-<a name="dp.ClassTensor.__init"/>
-### dp.ClassTensor{data, [axes, sizes]} ###
-Constructs a dp.ImageTensor out of torch.Tensor data. Arguments can also be passed as a table of key-value pairs:
+<a name="dp.ClassView.__init"/>
+### dp.ClassView{data, [axes, sizes]} ###
+Constructs a dp.ImageView out of torch.Tensor data. Arguments can also be passed as a table of key-value pairs:
 ```lua
-dt = dp.ClassTensor{data=torch.Tensor(10000), axes={'b'}, sizes={10000}}
+dt = dp.ClassView{data=torch.Tensor(10000), axes={'b'}, sizes={10000}}
 ```
 
 `data` is a torch.Tensor with at least 1 dimensions.  
@@ -195,7 +200,7 @@ It should be the most expanded version of the `data`. Defaults to `{'b'}` for `#
 
 `classes` is an optional table listing class IDs. The first index value is associated to class index 1, the second to 2, etc. For example, we could represent MNIST `data` containing classes indexed from `1,2...10` using `classes={0,1,2,3,4,5,6,7,8,9}`, supposing of course that the `0` MNIST-digits are indexed in `data` as `1`s.
 
-<a name="dp.ClassTensor.class"/>
+<a name="dp.ClassView.class"/>
 ### [data, axes] class([inplace, contiguous]) ###
 Returns a 1D-tensor of axes format : `{'b'}`.
 
@@ -205,15 +210,15 @@ Returns a 1D-tensor of axes format : `{'b'}`.
 `contiguous` is a boolean. When true, makes sure the returned data is contiguous. 
 Since `inplace` makes it contiguous anyway, this parameter is only considered when `inplace=false`. Defaults to false.
 
-<a name="dp.ClassTensor.multiclass"/>
+<a name="dp.ClassView.multiclass"/>
 ### [data] multiclass([inplace, contiguous]) ###
 Returns a 2D-tensor of axes format : `{'b','t'}`. 
 
-A ClassTensor where each example has many classes can be represented by vectors of classes. The data is thus of form `{'b','t'}`. So for example, we could be using a set of 4 samples of 2 classes each picked from the following set of 4 classes : `{0,1,2,3}`.  
+A ClassView where each example has many classes can be represented by vectors of classes. The data is thus of form `{'b','t'}`. So for example, we could be using a set of 4 samples of 2 classes each picked from the following set of 4 classes : `{0,1,2,3}`.  
 ```lua
-> dt = dp.ClassTensor{data=torch.IntTensor{{4,2},{3,1},{2,3},{3,4}}, classes={0,1,2,3}}
+> dt = dp.ClassView{data=torch.IntTensor{{4,2},{3,1},{2,3},{3,4}}, classes={0,1,2,3}}
 ```
-We can use an ClassTensor:multiclass() for obtaining a representation suitable for use as targets in nn.ClassNLLCriterion:
+We can use an ClassView:multiclass() for obtaining a representation suitable for use as targets in nn.ClassNLLCriterion:
 ```lua
 > =dt:multiclass()
  0  1
@@ -222,7 +227,7 @@ We can use an ClassTensor:multiclass() for obtaining a representation suitable f
  3  1
 [torch.IntTensor of dimension 4x2]
 ```
-However, assuming the first index of each example vector represents the primary class, we could also call `ClassTensor:class()`:
+However, assuming the first index of each example vector represents the primary class, we could also call `ClassView:class()`:
 ```lua
 > =dt:class()
  0
@@ -232,19 +237,19 @@ However, assuming the first index of each example vector represents the primary 
 [torch.IntTensor of dimension 4]
 ```
 
-<a name="dp.ClassTensor.feature"/>
+<a name="dp.ClassView.feature"/>
 ### [data] feature([inplace, contiguous]) ###
-Returns a 2D torch.Tensor of examples by features : `{'b','f'}` (see [DataTensor:feature()](#dp.DataTensor.feature)).
+Returns a 2D torch.Tensor of examples by features : `{'b','f'}` (see [DataView:feature()](#dp.DataView.feature)).
 
-<a name="dp.CompositeTensor"/>
-## CompositeTensor ##
-A composite of BaseTensors. Allows for multiple input and multiple target datasets and batches.
+<a name="dp.ListView"/>
+## ListView ##
+A composite of Views. Allows for multiple input and multiple target datasets and batches.
 
 <a name="dp.BaseSet"/>
 ## BaseSet ##
 This is the base (abstract) class inherited by subclasses like [DataSet](#dp.DataSet),
 [SentenceSet](#dp.SentenceSet) and [Batch](#dp.Batch). It is used for training or evaluating a model. 
-It supports multiple-input and multiple-output datasets using [CompositeTensor](#dp.CompositeTensor).
+It supports multiple-input and multiple-output datasets using [ListView](#dp.ListView).
 In the case of multiple targets, it is useful for multi-task learning, 
 or learning from hints . In the case of multiple inputs, richer inputs representations could 
 be created allowing, for example, images to be combined with 
@@ -256,12 +261,12 @@ nn.ConcatTable. If the BaseSet is used for unsupervised learning, only inputs ne
 Constructs a dataset from inputs and targets.
 Arguments should be specified as key-value pairs. 
 
-`inputs` is an instance of [BaseTensor](#dp.BaseTensor) or a table of these. In the latter case, they will be 
-automatically encapsulated by a [CompositeTensor](#dp.CompositeTensor). These are used as inputs to a 
+`inputs` is an instance of [View](#dp.View) or a table of these. In the latter case, they will be 
+automatically encapsulated by a [ListView](#dp.ListView). These are used as inputs to a 
 [Model](model.md#dp.Model).
 
-`targets` is an instance of `BaseTensor` or a table of these. In the latter case, they will be 
-automatically encapsulated by a `CompositeTensor`. These are used as targets for 
+`targets` is an instance of `View` or a table of these. In the latter case, they will be 
+automatically encapsulated by a `ListView`. These are used as targets for 
 training a `Model`. The indices of examples in `targets` must be aligned with those in `inputs`. 
 
 
@@ -276,7 +281,7 @@ A concrete subclass of [BaseSet](#dp.BaseSet). A
 
 <a name="dp.DataSet.__init"/>
 ### dp.DataSet(which_set, inputs, [targets]) ###
-Constructs a training, validation or test DataSet from [a set of] [BaseTensor](#dp.BaseTensor) `inputs` and `targets`.
+Constructs a training, validation or test DataSet from [a set of] [View](#dp.View) `inputs` and `targets`.
 
 <a name="dp.DataSet.preprocess"/>
 ### preprocess([input_preprocess, target_preprocess, can_fit] ###

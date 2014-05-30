@@ -12,8 +12,6 @@ loading datasets and [early stopping](http://en.wikipedia.org/wiki/Early_stoppin
 The library includes hyperparameter optimization facilities for sampling and running 
 experiments from the command-line or prior hyper-parameter distributions.
 
-We are currently working on providing facilities for distributing the models over different machines.
-
 Finally, we optionally provide facilites for storing and analysing hyperpameters and results using
 a PostgreSQL database backend which facilitates distributing experiments over different machines. 
 
@@ -25,11 +23,14 @@ In order to help you get up and running we provide a quick [neural network tutor
 ## dp Packages ##
 	
   * Data Library
-    * [Data](doc/data.md) defines objects used for loading data.
-    * [Preprocess](doc/preprocess.md) defines objects used for preprocessing data.
-  * Model Library
-    * Model defines objects encapsulating nn.Modules (doc TODO).
-    * Container defines objects encapsulating Models (doc TODO).
+    * [View](doc/view.md) : [Views](doc/view.md#dp.View) encapsulate an `input` and one or many `gradOutput` Tensors and abstract away common transformations like reshape, transpose and copy to forward/backward Tensors between Models and DataSources;
+    * [Data](doc/data.md) : [BaseSets](doc/data.md#dp.BaseSet) like [Batch](doc/data.md#dp.Batch) and [DataSet](doc/data.md#dp.DataSet), as well as [DataSources](doc/data.md#dp.DataSource) like [Mnist](doc/data.md#dp.Mnist) and [BillionWords](doc/data.md#dp.BillionWords) classes used for loading data;
+    * [Preprocess](doc/preprocess.md) : [Preprocesses](doc/preprocess.md#dp.Preprocess) like [ZCA](doc/preprocess.md#dp.ZCA) and [Standardize](doc/preprocess.md#dp.Standardize) classes used for preprocessing data;
+  * Node Library
+    * [Node](doc/node.md) : [Node](doc/node.md#dp.Node) is the abstract class that defines the commonalities of Model and Loss;
+    * [Model](doc/model.md) : [Model](doc/model.md#dp.Model) Nodes like [Neural](doc/model.md#dp.Neural) and [Convolution2D](doc/model.md#dp.Convolution2d) adapt [Modules](https://github.com/torch/nn/blob/master/doc/module.md#module);
+      * Container defines objects encapsulating Models (doc TODO).
+    * [Loss](doc/model.md) : [Loss](doc/loss.md#dp.Loss) Nodes like [NLL](doc/loss.md#dp.NLL) adapt [Criterion](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.Criterion);
   * Experiment Library
     * Propagator defines objects used to propagate (forward/backward) DataSets through models (doc TODO).
   * Hyperparameter Library

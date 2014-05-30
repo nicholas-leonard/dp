@@ -1,11 +1,12 @@
 # Views #
-
-  * [View](#dp.View) :
-    * [DataView](#dp.DataView) :
-     * [ImageView](#dp.ImageView)
-     * [ClassView](#dp.ClassView)
-     * [SequenceView](#dp.SequenceView)
-    * [ListView](#dp.ListView)
+Views encapsulate an `input` Tensor and one or many `gradOutput` Tensor. 
+These can be forward and backward acessed (put/get) by specifying a `view` and an optional `tensor_type`: 
+  * [View](#dp.View) : Abstract class inherited by all Views.
+    * [DataView](#dp.DataView) : provides for views _b_ and _bf_;
+     * [ImageView](#dp.ImageView) : provides views _bhwc_, _bchw_ and _chwb_;
+     * [ClassView](#dp.ClassView) : provides views _b_ (overwritten) and _bt_;
+     * [SequenceView](#dp.SequenceView) : provides views _bwc_ and _bcw_;
+    * [ListView](#dp.ListView) : Composite of Views (work in progress).
 
 <a name="dp.View"/>
 ## View ##
@@ -376,7 +377,7 @@ Like viewing method [bwc](#dp.SequenceView.bhwc), except some axes are transpose
 
 <a name="dp.ListView"/>
 ## ListView ##
-A composite of Views. Allows for multiple input and multiple target datasets and batches.
+A composite of Views. Allows for multiple input and multiple target datasets and batches. Work in progress.
 
 
 

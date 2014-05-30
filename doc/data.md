@@ -21,7 +21,63 @@
 
 <a name="dp.View"/>
 ## View ##
-Abstract class to allow for the use of ListViews in models. Adapter (design pattern) for torch.Tensor.
+Abstract class inherited by ListViews (composites) and DataViews (components).
+Used to communicate torch.Tensors between Models in a variety of formats. 
+Each format is specified by a `tensor_type` and `view`. 
+
+A `tensor_type` is a string like : _torch.FloatTensor_, _torch.DoubleTensor_, _torch.IntTensor_, _torch.LongTensor_, 
+_torch.CudaTensor_, etc. The type of a Tensor provided via `forwardPut` or `backwardPut` is implicitly ascertained 
+via `torch.typename(tensor)` and thus does not need to be explicitly provided as an argument.
+
+A `view` is a string like : `bf`, `bwc`, `bhwc`, `chwb`, `b`, etc. Each character in the string identifies a type of axis.
+Possible axis symbols are : 
+ 1. Standard Axes: 
+  * _b_ : Batch/Example 
+  * _f_ : Feature 
+  * _t_ : Class/Index 
+ 2. Spatial/Temporal/Volumetric Axes: 
+  * _c_ : Color/Channel
+  * _h_ : Height 
+  * _w_ : Width 
+  * _d_ : Dept 
+A `view` thus specifies the order and nature of a provided or requested tensor's axes.
+
+<a name="dp.View.forwardPut"/>
+### forwardPut(view, input) ###
+This method should be called by a maximum of one input Model. Any
+subsequent call overwrites the previous call and reinitializes the 
+internal tensor cache.
+
+It is assumed that any `input` Tensor to `forwardPut` is represented as
+the most expanded size of the orignal data. For example, an image
+batch would be forwarded as a 4D `tensor` and `view`, and never with 
+collapses dimensions (2D).
+
+<a name="dp.View.forwardGet"/>
+### [output] forwardGet(view, tensor_type) ###
+This method could be called from multiple output Models. Can only be called 
+following a previous call to `forwardPut`. Returns the requested `view` and 
+`tensor_type` of the input tensor.
+
+<a name="dp.View.forward"/>
+### forward(view, inputORtype) ###
+A convenience function that can be used as either forwardPut or forwardGet, but not 
+both at the same time.
+
+<a name="dp.View.backwardPut"/>
+### backwardPut(view, gradOutput) ###
+This method could be called from multiple output Models.
+
+<a name="dp.View.backwardGet"/>
+### backwardGet(view, tensor_type) ###
+This method should be called by a maximum of one input Model.
+In the case of multiple output models having called backwardPut, 
+the different gradInputs must be accumulated (through summation).
+
+<a name="dp.View.backward"/>
+### backward(view, gradOutputORtype) ###
+A convenience function that can be used as either backwardPut or backwardGet, but not 
+both at the same time.
 
 <a name="dp.DataView"/>
 ## DataView ##

@@ -22,7 +22,7 @@
 <a name="dp.View"/>
 ## View ##
 Abstract class inherited by ListViews (composites) and DataViews (components).
-Used to communicate torch.Tensors between Models in a variety of formats. 
+Used to communicate Tensors between Models in a variety of formats. 
 Each format is specified by a `tensor_type` and `view`. 
 
 A `tensor_type` is a string like : _torch.FloatTensor_, _torch.DoubleTensor_, _torch.IntTensor_, _torch.LongTensor_, 
@@ -42,6 +42,15 @@ Possible axis symbols are :
   * _d_ : Dept 
 A `view` thus specifies the order and nature of a provided or requested tensor's axes.
 
+A View is used at the input and output of Models. For example, in a Sequence, the first and second 
+Models will share a View. The first Model's output View is the second Model's input View. These Views abstract 
+away Modules like nn.Identity, nn.Reshape, nn.Transpose and nn.Copy, which are used to forward/backward the Tensors
+between Models.
+
+A View is also used by DataSets and DataSources to encapsulate inputs and targets. So a the first Model of a Sequence might 
+share its input View with the an [indexed](#dp.View.index) or a [sub](#dp.View.sub) View of a DataSet's inputs. This also 
+means that a [Preprocess](preprocess.md#dp.Preprocess) would be applied to a View, thus requiring a call to `forwardGet`.
+
 <a name="dp.View.forwardPut"/>
 ### forwardPut(view, input) ###
 This method should be called by a maximum of one input Model. Any
@@ -54,30 +63,51 @@ batch would be forwarded as a 4D `tensor` and `view`, and never with
 collapses dimensions (2D).
 
 <a name="dp.View.forwardGet"/>
-### [output] forwardGet(view, tensor_type) ###
+### [output] forwardGet(view, [tensor_type]) ###
 This method could be called from multiple output Models. Can only be called 
 following a previous call to `forwardPut`. Returns the requested `view` and 
 `tensor_type` of the input tensor.
 
 <a name="dp.View.forward"/>
-### forward(view, inputORtype) ###
+### [output] forward(view, [inputORtype]) ###
 A convenience function that can be used as either forwardPut or forwardGet, but not 
 both at the same time.
 
 <a name="dp.View.backwardPut"/>
 ### backwardPut(view, gradOutput) ###
-This method could be called from multiple output Models.
+This method could be called from multiple output Models. Each call to backwardPut must have been 
+preceeded by a corresponding forwardGet, i.e. one with the same `view` and `tensor_type`.
 
 <a name="dp.View.backwardGet"/>
-### backwardGet(view, tensor_type) ###
+### [gradInput] backwardGet(view, [tensor_type]) ###
 This method should be called by a maximum of one input Model.
 In the case of multiple output models having called backwardPut, 
 the different gradInputs must be accumulated (through summation).
 
 <a name="dp.View.backward"/>
-### backward(view, gradOutputORtype) ###
+### [gradInput] backward(view, [gradOutputORtype]) ###
 A convenience function that can be used as either backwardPut or backwardGet, but not 
 both at the same time.
+
+<a name="dp.View.index"/>
+### [view] index([v,] indices) ###
+Returns a sub-[View](#dp.View) of the same type as self. 
+
+`indices` is `torch.LongTensor` of indices of the batch (_b_) axis. The returned [View](#dp.View) will be `forwardPut` with 
+the same `view` as self and with an `input` indexed from self's `input`. 
+
+When `v` is provided, it will be `forwardPut` with the same 
+`view` as self, and with an `input` indexed from a subset of self's `input`. The advantage of providing or reusing `v` from batch 
+to batch is that the same storage (memory) can be used.
+
+This method is used mainly by `ShuffleSampler` for retrieving random subsets of a dataset.
+
+<a name="dp.View.sub"/>
+### [view] sub(start, stop) ###
+Returns a sub-[View](#dp.View) of the same type as self. 
+
+`start` and `stop` identify the start and stop indices to sub from the batch (_b_) axis. The returned [View](#dp.View) will be `forwardPut` with 
+the same `view` as self and with an `input` indexed from self's `input`. 
 
 <a name="dp.DataView"/>
 ## DataView ##

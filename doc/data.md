@@ -137,7 +137,7 @@ base Tensor.
 
 <a name="dp.DataView.bf"/>
 ### [module] bf() ###
-Returns a [Module](https://github.com/torch/nn/blob/master/doc/module.md#module) that can transforms an `input` Tensor from the base `view` 
+Returns a [Module](https://github.com/torch/nn/blob/master/doc/module.md#module) that transforms an `input` Tensor from the base `view` 
 (i.e. the `view` provided in [forwardPut](#dp.View.forwardPut)) to `view` _bf_. The result of forwaring `input` through this Module would 
 be a Tensor with the first axis (_b_) representing a batch of examples, and the second representing a set of features (_f_). If the base `input` Tensor 
 has more axes than 2, the non-_b_ axes are collapsed into a single _f_ axis using a Reshape Module. This viewing method is 
@@ -146,7 +146,7 @@ method [flush](#dp.DataView.flush) is called. This method should be supported by
 
 <a name="dp.DataView.b"/>
 ### [module] b() ###
-Returns a [Module](https://github.com/torch/nn/blob/master/doc/module.md#module) that can transforms an `input` Tensor from the base `view` 
+Returns a [Module](https://github.com/torch/nn/blob/master/doc/module.md#module) that transforms an `input` Tensor from the base `view` 
 (i.e. the `view` provided in [forwardPut](#dp.View.forwardPut)) to `view` _b_. If the original forwardPut `view` was _bf_, the size of axis _f_ must be 1. Otherwise, 
 the original `view` should have been _b_.
 
@@ -176,7 +176,7 @@ that transposes the `input` such that the requested `view` would be the result. 
 
 <a name="dp.ImageView"/>
 ## ImageView ##
-A DataView subclass used for providing access to a tensor of images. This is useful since it allows for automatic reshaping, transposing and such. 
+A [DataView](#dp.DataView) subclass used for providing access to a tensor of images. This is useful since it allows for automatic reshaping, transposing and such. 
 For example, let us suppose that we will be using a set of 8 images with 3x3 pixels and 1 channel (black and white):
 ```lua
 > dv = dp.ImageView()
@@ -235,7 +235,7 @@ Note that `tensor_type` (the second argument to forwardGet) defaults to the type
 ```
 <a name="dp.ImageView.bhwc"/>
 ### [module] bhwc() ###
-Returns a [Module](https://github.com/torch/nn/blob/master/doc/module.md#module) that can transforms an `input` Tensor from the base image `view` 
+Returns a [Module](https://github.com/torch/nn/blob/master/doc/module.md#module) that transforms an `input` Tensor from the base image `view` 
 (i.e. the `view` provided in [forwardPut](#dp.View.forwardPut)) to `view` _bhwc_. The result of forwaring `input` through this Module would 
 be a Tensor with, in sequence, axis _b_ representing a batch of examples, axis _h_ for height, _w_ for width and _c_ for color or channels. This `view` is 
 commonly used by DataSources and DataSets, as well as [Preprocesses](preprocess.md#dp.Preprocess). 
@@ -253,15 +253,16 @@ Like viewing method [bhwc](#dp.ImageView.bhwc), except some axis are transposed.
 
 <a name="dp.ClassView"/>
 ## ClassView ##
-A DataView subclass used for providing access to a tensor of classes. This is useful since it allows for automatic reshaping. For example, let us suppose that we will be using a set of 8 samples picked from the following set of 4 classes : `{0,1,2,3}`.  
+A [DataView](#dp.DataView) subclass used for providing access to a tensor of indices like classes and words.
+
 ```lua
-> dt = dp.ClassView{data=torch.IntTensor{4,1,3,4,1,2,3,1}, classes={0,1,2,3}}
+> dv = dp.ClassView('b', torch.IntTensor{4,1,3,4,1,2,3,1})
+> dv:setClasses({0,1,2,3})
 ```
 
 We can use an ClassView:class() for obtaining a representation suitable for use as targets in nn.ClassNLLCriterion:
 ```lua
-> =dt:class()
-DataView Warning: Assuming one class per example.	
+> =dv:forwardGet('b')	
  4
  1
  3
@@ -272,9 +273,9 @@ DataView Warning: Assuming one class per example.
  1
 [torch.IntTensor of dimension 8]
 ```
-Or we can use ClassView:multiclass() (inherited from [DataView](#dp.DataView.feature) to obtain a representation with an extra dimension that permits each example to have multiple target classes.
+Or we can forwardGet 'view' _bt_ to obtain a representation with an extra dimension that permits each example to have multiple target classes:
 ```lua
-> =dt:multiclass()
+> =dv:forwardGet('bt')
  4
  1
  3
@@ -286,62 +287,46 @@ Or we can use ClassView:multiclass() (inherited from [DataView](#dp.DataView.fea
 [torch.IntTensor of dimension 8x1]
 ```
 
-<a name="dp.ClassView.__init"/>
-### dp.ClassView{data, [axes, sizes]} ###
-Constructs a dp.ImageView out of torch.Tensor data. Arguments can also be passed as a table of key-value pairs:
+<a name="dp.ClassView.b"/>
+### [module] b() ###
+Overwrites [DataView](#dp.DataView)'s viewing method [b](#dp.DataView.b). 
+Returns a [Module](https://github.com/torch/nn/blob/master/doc/module.md#module) that transforms an `input` Tensor from the base `view` 
+(i.e. the `view` provided in [forwardPut](#dp.View.forwardPut)) to `view` _b_. If the original forwardPut `view` was _bt_, 
+Module [Select](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Select) is used to retrieve the first column of axis _t_. This allows 
+DataSets to specify more than one class per example, as long as the primary class is kept first. 
+Otherwise, the original `view` should have been _b_.
+
+<a name="dp.ClassView.bt"/>
+### [data] bt() ###
+Returns a [Module](https://github.com/torch/nn/blob/master/doc/module.md#module) that transforms an `input` Tensor from the base `view` 
+(i.e. the `view` provided in [forwardPut](#dp.View.forwardPut)) to `view` _bt_.
+View _bt_ allows each example to have many classes. So for example, we could be using a set of 4 samples of 2 classes each 
+picked from the following set of 4 classes : `{0,1,2,3}`.  
 ```lua
-dt = dp.ClassView{data=torch.Tensor(10000), axes={'b'}, sizes={10000}}
+> dv = dp.ClassView('bt', torch.IntTensor{{4,2},{3,1},{2,3},{3,4}})
+> dv:setClasses({0,1,2,3})
 ```
-
-`data` is a torch.Tensor with at least 1 dimensions.  
-
-`axes` is a table defining the order and nature of each dimension of the expanded torch.Tensor. 
-It should be the most expanded version of the `data`. Defaults to `{'b'}` for `#sizes==1` or `{'b','t'}` for `#sizes==2`.
-
-`sizes` can be a table, a torch.LongTensor or a torch.LongStorage holding the `sizes` of the commensurate dimensions in `axes`. This should be supplied if the dimensions of the data is different from the number of elements in `axes`, in which case it will be used to : `data:reshape(sizes)`. Defaults to data:size().
-
-`classes` is an optional table listing class IDs. The first index value is associated to class index 1, the second to 2, etc. For example, we could represent MNIST `data` containing classes indexed from `1,2...10` using `classes={0,1,2,3,4,5,6,7,8,9}`, supposing of course that the `0` MNIST-digits are indexed in `data` as `1`s.
-
-<a name="dp.ClassView.class"/>
-### [data, axes] class([inplace, contiguous]) ###
-Returns a 1D-tensor of axes format : `{'b'}`.
-
-`inplace` is a boolean. When true, makes `data` a contiguous view of `axes`
-`{'b'}` for future use. Defaults to true.
- 
-`contiguous` is a boolean. When true, makes sure the returned data is contiguous. 
-Since `inplace` makes it contiguous anyway, this parameter is only considered when `inplace=false`. Defaults to false.
-
-<a name="dp.ClassView.multiclass"/>
-### [data] multiclass([inplace, contiguous]) ###
-Returns a 2D-tensor of axes format : `{'b','t'}`. 
-
-A ClassView where each example has many classes can be represented by vectors of classes. The data is thus of form `{'b','t'}`. So for example, we could be using a set of 4 samples of 2 classes each picked from the following set of 4 classes : `{0,1,2,3}`.  
+We can use forwardGet('b') for obtaining a representation suitable for use as targets in 
+[ClassNLLCriterion](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.ClassNLLCriterion). 
+The first index of each example vector represents the primary class:
 ```lua
-> dt = dp.ClassView{data=torch.IntTensor{{4,2},{3,1},{2,3},{3,4}}, classes={0,1,2,3}}
-```
-We can use an ClassView:multiclass() for obtaining a representation suitable for use as targets in nn.ClassNLLCriterion:
-```lua
-> =dt:multiclass()
- 0  1
- 3  0
- 1  2
- 3  1
-[torch.IntTensor of dimension 4x2]
-```
-However, assuming the first index of each example vector represents the primary class, we could also call `ClassView:class()`:
-```lua
-> =dt:class()
+> =dv:forwardGet('b')
  0
  3
  1
  3
 [torch.IntTensor of dimension 4]
 ```
+However, this doesn't mean we can't retrieve a multiple-class view of the `input` for use in some esotheric [Criterion](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.Criterion):
+```lua
+> =dv:forwardGet('bt')
+ 0  1
+ 3  0
+ 1  2
+ 3  1
+[torch.IntTensor of dimension 4x2]
 
-<a name="dp.ClassView.feature"/>
-### [data] feature([inplace, contiguous]) ###
-Returns a 2D torch.Tensor of examples by features : `{'b','f'}` (see [DataView:feature()](#dp.DataView.feature)).
+```
 
 <a name="dp.ListView"/>
 ## ListView ##

@@ -139,7 +139,8 @@ base Tensor.
 ### [module] bf() ###
 Returns a [Module](https://github.com/torch/nn/blob/master/doc/module.md#module) that can transforms an `input` Tensor from the base `view` 
 (i.e. the `view` provided in [forwardPut](#dp.View.forwardPut)) to `view` _bf_. The result of forwaring `input` through this Module would 
-be a Tensor with the first axis (_b_) representing a batch of examples, and the second representing a set of features (_f_). This `view` is 
+be a Tensor with the first axis (_b_) representing a batch of examples, and the second representing a set of features (_f_). If the base `input` Tensor 
+has more axes than 2, the non-_b_ axes are collapsed into a single _f_ axis using a Reshape Module. This viewing method is 
 commonly used by the Neural Model. This method is called by `forwardGet` when `view` _bf_ is first requested (the Module for this transformation is created only once), unless
 method [flush](#dp.DataView.flush) is called. This method should be supported by all Views (currently, only [ClassView](#dp.ClassView) lacks support for it). 
 
@@ -158,86 +159,96 @@ module and tensor caches.
 
 <a name="dp.DataView.flush"/>
 ### flush() ###
-Flushes the Module and Tensor caches.
+Flushes the Module and Tensor caches. This should be called before [forwardPut](#dp.View.forwardPut) is about
+to be used for a new kind of base `view` than was previously used. If not, results might be different than expected.
 
+<a name="dp.DataView.input"/>
 ### [input] input([input]) ###
 When `input` is provided, sets the base Tensor to that value. Otherwise, returns the base Tensor (the `input`). 
 This method should be used with caution since it will cause errors if the `view` of the new `input` is different than 
 that of the old, in which case a `forwardPut` would be more appropriate.
 
+<a name="dp.DataView.transpose"/>
+### [module] transpose(view) ###
+A generic function for transposing views. Returns a [Transpose](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Transpose) Module 
+that transposes the `input` such that the requested `view` would be the result. Commonly used by viewing methods like [bhwc](#dp.ImageView.bhwc), 
+[bchw](#dp.ImageView.bhwc), [chwb](#dp.ImageView.chwb), [bwc](#dp.SequenceView.bwc), etc.
+
 <a name="dp.ImageView"/>
 ## ImageView ##
-A DataView subclass used for providing access to a tensor of images. This is useful since it allows for automatic reshaping. For example, let us suppose that we will be using a set of 10 images with 3x3 pixels and 1 channel (black and white).  
+A DataView subclass used for providing access to a tensor of images. This is useful since it allows for automatic reshaping, transposing and such. 
+For example, let us suppose that we will be using a set of 8 images with 3x3 pixels and 1 channel (black and white):
 ```lua
-> dt = dp.ImageView{data=torch.rand(10,3*3), axes={'b','h','w','c'}, sizes={10,3,3,1}}
-DataView Warning: data:size() is different than sizes. Assuming data is appropriately contiguous. Resizing data to sizes.
+> dv = dp.ImageView()
+> dv:forwardPut('bhwc', torch.rand(8,3,3,1):double())
 ```
-We can use an ImageView:image() for obtaining a representation suitable for convolutions and image preprocessing:
+Which is equivalent to:
 ```lua
-> =dt:image()
+> dv = dp.ImageView('bhwc', torch.rand(8,3,3,1):double())
+```
+We can use an [forwardGet](#dp.View.forwardGet) for obtaining a `view` of the `input` suitable for CUDA convolutions, i.e. _chwb_ :
+```lua
+> =dv:forwardGet('chwb', 'torch.CudaTensor')
 (1,1,.,.) = 
-  0.4230
-  0.3545
-  0.8071
+  0.0748  0.7260  0.8156  0.4645  0.3130  0.7986  0.3976  0.0998
+  0.9946  0.6130  0.8277  0.5419  0.0760  0.2964  0.0085  0.7283
+  0.7094  0.6541  0.0811  0.0564  0.8081  0.1823  0.4881  0.1486
 
-(2,1,.,.) = 
-  0.8478
-  0.7463
-  0.5556
+(1,2,.,.) = 
+  0.1323  0.1587  0.0822  0.3691  0.5855  0.8046  0.1021  0.8321
+  0.5754  0.4101  0.7095  0.5695  0.2273  0.0746  0.9465  0.6109
+  0.5603  0.6446  0.7345  0.2679  0.5913  0.5497  0.1150  0.6649
 
-...
-(10,3,.,.) = 
-  0.7421
-  0.5609
-  0.4971
-[torch.DoubleTensor of dimension 10x3x3x1]
+(1,3,.,.) = 
+  0.4442  0.7090  0.1919  0.0931  0.0364  0.5544  0.7864  0.6034
+  0.7611  0.1444  0.2227  0.2894  0.5571  0.2201  0.0916  0.6040
+  0.4468  0.0348  0.9614  0.5323  0.5906  0.9161  0.2670  0.4789
+[torch.CudaTensor of dimension 1x3x3x8]
 
 ```
-Or we can use ImageView:feature() (inherited from [DataView](#dp.DataView.feature) to obtain a representation suitable for MLPs and feature preprocessing:
+Or we can use it to obtain a `view` suitable for use with `Neural` Models and feature preprocessing:
 ```lua
-> =dt:feature()
-0.4230  0.3545  0.8071  0.1717  0.6072  0.9120  0.6389  0.5002  0.0237
- 0.8478  0.7463  0.5556  0.7995  0.2141  0.5164  0.2037  0.2733  0.5226
- 0.6114  0.3613  0.2784  0.2083  0.9485  0.5826  0.7669  0.0177  0.0550
- 0.9148  0.9391  0.1449  0.4779  0.6515  0.9311  0.4179  0.1163  0.8002
- 0.6517  0.3549  0.0900  0.3038  0.4123  0.0991  0.0148  0.8528  0.7237
- 0.8487  0.5838  0.2006  0.0378  0.1517  0.1992  0.2076  0.3537  0.7024
- 0.0856  0.4508  0.9910  0.3905  0.6099  0.9126  0.1718  0.8962  0.1037
- 0.8119  0.4987  0.9008  0.2354  0.6697  0.8641  0.0031  0.8939  0.1399
- 0.1546  0.5477  0.1261  0.9096  0.7459  0.6923  0.6901  0.2539  0.7569
- 0.2150  0.8002  0.3193  0.1342  0.1905  0.1681  0.7421  0.5609  0.4971
-[torch.DoubleTensor of dimension 10x9]
+> =dv:forwardGet('bf')
+ 0.0748  0.9946  0.7094  0.1323  0.5754  0.5603  0.4442  0.7611  0.4468
+ 0.7260  0.6130  0.6541  0.1587  0.4101  0.6446  0.7090  0.1444  0.0348
+ 0.8156  0.8277  0.0811  0.0822  0.7095  0.7345  0.1919  0.2227  0.9614
+ 0.4645  0.5419  0.0564  0.3691  0.5695  0.2679  0.0931  0.2894  0.5323
+ 0.3130  0.0760  0.8081  0.5855  0.2273  0.5913  0.0364  0.5571  0.5906
+ 0.7986  0.2964  0.1823  0.8046  0.0746  0.5497  0.5544  0.2201  0.9161
+ 0.3976  0.0085  0.4881  0.1021  0.9465  0.1150  0.7864  0.0916  0.2670
+ 0.0998  0.7283  0.1486  0.8321  0.6109  0.6649  0.6034  0.6040  0.4789
+[torch.DoubleTensor of dimension 8x9]
 ```
-
-<a name="dp.ImageView.__init"/>
-### dp.ImageView{data, [axes, sizes]} ###
-Constructs a dp.ImageView out of torch.Tensor data. Arguments can also be passed as a table of key-value pairs:
+Note that `tensor_type` (the second argument to forwardGet) defaults to the type of the base `input` Tensor:
 ```lua
-> dt = dp.ImageView{data=torch.Tensor(10000,28*28), axes={'b','h','w','c'}, sizes={28,28,1}}
+> dv = dp.ImageView('bhwc', torch.rand(8,3,3,1):float())
+> dv:forwardGet('bf')
+ 0.7328  0.9736  0.4569  0.6965  0.8301  0.9852  0.8396  0.8000  0.6286
+ 0.9026  0.8644  0.3703  0.4951  0.1519  0.8389  0.3995  0.9385  0.1023
+ 0.6046  0.4231  0.5078  0.8307  0.6814  0.4599  0.5189  0.9556  0.8790
+ 0.5981  0.0630  0.1761  0.2252  0.3956  0.0207  0.9859  0.6281  0.3034
+ 0.1236  0.8075  0.6222  0.7695  0.4779  0.5241  0.0491  0.5249  0.1492
+ 0.3703  0.7209  0.5492  0.0131  0.6006  0.6626  0.7629  0.9105  0.5165
+ 0.2549  0.7451  0.3175  0.8140  0.5132  0.0446  0.0695  0.0877  0.5090
+ 0.9385  0.6710  0.2921  0.9387  0.0820  0.3636  0.2498  0.4257  0.7185
+[torch.FloatTensor of dimension 8x9]
 ```
+<a name="dp.ImageView.bhwc"/>
+### [module] bhwc() ###
+Returns a [Module](https://github.com/torch/nn/blob/master/doc/module.md#module) that can transforms an `input` Tensor from the base image `view` 
+(i.e. the `view` provided in [forwardPut](#dp.View.forwardPut)) to `view` _bhwc_. The result of forwaring `input` through this Module would 
+be a Tensor with, in sequence, axis _b_ representing a batch of examples, axis _h_ for height, _w_ for width and _c_ for color or channels. This `view` is 
+commonly used by DataSources and DataSets, as well as [Preprocesses](preprocess.md#dp.Preprocess). 
+This method is called by `forwardGet` when `view` _bhwc_ is first requested (the Module for this transformation is created only once), unless
+method [flush](#dp.DataView.flush) is called afterwards.
 
-`data` is a torch.Tensor with at least 2 dimensions.  
+<a name="dp.ImageView.bhwc"/>
+### [module] bchw() ###
+Like viewing method [bhwc](#dp.ImageView.bhwc), except some axis are transposed. View _bchw_ is commonly used by SpatialConvolution Modules.
 
-`axes` is a table defining the order and nature of each dimension of the expanded torch.Tensor. 
-It should be the most expanded version of the `data`. For example, while an individual image can be represented as a vector, in which case it takes the form of `{'b','f'}`, its expanded axes format could be `{'b','h','w','c'}`. Defaults to the latter.
-
-`sizes` can be a table, a torch.LongTensor or a torch.LongStorage. A table or torch.LongTensor holding the `sizes` of the commensurate dimensions in `axes`. This should be supplied if the dimensions of the data is different from the number of elements in `axes`, in which case it will be used to : `data:reshape(sizes)`. Defaults to data:size().
-
-
-<a name="dp.ImageView.image"/>
-### [data, axes] image([inplace, contiguous]) ###
-Returns a 4D-tensor of axes format : `{'b','h','w','c'}`.
-
-`inplace` is a boolean. When true, makes `data` a contiguous view of `axes`
-`{'b','h','w','c'}` for future use. Defaults to true.
- 
-`contiguous` is a boolean. When true, makes sure the returned data is contiguous. 
-Since `inplace` makes it contiguous anyway, this parameter is only considered when `inplace=false`. Defaults to false.
-
-
-<a name="dp.ImageView.feature"/>
-### [data] feature([inplace, contiguous]) ###
-Returns a 2D torch.Tensor of examples by features : `{'b','f'}` (see [DataView:feature()](#dp.DataView.feature)).
+<a name="dp.ImageView.chwb"/>
+### [module] chwc() ###
+Like viewing method [bhwc](#dp.ImageView.bhwc), except some axis are transposed. View _bchw_ is commonly used by SpatialConvolutionCUDA Modules, i.e. CudaConvNet.
 
 
 <a name="dp.ClassView"/>

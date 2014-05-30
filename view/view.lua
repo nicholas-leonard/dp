@@ -44,6 +44,7 @@ function View:backward(view, gradOutputORtype)
    end
    return self:backwardPut(view, gradOutputORtype)
 end
+
 -- This method could be called from multiple output Models
 function View:backwardPut(view, gradOutput)
    error"Not Implemented"

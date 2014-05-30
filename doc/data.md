@@ -44,8 +44,13 @@ A `view` thus specifies the order and nature of a provided or requested tensor's
 
 A View is used at the input and output of Models. For example, in a Sequence, the first and second 
 Models will share a View. The first Model's output View is the second Model's input View. These Views abstract 
-away Modules like nn.Identity, nn.Reshape, nn.Transpose and nn.Copy, which are used to forward/backward the Tensors
-between Models.
+away [Modules](https://github.com/torch/nn/blob/master/doc/module.md#module) like :
+ * [Identity](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Identity) : used for forwarding base `input` Tensor as is (or conversely, backwarding `gradOutput` Tensor); 
+ * [Reshape](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Reshape) : used for resizing (down-sizing) the `input` and `gradOutput` Tensors, 
+ * [Transpose](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Transpose) : used for tranposing axe of `input` and `gradOutput` Tensors; and 
+ * [Copy](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Copy) : used for forward/backward propagating a different `tensor_type`.
+By using these Modules to forward/backward Tensors, Views abstract away the tedious transformations that need to be performed and tested between Models. As such, 
+a Node (Model or Loss) need only specify a `view` and `tensor_type` for inputs and outputs. 
 
 A View is also used by DataSets and DataSources to encapsulate inputs and targets. So a the first Model of a Sequence might 
 share its input View with the an [indexed](#dp.View.index) or a [sub](#dp.View.sub) View of a DataSet's inputs. This also 
@@ -111,8 +116,8 @@ the same `view` as self and with an `input` indexed from self's `input`.
 
 <a name="dp.DataView"/>
 ## DataView ##
-Encapsulates an `input` torch.Tensor having a given `view` and `tensor_type` through [forwardPut](#dp.DataView.forwardPut). 
-Models can request different `views` and `tensor_types` of the `input` through [forwardGet](#dp.DataView.forwardGet). 
+Encapsulates an `input` torch.Tensor having a given `view` and `tensor_type` through [forwardPut](#dp.View.forwardPut). 
+Models can request different `views` and `tensor_types` of the `input` through [forwardGet](#dp.View.forwardGet). 
 If these differ from the base `input`, then the necessary nn.Reshape, nn.Transpose and nn.Copy are combined to efficiently 
 provide the requested `view` and `tensor_type`. Modules are created once they are first requested and reused from batch 
 to batch. Furthermore, the resulting tensors of these `forwardGets` calls are cached so that modules which may call for the 
@@ -126,39 +131,39 @@ During a backwardGet, any tensors provided via backwardPut are first backward pr
 view and tensor_type (provided in forwardPut), and then accumulated these with a sum.
 
 <a name="dp.DataView.__init"/>
-### dp.DataView{data, [axes, sizes]} ###
-Constructs a dp.DataView out of torch.Tensor data. Arguments can also be passed as a table of key-value pairs :
-```dt = dp.DataView{data=torch.Tensor(3,4), axes={'b','f'}, sizes={3,4}}```
+### dp.DataView([view, input]) ###
+Constructs a dp.DataView. When both `view` and `input` are provided, passes them to [forward](#dp.View.forwardPut) to initialize the 
+base Tensor.
 
-`data` is a torch.Tensor with at least 1 dimensions. 
+<a name="dp.DataView.bf"/>
+### [module] bf() ###
+Returns a [Module](https://github.com/torch/nn/blob/master/doc/module.md#module) that can transforms an `input` Tensor from the base `view` 
+(i.e. the `view` provided in [forwardPut](#dp.View.forwardPut)) to `view` _bf_. The result of forwaring `input` through this Module would 
+be a Tensor with the first axis (_b_) representing a batch of examples, and the second representing a set of features (_f_). This `view` is 
+commonly used by the Neural Model. This method is called by `forwardGet` when `view` _bf_ is first requested (the Module for this transformation is created only once), unless
+method [flush](#dp.DataView.flush) is called. This method should be supported by all Views (currently, only [ClassView](#dp.ClassView) lacks support for it). 
 
-`axes` is a table defining the order and nature of each dimension of a torch.Tensor. Two common examples would be the archtypical MLP input : `{'b','f'}`, 
-or a common image representation : `{'b','h','w','c'}`. 
-Possible axis symbols are : 
- 1. Standard Axes: 
-  * `'b'` : Batch/Example 
-  * `'f'` : Feature 
-  * `'t'` : Class 
- 2. Image Axes 
-  * `'c'` : Color/Channel 
-  * `'h'` : Height 
-  * `'w'` : Width 
-  * `'d'` : Dept 
+<a name="dp.DataView.b"/>
+### [module] b() ###
+Returns a [Module](https://github.com/torch/nn/blob/master/doc/module.md#module) that can transforms an `input` Tensor from the base `view` 
+(i.e. the `view` provided in [forwardPut](#dp.View.forwardPut)) to `view` _b_. If the original forwardPut `view` was _bf_, the size of axis _f_ must be 1. Otherwise, 
+the original `view` should have been _b_.
 
-The provided `axes` should be the most expanded version of the `data` (the version with the most dimensions). For example, while an image can be represented as a vector, in which case it takes the form of `{'b','f'}`, its expanded axes format could be `{'b','h','w','c'}`. Defaults to `{'b','f'}`.
+<a name="dp.DataView.replace"/>
+### replace(view, output) ###
+Used by [Preprocess](preprocess.md#dp.Preprocess) instances to replace the `input` with a preprocessed `output` retrieved using 
+[forwardGet](#dp.View.forwardGet) with argument `view`. Internally, the method backward propagates `output` as a `gradOutput` to 
+get a `gradInput` of the same format as `input`, replaces the `input` with that `gradInput`, and [flushs](#dp.DataView.flush) the 
+module and tensor caches.
 
-`sizes` can be a table, a torch.LongTensor or a torch.LongStorage. A table or torch.LongTensor holding the `sizes` of the commensurate dimensions in `axes`. This should be supplied if the dimensions of the data is different from the number of elements in `axes`, in which case it will be used to : `data:reshape(sizes)`. If the sizes has one less elements than `axes`, then it assumes that the missing element is the batch dimension `b` and further extrapolates its size from `data`. Defaults to data:size(). 
+<a name="dp.DataView.flush"/>
+### flush() ###
+Flushes the Module and Tensor caches.
 
-<a name="dp.DataView.feature"/>
-### [data] feature([inplace, contiguous]) ###
-Returns a 2D torch.Tensor of examples by features : `{'b','f'}`.
-
-`inplace` is a boolean. When true, makes `data` a contiguous view of `axes`
-`{'b','f'}` for future use. Defaults to true.
- 
-`contiguous` is a boolean. When true, makes sure the returned data is contiguous. 
-Since `inplace` makes it contiguous anyway, this parameter is only considered when `inplace=false`. Defaults to false.
-
+### [input] input([input]) ###
+When `input` is provided, sets the base Tensor to that value. Otherwise, returns the base Tensor (the `input`). 
+This method should be used with caution since it will cause errors if the `view` of the new `input` is different than 
+that of the old, in which case a `forwardPut` would be more appropriate.
 
 <a name="dp.ImageView"/>
 ## ImageView ##

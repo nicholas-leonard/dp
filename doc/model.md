@@ -137,6 +137,23 @@ Assumes that 2D parameters are arranged : `output_dim x input_dim`.
 
 <a name='dp.Neural'/>
 ## Neural ##
+[Linear](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Linear) (an affine transformation) followed by a [Transfer](https://github.com/torch/nn/blob/master/doc/transfer.md) Module. 
+Both the `input_view` and `output_view` are _bf_. 
+
+<a name='dp.Neural.__init'/>
+### dp.Neural{input_size, output_size, transfer} ###
+Constructs a Neural. Arguments should be specified as key-value pairs. Other then the following 
+arguments, those specified in [Layer](#dp.Layer.__init) also apply.
+
+`input_size` specifies the number of input neurons.
+
+`output_size` specifies the Number of output neurons.
+
+`transfer` is a [Transfer](https://github.com/torch/nn/blob/master/doc/transfer.md) Module instance like [Tanh](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Tanh),
+[Sigmoid](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Sigmoid), 
+[ReLU]([ReLU](https://github.com/clementfarabet/lua---nnx/blob/master/ReLU.lua), etc. If the intent is to 
+use Neural as a linear affine transform (without a non-linearity), one can use an
+[Identity](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Identity) Module instance.
 
 <a name='dp.Container'/>
 ## Container ##

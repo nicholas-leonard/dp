@@ -18,7 +18,7 @@ A `tensor_type` is a string like : _torch.FloatTensor_, _torch.DoubleTensor_, _t
 _torch.CudaTensor_, etc. The type of a Tensor provided via `forwardPut` or `backwardPut` is implicitly ascertained 
 via `torch.typename(tensor)` and thus does not need to be explicitly provided as an argument.
 
-A `view` is a string like : `bf`, `bwc`, `bhwc`, `chwb`, `b`, etc. Each character in the string identifies a type of axis.
+A `view` is a string like : _bf_, _bwc_, _bhwc_, _chwb_, _b_, etc. Each character in the string identifies a type of axis.
 Possible axis symbols are : 
  1. Standard Axes: 
   * _b_ : Batch/Example 

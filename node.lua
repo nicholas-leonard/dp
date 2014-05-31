@@ -61,38 +61,6 @@ end
 function Node:report()
 end
 
---- carry table is carried throughout the graph. 
---- Nodes can modify it but should avoid deleting attributes.
---- Useful when you want to forward information to a later Node
---- in the graph seperated by an unknown number of Nodes
-function Node:forward(input, carry)
-   error"Not Implemented"
-end
-
-function Node:_forward(carry)
-   error"Not Implemented"
-end
-
--- like forward, but for evaluation purposes (valid/test).
--- this is useful for stochastic Modules like Dropout, which have 
--- different behavior for training than for evaluation.
-function Node:evaluate(input, carry)
-   error"Not Implemented"
-end
-
---default is to call forward (only diff is 'evaluate' flag in carry)
-function Node:_evaluate(carry)
-   return self:_forward(carry)
-end
-
-function Node:backward(output, carry)
-   error"Not Implemented"
-end
-
-function Node:_backward(carry)
-   error"Not Implemented"
-end
-
 function Node:zeroStatistics()
    self._stats = {nSample=0}
    self:_zeroStatistics()

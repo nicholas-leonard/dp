@@ -42,18 +42,22 @@ Observers can also use data found in the reports generated every epoch for annea
 values, early-stopping, etc. Propagators and Experiments also have reports such that these 
 call the reports of their internal objects to generate a sub-tree of the final report.
 
-<a name="dp.Node.forward"/>
-### [output] forward(input, carry) ###
-Forwards an `input` [View](node.md#dp.View) to generate an `output` View.
+<a name="dp.Node.zeroStatistics"/>
+### zeroStatistics() ###
+Zeros statistics between epochs.
 
-`input` is a [View](node.md#dp.View) that should have been previously filled by a [forwardPut](view.md#dp.View.forwardPut). 
-The Node will call one or many [forwardGets](view.md#dp.View.forwardGet) to retrieve a Tensor in a suitable format for forward 
-propagation through the Node's [Modules](https://github.com/torch/nn/blob/master/doc/module.md#module) 
-or [Criterions](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.Criterion).
+<a name="dp.Node.updateStatistics"/>
+### updateStatistics(carry) ###
+Should only be called by forward or evaluate (once per batch). Uses 
+its internal state and metadata found in `carry` table (see [Model](model.md#dp.Model.forward) and [Loss](loss.md#dp.Loss.forward)), 
+to upsate its internal `self._stats` table of statistics.
 
-`carry` is a table is carried throughout the graph. A Node can modify it, but should avoid deleting attributes.
-This is useful when you want to forward information to a later Node in the graph seperated by an unknown number of Nodes.
+<a name="dp.Node.doneBatch"/>
+### doneBatch(...) ###
+This should be called on completion of each batch propagation. It can reset its internal state for the next batch, accumulate statistics on the batch, 
+zero parameter gradients, etc.
 
-In the case of a Model, the returned `output` is a View filled using a forwardPut. In the case of a Loss, it is a scalar 
-measure of the loss.
-
+<a name="dp.Node.doneEpoch"/>
+### doneEpoch([report,] ...) ###
+This should be called between each epoch to to [zeroStatistics](#dp.Node.zeroStatistics) and such. 
+Altough seldom used in practive, the optional `report` argument contains a complete report of the epoch. 

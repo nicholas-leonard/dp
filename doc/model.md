@@ -1,10 +1,11 @@
-# Models #  
- * [Model](#dp.Model)
-   * [Layer](#dp.Layer)
-    * [Neural](#dp.Neural)
-    * [Convolution1D](#dp.Convolution1D)
-   * [Container](#dp.Container)
-    * [Sequential](#dp.Sequential)
+# Models  #
+
+ * [Model](#dp.Model) : abstract class inherited by Layer and Container;
+ * [Layer](#dp.Layer) : abstract class inherited by component Models ;
+   * [Neural](#dp.Neural) : Linear followed by a Transfer Module;
+   * [Convolution1D](#dp.Convolution1D) : SpatialConvolution followed by a Transfer Module and SpatialMaxPooling;
+ * [Container](#dp.Container) : abstract class inherited by composite Models;
+   * [Sequential](#dp.Sequential) : a sequence of Models.
 
 <a name="dp.Model"/>
 ## Model ##
@@ -75,6 +76,43 @@ accumulate `pastGrads` for each triplet.
 ### accept(visitor) ###
 Accepts a `visitor` Visitor that will visit the Model and any of its component Models. This is how the Model's parameters are updated.
 
-<a name='dp.Model.reset"/>
+<a name="dp.Model.reset"/>
 ### reset() ###
 Resets the parameters of the Model.
+
+<a name='dp.Layer'/>
+## Layer ##
+Abstract class inherited by component [Models](#dp.Model). 
+The opposite of [Container](#dp.Container) in that it doesn't contain other Models.
+The Layer should be parameterized.
+
+<a name='dp.Layer.__init'/>
+### dp.Layer{input_view, output_view, output, [dropout, sparse_init]} ###
+Constructs a Layer. Arguments should be specified as key-value pairs. Other then the following 
+arguments, those specified in [Model](#dp.Model.__init) also apply.
+
+`input_view` is a string specifying the `view` of the `input` [View](view.md#dp.View) like _bf_, _bhwc_, etc. 
+This is usually hardcoded for each sub-class.
+
+`output_view` is a string specifying the `view` of the `output` [View](view.md#dp.View) like _bf_, _bhwc_, etc.
+This is usually hardcoded for each sub-class.
+
+`output` is a [View](view.md#dp.View) used for communicating outputs and gradOutputs. 
+This is usually hardcoded for each sub-class.
+      
+`dropout` is a [Dropout](https://github.com/clementfarabet/lua---nnx/blob/master/Dropout.lua) Module instance. When provided, 
+it is applied to the inputs of the Model. Defaults to not using dropout.
+
+`sparse_init` is a boolean with a default value of true. When true, applies a sparse initialization of weights. See Martens (2010), [Deep learning via Hessian-free optimization](http://machinelearning.wustl.edu/mlpapers/paper_files/icml2010_Martens10.pdf). This is 
+the recommended initialization for [ReLU](https://github.com/clementfarabet/lua---nnx/blob/master/ReLU.lua) Transfer Modules.
+
+<a name='dp.Neural'/>
+## Neural ##
+
+<a name='dp.Container'/>
+## Container ##
+
+<a name='dp.Sequential'/>
+## Sequential ##
+
+

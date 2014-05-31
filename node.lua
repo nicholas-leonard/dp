@@ -61,6 +61,7 @@ end
 function Node:report()
 end
 
+-- zero statistics between epochs
 function Node:zeroStatistics()
    self._stats = {nSample=0}
    self:_zeroStatistics()

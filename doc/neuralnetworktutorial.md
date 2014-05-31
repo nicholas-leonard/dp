@@ -8,7 +8,7 @@ require 'dp'
 Note : package [Moses](https://github.com/Yonaba/Moses/blob/master/docs/moses.md) is imported as `_`. So `_` shouldn't be used for dummy variables, instead 
 use the much more annoying `__`, or whatnot. 
 
-Lets define some hyper-parameters and store them in a table. We will need them later:
+Lets define some hyper-parameters and store them into a table. We will need them later:
 ```lua
 --[[hyperparameters]]--
 opt = {
@@ -32,7 +32,7 @@ tutorial we will be using the archtypical MNIST (don't leave home without it):
 --[[data]]--
 datasource = dp.Mnist{input_preprocess = dp.Standardize()}
 ```
-A `datasource` contains up to three [Datasets](../data/dataset.lua): 
+A DataSource contains up to three [Datasets](../data/dataset.lua): 
 `train`, `valid` and `test`. The first if for training the model. 
 The second is used for [early-stopping](observer/earlystopper.lua).
 The third is used for publishing papers and comparing different models.
@@ -40,16 +40,16 @@ The third is used for publishing papers and comparing different models.
 Although not really necessary, we [Standardize](../preprocess/standardize.lua) 
 the datasource, which subtracts the mean and divides 
 by the standard deviation. Both statistics (mean and standard deviation) are 
-measured on the `train` set only. This is common pattern when preprocessing. 
+measured on the `train` set only. This is a common pattern when preprocessing data. 
 When statistics need to be measured accross different examples 
-(as in [ZCA](../preprocess/zca.lua) and [LecunLCN](../preprocess/lecunlcn.lua) preprocesses), 
+(as in [ZCA](preprocess.md#dp.ZCA) and [LecunLCN](../preprocess/lecunlcn.lua) preprocesses), 
 we fit the preprocessor on the `train` set and apply it to all sets (`train`, `valid` and `test`). 
 However, some preprocesses require that statistics be measured
-only on each example (as in [global constrast normalization](../preprocess/gcn.lua)). 
+only on each example (as in [global constrast normalization](preprocess.md#dp.GCN)). 
 
 ## Model of Modules ##
-Ok so we have a `datasource`, now we need a `model`. Lets build a 
-multi-layer perceptron (MLP) with two parameterized non-linear layers:
+Ok so we have a DataSource, now we need a [Model](model.md#dp.Model). Lets build a 
+multi-layer perceptron (MLP) with two parameterized non-linear [Neural](model.md#dp.Neural) [Layers](model.md#dp.Layer):
 ```lua
 --[[Model]]--
 model = dp.Sequential{
@@ -67,38 +67,39 @@ model = dp.Sequential{
    }
 }
 ```
-Both layers are defined using [Neural](../model/neural.lua), which require an `input_size` 
+Both layers are defined using [Neural](model.md#dp.Neural), which require an `input_size` 
 (number of input neurons), an `output_size` (number of output neurons) and a 
-[transfer function](https://github.com/torch/nn/blob/master/README.md#nn.transfer.dok).
+[Transfer](https://github.com/torch/nn/blob/master/doc/transfer.md) Module.
 We use the `datasource:featureSize()` and `datasource:classes()` methods to access the
 number of input features and output classes, respectively. As for the number of 
-hidden neurons, we use our `opt` table of hyper-parameters. The `transfer` functions 
-used are the `nn.Tanh()` (for the hidden neurons) and `nn.LogSoftMax` (for the output neurons).
-The latter might seem odd (why not use `nn.SoftMax` instead?), but the the `nn.ClassNLLCriterion` 
-only works with `nn.LogSoftMax`. Besides, unlike `nn.SoftMax`, `nn.LogSoftMax` is implemented in 
-[cutorch](https://github.com/torch/cutorch), which means it can run on CUDA-capable GPUs.
+hidden neurons, we use our `opt` table of hyper-parameters. The Transfer
+[Modules](https://github.com/torch/nn/blob/master/doc/module.md#nn.Module) 
+used are the [Tanh](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Tanh) (for the hidden neurons) 
+and [LogSoftMax](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.LogSoftMax) (for the output neurons).
+The latter might seem odd (why not use [SoftMax](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.SoftMax) instead?), 
+but the [ClassNLLCriterion](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.ClassNLLCriterion) only works 
+with LogSoftMax (or with SoftMax + [Log](https://github.com/torch/nn/blob/master/Log.lua)).
 
 Both models initialize parameters using the default sparse initialization 
 (see [Martens 2010](http://machinelearning.wustl.edu/mlpapers/paper_files/icml2010_Martens10.pdf)). 
 If you construct it with argument `sparse_init=false`, it will delegate parameter initialization to 
-`nn.Linear`, which is what `Neural` uses internally for its parameters.
+[Linear](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Linear), which is what Neural uses internally for its parameters.
 
-These two `Neural` models are combined to form an MLP using the [Sequential](../model/sequential.lua), 
-which is not to be confused with (yet very similar to), 
-[nn.Sequential](https://github.com/torch/nn/blob/master/README.md#sequential). It differs in that
+These two Neural [Models](model.md#dp.Model) are combined to form an MLP using the [Sequential](model.md#dp.Sequential), 
+which is not to be confused with (yet very similar to) the 
+[Sequential](https://github.com/torch/nn/blob/master/containers.md#nn.Sequential) Module. It differs in that
 it can be constructed from a list of [Models](../model/model.lua) instead of 
-[nn.Modules](https://github.com/torch/nn/blob/master/README.md#nn.Modules). `Models` have extra 
-methods, allowing them to be `accept` [Visitors](visitor/visitor.lua), to communicate with 
-other components through a [Mediator](../mediator.lua), or `setup` with variables after initialization.
-`Model` instances also differ from `nn.Module` in their ability to `forward` and `backward` 
-complex `states`.  
+[Modules](https://github.com/torch/nn/blob/master/module.md#modules). Models have extra 
+methods, allowing them to [accept](model.md#dp.Model.accept) [Visitors](visitor/visitor.lua), to communicate with 
+other components through a [Mediator](../mediator.lua), or [setup](node.md#dp.Node.setup) with variables after initialization.
+Model instances also differ from Modules in their ability to [forward](model.md#dp.Model.forward) 
+and [backward](model.md#dp.Model.backward) using [Views](view.md#dp.View).  
 
 ## Propagator ##
 Next we initialize some [Propagators](../propagator/propagator.lua). 
-Each such `propagator` will propagate examples from a different `dataset`.
-[Samplers](../data/sampler.lua) iterate over `datasets` to 
-generate batches of examples (inputs and targets) to propagated through 
-the `model`:
+Each such Propagator will propagate examples from a different [DataSet](data.md#dp.DataSet).
+[Samplers](../data/sampler.lua) iterate over DataSets to 
+generate batches of examples (inputs and targets) to propagated through the `model`:
 ```lua
 --[[Propagators]]--
 train = dp.Optimizer{
@@ -123,50 +124,51 @@ test = dp.Evaluator{
    sampler = dp.Sampler{}
 }
 ```
-For this example, we use an [Optimizer](../propagator/optimizer.lua) for the training set,
+For this example, we use an [Optimizer](../propagator/optimizer.lua) for the training DataSet,
 and two [Evaluators](../propagator/evaluator.lua), one for cross-validation 
 and another for testing. 
 
 ### Sampler ###
-The evaluators use the a simple `sampler` which 
-iterates sequentially through the dataset. On the other hand, the optimizer 
-uses a `ShuffleSampler` to iterate through the dataset. This `sampler` 
-shuffles the `dataset` before each epoch (an epoch is a complete iteration 
-over a `dataset`). This shuffling is useful for training since the model 
+The Evaluators use a simple Sampler which 
+iterates sequentially through the DataSet. On the other hand, the Optimizer 
+uses a [ShuffleSampler](../data/sampler.lua) to iterate through the DataSet. This Sampler
+shuffles the DataSet before each epoch (an epoch is usually defined as an iteration 
+over a DataSet). This shuffling is useful for training since the model 
 must learn from varying sequences of batches at each epoch, which makes the
 training algorithm more stochastic.
 
 ### Loss ###
-Each propagator must also specify a `loss` for training or evaluation.
-If you have previously used the `nn` package, there is nothing new here, 
-a [Loss](loss/loss.lua) is simply an adapter of [nn.Criterion](https://github.com/torch/nn/blob/master/README.md#nn.Criterion). 
-Each example has a single target class and our model output is `nn.LogSoftMax` so 
-we use a [NLL](loss/nll.lua), which wraps a  [nn.ClassNLLCriterion](https://github.com/torch/nn/blob/master/README.md#nn.ClassNLLCriterion).
+Each Propagator must also specify a [Loss](loss.md#dp.Loss) for training or evaluation.
+If you have previously used the [nn](https://github.com/torch/nn/blob/master/README.md) package, there is nothing new here, 
+a [Loss](loss/loss.lua) is simply an adapter of [Criterions](https://github.com/torch/nn/blob/master/criterion.md#nn.Criterion). 
+Each example has a single target class and our Model output is LogSoftMax so 
+we use a [NLL](loss.md#dp.NLL), which wraps a 
+[ClassNLLCriterion](https://github.com/torch/nn/blob/master/criterion.md#nn.ClassNLLCriterion).
 
 ### Feedback ###
-The `feedback` parameter is used to provide us with feedback like performance measures and
+The `feedback` parameter is used to provide us with, you guessed it, feedback, like performance measures and
 statistics after each epoch. We use [Confusion](../feedback/confusion.lua), which is a wrapper 
 for the [optim](https://github.com/torch/optim/blob/master/README.md) package's 
 [ConfusionMatrix](https://github.com/torch/optim/blob/master/ConfusionMatrix.lua).
-While our `criterions` measure the Negative Log-Likelihood (NLL) of the model 
-on different datasets, our `feedbacks` measure classification accuracy (which is what 
+While our Loss measures the Negative Log-Likelihood (NLL) of the Model 
+on different DataSets, our Feedback measures classification accuracy (which is what 
 we will use for early-stopping and comparing our model to the state of the art).
 
 ### Visitor ###
-Since the optimizer is used to train the model on a dataset, we all need to specify some 
-visitors to update its parameters. We want to update the model by sequentially appling 
+Since the Optimizer is used to train the Model on a DataSet, we all need to specify some 
+Visitors to update its [parameters](model.md#dp.Model.parameters). We want to update the Model by sequentially appling 
 three visitors: 
  1. [Momentum](../visitor/momentum.lua) : updates parameter gradients using a factored mixture of current and previous gradients.
  2. [Learn](../visitor/learn.lua) : updates the parameters using the gradients and a learning rate.
  3. [MaxNorm](../visitor/maxnorm.lua) : updates output or input neuron weights (in this case, output) so that they have a norm less or equal to a specified value.
 
-The only mandatory visitor is the second one, which does the actual parameter updates (learning). The first is the well known 
+The only mandatory Visitor is the second one (Learn), which does the actual parameter updates (learning). The first is the well known 
 momentum. The last is the lesser known hard constraint on the norm of output or input neuron weights 
 (see [Hinton 2012](http://arxiv.org/pdf/1207.0580v1.pdf)), which acts as a regularizer. You could also
 replace it with a more classic regularizer like [WeightDecay](../visitor/weightdecay.lua), in which case you 
-would have to put it before the `Learn` visitor.
+would have to put it before the Learn visitor.
 
-Finally, we have the optimizer switch on its `progress` bar so we 
+Finally, we have the Optimizer switch on its `progress` bar so we 
 can monitor its progress during training. 
 
 ## Experiment ##
@@ -191,39 +193,38 @@ xp = dp.Experiment{
 }
 ```
 ### Observer ###
-The experiment can be initialized with a list of [Observers](../observer/observer.lua). The 
-order is not important. Observers listen to mediator [Channels](mediator.lua). The mediator 
-calls them back when certain events occur. In particular, they may listen to the `"doneEpoch"`
-channel to receive a report from the experiment after each epoch. A report is nothing more than 
-a hierarchy of tables. After each epoch, the components objects of the experiment (except `Observers`) 
-can submit a report to its composite parent thereby forming a tree of reports. The observers can analyse 
-these and modify the component which they are assigned to (in this case, experiment). 
-Observers may be attached to experiments, propagators, visitors, etc. 
+The Experiment can be initialized with a list of [Observers](../observer/observer.lua). The 
+order is not important. Observers listen to mediator [Channels](mediator.lua). The Mediator 
+calls them back when certain events occur. In particular, they may listen to the _doneEpoch_
+Channel to receive a report from the Experiment after each epoch. A report is nothing more than 
+a hierarchy of tables. After each epoch, the component objects of the Experiment (except Observers) 
+can submit a report to its composite parent thereby forming a tree of reports. The Observers can analyse 
+these and modify the component which they are assigned to (in this case, Experiment). 
+Observers may be attached to Experiments, Propagators, Visitors, etc. 
 
 #### FileLogger ####
 Here we use a simple [FileLogger](../observer/filelogger.lua) which will 
 store serialized reports in a simple text file for later use. Each experiment has a unique ID which are 
-included in reports, thus allowing the `FileLogger` to name its file appropriately. 
+included in reports, thus allowing the FileLogger to name its file appropriately. 
 
 #### EarlyStopper ####
-The [EarlyStopper](../observer/earlystopper.lua) is used for stopping the experiment when error has not decreased, or accuracy has not 
-be maximized. It also saves onto disk the best version of the experiment when it finds a new one. 
-It is initialized with a channel to `maximize` or minimize (default is to minimize). In this case we intend 
-to early-stop the experiment on a field of the report, in particular the `accuracy` field of the 
-`confusion` table of the `feedback` table of the `validator`. 
-This `{'validator','feedback','confusion','accuracy'}` happens to measure the accuracy of the model on the 
-validation `dataset` after each training epoch. So by early-stopping on this measure, we hope to find a 
-model that generalizes well. The parameter `max_epochs` indicates how much consecutive 
+The [EarlyStopper](../observer/earlystopper.lua) is used for stopping the Experiment when error has not decreased, or accuracy has not 
+be maximized. It also saves onto disk the best version of the Experiment when it finds a new one. 
+It is initialized with a channel to `maximize` or minimize (default is to minimize). In this case, we intend 
+to early-stop the experiment on a field of the report, in particular the _accuracy_ field of the 
+_confusion_ table of the _feedback_ table of the `validator`. 
+This `{'validator','feedback','confusion','accuracy'}` happens to measure the accuracy of the Model on the 
+validation DataSet after each training epoch. So by early-stopping on this measure, we hope to find a 
+Model that generalizes well. The parameter `max_epochs` indicates how much consecutive 
 epochs of training can occur without finding a new best model before the experiment is signaled to stop 
-on the `"doneExperiment"` mediator channel.
+on the _doneExperiment_ Mediator Channel.
 
 ## Running the Experiment ##
-
 Once we have initialized the experiment, we need only run it on the `datasource` to begin training.
 ```lua
 xp:run(datasource)
 ```
-We don't initilize the experiment with the datasource so that we may easily 
+We don't initilize the Experiment with the DataSource so that we may easily 
 save it onto disk, thereby keeping this snapshot separate from its data 
 (which shouldn't be modified by the experiment).
 

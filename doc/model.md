@@ -1,16 +1,11 @@
-# Model #  
-* [BaseSet](#dp.BaseSet)
-     * [DataSet](#dp.DataSet) :
-      * [SentenceSet](#dp.SentenceSet)
-     * [Batch](#dp.Batch)
-  * [DataSource](#dp.DataSource) :
-    * [Mnist](#dp.Mnist)
-    * [NotMnist](#dp.NotMnist)
-    * [Cifar10](#dp.Cifar10)
-    * [Cifar100](#dp.Cifar100)
-    * [BillionWords](#dp.BillionWords)
-  * [Sampler](#dp.Sampler) :
-    * [ShuffleSampler](#dp.ShuffleSampler) 
+# Models #  
+ * [Model](#dp.Model)
+   * [Layer](#dp.Layer)
+    * [Neural](#dp.Neural)
+    * [Convolution1D](#dp.Convolution1D)
+   * [Container](#dp.Container)
+    * [Sequential](#dp.Sequential)
 
-<a name="dp.BaseSet"/>
-## BaseSet ##
+<a name="dp.Model"/>
+## Model ##
+

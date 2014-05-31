@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------
 --[[ Node ]]--
 -- Abstract Class
--- Inherited by Node and Loss
+-- Inherited by Model and Loss
 -- Forward and backward propagates representations.
 ------------------------------------------------------------------------
 local Node = torch.class("dp.Node")
@@ -34,10 +34,11 @@ function Node:setup(config)
    assert(type(config) == 'table', "Setup requires key-value arguments")
    local args, mediator, id = xlua.unpack(
       {config},
-      'Node:setup', nil,
+      'Node:setup', 
+      'post-initialization setup method',
       {arg='mediator', type='dp.Mediator', 
        help='allows Nodes to signal other object of events.'},
-      {arg='id', type='dp.ObjectID',
+      {arg='id', type='dp.ObjectID', 
        help='Uniquely identifies node.'}
    )
    self._mediator = mediator

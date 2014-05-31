@@ -157,8 +157,33 @@ use Neural as a linear affine transform (without a non-linearity), one can use a
 
 <a name='dp.Container'/>
 ## Container ##
+Abstract class inherited by composite [Models](#dp.Model).
+
+<a name='dp.Container.__init'/>
+### dp.Container{models} ###
+Constructs a Neural. Arguments should be specified as key-value pairs. Other then the following 
+arguments, those specified in [Model](#dp.Model.__init) also apply.
+
+`models` is a table of Models. 
+
+<a name='dp.Container.extend'/>
+### extend(models) ###
+Adds `models` to the end of the existing composite of models.
+
+<a name='dp.Container.add'/>
+### add(model) ###
+Add `model` to the end of the existing composite of models.
+
+<a name='dp.Container.size'/>
+### [size] size() ###
+Returns the number of `models` in the Container.
+
+<a name='dp.Container.get'/>
+### [model] get(index) ###
+Returns the component Model at index `index`.
 
 <a name='dp.Sequential'/>
 ## Sequential ##
+
 
 

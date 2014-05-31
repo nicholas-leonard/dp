@@ -106,6 +106,35 @@ it is applied to the inputs of the Model. Defaults to not using dropout.
 `sparse_init` is a boolean with a default value of true. When true, applies a sparse initialization of weights. See Martens (2010), [Deep learning via Hessian-free optimization](http://machinelearning.wustl.edu/mlpapers/paper_files/icml2010_Martens10.pdf). This is 
 the recommended initialization for [ReLU](https://github.com/clementfarabet/lua---nnx/blob/master/ReLU.lua) Transfer Modules.
 
+<a name='dp.Layer.inputAct'/>
+### [act] inputAct() ###
+Returns the result of a [forwardGet](view.md#dp.View.forwardGet) on the Layer's `input` 
+using its `input_view` and `input_type`.
+
+<a name='dp.Layer.outputGrad'/>
+### [grad] outputGrad() ###
+Return the result of a [backwardGet](view.md#dp.View.backwardGet) on the Layer's `output` 
+using its `output_view` and `output_type`.
+
+<a name='dp.Layer.inputGrad'/>
+### inputGrad(input_grad) ###
+Sets the Layer's `input` gradient by calling its [backwardPut](view.md#dp.View.backwardPut) using its `input_view` 
+and the provided `input_grad` Tensor.
+
+<a name='dp.Layer.outputAct'/>
+### outputAct(output_act) ###
+Sets the Layer's `output` activation by calling its [forwardPut](view.md#dp.View.forwardPut) using its `output_view` 
+and the provided `output_act` Tensor.
+
+<a name='dp.Layer.maxNorm'/>
+### maxNorm(max_out_norm, max_in_norm) ###
+A method called by the MaxNorm Visitor. Imposes a hard constraint on the upper bound of the norm of output and/or input
+neuron weights (in a weight matrix). Has a regularization effect analogous to WeightDecay, but with easier to optimize 
+hyper-parameters. Quite useful with unbounded Transfer Modules like ReLU.
+
+Only affects 2D [parameters](#dp.Model.parameters) like the usual `weights`. 
+Assumes that 2D parameters are arranged : `output_dim x input_dim`.
+
 <a name='dp.Neural'/>
 ## Neural ##
 

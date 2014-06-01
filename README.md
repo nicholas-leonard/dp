@@ -23,17 +23,17 @@ In order to help you get up and running we provide a quick [neural network tutor
 ## dp Packages ##
 	
   * Data Library
-    * [View](doc/view.md) : [Views](doc/view.md#dp.View) like [DataView](doc/view.md#dp.DataView), [ImageView](doc/view.md#dp.ImageView) and [ClassView](doc/view.md#dp.ClassView);
-    * [Data](doc/data.md) : [BaseSets](doc/data.md#dp.BaseSet) like [Batch](doc/data.md#dp.Batch) and [DataSet](doc/data.md#dp.DataSet), and [DataSources](doc/data.md#dp.DataSource) like [Mnist](doc/data.md#dp.Mnist) and [BillionWords](doc/data.md#dp.BillionWords);
-    * [Preprocess](doc/preprocess.md) : [Preprocesses](doc/preprocess.md#dp.Preprocess) like [ZCA](doc/preprocess.md#dp.ZCA) and [Standardize](doc/preprocess.md#dp.Standardize);
+    * [View](doc/view.md) : Tensor containers like [DataView](doc/view.md#dp.DataView), [ImageView](doc/view.md#dp.ImageView) and [ClassView](doc/view.md#dp.ClassView);
+    * [Data](doc/data.md) : View containers like like [Batch](doc/data.md#dp.Batch) and [DataSet](doc/data.md#dp.DataSet), and [DataSources](doc/data.md#dp.DataSource) like [Mnist](doc/data.md#dp.Mnist) and [BillionWords](doc/data.md#dp.BillionWords);
+    * [Preprocess](doc/preprocess.md) : data preprocessing like [ZCA](doc/preprocess.md#dp.ZCA) and [Standardize](doc/preprocess.md#dp.Standardize);
   * Node Library
     * [Node](doc/node.md) : abstract class that defines Model and Loss commonalities;
-    * [Model](doc/model.md) : Nodes like [Neural](doc/model.md#dp.Neural) and [Convolution2D](doc/model.md#dp.Convolution2d) that adapt [Modules](https://github.com/torch/nn/blob/master/doc/module.md#module) to [Model](doc/model.md#dp.Model);
-    * [Loss](doc/model.md) : Nodes like [NLL](doc/loss.md#dp.NLL) that adapt [Criterion](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.Criterion) to [Loss](doc/loss.md#dp.Loss);
+    * [Model](doc/model.md) : parameterized Nodes like [Neural](doc/model.md#dp.Neural) and [Convolution2D](doc/model.md#dp.Convolution2d) that adapt [Modules](https://github.com/torch/nn/blob/master/doc/module.md#module) to [Model](doc/model.md#dp.Model);
+    * [Loss](doc/loss.md) : non-parameterized Nodes like [NLL](doc/loss.md#dp.NLL) that adapt [Criterion](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.Criterion) to [Loss](doc/loss.md#dp.Loss);
   * Experiment Library
     * Experiment : trains a Model using a DataSource and a Loss;
     * Propagator : [Propagators](propagator/propagator.lua) that forward DataSets and backpropagates a Loss through a Model;
-    * Visitor : visits Models after a backward pass to update parameters, impose constraints, etc.
+    * Visitor : visits Models after a backward pass to update parameters, statistics or gradients;
   * Hyperparameter Library
     * Hyperoptimizer : explores different experiment configurations;
     * DatasourceFactory : builds a datasource;

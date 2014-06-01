@@ -43,6 +43,28 @@ training a `Model`. The indices of examples in `targets` must be aligned with th
  * *valid* for cross-validation, i.e. for early-stopping and hyper-optimization; 
  * *test* for testing, i.e. comparing your model to the current state-of-the-art and such.
 
+<a name="dp.BaseSet.preprocess"/>
+### preprocess([input_preprocess, target_preprocess, can_fit] ###
+Preprocesses the BaseSet.
+
+`input_preprocess` is [Preprocess](preprocess.md#dp.Preprocess) to be applied to 
+the input [View](view.md#dp.View) of the [BaseSet](data.md#dp.BaseSet).
+
+`target_preprocess` is [Preprocess](preprocess.md#dp.Preprocess) to be applied to 
+the target [View](view.md#dp.View) of the [BaseSet](data.md#dp.BaseSet).
+
+`can_fit` is a boolean. When true, allows measuring of statistics on the 
+View of BaseSet to initialize the Preprocess. Should normally only be 
+done on the training set. Default is to fit the training set.
+
+<a name="dp.BaseSet.inputs"/>
+### [inputs] inputs() ###
+Returns inputs [View](view.md#dp.View).
+
+<a name="dp.BaseSet.targets"/>
+### [targets] targets() ###
+Returns targets [View](view.md#dp.View).
+
 <a name="dp.DataSet"/>
 ## DataSet ##
 A concrete subclass of [BaseSet](#dp.BaseSet). A 
@@ -50,13 +72,6 @@ A concrete subclass of [BaseSet](#dp.BaseSet). A
 <a name="dp.DataSet.__init"/>
 ### dp.DataSet(which_set, inputs, [targets]) ###
 Constructs a training, validation or test DataSet from [a set of] [View](#dp.View) `inputs` and `targets`.
-
-<a name="dp.DataSet.preprocess"/>
-### preprocess([input_preprocess, target_preprocess, can_fit] ###
-TODO
-
-<a name="dp.DataSet.inputs"/>
-### [inputs] inputs([index]) ###
 
 <a name="dp.DataSource"/>
 ## DataSource ##

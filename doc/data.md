@@ -67,11 +67,24 @@ Returns targets [View](view.md#dp.View).
 
 <a name="dp.DataSet"/>
 ## DataSet ##
-A concrete subclass of [BaseSet](#dp.BaseSet). A 
+A subclass of [BaseSet](#dp.BaseSet). 
 
-<a name="dp.DataSet.__init"/>
-### dp.DataSet(which_set, inputs, [targets]) ###
-Constructs a training, validation or test DataSet from [a set of] [View](#dp.View) `inputs` and `targets`.
+<a name='dp.DataSet.batch'/>
+### batch(batch_size) ###
+A factory method that builds a [Batch](#dp.Batch) of size `batch_size`. It effectively 
+calls [sub](#dp.DataSet.sub) with arguments `start=1` and `stop=batch_size`. This method 
+reuses the DataSet's inputs and targets, such that these shouldn't be modified, unless the 
+intent is to modify the original DataSet.
+
+<a name='dp.DataSet.sub'/>
+### sub(start, stop, [new]) ###
+A factory method that builds a [Batch](#dp.Batch) by calling [sub](view.md#dp.View.sub) 
+with argument `start` and `stop` on the DataSet's inputs and targets.
+This method reuses the DataSet's inputs and targets, such that these shouldn't be modified, unless the 
+intent is to modify the original DataSet.
+
+<a name='dp.DataSet.index'/>
+### index([batch,] indices) ###
 
 <a name="dp.DataSource"/>
 ## DataSource ##

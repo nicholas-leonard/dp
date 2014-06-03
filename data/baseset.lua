@@ -76,8 +76,7 @@ function BaseSet:targets()
    return self._targets
 end
 
---Preprocesses are applied to DataViews, which means that 
--- View:forward(), can be used.
+--Preprocesses are applied to DataViews
 function BaseSet:preprocess(config)
    config = config or {}
    assert(torch.type(config) == 'table' and not config[1], 

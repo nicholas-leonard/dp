@@ -79,7 +79,7 @@ function View:index(v, indices)
    error"Not Implemented"
 end
 
-function View:sub(start, stop)
+function View:sub(v, start, stop)
    error"Not Implemented"
 end
 

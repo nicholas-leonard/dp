@@ -276,23 +276,26 @@ function DataView:index(v, indices)
    return v
 end
 
---Returns a sub-datatensor narrowed on the batch dimension
-function DataView:sub(start, stop, new)
+--Returns a sub-view narrowed on the batch dimension
+function DataView:sub(v, start, stop)
    local b_pos = self:findAxis('b')
-   local data = self._input:narrow(b_pos, start, stop-start+1)
-   local v
-   if new then
-      v = torch.protoClone(self)
-   else
-      v = self._v
-      if not v then
-         v = torch.protoClone(self)
-         self._v = v
+   local data
+   if v and stop then
+      if torch.type(v) ~= torch.type(self) then
+         error("Expecting "..torch.type(self).." at arg 1 "..
+               "got "..torch.type(v).." instead")
       end
+      if v._view and self._view ~= v._view then
+         error("Expecting arg 1 to have same view")
+      end
+   else
+      if v then
+         stop = start
+         start = v
+      end
+      v = torch.protoClone(self)
    end
-   if v._view then
-      assert(self._view == v._view, "Expecting arg 1 to have same view")
-   end
+   local data = self._input:narrow(b_pos, start, stop-start+1)
    v:forward(self._view, data)
    return v
 end

@@ -94,7 +94,7 @@ function Layer:parameters()
 end
 
 -- Only affects 2D parameters.
--- Assumes that 2D parameters are aranged (output_dim x input_dim)
+-- Assumes that 2D parameters are arranged (output_dim x input_dim)
 function Layer:maxNorm(max_out_norm, max_in_norm)
    assert(self.backwarded, "Should call maxNorm after a backward pass")
    max_out_norm = self.mvstate.max_out_norm or max_out_norm

@@ -2,7 +2,6 @@
 --[[ Neural ]]--
 -- An affine transformation followed by a transfer function.
 -- For a linear transformation, you can use nn.Identity.
--- Works on a DataView:feature() view.
 ------------------------------------------------------------------------
 local Neural, parent = torch.class("dp.Neural", "dp.Layer")
 Neural.isNeural = true

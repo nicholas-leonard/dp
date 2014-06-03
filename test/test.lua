@@ -44,6 +44,13 @@ function dptest.dataview()
    mytester:assertTensorEq(v3._input, v2:forward('bf', 'torch.DoubleTensor'), 0.0000001)
    local v4 = v:index(nil, indices)
    mytester:assertTensorEq(v4:forward('bf', 'torch.DoubleTensor'), v2:forward('bf', 'torch.DoubleTensor'), 0.0000001)
+   -- sub
+   local v5 = v:sub(2,3)
+   mytester:assertTensorEq(v2:forward('bf', 'torch.DoubleTensor'), v5:forward('bf', 'torch.DoubleTensor'), 0.000001)
+   local v6 = v:sub(nil, 2,3)
+   mytester:assertTensorEq(v2:forward('bf', 'torch.DoubleTensor'), v6:forward('bf', 'torch.DoubleTensor'), 0.000001)
+   v:sub(v6, 1, 2)
+   mytester:assertTensorEq(v6:forward('bf', 'torch.DoubleTensor'), data:sub(1,2), 0.000001)
 end
 function dptest.imageview()
    local size = {8,32,32,3}
@@ -489,7 +496,10 @@ function dptest.dictionary()
    output:backward('bwc', grad_tensor)
    input = layer:backward(output, carry)
    -- should be able to get input gradients
-   mytester:assert(not pcall(function() input:backward('bt') end ))
+   local function f() 
+      input:backward('bt') 
+   end 
+   mytester:assert(not pcall(f))
    -- nn
    local mlp = nn.LookupTable(100,50)
    mlp:share(layer._module, 'weight')

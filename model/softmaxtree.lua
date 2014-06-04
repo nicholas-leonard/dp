@@ -75,14 +75,15 @@ function SoftmaxTree:paramModule()
 end
 
 function SoftmaxTree:_type(type)
-   if type == 'torch.FloatTensor' or type == 'torch.DoubleTensor' then
-      self._input_type = type
-      self._output_type = type
-      if self._dropout then
-         self._dropout:type(type)
-      end
-      self._module:type(type)
+   self._input_type = type
+   self._output_type = type
+   if self._dropout then
+      self._dropout:type(type)
    end
+   if type == 'torch.CudaTensor' then
+      require 'cunnx'
+   end
+   self._module:type(type)
    return self
 end
 
@@ -112,7 +113,7 @@ function SoftmaxTree:share(layer)
    layer._children = self._children
    layer._leafs = self._leafs
    -- make sure they have the same type
-   layer._module:share(self._module, 'weight', 'bias') --TODO: share grads as well
+   layer._module:share(self._module, 'weight', 'bias') --TODO: share grads as well?
    layer._module.parentIds = self._module.parentIds
    layer._module.childIds = self._module.childIds
    layer._module.parentChildren = self._module.parentChildren

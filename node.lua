@@ -184,6 +184,11 @@ function Node:long()
    return self:type('torch.LongTensor')
 end
 
+--default is to call forward (only diff is 'evaluate' flag in carry)
+function Node:_evaluate(carry)
+   return self:_forward(carry)
+end
+
 --[[
 -- experimental (would allow for one chained RPC call for both backward forward)
 function Node:flux(carry)

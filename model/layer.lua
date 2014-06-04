@@ -131,6 +131,18 @@ function Layer:sharedClone()
    return clone:share(self, 'weight', 'bias')
 end
 
+-- changes the type of internal variables inplace (same as nn)
+-- returns self
+function Layer:type(new_type)
+   if new_type then
+      self:_type(new_type)
+      self.output:flush() -- this is why we reimplement this method
+      self:moduleType(new_type)
+      collectgarbage()
+   end
+   return self
+end
+
 -- static method for initializing weights matrices
 -- first dim is for outputs, second is for inputs
 function Layer._sparseReset(W, stdev)

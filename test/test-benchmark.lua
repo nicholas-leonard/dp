@@ -1,12 +1,14 @@
 require 'dp'
+require 'cutorch'
+require 'cunn'
+require 'cunnx'
+
 local dptest = {}
 local precision_forward = 1e-4
 local precision_backward = 1e-2
-local nloop = 10
+local nloop = 1000
 local times = {}
 local dptestx = {}
-
---torch.setdefaulttensortype('torch.FloatTensor')
 
 function dptest.languagemodel()
    local ds = dp.BillionWords{train_file='train_tiny.th7',context_size=5}
@@ -14,7 +16,7 @@ function dptest.languagemodel()
    local train = ds:trainSet()
    local nn_inputs = {}
    local a = torch.Timer()
-   for i=1,10000,512 do
+   for i=1,nloop,512 do
       local batch = train:sub(i,i+511)
       local targets = batch:targets():forward('b')
       table.insert(nn_inputs, {batch:inputs():forward('bt'), targets})
@@ -47,14 +49,14 @@ function dptest.languagemodel()
    
    a:reset()
    local resdp, batch
-   for i=1,10000,512 do
+   for i=1,nloop,512 do
       batch = train:sub(batch, i, i+511)
       local carry = batch:carry()
       carry.nSample = 512
       resdp = model:forward(batch:inputs(), carry)
    end
    tm.dp = a:time().real
-   print("dp Time ".. a:time().real)
+   print("dp Time ".. a:time().real)--]]
    
    local tm4 = {}
    local title = 'language model forward cuda'
@@ -65,7 +67,7 @@ function dptest.languagemodel()
    
    a:reset()
    local resdpCuda
-   for i=1,10000,512 do
+   for i=1,nloop,512 do
       batch = train:sub(batch, i, i+511)
       local carry = batch:carry()
       carry.nSample = 512

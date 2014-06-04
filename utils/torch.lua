@@ -59,7 +59,6 @@ function torch.emptyClone(obj)
    error("Deprecated use torch.protoClone instead", 2)
 end
 
-
 -- construct an object using a prototype and initialize it with ...
 -- works with any class registered with torch.class
 function torch.protoClone(proto, ...)
@@ -70,32 +69,6 @@ end
 -- returns a view of a tensor
 function torch.view(tensor)
    return torch.protoClone(tensor, tensor)
-end
-
--- simple helpers to serialize/deserialize arbitrary objects/tables
-function torch.serialize(object, mode)
-   mode = mode or 'binary'
-   local f = torch.MemoryFile()
-   f = f[mode](f)
-   f:writeObject(object)
-   local s = f:storage():string()
-   f:close()
-   return s
-end
-
-function torch.deserialize(str, mode)
-   mode = mode or 'binary'
-   local x = torch.CharStorage():string(str)
-   local tx = torch.CharTensor(x)
-   local xp = torch.CharStorage(x:size(1)+1)
-   local txp = torch.CharTensor(xp)
-   txp:narrow(1,1,tx:size(1)):copy(tx)
-   txp[tx:size(1)+1] = 0
-   local f = torch.MemoryFile(xp)
-   f = f[mode](f)
-   local object = f:readObject()
-   f:close()
-   return object
 end
 
 -- torch.concat([res], tensors, [dim])

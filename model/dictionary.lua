@@ -73,10 +73,10 @@ function Dictionary:reset()
 end
 
 function Dictionary:parameters()
-   local params, gradParams, scales = {}, {}, {}
    local module = self._module
    if self.forwarded then
       -- only return the parameters affected by the forward/backward
+      local params, gradParams, scales = {}, {}, {}
       for k,nBackward in pairs(module.inputs) do
          local kscale = module:scaleUpdateByKey(k)
          params[k] = module.weight:select(1, k)

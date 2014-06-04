@@ -305,8 +305,8 @@ function DataView:sub(v, start, stop)
 end
 
 function DataView:type(type)
-   error"Not Implemented"
-   self._input = self._input:type(type)
+   self:flush()
+   self:forwardPut(self._input:type(type))
 end
 
 function DataView:input(input)

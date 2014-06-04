@@ -1,10 +1,11 @@
-# Models #  
- * [Model](#dp.Model)
-   * [Layer](#dp.Layer)
-    * [Neural](#dp.Neural)
-    * [Convolution1D](#dp.Convolution1D)
-   * [Container](#dp.Container)
-    * [Sequential](#dp.Sequential)
+# Models  #
+
+ * [Model](#dp.Model) : abstract class inherited by Layer and Container;
+ * [Layer](#dp.Layer) : abstract class inherited by component Models ;
+   * [Neural](#dp.Neural) : Linear followed by a Transfer Module;
+   * [Convolution1D](#dp.Convolution1D) : SpatialConvolution followed by a Transfer Module and SpatialMaxPooling;
+ * [Container](#dp.Container) : abstract class inherited by composite Models;
+   * [Sequential](#dp.Sequential) : a sequence of Models.
 
 <a name="dp.Model"/>
 ## Model ##
@@ -75,6 +76,114 @@ accumulate `pastGrads` for each triplet.
 ### accept(visitor) ###
 Accepts a `visitor` Visitor that will visit the Model and any of its component Models. This is how the Model's parameters are updated.
 
-<a name='dp.Model.reset"/>
+<a name="dp.Model.reset"/>
 ### reset() ###
 Resets the parameters of the Model.
+
+<a name='dp.Layer'/>
+## Layer ##
+Abstract class inherited by component [Models](#dp.Model). 
+The opposite of [Container](#dp.Container) in that it doesn't contain other Models.
+The Layer should be parameterized.
+
+<a name='dp.Layer.__init'/>
+### dp.Layer{input_view, output_view, output, [dropout, sparse_init]} ###
+Constructs a Layer. Arguments should be specified as key-value pairs. Other then the following 
+arguments, those specified in [Model](#dp.Model.__init) also apply.
+
+`input_view` is a string specifying the `view` of the `input` [View](view.md#dp.View) like _bf_, _bhwc_, etc. 
+This is usually hardcoded for each sub-class.
+
+`output_view` is a string specifying the `view` of the `output` [View](view.md#dp.View) like _bf_, _bhwc_, etc.
+This is usually hardcoded for each sub-class.
+
+`output` is a [View](view.md#dp.View) used for communicating outputs and gradOutputs. 
+This is usually hardcoded for each sub-class.
+      
+`dropout` is a [Dropout](https://github.com/clementfarabet/lua---nnx/blob/master/Dropout.lua) Module instance. When provided, 
+it is applied to the inputs of the Model. Defaults to not using dropout.
+
+`sparse_init` is a boolean with a default value of true. When true, applies a sparse initialization of weights. See Martens (2010), [Deep learning via Hessian-free optimization](http://machinelearning.wustl.edu/mlpapers/paper_files/icml2010_Martens10.pdf). This is 
+the recommended initialization for [ReLU](https://github.com/clementfarabet/lua---nnx/blob/master/ReLU.lua) Transfer Modules.
+
+<a name='dp.Layer.inputAct'/>
+### [act] inputAct() ###
+Returns the result of a [forwardGet](view.md#dp.View.forwardGet) on the Layer's `input` 
+using its `input_view` and `input_type`.
+
+<a name='dp.Layer.outputGrad'/>
+### [grad] outputGrad() ###
+Return the result of a [backwardGet](view.md#dp.View.backwardGet) on the Layer's `output` 
+using its `output_view` and `output_type`.
+
+<a name='dp.Layer.inputGrad'/>
+### inputGrad(input_grad) ###
+Sets the Layer's `input` gradient by calling its [backwardPut](view.md#dp.View.backwardPut) using its `input_view` 
+and the provided `input_grad` Tensor.
+
+<a name='dp.Layer.outputAct'/>
+### outputAct(output_act) ###
+Sets the Layer's `output` activation by calling its [forwardPut](view.md#dp.View.forwardPut) using its `output_view` 
+and the provided `output_act` Tensor.
+
+<a name='dp.Layer.maxNorm'/>
+### maxNorm(max_out_norm, max_in_norm) ###
+A method called by the MaxNorm Visitor. Imposes a hard constraint on the upper bound of the norm of output and/or input
+neuron weights (in a weight matrix). Has a regularization effect analogous to WeightDecay, but with easier to optimize 
+hyper-parameters. Quite useful with unbounded Transfer Modules like ReLU.
+
+Only affects 2D [parameters](#dp.Model.parameters) like the usual `weights`. 
+Assumes that 2D parameters are arranged : `output_dim x input_dim`.
+
+<a name='dp.Neural'/>
+## Neural ##
+[Linear](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Linear) (an affine transformation) followed by a [Transfer](https://github.com/torch/nn/blob/master/doc/transfer.md) Module. 
+Both the `input_view` and `output_view` are _bf_. 
+
+<a name='dp.Neural.__init'/>
+### dp.Neural{input_size, output_size, transfer} ###
+Constructs a Neural. Arguments should be specified as key-value pairs. Other then the following 
+arguments, those specified in [Layer](#dp.Layer.__init) also apply.
+
+`input_size` specifies the number of input neurons.
+
+`output_size` specifies the Number of output neurons.
+
+`transfer` is a [Transfer](https://github.com/torch/nn/blob/master/doc/transfer.md) Module instance like [Tanh](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Tanh),
+[Sigmoid](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Sigmoid), 
+[ReLU]([ReLU](https://github.com/clementfarabet/lua---nnx/blob/master/ReLU.lua), etc. If the intent is to 
+use Neural as a linear affine transform (without a non-linearity), one can use an
+[Identity](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Identity) Module instance.
+
+<a name='dp.Container'/>
+## Container ##
+Abstract class inherited by composite [Models](#dp.Model).
+
+<a name='dp.Container.__init'/>
+### dp.Container{models} ###
+Constructs a Neural. Arguments should be specified as key-value pairs. Other then the following 
+arguments, those specified in [Model](#dp.Model.__init) also apply.
+
+`models` is a table of Models. 
+
+<a name='dp.Container.extend'/>
+### extend(models) ###
+Adds `models` to the end of the existing composite of models.
+
+<a name='dp.Container.add'/>
+### add(model) ###
+Add `model` to the end of the existing composite of models.
+
+<a name='dp.Container.size'/>
+### [size] size() ###
+Returns the number of `models` in the Container.
+
+<a name='dp.Container.get'/>
+### [model] get(index) ###
+Returns the component Model at index `index`.
+
+<a name='dp.Sequential'/>
+## Sequential ##
+
+
+

@@ -11,29 +11,29 @@ Preprocessing is used to analyse and optimize the statistical properties of data
 ## Preprocess ##
 Abstract class.
 
-An object that can preprocess a [BaseTensor](data.md#dp.BaseTensor).
-Preprocessing a basetensor implies changing the data that
-a dataset actually stores. This can be useful to save
+An object that can preprocess a [View](view.md#dp.View).
+Preprocessing a View implies changing the data that
+it actually stores. This can be useful to save
 memory. If you know you are always going to access only
 the same processed version of the dataset, it is better
 to process it once and discard the original.
 
 Preprocesses are capable of modifying many aspects of
-a dataset. For example, they can change the way that it
+a View. For example, they can change the way that it
 converts between different formats of data. They can
-change the number of examples that a dataset stores.
+change the number of examples that a View stores.
 In other words, preprocesses can do a lot more than
 just example-wise transformations of the examples stored
-in a basetensor.
+in a View.
 
 <a name="dp.Preprocess.apply"/>
-### apply(basetensor, can_fit) ###
+### apply(view, can_fit) ###
 Abstract method.
 
-`basetensor` is the BaseTensor to act upon.
+`view` is the [View](view.md#dp.View) to act upon.
 
-`can_fit`. When true, the Preprocess can adapt internal parameters based on the contents of a basetensor.
-This is usually true for basetensors taken from the training set. 
+`can_fit`. When true, the Preprocess can adapt internal parameters based on the contents of the `view`.
+This is usually true for input Views taken from the training DataSet.
 
 For example, let us preprocess the [Mnist](data.md#dp.Mnist) inputs. First, we load the datasource and create a [Standardize](#dp.Standardize) preprocess.
 ```lua
@@ -46,29 +46,29 @@ train = ds:trainSet():inputs()
 valid = ds:validSet():inputs()
 test = ds:testSet():inputs()
 ```
-Fit and apply the preprocess to the `train` basetensor.
+Fit and apply the preprocess to the `train` View.
 ```lua
 st:apply(train, true)
 ```
-At this point the `st` preprocess has measured and stored some statistics on the `train` basetensor. Furthermore, the `train` basetensor has been preprocessed. We can apply the same preprocessing (with the same statistics) on the the `valid` and `test` basetensors.
+At this point the `st` Preprocess has measured and stored some statistics gathered from the `train` View. Furthermore, the `train` View has been preprocessed. We can apply the same preprocessing (with the same statistics) on the the `valid` and `test` Views.
 ```lua
 st:apply(valid, false)
 st:apply(test, false)
 ```
-Since this is a common pattern in machine learning, we have simplified all this to one line of code.
+Since this is a common pattern in machine learning, we have simplified all of the above to one line of code.
 ```lua
 ds = Mnist{input_preprocess=dp.Standardize()}
 ```
 
 <a name="dp.Standardize"/>
 ## Standardize ##
-A Preprocess that subtracts the mean and divides by the standard deviation.
+A [Preprocess](#dp.Preprocess) that subtracts the mean and divides by the standard deviation. Uses the _bf_ `view`.
 
 <a name="dp.Standardize.__init"/>
 ### dp.Standardize{[global_mean, global_std, std_eps]} ###
-Constructor.
+Constructs a Standardize Preprocess. Arguments should be specified as key-value pairs.
 
-`global_mean` is a boolean with a default value of `false`. When true, subtracts the (scalar) mean over every element in the datset. Otherwise, subtract the mean from each column (feature) separately. Uses the `BaseTensor:feature()` view.
+`global_mean` is a boolean with a default value of `false`. When true, subtracts the (scalar) mean over every element in the datset. Otherwise, subtract the mean from each column (feature) separately. 
 
 `global_std` is a boolean with a default value of `false`. When true, after centering, divides by the (scalar) '..
 standard deviation of every element in the design matrix. Otherwise, divide by the column-wise (per-feature) standard deviation.
@@ -84,7 +84,7 @@ each example).
 
 <a name="dp.GCN.__init"/>
 ### dp.GCN{[substract_mean, scale, sqrt_bias, use_std, min_divisor, batch_size]} ###
-Construstor.
+Constructs a GCN Preprocess. Arguments should be specified as key-value pairs.
 
 `substract_mean` is a boolean with a default value of true. 
 Remove the mean across features/pixels before normalizing. 
@@ -109,12 +109,12 @@ Networks in Unsupervised Feature Learning](http://www.stanford.edu/~acoates/pape
 <a name="dp.ZCA"/>
 ## ZCA ##
 Performs Zero Component Analysis Whitening.
-Commonly used for images, but can be used with any [DataTensor](data.md#dp.DataTensor). 
+Commonly used for images, yet uses the _bf_ `view`. 
 For a comprehensize explanation of ZCA Whitening please consult the [Standford Whitening article](http://ufldl.stanford.edu/wiki/index.php/Whitening)
 
 <a name="dp.ZCA.__init"/>
 ### dp.ZCA{[n_component, n_drop_component, filter_bias]} ###
-Constructor.
+Constructs a ZCA Preprocess. Arguments should be specified as key-value pairs.
 
 `n_component` measures the number of most important eigen components to use for ZCA. The default is to use all of components.
 

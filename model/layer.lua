@@ -128,7 +128,7 @@ end
 
 function Layer:sharedClone()
    local clone = self:clone()
-   return self:share(clone, 'weight', 'bias')
+   return clone:share(self, 'weight', 'bias')
 end
 
 -- static method for initializing weights matrices

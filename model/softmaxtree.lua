@@ -32,6 +32,7 @@ function SoftmaxTree:__init(config)
    config.input_view = 'bf'
    config.output_view = 'b'
    parent.__init(self, config)
+   self._target_type = 'torch.IntTensor'
 end
 
 -- requires targets be in carry
@@ -45,7 +46,7 @@ function SoftmaxTree:_forward(carry)
    end
    assert(carry.targets and carry.targets.isClassView,
       "carry.targets should refer to a ClassView of targets")
-   local targets = carry.targets:forward('b')
+   local targets = carry.targets:forward('b', self._target_type)
    -- outputs a column vector of likelihoods of targets
    activation = self._module:forward{activation, targets}
    self:outputAct(activation)
@@ -59,7 +60,7 @@ function SoftmaxTree:_backward(carry)
    local output_grad = self:outputGrad()
    assert(carry.targets and carry.targets.isClassView,
       "carry.targets should refer to a ClassView of targets")
-   local targets = carry.targets:forward('b')
+   local targets = carry.targets:forward('b', self._target_type)
    output_grad = self._module:backward({input_act, targets}, output_grad, scale)
    if self._dropout then
       self.mvstate.dropoutGrad = output_grad
@@ -82,6 +83,9 @@ function SoftmaxTree:_type(type)
    end
    if type == 'torch.CudaTensor' then
       require 'cunnx'
+      self._target_type = 'torch.CudaTensor'
+   else
+      self._target_type = 'torch.IntTensor'
    end
    self._module:type(type)
    return self
@@ -104,35 +108,16 @@ function SoftmaxTree:parameters()
    return self._module:parameters(true)
 end
 
-function SoftmaxTree:share(layer)
-   assert(layer.isSoftmaxTree)
-   layer._arrows = nil
-   -- we share the hierarchy and list of nodes as is to save memory
-   layer._nodes = self._nodes
-   layer._parents = self._parents
-   layer._children = self._children
-   layer._leafs = self._leafs
-   -- make sure they have the same type
-   layer._module:share(self._module, 'weight', 'bias') --TODO: share grads as well?
-   layer._module.parentIds = self._module.parentIds
-   layer._module.childIds = self._module.childIds
-   layer._module.parentChildren = self._module.parentChildren
-   layer._module.childParent = self._module.childParent
-   layer._module.rootId = self._module.rootId
-   layer._module.maxParentId = self._module.maxParentId
-   --TODO copy other stuff over
-   return self      
-end
-
 function SoftmaxTree:sharedClone()
    local clone = torch.protoClone(self, {
-      input_size=self._input_size, hierarchy={[1]=torch.IntTensor{1,2,3}},
+      input_size=self._input_size, hierarchy={[1]=torch.IntTensor{1,2}},
       root_id=1, sparse_init=self._sparse_init,
       dropout=self._dropout and self._dropout:clone(),
-      typename=self._typename, gather_stats=self._gather_stats, 
+      typename=self._typename, 
       input_type=self._input_type, output_type=self._output_type,
       module_type=self._module_type, mvstate=self.mvstate
    })
-   return self:share(clone, 'weight', 'bias')
+   clone._module = self._module:sharedClone()
+   return clone
 end
 

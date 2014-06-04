@@ -175,11 +175,6 @@ function Convolution2D:share(conv2d, ...)
    return parent.share(self, conv2d, ...)
 end
 
-function Convolution2D:sharedClone()
-   local clone = self:clone()
-   return self:share(clone, 'weight', 'bias')
-end
-
 function Convolution2D:paramModule()
    return self._conv
 end

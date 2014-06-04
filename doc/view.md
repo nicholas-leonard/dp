@@ -90,18 +90,24 @@ Returns a sub-[View](#dp.View) of the same type as self.
 `indices` is `torch.LongTensor` of indices of the batch (_b_) axis. The returned [View](#dp.View) will be `forwardPut` with 
 the same `view` as self and with an `input` indexed from self's `input`. 
 
-When `v` is provided, it will be `forwardPut` with the same 
+When View `v` is provided, it will be `forwardPut` with the same 
 `view` as self, and with an `input` indexed from a subset of self's `input`. The advantage of providing or reusing `v` from batch 
-to batch is that the same storage (memory) can be used.
+to batch is that the same storage (memory) can be used. This includes any Modules (and their allocated memory) in `v`'s cache.
 
-This method is used mainly by `ShuffleSampler` for retrieving random subsets of a dataset.
+This method is used mainly by ShuffleSample` for retrieving random subsets of a dataset.
 
 <a name="dp.View.sub"/>
-### [view] sub(start, stop) ###
+### [view] sub([v,] start, stop) ###
 Returns a sub-[View](#dp.View) of the same type as self. 
 
 `start` and `stop` identify the start and stop indices to sub from the batch (_b_) axis. The returned [View](#dp.View) will be `forwardPut` with 
 the same `view` as self and with an `input` indexed from self's `input`. 
+
+When View `v` is provided, it will be `forwardPut` with the same 
+`view` as self, and with an `input` having a copy of a subset of self's `input`. The advantage of providing or reusing `v` from batch 
+to batch is that the same storage (memory) can be used. This includes any Modules (and their allocated memory) in `v`'s cache.
+
+This method is used mainly by Sampler for retrieving random subsets of a dataset.
 
 <a name="dp.DataView"/>
 ## DataView ##

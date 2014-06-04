@@ -46,15 +46,34 @@ function dptest.languagemodel()
    model:zeroStatistics()
    
    a:reset()
-   local resdp
-   for i = 1,#dp_inputs do
-      local batch = dp_inputs[i]
+   local resdp, batch
+   for i=1,10000,512 do
+      batch = train:sub(batch, i, i+511)
       local carry = batch:carry()
       carry.nSample = 512
       resdp = model:forward(batch:inputs(), carry)
    end
    tm.dp = a:time().real
    print("dp Time ".. a:time().real)
+   
+   local tm4 = {}
+   local title = 'language model forward cuda'
+   times[title] = tm4
+   
+   model:cuda()
+   model:zeroStatistics()
+   
+   a:reset()
+   local resdpCuda
+   for i=1,10000,512 do
+      batch = train:sub(batch, i, i+511)
+      local carry = batch:carry()
+      carry.nSample = 512
+      resdpCuda = model:forward(batch:inputs(), carry)
+   end
+   tm4.dp = a:time().real
+   tm4.nn = tm.dp
+   print("dp cuda Time ".. a:time().real)
    
    
    local trunk = nn.Sequential()

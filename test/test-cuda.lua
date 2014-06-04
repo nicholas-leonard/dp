@@ -116,6 +116,45 @@ function dptest.sequential()
    mytester:assertTensorEq(mlp_act, output:forward('bf', 'torch.DoubleTensor'), 0.0001)
    mytester:assertTensorEq(mlp_grad, input:backward('bf', 'torch.DoubleTensor'), 0.0001)
 end
+function dptest.dictionary()
+   local size = {8,10}
+   local output_size = {8,10,50}
+   local data = torch.randperm(80):resize(unpack(size))
+   local grad_tensor = torch.randn(unpack(output_size)):float()
+   -- dp
+   local input = dp.ClassView('bt', data)
+   local layer = dp.Dictionary{dict_size=100, output_size=50}
+    -- nn
+   local mlp = nn.LookupTable(100,50)
+   mlp:share(layer._module, 'weight')
+   -- dp
+   layer:cuda()
+   local output, carry = layer:forward(input, {nSample=8})
+   mytester:assertTableEq(output:forward('bwc'):size():totable(), output_size, 0.00001)
+   output:backward('bwc', grad_tensor:cuda())
+   input = layer:backward(output, carry)
+   -- should be able to get input gradients
+   local function f() 
+      input:backward('bt') 
+   end 
+   mytester:assert(not pcall(f))
+   -- nn
+   mlp:float()
+   local mlp_act = mlp:forward(input:forward('bt'))
+   -- compare nn and dp
+   mytester:assertTensorEq(mlp_act, output:forward('bwc'):float(), 0.00001)
+   -- update
+   local act_ten = output:forward('bwc'):clone()
+   local visitor = dp.Learn{learning_rate=0.1}
+   visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
+   layer:accept(visitor)
+   layer:doneBatch()
+   -- forward backward
+   output, carry2 = layer:forward(input, {nSample=5})
+   output:backward('bwc', grad_tensor:cuda())
+   input, carry2 = layer:backward(output, carry2)
+   mytester:assertTensorNe(act_ten:float(), output:forward('bwc'):float(), 0.00001)
+end
 function dptest.softmaxtree()
    local input_tensor = torch.randn(5,10):float()
    local target_tensor = torch.IntTensor{20,24,27,10,12}

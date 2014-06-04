@@ -9,6 +9,8 @@
 -- this class does not store its data in Views.
 -- However, the outputs of batch(), sub(), index() are dp.Batches
 -- containing ClassViews of inputs and targets.
+-- The returned batch:inputs() are filled according to 
+-- https://code.google.com/p/1-billion-word-language-modeling-benchmark/source/browse/trunk/README.perplexity_and_such
 ------------------------------------------------------------------------
 local SentenceSet, parent = torch.class("dp.SentenceSet", "dp.DataSet")
 SentenceSet.isSentenceSet = true
@@ -73,50 +75,58 @@ function SentenceSet:batch(batch_size)
    return self:sub(1, batch_size)
 end
 
--- TODO add optional batch as first argument (to all BaseSets)
-function SentenceSet:sub(start, stop, new)
-   local data = self._data:sub(start, stop)
-   local words = self._data:select(2, 2)
-   local input_v, inputs, target_v
-   if new then
+function SentenceSet:sub(batch, start, stop)
+   local input_v, inputs, target_v, targets
+   if (not batch) or (not stop) then 
+      if batch then
+         stop = start
+         start = batch
+         batch = nil
+      end
       inputs = torch.IntTensor()
+      targets = torch.IntTensor()
       input_v = dp.ClassView()
       target_v = dp.ClassView()
-   else
-      input_v = self._input_cache
-      target_v = self._target_cache
-      if not input_v or not target_v then
-         input_v = dp.ClassView()
-         target_v = dp.ClassView()
-         inputs = torch.IntTensor()
-         self._input_cache = input_v
-         self._target_cache = target_v
-      else
-         inputs = input_v:input()
-      end
-   end
+  else
+      input_v = batch:inputs()
+      inputs = input_v:input()
+      target_v = batch:targets()
+      targets = target_v:input()
+   end  
+   local data = self._data:sub(start, stop)
    inputs:resize(data:size(1), self._context_size)
-   -- fill tensor with sentence start tags : <S>
-   inputs:fill(self._start_id)
+   targets:resize(data:size(1))
+   local words = self._data:select(2, 2)
+   -- fill tensor with sentence end tags : </S>
+   inputs:fill(self._end_id)
    for i=1,data:size(1) do
       local sample = data:select(1, i)
       -- add input
       local sample_stop = start+i-2
+      local sentence_start = self._context_size
       if sample[1] <= sample_stop then
          local sample_start = math.max(sample[1], sample_stop-self._context_size+1)
          local context = words:sub(sample_start, sample_stop)
+         sentence_start = self._context_size-context:size(1)
          inputs:select(1, i):narrow(
-            1, self._context_size-context:size(1)+1, context:size(1)
+            1, sentence_start+1, context:size(1)
          ):copy(context)
       end
+      -- add sentence start tag : <S> (after sentence end tags)
+      if sentence_start > 0 then
+         inputs:select(1,i):narrow(1, sentence_start, 1):fill(self._start_id)
+      end
    end   
+   -- targets
+   targets:copy(data:select(2,2))
+   
    -- encapsulate in dp.ClassViews
    input_v:forward('bt', inputs)
    input_v:setClasses(self._words)
    
-   target_v:forward('b', data:select(2,2))
+   target_v:forward('b', targets)
    target_v:setClasses(self._words)
-   return dp.Batch{
+   return batch or dp.Batch{
       which_set=self:whichSet(), epoch_size=self:nSample(),
       inputs=input_v, targets=target_v
    }   
@@ -126,6 +136,7 @@ function SentenceSet:index(batch, indices)
    local inputs, targets, input_v, target_v
    if (not batch) or (not indices) then 
       indices = indices or batch
+      batch = nil
       inputs = torch.IntTensor(indices:size(1), self._context_size)
       targets = torch.IntTensor(indices:size(1))
       input_v = dp.ClassView()
@@ -138,23 +149,29 @@ function SentenceSet:index(batch, indices)
       targets = target_v:input()
       targets:resize(indices:size(1))
    end
-   -- fill tensor with sentence start tags : <S>
-   inputs:fill(self._start_id)
+   -- fill tensor with sentence end tags : <S>
+   inputs:fill(self._end_id)
    -- indexSelect the data and reuse memory (optimization)
    self.__index_mem = self.__index_mem or torch.IntTensor()
-   torch.IntTensor.index(self.__index_mem, self._data, 1, indices)
+   self.__index_mem:index(self._data, 1, indices)
    local data = self.__index_mem
    local words = self._data:select(2, 2)
    for i=1,data:size(1) do
       local sample = data:select(1, i)
       -- add input
       local sample_stop = indices[i]-1
+      local sentence_start = self._context_size
       if sample[1] <= sample_stop then
          local sample_start = math.max(sample[1], sample_stop-self._context_size+1)
          local context = words:sub(sample_start, sample_stop)
+         sentence_start = self._context_size-context:size(1)
          inputs:select(1, i):narrow(
             1, self._context_size-context:size(1)+1, context:size(1)
          ):copy(context)
+      end
+      -- add sentence start tag : <S> (after sentence end tags)
+      if sentence_start > 0 then
+         inputs:select(1,i):narrow(1, sentence_start, 1):fill(self._start_id)
       end
    end   
    -- targets
@@ -166,8 +183,8 @@ function SentenceSet:index(batch, indices)
    
    target_v:forward('b', targets)
    target_v:setClasses(self._words)
-   return dp.Batch{
+   return batch or dp.Batch{
       which_set=self:whichSet(), epoch_size=self:nSample(),
       inputs=input_v, targets=target_v
-   }   
+   }  
 end

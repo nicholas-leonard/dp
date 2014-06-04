@@ -252,7 +252,7 @@ end
 -- flush module and tensor cache
 function DataView:flush()
    self._tensors = {}
-   self._modules = {}
+   self._modules = nil
 end
 
 -- When v is provided, reuse its data (a torch.Tensor).

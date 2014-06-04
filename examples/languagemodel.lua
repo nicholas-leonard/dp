@@ -143,14 +143,14 @@ end
 train = dp.Optimizer{
    loss = opt.softmaxtree and dp.TreeNLL() or dp.NLL(),
    visitor = { -- the ordering here is important:
-      dp.Momentum{momentum_factor = opt.momentum},
+      --dp.Momentum{momentum_factor = opt.momentum},
       dp.Learn{
          learning_rate = opt.learningRate, 
          observer = dp.LearningRateSchedule{
             schedule = {[200]=0.01, [400]=0.001}
          }
-      },
-      dp.MaxNorm{max_out_norm = opt.maxOutNorm}
+      }--,
+      --dp.MaxNorm{max_out_norm = opt.maxOutNorm}
    },
    feedback = dp.Perplexity(),  
    sampler = dp.Sampler{ --shuffle sample takes too much mem

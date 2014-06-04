@@ -117,6 +117,7 @@ function SoftmaxTree:sharedClone()
       input_type=self._input_type, output_type=self._output_type,
       module_type=self._module_type, mvstate=self.mvstate
    })
+   clone._target_type = self._target_type
    clone._module = self._module:sharedClone()
    return clone
 end

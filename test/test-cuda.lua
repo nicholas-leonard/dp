@@ -129,55 +129,57 @@ function dptest.softmaxtree()
       [8]=torch.IntTensor{24,25,26,27,28}
    }
    -- dp
-   local input = dp.DataView('bf', input_tensor)
-   local target = dp.ClassView('b', target_tensor)
+   local input = dp.DataView()
+   input:forward('bf', input_tensor)
+   local target = dp.ClassView()
+   target:forward('b', target_tensor)
    local model = dp.SoftmaxTree{input_size=10, hierarchy=hierarchy, root_id=root_id}
-   model:cuda()
+   model:float()
    -- nn
    require 'nnx'
    local mlp = nn.SoftMaxTree(10, hierarchy, root_id)
+   mlp.weight = model._module.weight:clone()
+   mlp.bias = model._module.bias:clone()
    mlp:float()
-   mlp.weight = model._module.weight:float():clone()
-   mlp.bias = model._module.bias:float():clone()
    -- forward backward
    --- dp
+   model:cuda()
    local output, carry = model:forward(input, {nSample=5, targets=target})
-   local gradWeight = model._module.gradWeight:float()
-   output:backward('b', grad_tensor:double())
+   local gradWeight = model._module.gradWeight:clone()
+   output:backward('b', grad_tensor:cuda())
    input, carry = model:backward(output, carry)
    mytester:assertTableEq(output:forward('bf'):size():totable(), {5,1}, 0.000001, "Wrong act size")
    mytester:assertTableEq(input:backward('bf'):size():totable(), {5,10}, 0.000001, "Wrong grad size")
-   local gradWeight2 = model._module.gradWeight:float()
-   mytester:assertTensorNe(gradWeight, gradWeight2, 0.00001)
+   local gradWeight2 = model._module.gradWeight
+   mytester:assertTensorNe(gradWeight:float(), gradWeight2:float(), 0.00001)
    --- nn
    local mlp_act = mlp:forward{input_tensor, target_tensor}
    local mlp_grad = mlp:backward({input_tensor, target_tensor}, grad_tensor)
    -- compare nn and dp
-   mytester:assertTensorEq(mlp_act, output:forward('b', 'torch.FloatTensor'), 0.00001)
-   mytester:assertTensorEq(mlp_grad, input:backward('bf', 'torch.FloatTensor'), 0.00001)
+   mytester:assertTensorEq(mlp_act, output:forward('bf'):float(), 0.001)
+   mytester:assertTensorEq(mlp_grad, input:backward('bf'):float(), 0.001)
    -- share
-   local model2 = model:sharedClone()   
+   local model2 = model:sharedClone()
    -- update
    local weight = model._module.weight:clone()
-   local act_ten = output:forward('b'):clone()
+   local act_ten = output:forward('bf'):clone()
    local grad_ten = input:backward('bf'):clone()
    local visitor = dp.Learn{learning_rate=0.1}
    visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
    model:accept(visitor)
    local weight2 = model._module.weight
-   mytester:assertTensorNe(weight, weight2, 0.00001)
+   mytester:assertTensorNe(weight:float(), weight2:float(), 0.00001)
    model:doneBatch()
    -- forward backward
-   output2, carry2 = model2:forward(input:clone(), {nSample=5, targets=target})
-   output2:backward('b', grad_tensor)
-   input2, carry2 = model2:backward(output2, carry2)
-   mytester:assertTensorNe(act_ten, output2:forward('b', 'torch.DoubleTensor'), 0.00001)
-   mytester:assertTensorNe(grad_ten, input2:backward('bf'):float(), 0.00001)
-   output, carry = model:forward(input, {nSample=5, targets=target})
-   output:backward('b', grad_tensor)
-   input:forward('bf', input_tensor)
-   input, carry = model:backward(output, carry)
-   mytester:assertTensorEq(output:forward('b', 'torch.FloatTensor'), output2:forward('b', 'torch.FloatTensor'), 0.00001)
+   local output2, carry2 = model2:forward(input:clone(), {nSample=5, targets=target})
+   output2:backward('b', grad_tensor:cuda())
+   local input2, carry2 = model2:backward(output2, carry2)
+   mytester:assertTensorNe(act_ten:float(), output2:forward('bf'):float(), 0.00001)
+   mytester:assertTensorNe(grad_ten:float(), input2:backward('bf'):float(), 0.00001)
+   local output, carry = model:forward(input2:clone(), {nSample=5, targets=target})
+   output:backward('b', grad_tensor:cuda())
+   local input, carry = model:backward(output, carry)
+   mytester:assertTensorEq(output:forward('bf'):float(), output2:forward('bf'):float(), 0.00001)
    mytester:assertTensorEq(input:backward('bf'):float(), input2:backward('bf'):float(), 0.00001)
 end
 function dptest.nll()

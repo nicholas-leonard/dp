@@ -288,14 +288,18 @@ function DataView:sub(v, start, stop)
       if v._view and self._view ~= v._view then
          error("Expecting arg 1 to have same view")
       end
+      data = v:input()
    else
       if v then
          stop = start
          start = v
       end
       v = torch.protoClone(self)
+      data = torch.protoClone(self:input())
    end
-   local data = self._input:narrow(b_pos, start, stop-start+1)
+   local input = self._input:narrow(b_pos, start, stop-start+1)
+   data:resizeAs(input)
+   data:copy(input)
    v:forward(self._view, data)
    return v
 end

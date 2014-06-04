@@ -69,8 +69,8 @@ function ClassView:index(v, indices)
 end
 
 --Returns a sub-datatensor narrowed on the batch dimension
-function ClassView:sub(start, stop)
-   local v = parent.sub(self, start, stop)
+function ClassView:sub(v, start, stop)
+   v = parent.sub(self, v, start, stop) or v
    v:setClasses(self._classes)
    return v
 end

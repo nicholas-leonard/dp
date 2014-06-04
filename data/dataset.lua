@@ -33,12 +33,24 @@ function DataSet:batch(batch_size)
    return self:sub(1, batch_size)
 end
 
-function DataSet:sub(start, stop, new)
-   return dp.Batch{
-      which_set=self:whichSet(), epoch_size=self:nSample(),
-      inputs=self:inputs():sub(start, stop),
-      targets=self:targets() and self:targets():sub(start, stop)
-   }    
+function DataSet:sub(batch, start, stop)
+   if (not batch) or (not stop) then 
+      if batch then
+         stop = start
+         start = batch
+      end
+      return dp.Batch{
+         which_set=self:whichSet(), epoch_size=self:nSample(),
+         inputs=self:inputs():sub(start, stop),
+         targets=self:targets() and self:targets():sub(start, stop)
+      }    
+   end
+   assert(batch.isBatch, "Expecting dp.Batch at arg 1")
+   self:inputs():sub(batch:inputs(), start, stop)
+   if self:targets() then
+      self:targets():sub(batch:targets(), start, stop)
+   end
+   return batch  
 end
 
 function DataSet:index(batch, indices)

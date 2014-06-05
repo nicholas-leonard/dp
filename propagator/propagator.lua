@@ -96,6 +96,7 @@ function Propagator:propagateEpoch(dataset, report)
    -- local vars
    local start_time = sys.clock()
    local batch, i, n, last_n
+   local n_batch = 1
    
    if self._stats then
       print('==> epoch # '..(report.epoch + 1)..' for '..self:name())
@@ -116,6 +117,7 @@ function Propagator:propagateEpoch(dataset, report)
          xlua.progress(i, n)
       end
       last_n = n
+      n_batch = n_batch + 1
    end
    
    if self._progress and not self._stats then
@@ -126,7 +128,7 @@ function Propagator:propagateEpoch(dataset, report)
    self._epoch_duration = sys.clock() - start_time
    self._batch_duration = self._epoch_duration / last_n
    self._example_speed = last_n / self._epoch_duration
-   self._num_batches = last_n / last_n
+   self._num_batches = last_n / n_batch
    self._batch_speed = (self._num_batches / self._epoch_duration)
    if self._stats then
       print("\n==> epoch size = "..last_n..' examples')

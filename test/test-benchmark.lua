@@ -1,4 +1,5 @@
 require 'dp'
+require 'nnx'
 require 'cutorch'
 require 'cunn'
 require 'cunnx'
@@ -6,7 +7,7 @@ require 'cunnx'
 local dptest = {}
 local precision_forward = 1e-4
 local precision_backward = 1e-2
-local nloop = 1000
+local nloop = 100000
 local times = {}
 local dptestx = {}
 

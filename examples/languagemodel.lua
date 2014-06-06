@@ -162,14 +162,15 @@ valid = dp.Evaluator{
    loss = opt.softmaxtree and dp.TreeNLL() or dp.NLL(),
    feedback = dp.Perplexity(),  
    sampler = dp.Sampler{
-      epoch_size = opt.validEpochSize, batch_size = 1024
+      epoch_size = opt.validEpochSize, 
+      batch_size = opt.softmaxtree and 1024 or opt.batchSize
    },
    progress = true
 }
 test = dp.Evaluator{
    loss = opt.softmaxtree and dp.TreeNLL() or dp.NLL(),
    feedback = dp.Perplexity(),  
-   sampler = dp.Sampler()
+   sampler = dp.Sampler{batch_size = opt.softmaxtree and 1024 or opt.batchSize}
 }
 
 --[[Experiment]]--

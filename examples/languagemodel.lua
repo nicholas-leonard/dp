@@ -180,7 +180,7 @@ xp = dp.Experiment{
    model = mlp,
    optimizer = train,
    validator = valid,
-   --tester = test,
+   tester = test,
    observer = {
       dp.FileLogger(),
       dp.EarlyStopper{max_epochs = opt.maxTries}

@@ -38,6 +38,7 @@ end
 -- requires targets be in carry
 function SoftmaxTree:_forward(carry)
    local activation = self:inputAct()
+   assert(not _.isNaN(activation:sum()))
    if self._dropout then
       -- dropout has a different behavior during evaluation vs training
       self._dropout.train = (not carry.evaluate)
@@ -49,6 +50,7 @@ function SoftmaxTree:_forward(carry)
    local targets = carry.targets:forward('b', self._target_type)
    -- outputs a column vector of likelihoods of targets
    activation = self._module:forward{activation, targets}
+   assert(not _.isNaN(activation:sum()))
    self:outputAct(activation)
    return carry
 end
@@ -58,14 +60,34 @@ function SoftmaxTree:_backward(carry)
    self._report.scale = scale
    local input_act = self.mvstate.dropoutAct or self:inputAct()
    local output_grad = self:outputGrad()
+   assert(not _.isNaN(output_grad:sum()))
    assert(carry.targets and carry.targets.isClassView,
       "carry.targets should refer to a ClassView of targets")
    local targets = carry.targets:forward('b', self._target_type)
+   local linearOutput
+   if (carry.batchIter == 16672) then
+      linearOutput = self._module._multiBuffer:float():reshape(32,self._module.maxFamilyPath):select(1, 27)
+   end
+   assert(not _.isNaN(input_act:sum()))
+   assert(not _.isNaN(targets:sum()))
+   assert(not _.isNaN(self._module.weight:sum()))
+   assert(not _.isNaN(self._module.bias:sum()))
    output_grad = self._module:backward({input_act, targets}, output_grad, scale)
    if self._dropout then
       self.mvstate.dropoutGrad = output_grad
       input_act = self:inputAct()
       output_grad = self._dropout:backward(input_act, output_grad, scale)
+   end
+   if (_.isNaN(output_grad:sum())) then
+      print(carry.batchIter)
+      print("IA", input_act:select(1, 27))
+      print("OG", output_grad:select(1, 27))
+      print("IG", self:outputGrad():select(1, 27))
+      print("LSO", linearOutput:narrow(1, 1, 15), linearOutput:sum())
+      local lso = self._module._multiBuffer:float():reshape(32,self._module.maxFamilyPath):select(1, 27)
+      print("LGO", lso:narrow(1, 1, 15), lso:sum())
+      print(self._module.weight:max())
+      error"2222"
    end
    self:inputGrad(output_grad)
    return carry
@@ -99,7 +121,17 @@ function SoftmaxTree:reset()
 end
 
 function SoftmaxTree:zeroGradParameters()
-  self._module:zeroGradParameters(true)
+   assert(not _.isNaN(self._module.weight:sum()))
+   assert(not _.isNaN(self._module.bias:sum()))
+   self._module:zeroGradParameters(true)
+   assert(not _.isNaN(self._module.weight:sum()))
+   assert(not _.isNaN(self._module.bias:sum()))
+end
+
+function SoftmaxTree:_accept(visitor)
+   visitor:visitModel(self)
+   assert(not _.isNaN(self._module.weight:sum()))
+   assert(not _.isNaN(self._module.bias:sum()))
 end
 
 -- if after feedforward, returns active parameters 

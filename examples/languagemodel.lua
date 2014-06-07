@@ -13,6 +13,7 @@ cmd:option('--maxOutNorm', 0, 'max norm each layers output neuron weights')
 cmd:option('--momentum', 0, 'momentum')
 cmd:option('--batchSize', 512, 'number of examples per batch')
 cmd:option('--type', 'double', 'type: double | float | cuda')
+cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
 cmd:option('--maxEpoch', 100, 'maximum number of epochs to run')
 cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better local minima for early-stopping')
 cmd:option('--dropout', false, 'apply dropout on hidden neurons, requires "nnx" luarock')
@@ -103,13 +104,13 @@ if opt.softmaxtree then
       dropout = opt.dropout and nn.Dropout() or nil
    }
 else
-   print("Warning: you are using full SoftMax for last layer, which "..
+   print("Warning: you are using full LogSoftMax for last layer, which "..
       "is really slow (800,000 x outputEmbeddingSize multiply adds "..
       "per example. Try --softmaxtree instead.")
    softmax = dp.Neural{
       input_size = opt.outputEmbeddingSize,
       output_size = table.length(datasource:classes()),
-      transfer = nn.SoftMax(),
+      transfer = nn.LogSoftMax(),
       dropout = opt.dropout and nn.Dropout() or nil
    }
 end
@@ -136,6 +137,7 @@ if opt.type == 'cuda' then
    print"Using CUDA"
    require 'cutorch'
    require 'cunn'
+   cutorch.setDevice(opt.useDevice)
    mlp:cuda()
 end
 

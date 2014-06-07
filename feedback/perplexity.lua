@@ -47,7 +47,7 @@ function Perplexity:_add(batch, output, carry, report)
       end
       local targets = batch:targets():forward('b')
       local sum = 0
-      for i=1,#targets do
+      for i=1,targets:size(1) do
          sum = sum + act[i][targets[i]]
       end
       self._perplexity = self._perplexity - sum

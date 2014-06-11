@@ -154,20 +154,6 @@ end
 
 function Convolution2D:maxNorm(max_out_norm, max_in_norm)
    error"Not Implemented"
-   -- TODO : max_in_norm is pylearn2's max kernel norm?
-   if not self.backwarded then return end
-   max_out_norm = self.mvstate.max_out_norm or max_out_norm
-   max_in_norm = self.mvstate.max_in_norm or max_in_norm
-   local params = self:parameters()
-   local weight = params.weight.param
-   if max_out_norm then
-      -- rows feed into output neurons 
-      dp.constrain_norms(max_out_norm, 2, weight)
-   end
-   if max_in_norm then
-      -- cols feed out from input neurons
-      dp.constrain_norms(max_in_norm, 1, weight)
-   end
 end
 
 function Convolution2D:share(conv2d, ...)

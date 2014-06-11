@@ -104,11 +104,11 @@ function Layer:maxNorm(max_out_norm, max_in_norm)
       if param:dim() == 2 then
          if max_out_norm then
             -- rows feed into output neurons 
-            dp.constrain_norms(max_out_norm, 2, param)
+            param:norm(1, 2, max_out_norm)
          end
          if max_in_norm then
             -- cols feed out from input neurons
-            dp.constrain_norms(max_in_norm, 1, param)
+            param:norm(2, 2, max_out_norm)
          end
       end
    end

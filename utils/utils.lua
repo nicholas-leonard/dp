@@ -83,26 +83,6 @@ end
 
 --[[ End From ]]--
 
-function constrain_norms(max_norm, axis, matrix)
-   local old_matrix = matrix
-   local cuda
-   if matrix:type() == 'torch.CudaTensor' then
-      matrix = matrix:double()
-      cuda = true
-   end
-   local norms = torch.norm(matrix,2,axis)
-   -- clip
-   local new_norms = norms:clone()
-   new_norms[torch.gt(norms, max_norm)] = max_norm
-   local div = torch.cdiv(new_norms, torch.add(norms,1e-7))
-   if cuda then
-      div = div:cuda()
-   end
-   old_matrix:cmul(div:expandAs(old_matrix))
-end
-dp.constrain_norms = constrain_norms
-
-
 function dp.printG()
    for k,v in pairs(_.omit(_G, 'torch', 'paths', 'nn', 'xlua', '_', 
                            'underscore', 'io', 'utils', '_G', 'nnx', 

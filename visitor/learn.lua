@@ -29,6 +29,10 @@ end
 
 function Learn:_visitModel(model)
    if not self:canVisit(model) then return end
+   if model.updateParameters then
+      model:updateParameters(self._learning_rate)
+      return
+   end
    local params, gradParams, scales = model:parameters()
    local mvstate = model.mvstate
    for k, param in pairs(params) do

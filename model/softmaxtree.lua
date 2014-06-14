@@ -11,7 +11,8 @@ SoftmaxTree.isSoftmaxTree = true
 
 function SoftmaxTree:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, input_size, hierarchy, root_id, typename = xlua.unpack(
+   local args, input_size, hierarchy, root_id, typename, maxOutNorm 
+      = xlua.unpack(
       {config},
       'SoftmaxTree', 
       'A hierarchy of softmaxes',
@@ -22,15 +23,22 @@ function SoftmaxTree:__init(config)
       {arg='root_id', type='number | string', default=1,
        help='id of the root of the tree.'},
       {arg='typename', type='string', default='softmaxtree', 
-       help='identifies Model type in reports.'}
+       help='identifies Model type in reports.'},
+      {arg='maxOutNorm', type='number', default=1,
+       help='max norm of output neuron weights. '..
+       'Overrides MaxNorm visitor'}
    )
    self._input_size = input_size
    require 'nnx'
-   self._module = nn.SoftMaxTree(self._input_size, hierarchy, root_id)
+   self._module = nn.SoftMaxTree(
+      self._input_size, hierarchy, root_id, maxOutNorm
+   )
    config.typename = typename
    config.output = dp.DataView()
    config.input_view = 'bf'
    config.output_view = 'b'
+   config.tags = config.tags or {}
+   config.tags['no-maxnorm'] = true
    parent.__init(self, config)
    self._target_type = 'torch.IntTensor'
 end
@@ -120,5 +128,13 @@ function SoftmaxTree:sharedClone()
    clone._target_type = self._target_type
    clone._module = self._module:sharedClone()
    return clone
+end
+
+function SoftmaxTree:updateParameters(lr)
+   self._module:updateParameters(lr, true)
+end
+
+function SoftmaxTree:maxNorm()
+   error"NotImplemented"
 end
 

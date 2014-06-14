@@ -1,0 +1,3 @@
+[submodule "optim"]
+	path = optim
+	url = https://github.com/torch/optim.git

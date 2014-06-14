@@ -48,12 +48,6 @@ $> sudo luarocks install fs
 $> sudo luarocks install moses
 $> sudo luarocks install nnx
 ```
-We require the latest version of the `optim` package:
-```
-$> git clone https://github.com/torch/optim.git
-$> cd optim
-$> sudo luarocks make optim-1.0.4-0.rockspec 
-```
 Optional:
 ```shell
 $> sudo apt-get install libpq-dev

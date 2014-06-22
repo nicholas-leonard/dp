@@ -9,12 +9,14 @@ cmd:text('$> th languagemodel.lua --small --batchSize 512 ')
 cmd:text('$> th languagemodel.lua --tiny --batchSize 512 ')
 cmd:text('Options:')
 cmd:option('--learningRate', 0.1, 'learning rate at t=0')
+cmd:option('--decayPoint', 100, 'epoch at which learning rate is decayed')
+cmd:option('--decayFactor', 0.1, 'factory by which learning rate is decayed at decay point')
 cmd:option('--maxOutNorm', 0, 'max norm each layers output neuron weights')
 cmd:option('--momentum', 0, 'momentum')
 cmd:option('--batchSize', 512, 'number of examples per batch')
 cmd:option('--type', 'double', 'type: double | float | cuda')
 cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
-cmd:option('--maxEpoch', 100, 'maximum number of epochs to run')
+cmd:option('--maxEpoch', 400, 'maximum number of epochs to run')
 cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better local minima for early-stopping')
 cmd:option('--dropout', false, 'apply dropout on hidden neurons, requires "nnx" luarock')
 
@@ -149,7 +151,7 @@ train = dp.Optimizer{
       dp.Learn{
          learning_rate = opt.learningRate, 
          observer = dp.LearningRateSchedule{
-            schedule = {[200]=0.01, [400]=0.001}
+            schedule = {[opt.decayPoint]=opt.learningRate*opt.decayFactor}
          }
       }--,
       --dp.MaxNorm{max_out_norm = opt.maxOutNorm}

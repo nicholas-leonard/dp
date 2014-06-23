@@ -1,6 +1,6 @@
 ------------------------------------------------------------------------
 --[[ WindowSparse ]]--
--- A 3 layer model of Distributed Conditiona Computation
+-- A 3 layer model of Distributed Conditional Computation
 ------------------------------------------------------------------------
 local WindowSparse, parent = torch.class("dp.WindowSparse", "dp.Layer")
 WindowSparse.isWindowSparse = true
@@ -8,7 +8,7 @@ WindowSparse.isWindowSparse = true
 function WindowSparse:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, input_size, window_size, input_stdv, output_stdv, 
-      hidden_size, gater_size, output_size, typename, lr, maxOutNorm 
+      hidden_size, gater_size, output_size, lr, saprse_init, typename
       = xlua.unpack(
       {config},
       'WindowSparse', 
@@ -32,11 +32,11 @@ function WindowSparse:__init(config)
        help='output size of last layer'},
       {arg='lr', type='table', req=true,
        help='lr of gaussian blur target'},
+      {arg='sparse_init', type='boolean', default=false,
+       help='sparse initialization of weights. See Martens (2010), '..
+       '"Deep learning via Hessian-free optimization"'}
       {arg='typename', type='string', default='windowsparse', 
-       help='identifies Model type in reports.'},
-      {arg='maxOutNorm', type='number', default=1,
-       help='max norm of output neuron weights. '..
-       'Overrides MaxNorm visitor'}
+       help='identifies Model type in reports.'}
    )
    self._input_size = input_size
    self._window_size = window_size
@@ -125,45 +125,26 @@ function WindowSparse:__init(config)
    config.typename = typename
    config.output = dp.DataView()
    config.input_view = 'bf'
-   config.output_view = 'b'
+   config.output_view = 'bf'
    config.tags = config.tags or {}
-   config.tags['no-maxnorm'] = true
+   config.tags['no-momentum'] = true
+   config.sparse_init = sparse_init
    parent.__init(self, config)
-   self._target_type = 'torch.IntTensor'
 end
 
 -- requires targets be in carry
 function WindowSparse:_forward(carry)
-   local activation = self:inputAct()
-   if self._dropout then
-      -- dropout has a different behavior during evaluation vs training
-      self._dropout.train = (not carry.evaluate)
-      activation = self._dropout:forward(activation)
-      self.mvstate.dropoutAct = activation
-   end
-   assert(carry.targets and carry.targets.isClassView,
-      "carry.targets should refer to a ClassView of targets")
-   local targets = carry.targets:forward('b', self._target_type)
-   -- outputs a column vector of likelihoods of targets
-   activation = self._module:forward{activation, targets}
-   self:outputAct(activation)
+   self:outputAct(self._module:forward(self:inputAct()))
    return carry
 end
 
 function WindowSparse:_backward(carry)
-   local scale = carry.scale
-   self._report.scale = scale
-   local input_act = self.mvstate.dropoutAct or self:inputAct()
+   self._acc_scale = carry.scale or 1
+   self._report.scale = self._acc_scale
+   local input_act = self:inputAct()
    local output_grad = self:outputGrad()
-   assert(carry.targets and carry.targets.isClassView,
-      "carry.targets should refer to a ClassView of targets")
-   local targets = carry.targets:forward('b', self._target_type)
-   output_grad = self._module:backward({input_act, targets}, output_grad, scale)
-   if self._dropout then
-      self.mvstate.dropoutGrad = output_grad
-      input_act = self:inputAct()
-      output_grad = self._dropout:backward(input_act, output_grad, scale)
-   end
+   -- we don't accGradParameters as updateParameters will do so inplace
+   output_grad = self._module:updateGradInput(input_act, output_grad)
    self:inputGrad(output_grad)
    return carry
 end
@@ -175,15 +156,6 @@ end
 function WindowSparse:_type(type)
    self._input_type = type
    self._output_type = type
-   if self._dropout then
-      self._dropout:type(type)
-   end
-   if type == 'torch.CudaTensor' then
-      require 'cunnx'
-      self._target_type = 'torch.CudaTensor'
-   else
-      self._target_type = 'torch.IntTensor'
-   end
    self._module:type(type)
    return self
 end
@@ -220,10 +192,13 @@ function WindowSparse:sharedClone()
 end
 
 function WindowSparse:updateParameters(lr)
-   self._module:updateParameters(lr, true)
+   -- we update parameters inplace (much faster)
+   -- so don't use this with momentum (disabled by default)
+   self._module:accUpdateGradParameters(self:inputAct(), self.outputGrad(), self._acc_scale * lr)
+   return
 end
 
 function WindowSparse:maxNorm()
-   error"NotImplemented"
+   
 end
 

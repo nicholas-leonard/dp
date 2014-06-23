@@ -47,15 +47,15 @@ function WindowSparse:__init(config)
    self._output_stdv = output_stdv
    self._lr = lr
    
-   require 'nnx'
-   self._module 
-   
+   require 'cunnx'
+      
    --[[ First Layer : Input is dense, output is sparse ]]--
    -- Gater A
    local gaterA = nn.Sequential()
    gaterA:add(nn.Linear(self._input_size, self._gater_size[1]))
    gaterA:add(nn.Softmax())
-   gaterA:add(nn.WindowGate(self._window_size[1], self._hidden_size[1], self._input_stdv[1], self._output_stdv[1], self._lr[1]))
+   local gateA = nn.WindowGate(self._window_size[1], self._hidden_size[1], self._input_stdv[1], self._output_stdv[1], self._lr[1])
+   gaterA:add(gateA)
    
    -- Mixture of experts A
    local concatA = nn.ConcatTable() -- outputs a table of tensors
@@ -65,30 +65,42 @@ function WindowSparse:__init(config)
    mixtureA:add(concatA)
    
    -- experts :
-   mixtureA:add(nn.WindowSparse(self._input_size, self._hidden_size[1], nn.WindowSparse.DENSE_SPARSE)) 
-   mixtureA:add(nn.Tanh())
+   local expertsA = nn.WindowSparse(self._input_size, self._hidden_size[1], nn.WindowSparse.DENSE_SPARSE)
+   mixtureA:add(expertsA) 
+   local paraA = nn.ParallelTable()
+   paraA:add(nn.Tanh()) -- non-linearity of experts (WindowSparse)
+   paraA:add(nn.Identity())
+   mixtureA:add(paraA)
 
    --[[ Second Layer : Input and output are sparse ]]--
    -- Gater B : The input to the B gater is sparse so we use a nn.WindowSparse instead of a nn.Linear:
    local gaterB = nn.Sequential()
    gaterB:add(nn.WindowSparse(self._hidden_size[1] ,self._gater_size[2], nn.WindowSparse.SPARSE_DENSE)) 
    gaterB:add(nn.SoftMax())
-   gaterB:add(nn.WindowGate(self._window_size[2], self._hidden_size[2], self._input_stdv[2], self._output_stdv[2], self._lr[2]))
+   local gateB = nn.WindowGate(self._window_size[2], self._hidden_size[2], self._input_stdv[2], self._output_stdv[2], self._lr[2])
+   gaterB:add(gateB)
    
    -- Mixture of experts B
    local concatB = nn.ConcatTable() -- outputs a table of tensors
    concatB:add(nn.Identity()) -- forwards the input to the output
    concatB:add(gaterB)
-
    local mixtureB = nn.Sequential()
    mixtureB:add(concatB)
-   mixtureB:add(nn.WindowSparse(self._hidden_size[1], self._hidden_size[2], nn.WindowSparse.SPARSE_SPARSE))
-   mixtureB:add(nn.Tanh)
+   
+   -- experts
+   -- this is where most of the sparsity stems from :
+   local expertsB = nn.WindowSparse(self._hidden_size[1], self._hidden_size[2], nn.WindowSparse.SPARSE_SPARSE)
+   mixtureB:add(expertsB)
+   local paraB = nn.ParallelTable()
+   paraB:add(nn.Tanh()) -- non-linearity of experts (WindowSparse)
+   paraB:add(nn.Identity())
+   mixtureB:add(paraA)
 
    --[[ Third Layer : Input is sparse, output is dense ]]--
    -- Mixture of experts C
    local mixtureC = nn.Sequential()
-   mixtureC:add(nn.WindowSparse(self._hidden_size[2], self._output_size, nn.WindowSparse.SPARSE_DENSE))
+   local expertsC = nn.WindowSparse(self._hidden_size[2], self._output_size, nn.WindowSparse.SPARSE_DENSE)
+   mixtureC:add(expertsC)
    mixtureC:add(nn.Tanh())
 
    --[[ Stack Mixtures ]]--
@@ -97,6 +109,18 @@ function WindowSparse:__init(config)
    mlp:add(mixtureA)
    mlp:add(mixtureB)
    mlp:add(mixtureC)
+   
+   self._gaterA = gaterA
+   self._gaterB = gaterB
+   self._gateA = gateA
+   self._gateB = gateB
+   self._expertsA = expertsA
+   self._expertsB = expertsB
+   self._expertsC = expertsC
+   self._mixtureA = mixtureA
+   self._mixtureB = mixtureB
+   self._mixtureC = mixtureC
+   self._module = mlp
    
    config.typename = typename
    config.output = dp.DataView()

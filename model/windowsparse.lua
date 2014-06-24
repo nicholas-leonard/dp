@@ -58,7 +58,6 @@ function WindowSparse:__init(config)
    local gaterA = nn.Sequential()
    gaterA:add(nn.Linear(self._input_size, self._gater_size[1]))
    gaterA:add(nn.SoftMax())
-   gaterA:add(nn.Print("gaterA in"))
    local gateA = nn.WindowGate(self._window_size[1], self._hidden_size[1], self._input_stdv[1], self._output_stdv[1], self._lr[1])
    gaterA:add(gateA)
    
@@ -78,24 +77,16 @@ function WindowSparse:__init(config)
    --[[ Second Layer : Input and output are sparse ]]--
    -- Gater B : The input to the B gater is sparse so we use a nn.WindowSparse instead of a nn.Linear:
    local gaterB = nn.Sequential()
-   gaterB:add(nn.Print("gaterB"))
    gaterB:add(nn.WindowSparse(self._hidden_size[1] ,self._gater_size[2], self._gater_size[2]))
    gaterB:add(nn.ElementTable(1))
-   gaterB:add(nn.Print("gaterB out 0"))
    gaterB:add(nn.SoftMax())
-   gaterB:add(nn.Print("gaterB out 0.2"))
    local gateB = nn.WindowGate(self._window_size[2], self._hidden_size[2], self._input_stdv[2], self._output_stdv[2], self._lr[2])
    gaterB:add(gateB)
-   local paraX = nn.ParallelTable()
-   paraX:add(nn.Print("gaterB out 1"))
-   paraX:add(nn.Print("gaterB out 2"))
-   gaterB:add(paraX)
    
    -- Experts B
    local mlpB = nn.Sequential()
    -- this is where most of the sparsity-based performance gains are :
    local expertsB = nn.WindowSparse(self._hidden_size[1], self._hidden_size[2], self._window_size[2], true)
-   mlpB:add(nn.Print("expertB"))
    mlpB:add(expertsB)
    local paraB = nn.ParallelTable()
    paraB:add(nn.Tanh()) -- non-linearity of experts (WindowSparse)
@@ -110,7 +101,6 @@ function WindowSparse:__init(config)
    -- Mixture C
    local mixtureC = nn.Sequential()
    local expertsC = nn.WindowSparse(self._hidden_size[2], self._output_size, self._output_size, true)
-   mixtureC:add(nn.Print("mixtureC"))
    mixtureC:add(expertsC)
    mixtureC:add(nn.ElementTable(1))
    mixtureC:add(nn.Tanh())
@@ -199,7 +189,7 @@ end
 function WindowSparse:updateParameters(lr)
    -- we update parameters inplace (much faster)
    -- so don't use this with momentum (disabled by default)
-   self._module:accUpdateGradParameters(self:inputAct(), self.outputGrad(), self._acc_scale * lr)
+   self._module:accUpdateGradParameters(self:inputAct(), self:outputGrad(), self._acc_scale * lr)
    return
 end
 

@@ -7,7 +7,7 @@ WindowSparse.isWindowSparse = true
 
 function WindowSparse:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, input_size, window_size, input_stdv, output_stdv, 
+   local args, input_size, window_size, input_stdv, output_stdv, noise_stdv,
       hidden_size, gater_size, output_size, lr, norm_period, 
       sparse_init, typename = xlua.unpack(
       {config},
@@ -24,6 +24,8 @@ function WindowSparse:__init(config)
        help='stdv of gaussian blur of targets for WindowGate'},
       {arg='output_stdv', type='table', req=true,
        help='stdv of gaussian blur of output of WindowGate'},
+      {arg='noise_stdv', type='table', req=true,
+       help='stdv of gaussian noise on input of WindowGate'},
       {arg='hidden_size', type='table', req=true,
        help='size of the hidden layers between nn.WindowSparses.'},
       {arg='gater_size', type='table', req=true,
@@ -47,18 +49,19 @@ function WindowSparse:__init(config)
    self._hidden_size = hidden_size
    self._input_stdv = input_stdv
    self._output_stdv = output_stdv
+   self._noise_stdv = noise_stdv
    self._lr = lr
    self._norm_period = norm_period
    self._norm_iter = 0
    
-   require 'cunnx'
+   require 'nnx'
       
    --[[ First Layer : Input is dense, output is sparse ]]--
    -- Gater A
    local gaterA = nn.Sequential()
    gaterA:add(nn.Linear(self._input_size, self._gater_size[1]))
    gaterA:add(nn.SoftMax())
-   local gateA = nn.WindowGate(self._window_size[1], self._hidden_size[1], self._input_stdv[1], self._output_stdv[1], self._lr[1])
+   local gateA = nn.WindowGate(self._window_size[1], self._hidden_size[1], self._input_stdv[1], self._output_stdv[1], self._lr[1], self._noise_stdv[1])
    gaterA:add(gateA)
    
    -- Experts A
@@ -80,7 +83,7 @@ function WindowSparse:__init(config)
    gaterB:add(nn.WindowSparse(self._hidden_size[1] ,self._gater_size[2], self._gater_size[2]))
    gaterB:add(nn.ElementTable(1))
    gaterB:add(nn.SoftMax())
-   local gateB = nn.WindowGate(self._window_size[2], self._hidden_size[2], self._input_stdv[2], self._output_stdv[2], self._lr[2])
+   local gateB = nn.WindowGate(self._window_size[2], self._hidden_size[2], self._input_stdv[2], self._output_stdv[2], self._lr[2], self._noise_stdv[2])
    gaterB:add(gateB)
    
    -- Experts B
@@ -139,11 +142,15 @@ end
 
 -- requires targets be in carry
 function WindowSparse:_forward(carry)
-   self:outputAct(self._module:forward(self:inputAct()))
-   self._stats.stdA = 0.9*self._stats.stdA + 0.1*self._gateA.centroid:std()
-   self._stats.stdB = 0.9*self._stats.stdB + 0.1*self._gateB.centroid:std()
-   self._stats.meanA = 0.9*self._stats.meanA + 0.1*self._gateA.centroid:mean()
-   self._stats.meanB = 0.9*self._stats.meanB + 0.1*self._gateB.centroid:mean()
+   local input = self:inputAct()
+   local outputAct = self._module:forward(input)
+   self:outputAct(outputAct)
+   local centroidA = self._gateA.normalizedCentroid
+   local centroidB = self._gateB.normalizedCentroid
+   self._stats.stdA = 0.9*self._stats.stdA + 0.1*centroidA:std()
+   self._stats.stdB = 0.9*self._stats.stdB + 0.1*centroidB:std()
+   self._stats.meanA = 0.9*self._stats.meanA + 0.1*centroidA:mean()
+   self._stats.meanB = 0.9*self._stats.meanB + 0.1*centroidB:mean()
    return carry
 end
 

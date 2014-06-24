@@ -2,30 +2,23 @@
 --[[ WindowSparse ]]--
 -- A 3 layer model of Distributed Conditional Computation
 ------------------------------------------------------------------------
-local WindowSparse, parent = torch.class("dp.WindowSparse", "dp.Layer")
-WindowSparse.isWindowSparse = true
+local BlockSparse, parent = torch.class("dp.BlockSparse", "dp.Layer")
+BlockSparse.isBlockSparse = true
 
-function WindowSparse:__init(config)
+function BlockSparse:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, input_size, window_size, input_stdv, output_stdv, 
-      hidden_size, gater_size, output_size, lr, sparse_init, typename
+   local args, input_size, hidden_size, gater_size, output_size, 
+      lr, sparse_init, typename, sparsityFactor, threshold_lr, alpha_range, std
       = xlua.unpack(
       {config},
-      'WindowSparse', 
+      'BlockSparse', 
       'Deep mixture of experts model. It is three parametrized '..
       'layers of gated experts. There are two gaters, one for each '..
       'layer of hidden neurons.',
       {arg='input_size', type='number', req=true,
        help='Number of input neurons'},
-      {arg='window_size', type='table', req=true,
-       help='A table of window sizes. Should be smaller than '..
-       'commensurate hidden size.'},
-      {arg='inputStdv', type='table', req=true,
-       help='stdv of gaussian blur of targets for WindowGate'},
-      {arg='outputStdv', type='table', req=true,
-       help='stdv of gaussian blur of output of WindowGate'},
       {arg='hidden_size', type='table', req=true,
-       help='size of the hidden layers between nn.WindowSparses.'},
+       help='size of the hidden layers between nn.BlockSparses.'},
       {arg='gater_size', type='table', req=true,
        help='output size of the gaters'},
       {arg='output_size', type='number', req=true,
@@ -35,7 +28,7 @@ function WindowSparse:__init(config)
       {arg='sparse_init', type='boolean', default=false,
        help='sparse initialization of weights. See Martens (2010), '..
        '"Deep learning via Hessian-free optimization"'}
-      {arg='typename', type='string', default='windowsparse', 
+      {arg='typename', type='string', default='BlockSparse', 
        help='identifies Model type in reports.'},
       {arg='sparsityFactor', type='number', default=0.1,
        help='sparsity for noisyrelu'},
@@ -47,12 +40,9 @@ function WindowSparse:__init(config)
        help='std for gaussian noise'},
    )
    self._input_size = input_size
-   self._window_size = window_size
    self._output_size = output_size
    self._gater_size = gater_size
    self._hidden_size = hidden_size
-   self._input_stdv = input_stdv
-   self._output_stdv = output_stdv
    self._lr = lr
    
    
@@ -79,7 +69,7 @@ function WindowSparse:__init(config)
    
 
    --[[ Second Layer : Input and output are sparse ]]--
-   -- Gater B : The input to the B gater is sparse so we use a nn.WindowSparse instead of a nn.Linear:
+   -- Gater B : The input to the B gater is sparse so we use a nn.BlockSparse instead of a nn.Linear:
    local gaterB = nn.Sequential()
    gaterB:add(nn.BlockSparse(self._hidden_size[1]), self._gater_size[2], self._gater_size[1], 1))
    gateB = nn.NoisyReLU(opt.sparsityFactor, opt.threshold_lr, opt.alpha_range, opt.std)
@@ -135,12 +125,12 @@ function WindowSparse:__init(config)
 end
 
 -- requires targets be in carry
-function WindowSparse:_forward(carry)
+function BlockSparse:_forward(carry)
    self:outputAct(self._module:forward(self:inputAct()))
    return carry
 end
 
-function WindowSparse:_backward(carry)
+function BlockSparse:_backward(carry)
    self._acc_scale = carry.scale or 1
    self._report.scale = self._acc_scale
    local input_act = self:inputAct()
@@ -151,35 +141,35 @@ function WindowSparse:_backward(carry)
    return carry
 end
 
-function WindowSparse:paramModule()
+function BlockSparse:paramModule()
    return self._module
 end
 
-function WindowSparse:_type(type)
+function BlockSparse:_type(type)
    self._input_type = type
    self._output_type = type
    self._module:type(type)
    return self
 end
 
-function WindowSparse:reset()
+function BlockSparse:reset()
    self._module:reset()
    if self._sparse_init then
       self._sparseReset(self._module.weight)
    end
 end
 
-function WindowSparse:zeroGradParameters()
+function BlockSparse:zeroGradParameters()
    self._module:zeroGradParameters(true)
 end
 
 -- if after feedforward, returns active parameters 
 -- else returns all parameters
-function WindowSparse:parameters()
+function BlockSparse:parameters()
    return self._module:parameters(true)
 end
 
-function WindowSparse:sharedClone()
+function BlockSparse:sharedClone()
    local clone = torch.protoClone(self, {
       input_size=self._input_size, hierarchy={[1]=torch.IntTensor{1,2}},
       root_id=1, sparse_init=self._sparse_init,
@@ -193,13 +183,10 @@ function WindowSparse:sharedClone()
    return clone
 end
 
-function WindowSparse:updateParameters(lr)
+function BlockSparse:updateParameters(lr)
    -- we update parameters inplace (much faster)
    -- so don't use this with momentum (disabled by default)
    self._module:accUpdateGradParameters(self:inputAct(), self.outputGrad(), self._acc_scale * lr)
    return
 end
 
-function WindowSparse:maxNorm()
-   
-end

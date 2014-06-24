@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------
---[[ WindowSparse ]]--
+--[[ BlockSparse ]]--
 -- A 3 layer model of Distributed Conditional Computation
 ------------------------------------------------------------------------
 local BlockSparse, parent = torch.class("dp.BlockSparse", "dp.Layer")
@@ -54,7 +54,10 @@ function BlockSparse:__init(config)
    gaterA:add(nn.Linear(self._input_size, self._gater_size[1]))
    local gateA = nn.NoisyReLU(opt.sparsityFactor, opt.threshold_lr, opt.alpha_range, opt.std)
    gaterA:add(gateA)
-   gaterA:add(nn.SortFilter(opt.sparsityFactor))
+   gaterA:add(nn.Sort())
+   local paraA = nn.ParallelTable()
+   paraA:add(nn.Narrow(1,1,10))
+   paraA:add(nn.Narrow(1,1,10))
    
    -- Mixture of experts A
    local concatA = nn.ConcatTable() -- outputs a table of tensors

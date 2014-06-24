@@ -8,8 +8,8 @@ WindowSparse.isWindowSparse = true
 function WindowSparse:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, input_size, window_size, input_stdv, output_stdv, 
-      hidden_size, gater_size, output_size, lr, saprse_init, typename
-      = xlua.unpack(
+      hidden_size, gater_size, output_size, lr, norm_period, 
+      sparse_init, typename = xlua.unpack(
       {config},
       'WindowSparse', 
       'Deep mixture of experts model. It is three parametrized '..
@@ -20,9 +20,9 @@ function WindowSparse:__init(config)
       {arg='window_size', type='table', req=true,
        help='A table of window sizes. Should be smaller than '..
        'commensurate hidden size.'},
-      {arg='inputStdv', type='table', req=true,
+      {arg='input_stdv', type='table', req=true,
        help='stdv of gaussian blur of targets for WindowGate'},
-      {arg='outputStdv', type='table', req=true,
+      {arg='output_stdv', type='table', req=true,
        help='stdv of gaussian blur of output of WindowGate'},
       {arg='hidden_size', type='table', req=true,
        help='size of the hidden layers between nn.WindowSparses.'},
@@ -32,9 +32,11 @@ function WindowSparse:__init(config)
        help='output size of last layer'},
       {arg='lr', type='table', req=true,
        help='lr of gaussian blur target'},
+      {arg='norm_period', type='number', default=5,
+       help='Every norm_period batches, maxNorm is called'},
       {arg='sparse_init', type='boolean', default=false,
        help='sparse initialization of weights. See Martens (2010), '..
-       '"Deep learning via Hessian-free optimization"'}
+       '"Deep learning via Hessian-free optimization"'},
       {arg='typename', type='string', default='windowsparse', 
        help='identifies Model type in reports.'}
    )
@@ -46,6 +48,8 @@ function WindowSparse:__init(config)
    self._input_stdv = input_stdv
    self._output_stdv = output_stdv
    self._lr = lr
+   self._norm_period = norm_period
+   self._norm_iter = 0
    
    require 'cunnx'
       
@@ -53,54 +57,62 @@ function WindowSparse:__init(config)
    -- Gater A
    local gaterA = nn.Sequential()
    gaterA:add(nn.Linear(self._input_size, self._gater_size[1]))
-   gaterA:add(nn.Softmax())
+   gaterA:add(nn.SoftMax())
+   gaterA:add(nn.Print("gaterA in"))
    local gateA = nn.WindowGate(self._window_size[1], self._hidden_size[1], self._input_stdv[1], self._output_stdv[1], self._lr[1])
    gaterA:add(gateA)
    
-   -- Mixture of experts A
-   local concatA = nn.ConcatTable() -- outputs a table of tensors
-   concatA:add(nn.Identity()) -- forwards input as is
-   concatA:add(gaterA) -- forwards gated expert indices
-   local mixtureA = nn.Sequential()
-   mixtureA:add(concatA)
-   
-   -- experts :
-   local expertsA = nn.WindowSparse(self._input_size, self._hidden_size[1], nn.WindowSparse.DENSE_SPARSE)
-   mixtureA:add(expertsA) 
+   -- Experts A
+   local mlpA = nn.Sequential()
+   local expertsA = nn.WindowSparse(self._input_size, self._hidden_size[1], self._window_size[1], true) 
+   mlpA:add(expertsA)
    local paraA = nn.ParallelTable()
    paraA:add(nn.Tanh()) -- non-linearity of experts (WindowSparse)
-   paraA:add(nn.Identity())
-   mixtureA:add(paraA)
+   paraA:add(nn.Identity()) -- forwards outputIndices
+   mlpA:add(paraA)
+   
+   -- Mixture A
+   local mixtureA = nn.WindowMixture(mlpA, gaterA, nn.WindowMixture.DENSE_SPARSE)
+
 
    --[[ Second Layer : Input and output are sparse ]]--
    -- Gater B : The input to the B gater is sparse so we use a nn.WindowSparse instead of a nn.Linear:
    local gaterB = nn.Sequential()
-   gaterB:add(nn.WindowSparse(self._hidden_size[1] ,self._gater_size[2], nn.WindowSparse.SPARSE_DENSE)) 
+   gaterB:add(nn.Print("gaterB"))
+   gaterB:add(nn.WindowSparse(self._hidden_size[1] ,self._gater_size[2], self._gater_size[2]))
+   gaterB:add(nn.ElementTable(1))
+   gaterB:add(nn.Print("gaterB out 0"))
    gaterB:add(nn.SoftMax())
+   gaterB:add(nn.Print("gaterB out 0.2"))
    local gateB = nn.WindowGate(self._window_size[2], self._hidden_size[2], self._input_stdv[2], self._output_stdv[2], self._lr[2])
    gaterB:add(gateB)
+   local paraX = nn.ParallelTable()
+   paraX:add(nn.Print("gaterB out 1"))
+   paraX:add(nn.Print("gaterB out 2"))
+   gaterB:add(paraX)
    
-   -- Mixture of experts B
-   local concatB = nn.ConcatTable() -- outputs a table of tensors
-   concatB:add(nn.Identity()) -- forwards the input to the output
-   concatB:add(gaterB)
-   local mixtureB = nn.Sequential()
-   mixtureB:add(concatB)
-   
-   -- experts
-   -- this is where most of the sparsity stems from :
-   local expertsB = nn.WindowSparse(self._hidden_size[1], self._hidden_size[2], nn.WindowSparse.SPARSE_SPARSE)
-   mixtureB:add(expertsB)
+   -- Experts B
+   local mlpB = nn.Sequential()
+   -- this is where most of the sparsity-based performance gains are :
+   local expertsB = nn.WindowSparse(self._hidden_size[1], self._hidden_size[2], self._window_size[2], true)
+   mlpB:add(nn.Print("expertB"))
+   mlpB:add(expertsB)
    local paraB = nn.ParallelTable()
    paraB:add(nn.Tanh()) -- non-linearity of experts (WindowSparse)
    paraB:add(nn.Identity())
-   mixtureB:add(paraA)
+   mlpB:add(paraB)
+   
+   -- Mixture B
+   local mixtureB = nn.WindowMixture(mlpB, gaterB, nn.WindowMixture.SPARSE_SPARSE)
+   
 
    --[[ Third Layer : Input is sparse, output is dense ]]--
-   -- Mixture of experts C
+   -- Mixture C
    local mixtureC = nn.Sequential()
-   local expertsC = nn.WindowSparse(self._hidden_size[2], self._output_size, nn.WindowSparse.SPARSE_DENSE)
+   local expertsC = nn.WindowSparse(self._hidden_size[2], self._output_size, self._output_size, true)
+   mixtureC:add(nn.Print("mixtureC"))
    mixtureC:add(expertsC)
+   mixtureC:add(nn.ElementTable(1))
    mixtureC:add(nn.Tanh())
 
    --[[ Stack Mixtures ]]--
@@ -109,6 +121,7 @@ function WindowSparse:__init(config)
    mlp:add(mixtureA)
    mlp:add(mixtureB)
    mlp:add(mixtureC)
+   mlp:zeroGradParameters()
    
    self._gaterA = gaterA
    self._gaterB = gaterB
@@ -130,6 +143,8 @@ function WindowSparse:__init(config)
    config.tags['no-momentum'] = true
    config.sparse_init = sparse_init
    parent.__init(self, config)
+   -- only works with cuda
+   self:type('torch.CudaTensor')
 end
 
 -- requires targets be in carry
@@ -174,21 +189,11 @@ end
 -- if after feedforward, returns active parameters 
 -- else returns all parameters
 function WindowSparse:parameters()
-   return self._module:parameters(true)
+   return self._module:parameters()
 end
 
 function WindowSparse:sharedClone()
-   local clone = torch.protoClone(self, {
-      input_size=self._input_size, hierarchy={[1]=torch.IntTensor{1,2}},
-      root_id=1, sparse_init=self._sparse_init,
-      dropout=self._dropout and self._dropout:clone(),
-      typename=self._typename, 
-      input_type=self._input_type, output_type=self._output_type,
-      module_type=self._module_type, mvstate=self.mvstate
-   })
-   clone._target_type = self._target_type
-   clone._module = self._module:sharedClone()
-   return clone
+   error"Not Implemented"
 end
 
 function WindowSparse:updateParameters(lr)
@@ -198,7 +203,28 @@ function WindowSparse:updateParameters(lr)
    return
 end
 
-function WindowSparse:maxNorm()
-   
+-- Only affects 2D parameters.
+-- Assumes that 2D parameters are arranged (output_dim x input_dim)
+function WindowSparse:maxNorm(max_out_norm, max_in_norm)
+   self._norm_iter = self._norm_iter + 1
+   if self._norm_iter == self._norm_period then
+      assert(self.backwarded, "Should call maxNorm after a backward pass")
+      max_out_norm = self.mvstate.max_out_norm or max_out_norm
+      max_in_norm = self.mvstate.max_in_norm or max_in_norm
+      local params, gradParams = self:parameters()
+      for k,param in pairs(params) do
+         if param:dim() == 2 then
+            if max_out_norm then
+               -- rows feed into output neurons 
+               param:norm(1, 2, max_out_norm)
+            end
+            if max_in_norm then
+               -- cols feed out from input neurons
+               param:norm(2, 2, max_out_norm)
+            end
+         end
+      end
+      self._norm_iter = 0
+   end
 end
 

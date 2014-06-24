@@ -140,6 +140,10 @@ end
 -- requires targets be in carry
 function WindowSparse:_forward(carry)
    self:outputAct(self._module:forward(self:inputAct()))
+   self._stats.stdA = 0.9*self._stats.stdA + 0.1*self._gateA.centroid:std()
+   self._stats.stdB = 0.9*self._stats.stdB + 0.1*self._gateB.centroid:std()
+   self._stats.meanA = 0.9*self._stats.meanA + 0.1*self._gateA.centroid:mean()
+   self._stats.meanB = 0.9*self._stats.meanB + 0.1*self._gateB.centroid:mean()
    return carry
 end
 
@@ -150,6 +154,8 @@ function WindowSparse:_backward(carry)
    local output_grad = self:outputGrad()
    -- we don't accGradParameters as updateParameters will do so inplace
    output_grad = self._module:updateGradInput(input_act, output_grad)
+   self._stats.errorA = 0.9*self._stats.errorA + 0.1*self._gateA.error:mean()
+   self._stats.errorB = 0.9*self._stats.errorB + 0.1*self._gateB.error:mean()
    self:inputGrad(output_grad)
    return carry
 end
@@ -173,7 +179,7 @@ function WindowSparse:reset()
 end
 
 function WindowSparse:zeroGradParameters()
-   self._module:zeroGradParameters(true)
+   --self._module:zeroGradParameters(true)
 end
 
 -- if after feedforward, returns active parameters 
@@ -216,5 +222,18 @@ function WindowSparse:maxNorm(max_out_norm, max_in_norm)
       end
       self._norm_iter = 0
    end
+end
+
+function WindowSparse:_zeroStatistics()
+   self._stats.errorA = 0
+   self._stats.errorB = 0
+   self._stats.stdA = 0
+   self._stats.stdB = 0
+   self._stats.meanA = 0
+   self._stats.meanB = 0
+end
+
+function WindowSparse:report()
+   print(self:name(), self._stats.errorA, self._stats.errorB, self._stats.stdA, self._stats.stdB, self._stats.meanA, self._stats.meanB)
 end
 

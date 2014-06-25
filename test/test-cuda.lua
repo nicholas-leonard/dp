@@ -221,6 +221,41 @@ function dptest.softmaxtree()
    mytester:assertTensorEq(output:forward('bf'):float(), output2:forward('bf'):float(), 0.00001)
    mytester:assertTensorEq(input:backward('bf'):float(), input2:backward('bf'):float(), 0.00001)
 end
+function dptest.windowsparse()
+   local inputSize = 10
+   local outputSize = 12
+   local hiddenSize = {50,45}
+   local gaterSize = {10,10}
+   local windowSize = {5, 7}
+   local inputStdv = {2,2}
+   local outputStdv = {2,2}
+   local lr = {0.5, 0.5}
+   
+   local batchSize = 8
+   local input_tensor = torch.randn(batchSize,inputSize):float()
+   local grad_tensor = torch.randn(batchSize,outputSize):float()
+   -- dp
+   local input = dp.DataView()
+   input:forward('bf', input_tensor)
+   local model = dp.WindowSparse{
+      input_size=inputSize, output_size=outputSize, hidden_size=hiddenSize,
+      gater_size=gaterSize, window_size=windowSize, input_stdv=inputStdv,
+      output_stdv=outputStdv, lr=lr
+   }
+   model:cuda()
+   local output, carry = model:forward(input, {nSample=batchSize})
+   local params, grads = model:parameters()
+   params = _.map(params, function(k,v) return v:float() end )
+   output:backward('bf', grad_tensor:cuda())
+   input, carry = model:backward(output, carry)
+   mytester:assertTableEq(output:forward('bf'):size():totable(), {batchSize,outputSize}, 0.000001, "Wrong act size")
+   mytester:assertTableEq(input:backward('bf'):size():totable(), {batchSize,inputSize}, 0.000001, "Wrong grad size")
+   model:updateParameters(0.1)
+   local params2, grads2 = model:parameters()
+   for i=1,#params do
+      mytester:assertTensorNe(params[i]:float(), params2[i]:float(), 0.00001)
+   end
+end
 function dptest.nll()
    local input_tensor = torch.randn(5,10)
    local target_tensor = torch.randperm(10):sub(1,5)

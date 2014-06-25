@@ -1,39 +1,39 @@
 require 'dp'
+require 'cutorch'
+require 'cunn'
+require 'cunnx'
 
 --[[command line arguments]]--
 cmd = torch.CmdLine()
 cmd:text()
-cmd:text('Train a Language Model on BillionWords dataset using SoftmaxTree')
+cmd:text('Train a Language Model on BillionWords dataset using Conditional Computation SoftmaxTree')
 cmd:text('Example:')
-cmd:text('$> th languagemodel.lua --small --batchSize 512 ')
-cmd:text('$> th languagemodel.lua --tiny --batchSize 512 ')
+cmd:text('$> th conditionalcomputation.lua --small --batchSize 512 ')
+cmd:text('$> th conditionalcomputation.lua --tiny --batchSize 512 ')
 cmd:text('Options:')
 cmd:option('--learningRate', 0.1, 'learning rate at t=0')
 cmd:option('--decayPoint', 100, 'epoch at which learning rate is decayed')
 cmd:option('--decayFactor', 0.1, 'factory by which learning rate is decayed at decay point')
 cmd:option('--maxOutNorm', 0, 'max norm each layers output neuron weights')
-cmd:option('--momentum', 0, 'momentum')
 cmd:option('--batchSize', 512, 'number of examples per batch')
-cmd:option('--type', 'double', 'type: double | float | cuda')
 cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
 cmd:option('--maxEpoch', 400, 'maximum number of epochs to run')
 cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better local minima for early-stopping')
-cmd:option('--dropout', false, 'apply dropout on hidden neurons, requires "nnx" luarock')
+--cmd:option('--dropout', false, 'apply dropout on hidden neurons, requires "nnx" luarock')
 
 cmd:option('--contextSize', 5, 'number of words preceding the target word used to predict the target work')
-cmd:option('--inputEmbeddingSize', 100, 'number of neurons per word embedding')
+cmd:option('--inputEmbeddingSize', 128, 'number of neurons per word embedding')
 
---[[ first hidden layer ]]--
-cmd:option('--neuralSize', 200, 'number of hidden units used for first hidden layer (used when --convolution is not used)')
---or
-cmd:option('--convolution', false, 'use a Convolution1D instead of Neural for the first hidden layer')
-cmd:option('--convOutputSize', 200, 'number of output neurons of the convolutional kernel (outputFrameSize)')
-cmd:option('--convKernelSize', 2, 'number of words considered by convolution')
-cmd:option('--convKernelStride', 1, 'stride (step size) of the convolution')
-cmd:option('--convPoolSize', 2, 'number of words max pooled after convolution')
-cmd:option('--convPoolStride', 2, 'stride of the max pooling after the convolution') 
+--[[ conditional model ]]--
+cmd:option('--hiddenSize', '{1024,1024}', 'number of units used for the hidden layers of the conditional model')
+cmd:option('--gaterSize', '{128,128}', 'use a Convolution1D instead of Neural for the first hidden layer')
+cmd:option('--windowSize', '{128,128}', 'number of output neurons of the convolutional kernel (outputFrameSize)')
+cmd:option('--inputStdv', '{2,2}', 'number of words considered by convolution')
+cmd:option('--outputStdv', '{32,32}', 'stride (step size) of the convolution')
+cmd:option('--noiseStdv', '{0,0}', 'stride (step size) of the convolution')
+cmd:option('--windowLR', '{0.5,0.5}', 'number of words max pooled after convolution')
 
-cmd:option('--outputEmbeddingSize', 100, 'number of hidden units at softmaxtree')
+cmd:option('--outputEmbeddingSize', 128, 'number of hidden units at softmaxtree')
 
 --[[ output layer ]]--
 cmd:option('--softmaxtree', false, 'use the softmaxtree instead of the inefficient (full) softmax')
@@ -62,40 +62,23 @@ local datasource = dp.BillionWords{
 }
 
 --[[Model]]--
-if opt.dropout then
-   require 'nnx'
-end
+cutorch.setDevice(opt.useDevice)
 
 print("Input to first hidden layer has "..
    opt.contextSize*opt.inputEmbeddingSize.." neurons.")
 
-local hiddenModel, inputSize
-if opt.convolution then
-   print"Using convolution for first hidden layer"
-   hiddenModel = dp.Convolution1D{
-      input_size = opt.inputEmbeddingSize, 
-      output_size = opt.convOutputSize,
-      kernel_size = opt.convKernelSize,
-      kernel_stride = opt.convKernelStride,
-      pool_size = opt.convPoolSize,
-      pool_stride = opt.convPoolStride,
-      transfer = nn.Tanh(),
-      dropout = opt.dropout and nn.Dropout() or nil
-   }
-   local nOutputFrame = hiddenModel:nOutputFrame(opt.contextSize)
-   print("Convolution has "..nOutputFrame.." output Frames")
-   inputSize = nOutputFrame*opt.convOutputSize
-else
-   hiddenModel = dp.Neural{
-      input_size = opt.contextSize*opt.inputEmbeddingSize,
-      output_size = opt.neuralSize, 
-      transfer = nn.Tanh(),
-      dropout = opt.dropout and nn.Dropout() or nil
-   }
-   inputSize = opt.neuralSize
-end
-
-print("Input to second hidden layer has size "..inputSize)
+print"Using WindowSparse conditional model"
+local conditionalModel = dp.WindowSparse{
+   input_size = opt.contextSize*opt.inputEmbeddingSize, 
+   output_size = opt.outputEmbeddingSize,
+   hidden_size = table.fromString(opt.hiddenSize),
+   gater_size = table.fromString(opt.gaterSize),
+   window_size = table.fromString(opt.windowSize),
+   input_stdv = table.fromString(opt.inputStdv),
+   output_stdv = table.fromString(opt.outputStdv),
+   noise_stdv = table.fromString(opt.noiseStdv),
+   lr = table.fromString(opt.windowLR)
+}
 
 local softmax
 if opt.softmaxtree then
@@ -123,38 +106,24 @@ mlp = dp.Sequential{
          dict_size = datasource:vocabularySize(),
          output_size = opt.inputEmbeddingSize
       },
-      hiddenModel,
-      dp.Neural{
-         input_size = inputSize, 
-         output_size = opt.outputEmbeddingSize, 
-         transfer = nn.Tanh(),
-         dropout = opt.dropout and nn.Dropout() or nil
-      },
+      conditionalModel,
       softmax
    }
 }
 
---[[GPU or CPU]]--
-if opt.type == 'cuda' then
-   print"Using CUDA"
-   require 'cutorch'
-   require 'cunn'
-   cutorch.setDevice(opt.useDevice)
-   mlp:cuda()
-end
+mlp:cuda()
 
 --[[Propagators]]--
 train = dp.Optimizer{
    loss = opt.softmaxtree and dp.TreeNLL() or dp.NLL(),
    visitor = { -- the ordering here is important:
-      --dp.Momentum{momentum_factor = opt.momentum},
       dp.Learn{
          learning_rate = opt.learningRate, 
          observer = dp.LearningRateSchedule{
             schedule = {[opt.decayPoint]=opt.learningRate*opt.decayFactor}
          }
-      }--,
-      --dp.MaxNorm{max_out_norm = opt.maxOutNorm}
+      },
+      dp.MaxNorm{max_out_norm = opt.maxOutNorm}
    },
    feedback = dp.Perplexity(),  
    sampler = dp.Sampler{ --shuffle sample takes too much mem

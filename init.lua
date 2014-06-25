@@ -118,8 +118,10 @@ torch.include('dp', 'model/neural.lua')
 torch.include('dp', 'model/module.lua')
 torch.include('dp', 'model/dictionary.lua')
 torch.include('dp', 'model/softmaxtree.lua')
+torch.include('dp', 'model/windowsparse.lua')
 torch.include('dp', 'model/convolution1D.lua')
 torch.include('dp', 'model/convolution2D.lua')
+
 
 --[[ loss ]]--
 torch.include('dp', 'loss/loss.lua')

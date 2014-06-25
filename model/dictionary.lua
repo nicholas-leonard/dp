@@ -31,7 +31,6 @@ function Dictionary:__init(config)
    config.typename = typename
    config.input_type = 'torch.IntTensor'
    config.tags = config.tags or {}
-   config.tags['no-maxnorm'] = true
    config.input_view = 'bt'
    config.output_view = 'bwc'
    config.output = dp.SequenceView()
@@ -91,6 +90,18 @@ end
 function Dictionary:share(dict, ...)
    assert(dict.isDictionary)
    return parent.share(self, dict, ...)
+end
+
+-- Only affects 2D parameters.
+-- Assumes that 2D parameters are arranged (input_dim, output_dim)
+function Dictionary:maxNorm(max_out_norm, max_in_norm)
+   assert(self.backwarded, "Should call maxNorm after a backward pass")
+   local module = self._module
+   max_out_norm = self.mvstate.max_out_norm or max_out_norm
+   max_out_norm = self.mvstate.max_in_norm or max_in_norm or max_out_norm
+   for k,nBackward in pairs(module.inputs) do
+      module.weight:narrow(1, k, 1):renorm(1, 2, max_out_norm)
+   end
 end
 
 function Dictionary:sharedClone()

@@ -61,6 +61,8 @@ function WindowSparse:__init(config)
    local gaterA = nn.Sequential()
    gaterA:add(nn.Linear(self._input_size, self._gater_size[1]))
    gaterA:add(nn.SoftMax())
+   local balanceA = nn.Balance(10)
+   --gaterA:add(balanceA)
    local gateA = nn.WindowGate(self._window_size[1], self._hidden_size[1], self._input_stdv[1], self._output_stdv[1], self._lr[1], self._noise_stdv[1])
    gaterA:add(gateA)
    
@@ -70,7 +72,7 @@ function WindowSparse:__init(config)
    mlpA:add(expertsA)
    local paraA = nn.ParallelTable()
    paraA:add(nn.Tanh()) -- non-linearity of experts (WindowSparse)
-   paraA:add(nn.Identity()) -- forwards outputIndices
+   paraA:add(nn.Identity()) -- forwards indices
    mlpA:add(paraA)
    
    -- Mixture A
@@ -83,6 +85,8 @@ function WindowSparse:__init(config)
    gaterB:add(nn.WindowSparse(self._hidden_size[1] ,self._gater_size[2], self._gater_size[2]))
    gaterB:add(nn.ElementTable(1))
    gaterB:add(nn.SoftMax())
+   local balanceB = nn.Balance(10)
+   --gaterB:add(balanceB)
    local gateB = nn.WindowGate(self._window_size[2], self._hidden_size[2], self._input_stdv[2], self._output_stdv[2], self._lr[2], self._noise_stdv[2])
    gaterB:add(gateB)
    
@@ -120,6 +124,8 @@ function WindowSparse:__init(config)
    self._gaterB = gaterB
    self._gateA = gateA
    self._gateB = gateB
+   self._balanceA = balanceA
+   self._balanceB = balanceB
    self._expertsA = expertsA
    self._expertsB = expertsB
    self._expertsC = expertsC
@@ -143,14 +149,38 @@ end
 -- requires targets be in carry
 function WindowSparse:_forward(carry)
    local input = self:inputAct()
+   self._gateA.train = true
+   self._gateB.train = true
+   self._balanceA.train = true
+   self._balanceB.train = true
    local outputAct = self._module:forward(input)
    self:outputAct(outputAct)
+   -- statistics
    local centroidA = self._gateA.normalizedCentroid
    local centroidB = self._gateB.normalizedCentroid
    self._stats.stdA = 0.9*self._stats.stdA + 0.1*centroidA:std()
    self._stats.stdB = 0.9*self._stats.stdB + 0.1*centroidB:std()
    self._stats.meanA = 0.9*self._stats.meanA + 0.1*centroidA:mean()
    self._stats.meanB = 0.9*self._stats.meanB + 0.1*centroidB:mean()
+   return carry
+end
+
+-- requires targets be in carry
+function WindowSparse:_evaluate(carry)
+   local input = self:inputAct()
+   self._gateA.train = false
+   self._gateB.train = false
+   self._balanceA.train = false
+   self._balanceB.train = false
+   local outputAct = self._module:forward(input)
+   -- statistics
+   local tgtA = self._gateA.targetCentroid
+   local tgtB = self._gateB.targetCentroid
+   self._stats.tgtStdA = 0.9*self._stats.tgtStdA + 0.1*tgtA:std()
+   self._stats.tgtStdB = 0.9*self._stats.tgtStdB + 0.1*tgtB:std()
+   self._stats.tgtMeanA = 0.9*self._stats.tgtMeanA + 0.1*tgtA:mean()
+   self._stats.tgtMeanB = 0.9*self._stats.tgtMeanB + 0.1*tgtB:mean()
+   self:outputAct(outputAct)
    return carry
 end
 
@@ -203,6 +233,8 @@ function WindowSparse:updateParameters(lr)
    -- we update parameters inplace (much faster)
    -- so don't use this with momentum (disabled by default)
    self._module:accUpdateGradParameters(self:inputAct(), self:outputGrad(), self._acc_scale * lr)
+   --self._gaterA:get(1).bias:zero()
+   --self._gaterB:get(1).bias:zero()
    return
 end
 
@@ -219,11 +251,11 @@ function WindowSparse:maxNorm(max_out_norm, max_in_norm)
          if param:dim() == 2 then
             if max_out_norm then
                -- rows feed into output neurons 
-               param:norm(1, 2, max_out_norm)
+               param:renorm(1, 2, max_out_norm)
             end
             if max_in_norm then
                -- cols feed out from input neurons
-               param:norm(2, 2, max_out_norm)
+               param:renorm(2, 2, max_out_norm)
             end
          end
       end
@@ -238,9 +270,15 @@ function WindowSparse:_zeroStatistics()
    self._stats.stdB = 0
    self._stats.meanA = 0
    self._stats.meanB = 0
+   self._stats.tgtStdA = 0
+   self._stats.tgtStdB = 0
+   self._stats.tgtMeanA = 0
+   self._stats.tgtMeanB = 0
 end
 
 function WindowSparse:report()
-   print(self:name(), self._stats.errorA, self._stats.errorB, self._stats.stdA, self._stats.stdB, self._stats.meanA, self._stats.meanB)
+   print(self:name())
+   print("gaterA", self._stats.errorA, self._stats.meanA, "+-", self._stats.stdA, self._stats.tgtMeanA, "+-", self._stats.tgtStdA)
+   print("gaterB", self._stats.errorB, self._stats.meanB, "+-", self._stats.stdB, self._stats.tgtMeanB, "+-", self._stats.tgtStdB)
 end
 

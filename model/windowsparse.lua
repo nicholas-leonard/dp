@@ -233,8 +233,8 @@ function WindowSparse:updateParameters(lr)
    -- we update parameters inplace (much faster)
    -- so don't use this with momentum (disabled by default)
    self._module:accUpdateGradParameters(self:inputAct(), self:outputGrad(), self._acc_scale * lr)
-   --self._gaterA:get(1).bias:zero()
-   --self._gaterB:get(1).bias:zero()
+   self._gaterA:get(1).bias:zero()
+   self._gaterB:get(1).bias:zero()
    return
 end
 

@@ -63,7 +63,7 @@ function WindowSparse:__init(config)
    gaterA:add(nn.SoftMax())
    local balanceA = nn.Balance(10)
    --gaterA:add(balanceA)
-   local gateA = nn.WindowGate(self._window_size[1], self._hidden_size[1], self._input_stdv[1], self._output_stdv[1], self._lr[1], self._noise_stdv[1])
+   local gateA = nn.WindowGate2(self._window_size[1], self._hidden_size[1], self._input_stdv[1], self._output_stdv[1], self._lr[1], self._noise_stdv[1])
    gaterA:add(gateA)
    
    -- Experts A
@@ -76,7 +76,7 @@ function WindowSparse:__init(config)
    mlpA:add(paraA)
    
    -- Mixture A
-   local mixtureA = nn.WindowMixture(mlpA, gaterA, nn.WindowMixture.DENSE_SPARSE)
+   local mixtureA = nn.WindowMixture(mlpA, gaterA, nn.WindowMixture.DENSE_SPARSE, nn.CMulTable())
 
 
    --[[ Second Layer : Input and output are sparse ]]--
@@ -87,7 +87,7 @@ function WindowSparse:__init(config)
    gaterB:add(nn.SoftMax())
    local balanceB = nn.Balance(10)
    --gaterB:add(balanceB)
-   local gateB = nn.WindowGate(self._window_size[2], self._hidden_size[2], self._input_stdv[2], self._output_stdv[2], self._lr[2], self._noise_stdv[2])
+   local gateB = nn.WindowGate2(self._window_size[2], self._hidden_size[2], self._input_stdv[2], self._output_stdv[2], self._lr[2], self._noise_stdv[2])
    gaterB:add(gateB)
    
    -- Experts B
@@ -101,7 +101,7 @@ function WindowSparse:__init(config)
    mlpB:add(paraB)
    
    -- Mixture B
-   local mixtureB = nn.WindowMixture(mlpB, gaterB, nn.WindowMixture.SPARSE_SPARSE)
+   local mixtureB = nn.WindowMixture(mlpB, gaterB, nn.WindowMixture.SPARSE_SPARSE, nn.CMulTable())
    
 
    --[[ Third Layer : Input is sparse, output is dense ]]--
@@ -146,7 +146,6 @@ function WindowSparse:__init(config)
    self:type('torch.CudaTensor')
 end
 
--- requires targets be in carry
 function WindowSparse:_forward(carry)
    local input = self:inputAct()
    self._gateA.train = true
@@ -165,7 +164,6 @@ function WindowSparse:_forward(carry)
    return carry
 end
 
--- requires targets be in carry
 function WindowSparse:_evaluate(carry)
    local input = self:inputAct()
    self._gateA.train = false
@@ -206,13 +204,6 @@ function WindowSparse:_type(type)
    self._output_type = type
    self._module:type(type)
    return self
-end
-
-function WindowSparse:reset()
-   self._module:reset()
-   if self._sparse_init then
-      self._sparseReset(self._module.weight)
-   end
 end
 
 function WindowSparse:zeroGradParameters()

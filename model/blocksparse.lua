@@ -8,7 +8,7 @@ BlockSparse.isBlockSparse = true
 function BlockSparse:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, input_size, n_block, hidden_size, window_size, gater_size, 
-      output_size, threshold_lr, alpha_range, std, sparse_init, typename
+      output_size, threshold_lr, alpha_range, noise_std, sparse_init, typename
       = xlua.unpack(
       {config},
       'BlockSparse', 
@@ -31,7 +31,7 @@ function BlockSparse:__init(config)
        help='learning rate to get the optimum threshold for a desired sparsity'},
       {arg='alpha_range', type='table', default='',
        help='{start_alpha, num_batches, endsall}'},
-      {arg='std', type='table', default=1,
+      {arg='noise_std', type='table', req=true,
        help='std deviation of gaussian noise used for NoisyReLU'}
       {arg='sparse_init', type='boolean', default=false,
        help='sparse initialization of weights. See Martens (2010), '..
@@ -58,8 +58,8 @@ function BlockSparse:__init(config)
    
    -- gaters
    self._gates = {
-      nn.NoisyReLU(self._window_size[1]/self._n_block[1], alpha_range, threshold_lr, std),
-      nn.NoisyReLU(self._window_size[2]/self._n_block[2], alpha_range, threshold_lr, std)
+      nn.NoisyReLU(self._window_size[1]/self._n_block[1], alpha_range, threshold_lr, noise_stdv[1]),
+      nn.NoisyReLU(self._window_size[2]/self._n_block[2], alpha_range, threshold_lr, noise_stdv[2])
    }
    self._gater = nn.Sequential()
    self._gater:add(nn.Linear(self._input_size, self._gater_size))

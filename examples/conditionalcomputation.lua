@@ -27,14 +27,14 @@ cmd:option('--inputEmbeddingSize', 128, 'number of neurons per word embedding')
 --[[ conditional model ]]--
 cmd:option('--hiddenSize', '{1024,1024}', 'number of units used for the hidden layers of the conditional model')
 cmd:option('--windowSize', '{128,128}', 'number of neurons or blocks used per example')
-cmd:option('--noiseStdv', '{0,0}', 'standard deviation of gaussian noise used for NoisyReLU or WindowGate')
+cmd:option('--noiseStdv', '{1,1}', 'standard deviation of gaussian noise used for NoisyReLU or WindowGate')
+cmd:option('--gaterSize', '{128,128}', 'the output (windowsparse) or hidden (blocksparse) size of gaters')
 
 -- blocksparse
-
+cmd:option('--nBlock', '{256,256}', 'number of blocks used in the hidden layers of the BlockSparse models')
 
 -- windowsparse
 cmd:option('--inputStdv', '{2,2}', '')
-cmd:option('--gaterSize', '{128,128}', '')
 cmd:option('--outputStdv', '{32,32}', '')
 cmd:option('--windowLR', '{0.5,0.5}', '')
 
@@ -90,11 +90,11 @@ else
    conditionalModel = dp.BlockSparse{
       input_size = opt.contextSize*opt.inputEmbeddingSize, 
       output_size = opt.outputEmbeddingSize,
+      n_block = table.fromString(opt.nBlock),
       hidden_size = table.fromString(opt.hiddenSize),
-      gater_size = opt.gaterHiddenSize,
+      gater_size = table.fromString(opt.gaterSize),
       window_size = table.fromString(opt.windowSize),
-      noise_stdv = table.fromString(opt.noiseStdv),
-      lr = table.fromString(opt.windowLR)
+      noise_std = table.fromString(opt.noiseStdv)
    }
 end
 

@@ -8,7 +8,7 @@ BlockSparse.isBlockSparse = true
 function BlockSparse:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, input_size, n_block, hidden_size, window_size, gater_size, 
-      output_size, threshold_lr, alpha_range, noise_std, sparse_init, typename
+      output_size, noise_std, threshold_lr, alpha_range, sparse_init, typename
       = xlua.unpack(
       {config},
       'BlockSparse', 
@@ -23,19 +23,19 @@ function BlockSparse:__init(config)
        help='number of neurons per block in hidden layers between nn.BlockSparses.'},
       {arg='window_size', type='table', req=true,
        help='number of blocks used per example in each layer.'},
-      {arg='gater_size', type='number', req=true,
-       help='hidden size of the gater'},
+      {arg='gater_size', type='table', req=true,
+       help='number of neurons in gater hidden layers'},
       {arg='output_size', type='number', req=true,
        help='output size of last layer'},
+      {arg='noise_std', type='table', req=true,
+       help='std deviation of gaussian noise used for NoisyReLU'},
       {arg='threshold_lr', type='number', default=0.1,
        help='learning rate to get the optimum threshold for a desired sparsity'},
       {arg='alpha_range', type='table', default='',
        help='{start_alpha, num_batches, endsall}'},
-      {arg='noise_std', type='table', req=true,
-       help='std deviation of gaussian noise used for NoisyReLU'}
       {arg='sparse_init', type='boolean', default=false,
        help='sparse initialization of weights. See Martens (2010), '..
-       '"Deep learning via Hessian-free optimization"'}
+       '"Deep learning via Hessian-free optimization"'},
       {arg='typename', type='string', default='BlockSparse', 
        help='identifies Model type in reports.'}
    )
@@ -62,8 +62,12 @@ function BlockSparse:__init(config)
       nn.NoisyReLU(self._window_size[2]/self._n_block[2], alpha_range, threshold_lr, noise_stdv[2])
    }
    self._gater = nn.Sequential()
-   self._gater:add(nn.Linear(self._input_size, self._gater_size))
-   self._gater:add(nn.Tanh())
+   local inputSize = self._input_size
+   for i, gater_size in ipairs(self._gater_size) do
+      self._gater:add(nn.Linear(inputSize, self._gater_size[i]))
+      self._gater:add(nn.Tanh())
+      inputSize = self._gater_size[i]
+   end
    local concat = nn.ConcatTable()
    local subGater1 = nn.Sequential()
    subGater1:add(nn.Linear(self._gater_size, self._n_block[1]))

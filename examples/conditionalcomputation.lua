@@ -34,6 +34,7 @@ cmd:option('--gaterSize', '{128,128}', 'the output (windowsparse) or hidden (blo
 cmd:option('--nBlock', '{256,256}', 'number of blocks used in the hidden layers of the BlockSparse models')
 
 -- windowsparse
+cmd:option('--windowSparse', false, 'use WindowSparse instead of BlockSparse (not recommended)')
 cmd:option('--inputStdv', '{2,2}', '')
 cmd:option('--outputStdv', '{32,32}', '')
 cmd:option('--windowLR', '{0.5,0.5}', '')
@@ -73,7 +74,7 @@ print("Input to first hidden layer has "..
    opt.contextSize*opt.inputEmbeddingSize.." neurons.")
 
 local conditionalModel
-if opt.windowSparse do
+if opt.windowSparse then
    print"Using WindowSparse conditional model"
    conditionalModel = dp.WindowSparse{
       input_size = opt.contextSize*opt.inputEmbeddingSize, 

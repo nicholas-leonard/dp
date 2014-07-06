@@ -8,8 +8,8 @@ BlockSparse.isBlockSparse = true
 function BlockSparse:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, input_size, n_block, hidden_size, window_size, gater_size, 
-      output_size, noise_std, threshold_lr, alpha_range, sparse_init, typename
-      = xlua.unpack(
+      output_size, noise_std, gater_act, expert_act, threshold_lr, 
+      alpha_range, sparse_init, typename = xlua.unpack(
       {config},
       'BlockSparse', 
       'Deep mixture of experts model. It is three parametrized '..
@@ -27,8 +27,12 @@ function BlockSparse:__init(config)
        help='number of neurons in gater hidden layers'},
       {arg='output_size', type='number', req=true,
        help='output size of last layer'},
-      {arg='noise_std', type='table', req=true,
+      {arg='noise_std', type='number', req=true,
        help='std deviation of gaussian noise used for NoisyReLU'},
+      {arg='gater_act', type='nn.Module', default='',
+       help='gater hidden activation. Defaults to nn.Tanh()'},
+      {arg='expert_act', type='table', default='',
+       help='expert activation. Defaults. to nn.Tanh()'},
       {arg='threshold_lr', type='number', default=0.1,
        help='learning rate to get the optimum threshold for a desired sparsity'},
       {arg='alpha_range', type='table', default='',
@@ -46,44 +50,54 @@ function BlockSparse:__init(config)
    self._hidden_size = hidden_size
    self._window_size = window_size
    alpha_range = (alpha_range == '') and {0.5, 1000, 0.01} or alpha_range
+   gater_act = (gater_act == '') and nn.Tanh() or gater_act
+   expert_act = (expert_act == '') and nn.Tanh() or expert_act
    
    require 'nnx'
       
    -- experts
-   self._experts = {
-      nn.BlockSparse(1, self._input_size, self._n_block[1], self._hidden_size[1]),
-      nn.BlockSparse(self._n_block[1], self._hidden_size[1], self._n_block[2], self._hidden_size[2]),
-      nn.BlockSparse(self._n_block[2], self._hidden_size[2], 1, self._output_size)
-   }
+   self._experts = {}
+   local para = nn.ParallelTable()
+   para:add(expert_act:clone())
+   para:add(nn.Identity())
+   
+   local expert = nn.Sequential()
+   expert:add(nn.BlockSparse(1, self._input_size, self._n_block[1], self._hidden_size[1], true))
+   expert:add(para)
+   table.insert(self._experts, expert)
+   
+   for i=1,#self._n_block - 1 do
+      expert = nn.Sequential()
+      expert:add(nn.BlockSparse(self._n_block[i], self._hidden_size[i], self._n_block[i+1], self._hidden_size[i+1], true))
+      expert:add(para:clone())
+      table.insert(self._experts, expert)
+   end
+   
+   local dept = #self._n_block
+   expert = nn.Sequential()
+   expert:add(nn.BlockSparse(self._n_block[dept], self._hidden_size[dept], 1, outputSize, true))
+   expert:add(expert_act:clone())
+   table.insert(self._experts, expert)
    
    -- gaters
-   self._gates = {
-      nn.NoisyReLU(self._window_size[1]/self._n_block[1], alpha_range, threshold_lr, noise_stdv[1]),
-      nn.NoisyReLU(self._window_size[2]/self._n_block[2], alpha_range, threshold_lr, noise_stdv[2])
-   }
+   self._gates = {}
+   
    self._gater = nn.Sequential()
    local inputSize = self._input_size
    for i, gater_size in ipairs(self._gater_size) do
       self._gater:add(nn.Linear(inputSize, self._gater_size[i]))
-      self._gater:add(nn.Tanh())
+      self._gater:add(gater_act:clone())
       inputSize = self._gater_size[i]
    end
+   
    local concat = nn.ConcatTable()
-   local subGater1 = nn.Sequential()
-   subGater1:add(nn.Linear(self._gater_size, self._n_block[1]))
-   subGater1:add(self._gates[1])
-   subGater1:add(nn.Sort(2,true))
-   local para = nn.ParallelTable()
-   para:add(nn.Narrow(2, 1, self._window_size[1]))
-   para:add(nn.Narrow(2, 1, self._window_size[2]))
-   subGater1:add(para)
-   concat:add(subGater1)
-   local subGater2 = nn.Sequential()
-   subGater2:add(nn.Linear(self._gater_size, self._n_block[2]))
-   subGater2:add(self._gates[2])
-   subGater2:add(nn.Sort(2,true))
-   subGater2:add(para:clone())
-   concat:add(subGater2)
+   for i=1,#self._window_size do
+      local gate = nn.Sequential()
+      gate:add(nn.Linear(self._gater_size[#self._gater_size], self._n_block[i]))
+      gate:add(nn.NoisyReLU(self._window_size[i]/self._n_block[i], threshold_lr, alpha_range, noise_std[i]))
+      gate:add(nn.LazyKBest(self._window_size[i]))
+      concat:add(gate)
+   end
    self._gater:add(concat)
    
    -- mixture
@@ -99,24 +113,24 @@ function BlockSparse:__init(config)
    parent.__init(self, config)
    -- only works with cuda
    self:type('torch.CudaTensor')
+   self._norm_iter = 0
+   self._stats.std = torch.zero(#self._window_size)
+   self._stats.mean = torch.zero(#self._window_size)
 end
 
 function BlockSparse:_forward(carry)
-   self._gates[1].train = true
-   self._gates[2].train = true
+   self._module:training()
    self:outputAct(self._module:forward(self:inputAct()))
-   local sparsityA = self._gates[1].sparsity
-   local sparsityB = self._gates[2].sparsity
-   self._stats.stdA = 0.9*self._stats.stdA + 0.1*sparsityA:std()
-   self._stats.stdB = 0.9*self._stats.stdB + 0.1*sparsityB:std()
-   self._stats.meanA = 0.9*self._stats.meanA + 0.1*sparsityA:mean()
-   self._stats.meanB = 0.9*self._stats.meanB + 0.1*sparsityB:mean()
+   for i=1,#self._gates do
+      local sparsity = self._gates[i]:get(2).sparsity
+      self._stats.std[i] = 0.9*self._stats.std[i] + 0.1*sparsity:std()
+      self._stats.mean[i] = 0.9*self._stats.mean[i] + 0.1*sparsity:mean()
+   end
    return carry
 end
 
 function BlockSparse:_evaluate(carry)
-   self._gates[1].train = false
-   self._gates[2].train = false
+   self._module:evaluate()
    self:outputAct(self._module:forward(self:inputAct()))
    return carry
 end
@@ -158,10 +172,9 @@ end
 function BlockSparse:updateParameters(lr)
    -- we update parameters inplace (much faster)
    -- so don't use this with momentum (disabled by default)
-   self._module:accUpdateGradParameters(self:inputAct(), self.outputGrad(), self._acc_scale * lr)
+   self._module:accUpdateGradParameters(self:inputAct(), self:outputGrad(), self._acc_scale * lr)
    return
 end
-
 
 -- Only affects 2D parameters.
 -- Assumes that 2D parameters are arranged (output_dim x input_dim)
@@ -189,13 +202,15 @@ function BlockSparse:maxNorm(max_out_norm, max_in_norm)
 end
 
 function BlockSparse:_zeroStatistics()
-   self._stats.stdA = 0
-   self._stats.stdB = 0
-   self._stats.meanA = 0
-   self._stats.meanB = 0
+   self._stats.std:zero()
+   self._stats.mean:zero()
 end
 
 function BlockSparse:report()
    print(self:name())
-   print("mean+-std", self._stats.meanA, "+-", self._stats.stdA, self._stats.meanB, "+-", self._stats.stdB)
+   local msg = "mean+-std "
+   for i=1,self._stats.meanA:size(1) do
+      msg = msg..self._stats.mean[i].."+-"..self._stats.std[i].." "
+   end
+   print(msg)
 end

@@ -37,19 +37,13 @@ function Dictionary:__init(config)
    parent.__init(self, config)
 end
 
-function Dictionary:_forward(carry)
-   local activation = self:inputAct()
-   activation = self._module:forward(activation)
-   self:outputAct(activation)
-   return carry
-end
-
 function Dictionary:_backward(carry)
-   local scale = carry.scale
-   self._report.scale = scale
-   local output_grad = self:outputGrad()
-   local input_act = self:inputAct()
-   self._module:backward(input_act, output_grad, scale)
+   local input_grad
+   if self._acc_update then 
+      input_grad = self._transfer:updateGradInput(self:inputAct(), self:outputGrad())
+   else
+      input_grad = self._transfer:backward(self:inputAct(), self:outputGrad(), self._acc_scale)
+   end
    return carry
 end
 

@@ -1,3 +1,4 @@
+-- WORK IN PROGRESS (NOT READY FOR USE)
 ------------------------------------------------------------------------
 --[[ Parallel ]]--
 -- Model subclass, 

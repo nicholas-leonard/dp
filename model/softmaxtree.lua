@@ -45,46 +45,38 @@ end
 
 -- requires targets be in carry
 function SoftmaxTree:_forward(carry)
-   local activation = self:inputAct()
-   if self._dropout then
-      -- dropout has a different behavior during evaluation vs training
-      self._dropout.train = (not carry.evaluate)
-      activation = self._dropout:forward(activation)
-      self.mvstate.dropoutAct = activation
+   if carry.evaluate then 
+      self._module:evaluate()
+   else
+      self._module:training()
    end
-   assert(carry.targets and carry.targets.isClassView,
-      "carry.targets should refer to a ClassView of targets")
+   if not (carry.targets and carry.targets.isClassView) then
+      error"carry.targets should refer to a ClassView of targets"
+   end
    local targets = carry.targets:forward('b', self._target_type)
    -- outputs a column vector of likelihoods of targets
-   activation = self._module:forward{activation, targets}
-   self:outputAct(activation)
+   self:outputAct(self._module:forward{self:inputAct(), targets})
    return carry
 end
 
 function SoftmaxTree:_backward(carry)
-   local scale = carry.scale
-   self._report.scale = scale
-   local input_act = self.mvstate.dropoutAct or self:inputAct()
-   local output_grad = self:outputGrad()
-   assert(carry.targets and carry.targets.isClassView,
-      "carry.targets should refer to a ClassView of targets")
-   local targets = carry.targets:forward('b', self._target_type)
-   output_grad = self._module:backward({input_act, targets}, output_grad, scale)
-   if self._dropout then
-      self.mvstate.dropoutGrad = output_grad
-      input_act = self:inputAct()
-      output_grad = self._dropout:backward(input_act, output_grad, scale)
+   if not (carry.targets and carry.targets.isClassView) then
+      error"carry.targets should refer to a ClassView of targets"
    end
-   self:inputGrad(output_grad)
+   local targets = carry.targets:forward('b', self._target_type)
+   local input_grad
+   if self._acc_update then 
+      input_grad = self._transfer:updateGradInput({self:inputAct(), targets}, self:outputGrad())
+   else
+      input_grad = self._transfer:backward({self:inputAct(), targets}, self:outputGrad(), self._acc_scale)
+   end
+   self:inputGrad(input_grad)
    return carry
 end
 
 function SoftmaxTree:_type(type)
    self._input_type = type
    self._output_type = type
-   if self._dropout then
-      self._dropout:type(type)
-   end
    if type == 'torch.CudaTensor' then
       require 'cunnx'
       self._target_type = 'torch.CudaTensor'
@@ -95,21 +87,16 @@ function SoftmaxTree:_type(type)
    return self
 end
 
-function SoftmaxTree:reset()
-   self._module:reset()
-   if self._sparse_init then
-      self._sparseReset(self._module.weight)
-   end
-end
-
 function SoftmaxTree:zeroGradParameters()
-   self._module:zeroGradParameters(true)
+   if not self._acc_update then
+      self._module:zeroGradParameters(true)
+   end
 end
 
 -- if after feedforward, returns active parameters 
 -- else returns all parameters
 function SoftmaxTree:parameters()
-   return self._module:parameters(true)
+   return self._module:parameters(not self._acc_update)
 end
 
 function SoftmaxTree:sharedClone()
@@ -127,7 +114,11 @@ function SoftmaxTree:sharedClone()
 end
 
 function SoftmaxTree:updateParameters(lr)
-   self._module:updateParameters(lr, true)
+   if self._acc_update then
+      self._module:accUpdateGradParameters(self:inputAct(), self:outputAct(), lr*self._acc_scale)
+   else
+      self._module:updateParameters(lr, true)
+   end
 end
 
 function SoftmaxTree:maxNorm()

@@ -22,6 +22,7 @@ function WeightDecay:__init(config)
    table.insert(config.include, 'hasParams')
    config.exclude = config.exclude or {}
    table.insert(config.exclude, 'no-weightdecay')
+   table.insert(config.exclude, 'accUpdate')
    parent.__init(self, config)
 end
 

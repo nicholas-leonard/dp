@@ -79,10 +79,6 @@ function SoftmaxTree:_backward(carry)
    return carry
 end
 
-function SoftmaxTree:paramModule()
-   return self._module
-end
-
 function SoftmaxTree:_type(type)
    self._input_type = type
    self._output_type = type

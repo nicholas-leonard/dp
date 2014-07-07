@@ -116,10 +116,6 @@ function Convolution1D:sharedClone()
    return self:share(clone, 'weight', 'bias')
 end
 
-function Convolution1D:paramModule()
-   return self._conv
-end
-
 -- number of output frames of the convolution1D layer
 function Convolution1D:nOutputFrame(nInputFrame)
    assert(torch.type(nInputFrame) == 'number', "Expecting number")

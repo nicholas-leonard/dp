@@ -117,7 +117,3 @@ function Dictionary:sharedClone()
    clone._module.batchSize = self._module.batchSize
    return self:share(clone, 'weight')
 end
-
-function Dictionary:paramModule()
-   return self._module
-end

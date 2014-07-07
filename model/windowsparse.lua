@@ -195,10 +195,6 @@ function WindowSparse:_backward(carry)
    return carry
 end
 
-function WindowSparse:paramModule()
-   return self._module
-end
-
 function WindowSparse:_type(type)
    self._input_type = type
    self._output_type = type

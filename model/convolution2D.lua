@@ -161,6 +161,3 @@ function Convolution2D:share(conv2d, ...)
    return parent.share(self, conv2d, ...)
 end
 
-function Convolution2D:paramModule()
-   return self._conv
-end

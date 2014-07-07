@@ -9,7 +9,7 @@ function BlockSparse:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, input_size, n_block, hidden_size, window_size, gater_size, 
       output_size, noise_std, gater_act, expert_act, threshold_lr, 
-      alpha_range, sparse_init, typename = xlua.unpack(
+      alpha_range, sparse_init, norm_period, typename = xlua.unpack(
       {config},
       'BlockSparse', 
       'Deep mixture of experts model. It is three parametrized '..
@@ -40,6 +40,8 @@ function BlockSparse:__init(config)
       {arg='sparse_init', type='boolean', default=false,
        help='sparse initialization of weights. See Martens (2010), '..
        '"Deep learning via Hessian-free optimization"'},
+      {arg='norm_period', type='number', default=5,
+       help='Every norm_period batches, maxNorm is called'},
       {arg='typename', type='string', default='BlockSparse', 
        help='identifies Model type in reports.'}
    )
@@ -52,6 +54,7 @@ function BlockSparse:__init(config)
    alpha_range = (alpha_range == '') and {0.5, 1000, 0.01} or alpha_range
    gater_act = (gater_act == '') and nn.Tanh() or gater_act
    expert_act = (expert_act == '') and nn.Tanh() or expert_act
+   self._norm_period = norm_period
    
    require 'nnx'
       
@@ -140,14 +143,9 @@ function BlockSparse:_backward(carry)
    self._report.scale = self._acc_scale
    local input_act = self:inputAct()
    local output_grad = self:outputGrad()
-   -- we don't accGradParameters as updateParameters will do so inplace
-   output_grad = self._module:updateGradInput(input_act, output_grad)
+   output_grad = self._module[self._backward_func](input_act, output_grad)
    self:inputGrad(output_grad)
    return carry
-end
-
-function BlockSparse:paramModule()
-   return self._module
 end
 
 function BlockSparse:_type(type)

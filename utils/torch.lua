@@ -68,6 +68,7 @@ end
 
 -- returns a view of a tensor
 function torch.view(tensor)
+   error"Name conflict (temporary)"
    return torch.protoClone(tensor, tensor)
 end
 

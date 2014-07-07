@@ -66,9 +66,9 @@ function SoftmaxTree:_backward(carry)
    local targets = carry.targets:forward('b', self._target_type)
    local input_grad
    if self._acc_update then 
-      input_grad = self._transfer:updateGradInput({self:inputAct(), targets}, self:outputGrad())
+      input_grad = self._module:updateGradInput({self:inputAct(), targets}, self:outputGrad())
    else
-      input_grad = self._transfer:backward({self:inputAct(), targets}, self:outputGrad(), self._acc_scale)
+      input_grad = self._module:backward({self:inputAct(), targets}, self:outputGrad(), self._acc_scale)
    end
    self:inputGrad(input_grad)
    return carry
@@ -103,7 +103,6 @@ function SoftmaxTree:sharedClone()
    local clone = torch.protoClone(self, {
       input_size=self._input_size, hierarchy={[1]=torch.IntTensor{1,2}},
       root_id=1, sparse_init=self._sparse_init,
-      dropout=self._dropout and self._dropout:clone(),
       typename=self._typename, 
       input_type=self._input_type, output_type=self._output_type,
       module_type=self._module_type, mvstate=self.mvstate

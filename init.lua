@@ -105,7 +105,6 @@ torch.include('dp', 'observer/learningrateschedule.lua')
 torch.include('dp', 'observer/filelogger.lua')
 
 --[[ nn ]]--
-torch.include('dp', 'nn/AddConstant.lua')
 torch.include('dp', 'nn/Print.lua')
 torch.include('dp', 'nn/FairLookupTable.lua')
 

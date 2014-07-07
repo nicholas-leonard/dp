@@ -66,12 +66,6 @@ function torch.protoClone(proto, ...)
    return class(...)
 end
 
--- returns a view of a tensor
-function torch.view(tensor)
-   error"Name conflict (temporary)"
-   return torch.protoClone(tensor, tensor)
-end
-
 -- torch.concat([res], tensors, [dim])
 function torch.concat(result, tensors, dim, index)
    index = index or 1

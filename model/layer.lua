@@ -8,7 +8,7 @@ Layer.isLayer = true
 
 function Layer:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, input_view, output_view, output, dropout, sparse_init 
+   local args, input_view, output_view, output, dropout, sparse_init,
       acc_update = xlua.unpack(
       {config},
       'Layer', 
@@ -28,7 +28,7 @@ function Layer:__init(config)
        help='when true, uses the faster accUpdateGradParameters, '..
        'which performs an inplace update (no need for param gradients). '..
        'However, this also means that Momentum, WeightDecay and other '..
-       'such gradient modifying Visitors cannot be used'.}
+       'such gradient modifying Visitors cannot be used.'}
    )
    if not (self._module and self._module.forward) then
       error"self._module (a nn.Module) should be set by child"
@@ -95,9 +95,9 @@ end
 function Layer:_backward(carry)
    local input_grad
    if self._acc_update then 
-      input_grad = self._transfer:updateGradInput(self:inputAct(), self:outputGrad())
+      input_grad = self._module:updateGradInput(self:inputAct(), self:outputGrad())
    else
-      input_grad = self._transfer:backward(self:inputAct(), self:outputGrad(), self._acc_scale)
+      input_grad = self._module:backward(self:inputAct(), self:outputGrad(), self._acc_scale)
    end
    self:inputGrad(input_grad)
    return carry
@@ -121,7 +121,9 @@ function Layer:checkParams()
 end
 
 function Layer:zeroGradParameters()
-   self._module:zeroGradParameters()
+   if not self._acc_update then
+      self._module:zeroGradParameters()
+   end
 end
 
 function Layer:reset()

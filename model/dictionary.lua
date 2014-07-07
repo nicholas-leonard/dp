@@ -40,15 +40,11 @@ end
 function Dictionary:_backward(carry)
    local input_grad
    if self._acc_update then 
-      input_grad = self._transfer:updateGradInput(self:inputAct(), self:outputGrad())
+      input_grad = self._module:updateGradInput(self:inputAct(), self:outputGrad())
    else
-      input_grad = self._transfer:backward(self:inputAct(), self:outputGrad(), self._acc_scale)
+      input_grad = self._module:backward(self:inputAct(), self:outputGrad(), self._acc_scale)
    end
    return carry
-end
-
-function Dictionary:zeroGradParameters()
-   self._module:zeroGradParameters()
 end
 
 function Dictionary:_type(type)

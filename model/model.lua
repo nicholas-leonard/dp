@@ -120,9 +120,7 @@ function Model:_doneBatch(...)
 end
 
 function Model:zeroGradParameters()
-   for param_name, param_table in pairs(self:parameters()) do
-      param_table.grad:zero()
-   end
+   error"Not Implemented"
 end
 
 function Model:reset()

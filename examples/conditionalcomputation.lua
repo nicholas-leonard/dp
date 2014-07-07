@@ -29,16 +29,7 @@ cmd:option('--hiddenSize', '{1024,1024}', 'number of units used for the hidden l
 cmd:option('--windowSize', '{128,128}', 'number of neurons or blocks used per example')
 cmd:option('--noiseStdv', '{1,1}', 'standard deviation of gaussian noise used for NoisyReLU or WindowGate')
 cmd:option('--gaterSize', '{128,128}', 'the output (windowsparse) or hidden (blocksparse) size of gaters')
-
--- blocksparse
 cmd:option('--nBlock', '{256,256}', 'number of blocks used in the hidden layers of the BlockSparse models')
-
--- windowsparse
-cmd:option('--windowSparse', false, 'use WindowSparse instead of BlockSparse (not recommended)')
-cmd:option('--inputStdv', '{2,2}', '')
-cmd:option('--outputStdv', '{32,32}', '')
-cmd:option('--windowLR', '{0.5,0.5}', '')
-
 
 --[[ output layer ]]--
 cmd:option('--outputEmbeddingSize', 128, 'number of hidden units at softmaxtree')
@@ -73,31 +64,15 @@ cutorch.setDevice(opt.useDevice)
 print("Input to first hidden layer has "..
    opt.contextSize*opt.inputEmbeddingSize.." neurons.")
 
-local conditionalModel
-if opt.windowSparse then
-   print"Using WindowSparse conditional model"
-   conditionalModel = dp.WindowSparse{
-      input_size = opt.contextSize*opt.inputEmbeddingSize, 
-      output_size = opt.outputEmbeddingSize,
-      hidden_size = table.fromString(opt.hiddenSize),
-      gater_size = table.fromString(opt.gaterSize),
-      window_size = table.fromString(opt.windowSize),
-      input_stdv = table.fromString(opt.inputStdv),
-      output_stdv = table.fromString(opt.outputStdv),
-      noise_stdv = table.fromString(opt.noiseStdv),
-      lr = table.fromString(opt.windowLR)
-   }
-else
-   conditionalModel = dp.BlockSparse{
-      input_size = opt.contextSize*opt.inputEmbeddingSize, 
-      output_size = opt.outputEmbeddingSize,
-      n_block = table.fromString(opt.nBlock),
-      hidden_size = table.fromString(opt.hiddenSize),
-      gater_size = table.fromString(opt.gaterSize),
-      window_size = table.fromString(opt.windowSize),
-      noise_std = table.fromString(opt.noiseStdv)
-   }
-end
+local conditionalModel = dp.BlockSparse{
+   input_size = opt.contextSize*opt.inputEmbeddingSize, 
+   output_size = opt.outputEmbeddingSize,
+   n_block = table.fromString(opt.nBlock),
+   hidden_size = table.fromString(opt.hiddenSize),
+   gater_size = table.fromString(opt.gaterSize),
+   window_size = table.fromString(opt.windowSize),
+   noise_std = table.fromString(opt.noiseStdv)
+}
 
 local softmax
 if opt.softmaxtree then

@@ -8,8 +8,8 @@ Layer.isLayer = true
 
 function Layer:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, input_view, output_view, output, dropout, sparse_init 
-      = xlua.unpack(
+   local args, input_view, output_view, output, dropout, sparse_init,
+      acc_update = xlua.unpack(
       {config},
       'Layer', 
       'An abstract parameterized layer.',
@@ -23,18 +23,43 @@ function Layer:__init(config)
        help='applies dropout to the inputs of this model.'},
       {arg='sparse_init', type='boolean', default=true,
        help='sparse initialization of weights. See Martens (2010), '..
-       '"Deep learning via Hessian-free optimization"'}
+       '"Deep learning via Hessian-free optimization"'},
+      {arg='acc_update', type='boolean', default=false,
+       help='when true, uses the faster accUpdateGradParameters, '..
+       'which performs an inplace update (no need for param gradients). '..
+       'However, this also means that Momentum, WeightDecay and other '..
+       'such gradient modifying Visitors cannot be used.'}
    )
+   if not (self._module and self._module.forward) then
+      error"self._module (a nn.Module) should be set by child"
+   end
    self:inputView(input_view)
    self:outputView(output_view)
    self.output = output
-   self._dropout = dropout
+   if dropout then
+      self:pushDropout(dropout)
+   end
    self._sparse_init = sparse_init
+   self._acc_update = acc_update
    parent.__init(self, config)
    self:reset()
    self._tags.hasParams = true
+   if acc_update then
+      self._tags.accUpdate = true
+   end
    self:zeroGradParameters()
    self:checkParams()
+end
+
+function Layer:pushDropout(dropout)
+   if torch.type(self._module) == 'nn.Sequential' then
+      self._module:insert(dropout, 1)
+   else
+      local mlp = nn.Sequential()
+      mlp:add(dropout)
+      mlp:add(self._module)
+      self._module = mlp
+   end
 end
 
 -- Get
@@ -55,10 +80,35 @@ function Layer:outputAct(output_act)
    self.output:forward(self._output_view, output_act)
 end
 
--- this should return a parameterized module
--- TODO: support a table of modules
-function Layer:paramModule()
-   error"Not Implemented"
+function Layer:_forward(carry)
+   -- some modules like dropout have a different behavior during 
+   -- evaluation vs training :
+   if carry.evaluate then 
+      self._module:evaluate()
+   else
+      self._module:training()
+   end
+   self:outputAct(self._module:forward(self:inputAct()))
+   return carry
+end
+
+function Layer:_backward(carry)
+   local input_grad
+   if self._acc_update then 
+      input_grad = self._module:updateGradInput(self:inputAct(), self:outputGrad())
+   else
+      input_grad = self._module:backward(self:inputAct(), self:outputGrad(), self._acc_scale)
+   end
+   self:inputGrad(input_grad)
+   return carry
+end
+
+function Layer:updateParameters(lr)
+   if self._acc_update then
+      self._module:accUpdateGradParameters(self:inputAct(), self:outputGrad(), lr*self._acc_scale)
+   else
+      self._module:updateParameters(lr)
+   end
 end
 
 function Layer:checkParams()
@@ -71,11 +121,13 @@ function Layer:checkParams()
 end
 
 function Layer:zeroGradParameters()
-   self:paramModule():zeroGradParameters()
+   if not self._acc_update then
+      self._module:zeroGradParameters()
+   end
 end
 
 function Layer:reset()
-   self:paramModule():reset()
+   self._module:reset()
    if self._sparse_init then
       local params = self:parameters()
       -- Only affects 2D parameters.
@@ -90,7 +142,7 @@ end
 
 -- do not use this to change the type of parameters.
 function Layer:parameters()
-   return self:paramModule():parameters()
+   return self._module:parameters()
 end
 
 -- Only affects 2D parameters.
@@ -117,10 +169,10 @@ end
 function Layer:share(layer, ...)
    assert(layer.isLayer)
    local arg = {...}
-   local module = self:paramModule()
+   local module = self._module
    for i,v in ipairs(arg) do
       if module[v] ~= nil then
-         module[v]:set(layer:paramModule()[v])
+         module[v]:set(layer._module()[v])
       end
    end
    return self      
@@ -141,6 +193,12 @@ function Layer:type(new_type)
       collectgarbage()
    end
    return self
+end
+
+function Layer:_type(type)
+   self:inputType(type)
+   self:outputType(type)
+   self._module:type(type)
 end
 
 -- static method for initializing weights matrices

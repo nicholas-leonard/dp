@@ -1,5 +1,4 @@
 require 'dp'
-require 'nnx'
 require 'cutorch'
 require 'cunn'
 require 'cunnx'

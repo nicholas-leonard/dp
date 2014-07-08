@@ -1,5 +1,6 @@
 require 'torch'
 require 'nn'
+require 'nnx'
 require 'string'
 _ = require 'moses'
 require 'xlua'
@@ -105,7 +106,6 @@ torch.include('dp', 'observer/learningrateschedule.lua')
 torch.include('dp', 'observer/filelogger.lua')
 
 --[[ nn ]]--
-torch.include('dp', 'nn/AddConstant.lua')
 torch.include('dp', 'nn/Print.lua')
 torch.include('dp', 'nn/FairLookupTable.lua')
 
@@ -118,10 +118,9 @@ torch.include('dp', 'model/neural.lua')
 torch.include('dp', 'model/module.lua')
 torch.include('dp', 'model/dictionary.lua')
 torch.include('dp', 'model/softmaxtree.lua')
-torch.include('dp', 'model/windowsparse.lua')
+torch.include('dp', 'model/blocksparse.lua')
 torch.include('dp', 'model/convolution1D.lua')
 torch.include('dp', 'model/convolution2D.lua')
-
 
 --[[ loss ]]--
 torch.include('dp', 'loss/loss.lua')

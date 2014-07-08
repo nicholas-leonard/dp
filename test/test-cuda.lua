@@ -10,6 +10,7 @@ function dptest.dataview()
    mytester:assert(f:type() == 'torch.CudaTensor')
    mytester:asserteq(f:dim(),2)
 end
+
 function dptest.imageview()
    local size = {8,4,4,3}
    local feature_size = {8,4*4*3}
@@ -45,6 +46,7 @@ function dptest.imageview()
    mytester:assertTensorEq(i:float(), data:float(), 0.0001)
    mytester:assertTableEq(i:size():totable(), size, 0.0001)
 end
+
 function dptest.neural()
    local tensor = torch.randn(5,10)
    local grad_tensor = torch.randn(5, 2)
@@ -86,6 +88,7 @@ function dptest.neural()
    mytester:assertTensorEq(layer._affine.weight:double(), m.weight, 0.00001)
    mytester:assertTensorEq(layer._affine.bias:double(), m.bias, 0.00001)
 end
+
 function dptest.sequential()
    local tensor = torch.randn(5,10)
    local grad_tensor = torch.randn(5, 2)
@@ -116,6 +119,7 @@ function dptest.sequential()
    mytester:assertTensorEq(mlp_act, output:forward('bf', 'torch.DoubleTensor'), 0.0001)
    mytester:assertTensorEq(mlp_grad, input:backward('bf', 'torch.DoubleTensor'), 0.0001)
 end
+
 function dptest.dictionary()
    local size = {8,10}
    local output_size = {8,10,50}
@@ -155,6 +159,7 @@ function dptest.dictionary()
    input, carry2 = layer:backward(output, carry2)
    mytester:assertTensorNe(act_ten:float(), output:forward('bwc'):float(), 0.00001)
 end
+
 function dptest.softmaxtree()
    local input_tensor = torch.randn(5,10):float()
    local target_tensor = torch.IntTensor{20,24,27,10,12}
@@ -175,7 +180,6 @@ function dptest.softmaxtree()
    local model = dp.SoftmaxTree{input_size=10, hierarchy=hierarchy, root_id=root_id}
    model:float()
    -- nn
-   require 'nnx'
    local mlp = nn.SoftMaxTree(10, hierarchy, root_id)
    mlp.weight = model._module.weight:clone()
    mlp.bias = model._module.bias:clone()
@@ -187,13 +191,14 @@ function dptest.softmaxtree()
    local gradWeight = model._module.gradWeight:clone()
    output:backward('b', grad_tensor:cuda())
    input, carry = model:backward(output, carry)
+   cutorch.synchronize()
    mytester:assertTableEq(output:forward('bf'):size():totable(), {5,1}, 0.000001, "Wrong act size")
    mytester:assertTableEq(input:backward('bf'):size():totable(), {5,10}, 0.000001, "Wrong grad size")
    local gradWeight2 = model._module.gradWeight
    mytester:assertTensorNe(gradWeight:float(), gradWeight2:float(), 0.00001)
    --- nn
    local mlp_act = mlp:forward{input_tensor, target_tensor}
-   local mlp_grad = mlp:backward({input_tensor, target_tensor}, grad_tensor)
+   local mlp_grad = mlp:backward({input_tensor, target_tensor}, grad_tensor)[1]
    -- compare nn and dp
    mytester:assertTensorEq(mlp_act, output:forward('bf'):float(), 0.001)
    mytester:assertTensorEq(mlp_grad, input:backward('bf'):float(), 0.001)
@@ -221,41 +226,42 @@ function dptest.softmaxtree()
    mytester:assertTensorEq(output:forward('bf'):float(), output2:forward('bf'):float(), 0.00001)
    mytester:assertTensorEq(input:backward('bf'):float(), input2:backward('bf'):float(), 0.00001)
 end
-function dptest.windowsparse()
-   local inputSize = 10
-   local outputSize = 12
-   local hiddenSize = {50,45}
-   local gaterSize = {10,10}
-   local windowSize = {5, 7}
-   local inputStdv = {2,2}
-   local outputStdv = {2,2}
-   local lr = {0.5, 0.5}
-   
+
+function dptest.blocksparse()
+   local inputSize = 23
+   local nBlock = {12, 14, 16}
+   local hiddenSize = {64, 32, 64}
+   local gaterSize = {17}
+   local windowSize = {4, 8, 4}
+   local outputSize = 15
    local batchSize = 8
-   local input_tensor = torch.randn(batchSize,inputSize):float()
-   local grad_tensor = torch.randn(batchSize,outputSize):float()
-   -- dp
+   local accUpdate = true
+   
+   local input_tensor = torch.randn(batchSize, inputSize):cuda()
+   local gradOutput_tensor = torch.randn(batchSize, outputSize):cuda()
    local input = dp.DataView()
    input:forward('bf', input_tensor)
-   local model = dp.WindowSparse{
-      input_size=inputSize, output_size=outputSize, hidden_size=hiddenSize,
-      gater_size=gaterSize, window_size=windowSize, input_stdv=inputStdv,
-      output_stdv=outputStdv, lr=lr
+
+   local model = dp.BlockSparse{
+      input_size=inputSize, output_size=outputSize, hidden_size=hiddenSize, n_block=nBlock,
+      gater_size=gaterSize, window_size=windowSize, noise_std={1,1}, acc_update=accUpdate
    }
    model:cuda()
+   
    local output, carry = model:forward(input, {nSample=batchSize})
-   local params, grads = model:parameters()
+   local params = model:parameters()
    params = _.map(params, function(k,v) return v:float() end )
-   output:backward('bf', grad_tensor:cuda())
+   output:backward('bf', gradOutput_tensor:cuda())
    input, carry = model:backward(output, carry)
    mytester:assertTableEq(output:forward('bf'):size():totable(), {batchSize,outputSize}, 0.000001, "Wrong act size")
    mytester:assertTableEq(input:backward('bf'):size():totable(), {batchSize,inputSize}, 0.000001, "Wrong grad size")
    model:updateParameters(0.1)
-   local params2, grads2 = model:parameters()
+   local params2 = model:parameters()
    for i=1,#params do
       mytester:assertTensorNe(params[i]:float(), params2[i]:float(), 0.00001)
    end
 end
+
 function dptest.nll()
    local input_tensor = torch.randn(5,10)
    local target_tensor = torch.randperm(10):sub(1,5)
@@ -275,6 +281,7 @@ function dptest.nll()
    mytester:asserteq(c_err, err, 0.00001)
    mytester:assertTensorEq(c_grad:float(), input:backward('bf'):float(), 0.00001)
 end
+
 function dptest.treenll()
    local input_tensor = torch.randn(5,10):add(100)
    local target_tensor = torch.ones(5) --all targets are 1
@@ -298,6 +305,7 @@ end
 function dp.testCuda(tests)
    require 'cutorch'
    require 'cunn'
+   require 'cunnx'
    math.randomseed(os.time())
    mytester = torch.Tester()
    mytester:add(dptest)

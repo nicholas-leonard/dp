@@ -7,18 +7,21 @@ cmd:text('Train a Language Model on BillionWords dataset using SoftmaxTree')
 cmd:text('Example:')
 cmd:text('$> th languagemodel.lua --small --batchSize 512 ')
 cmd:text('$> th languagemodel.lua --tiny --batchSize 512 ')
+cmd:text('$> th languagemodel.lua --tiny --batchSize 512 --accUpdate --validEpochSize 10000 --trainEpochSize 100000 --softmaxtree')
 cmd:text('Options:')
 cmd:option('--learningRate', 0.1, 'learning rate at t=0')
 cmd:option('--decayPoint', 100, 'epoch at which learning rate is decayed')
 cmd:option('--decayFactor', 0.1, 'factory by which learning rate is decayed at decay point')
-cmd:option('--maxOutNorm', 0, 'max norm each layers output neuron weights')
+cmd:option('--maxOutNorm', 2, 'max norm each layers output neuron weights')
+cmd:option('--maxNormPeriod', 5, 'Applies MaxNorm Visitor every maxNormPeriod batches')
 cmd:option('--momentum', 0, 'momentum')
 cmd:option('--batchSize', 512, 'number of examples per batch')
-cmd:option('--type', 'double', 'type: double | float | cuda')
+cmd:option('--cuda', false, 'use CUDA')
 cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
 cmd:option('--maxEpoch', 400, 'maximum number of epochs to run')
 cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better local minima for early-stopping')
 cmd:option('--dropout', false, 'apply dropout on hidden neurons, requires "nnx" luarock')
+cmd:option('--accUpdate', false, 'accumulate updates inplace using accUpdateGradParameters')
 
 cmd:option('--contextSize', 5, 'number of words preceding the target word used to predict the target work')
 cmd:option('--inputEmbeddingSize', 100, 'number of neurons per word embedding')
@@ -62,10 +65,6 @@ local datasource = dp.BillionWords{
 }
 
 --[[Model]]--
-if opt.dropout then
-   require 'nnx'
-end
-
 print("Input to first hidden layer has "..
    opt.contextSize*opt.inputEmbeddingSize.." neurons.")
 
@@ -80,7 +79,8 @@ if opt.convolution then
       pool_size = opt.convPoolSize,
       pool_stride = opt.convPoolStride,
       transfer = nn.Tanh(),
-      dropout = opt.dropout and nn.Dropout() or nil
+      dropout = opt.dropout and nn.Dropout() or nil,
+      acc_update = opt.accUpdate
    }
    local nOutputFrame = hiddenModel:nOutputFrame(opt.contextSize)
    print("Convolution has "..nOutputFrame.." output Frames")
@@ -90,7 +90,8 @@ else
       input_size = opt.contextSize*opt.inputEmbeddingSize,
       output_size = opt.neuralSize, 
       transfer = nn.Tanh(),
-      dropout = opt.dropout and nn.Dropout() or nil
+      dropout = opt.dropout and nn.Dropout() or nil,
+      acc_update = opt.accUpdate
    }
    inputSize = opt.neuralSize
 end
@@ -103,7 +104,8 @@ if opt.softmaxtree then
       input_size = opt.outputEmbeddingSize, 
       hierarchy = datasource:hierarchy(),
       root_id = 880542,
-      dropout = opt.dropout and nn.Dropout() or nil
+      dropout = opt.dropout and nn.Dropout() or nil,
+      acc_update = opt.accUpdate
    }
 else
    print("Warning: you are using full LogSoftMax for last layer, which "..
@@ -113,7 +115,8 @@ else
       input_size = opt.outputEmbeddingSize,
       output_size = table.length(datasource:classes()),
       transfer = nn.LogSoftMax(),
-      dropout = opt.dropout and nn.Dropout() or nil
+      dropout = opt.dropout and nn.Dropout() or nil,
+      acc_update = opt.accUpdate
    }
 end
 
@@ -121,24 +124,29 @@ mlp = dp.Sequential{
    models = {
       dp.Dictionary{
          dict_size = datasource:vocabularySize(),
-         output_size = opt.inputEmbeddingSize
+         output_size = opt.inputEmbeddingSize,
+         acc_update = opt.accUpdate
       },
       hiddenModel,
       dp.Neural{
          input_size = inputSize, 
          output_size = opt.outputEmbeddingSize, 
          transfer = nn.Tanh(),
-         dropout = opt.dropout and nn.Dropout() or nil
+         dropout = opt.dropout and nn.Dropout() or nil,
+         acc_update = opt.accUpdate
       },
       softmax
    }
 }
 
 --[[GPU or CPU]]--
-if opt.type == 'cuda' then
+if opt.cuda then
    print"Using CUDA"
    require 'cutorch'
    require 'cunn'
+   if opt.softmaxtree then
+      require 'cunnx'
+   end
    cutorch.setDevice(opt.useDevice)
    mlp:cuda()
 end
@@ -146,15 +154,14 @@ end
 --[[Propagators]]--
 train = dp.Optimizer{
    loss = opt.softmaxtree and dp.TreeNLL() or dp.NLL(),
-   visitor = { -- the ordering here is important:
-      --dp.Momentum{momentum_factor = opt.momentum},
+   visitor = {
       dp.Learn{
          learning_rate = opt.learningRate, 
          observer = dp.LearningRateSchedule{
             schedule = {[opt.decayPoint]=opt.learningRate*opt.decayFactor}
          }
-      }--,
-      --dp.MaxNorm{max_out_norm = opt.maxOutNorm}
+      },
+      dp.MaxNorm{max_out_norm=opt.maxOutNorm, period=opt.maxNormPeriod}
    },
    feedback = dp.Perplexity(),  
    sampler = dp.Sampler{ --shuffle sample takes too much mem

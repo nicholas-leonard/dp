@@ -37,24 +37,14 @@ function Dictionary:__init(config)
    parent.__init(self, config)
 end
 
-function Dictionary:_forward(carry)
-   local activation = self:inputAct()
-   activation = self._module:forward(activation)
-   self:outputAct(activation)
-   return carry
-end
-
 function Dictionary:_backward(carry)
-   local scale = carry.scale
-   self._report.scale = scale
-   local output_grad = self:outputGrad()
-   local input_act = self:inputAct()
-   self._module:backward(input_act, output_grad, scale)
+   local input_grad
+   if self._acc_update then 
+      input_grad = self._module:updateGradInput(self:inputAct(), self:outputGrad())
+   else
+      input_grad = self._module:backward(self:inputAct(), self:outputGrad(), self._acc_scale)
+   end
    return carry
-end
-
-function Dictionary:zeroGradParameters()
-   self._module:zeroGradParameters()
 end
 
 function Dictionary:_type(type)
@@ -116,8 +106,4 @@ function Dictionary:sharedClone()
    clone._module.gradWeight:resizeAs(self._module.gradWeight)
    clone._module.batchSize = self._module.batchSize
    return self:share(clone, 'weight')
-end
-
-function Dictionary:paramModule()
-   return self._module
 end

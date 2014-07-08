@@ -31,6 +31,7 @@ function Momentum:__init(config)
    table.insert(config.include, 'hasParams')
    config.exclude = config.exclude or {}
    table.insert(config.exclude, 'no-momentum')
+   table.insert(config.exclude, 'accUpdate')
    config.name = name
    parent.__init(self, config)
 end

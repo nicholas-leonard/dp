@@ -3,6 +3,14 @@
 -- Decorates/Adapts a nn.Module to the dp.Model interface
 -- A temporary fix until these are implemented into their own 
 -- Model subclasses
+
+-- For all intents in purposes, this Module should do a great job 
+-- of integrating your existing Modules into dp. Just wrap them using 
+-- thie Model. However, some dp.Visitors expect 
+-- each param/gradParam to be identified by a 
+-- unique key that stays the same from batch to batch.
+-- This wont be true for modules like nnx.SoftMaxTree or nnx.LookupTable
+-- so be careful.
 ------------------------------------------------------------------------
 local Module, parent = torch.class("dp.Module", "dp.Model")
 Module.isModule = true
@@ -35,35 +43,4 @@ function Module:__init(config)
          end
       end
    end
-end
-
-function Module:_forward(carry)
-   self:outputAct(self._module:forward(self:inputAct()))
-end
-
-function Module:_backward(carry)
-   local act, grad = self:inputAct(), self:outputGrad()
-   self:inputGrad(self._module:backward(act, grad, carry.scale))
-end
-
-function Module:zeroGradParameters()
-   self._module:zeroGradParameters()
-end
-
-function Module:_type(type)
-   self:inputType(type)
-   self:outputType(type)
-   self._module:type(type)
-end
-
-function Module:reset()
-   return self._module:reset()
-end
-
--- use at your own risk. 
--- dp.Visitors expect each param/paramGrad to be identified by a 
--- unique key that stays the same from batch to batch.
--- This wont be true for modules like nnx.SoftMaxTree or nnx.LookupTable
-function Module:parameters()
-   return self._module:parameters()
 end

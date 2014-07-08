@@ -66,38 +66,6 @@ function Convolution2D:__init(config)
    parent.__init(self, config)
 end
 
-function Convolution2D:_forward(carry)
-   local activation = self:inputAct()
-   if self._dropout then
-      -- dropout has a different behavior during evaluation vs training
-      self._dropout.train = (not carry.evaluate)
-      activation = self._dropout:forward(activation)
-      self.mvstate.dropoutAct = activation
-   end
-   activation = self._module:forward(activation)
-   self:outputAct(activation)
-   return carry
-end
-
-function Convolution2D:_backward(carry)
-   local scale = carry.scale
-   self._report.scale = scale
-   local output_grad = self:outputGrad()
-   local input_act = self.mvstate.dropoutAct or self:inputAct()
-   output_grad = self._module:backward(input_act, output_grad, scale)
-   if self._dropout then
-      self.mvstate.dropoutGrad = output_grad
-      input_act = self:inputAct()
-      output_grad = self._dropout:backward(input_act, output_grad, scale)
-   end
-   self:inputGrad(output_grad)
-   return carry
-end
-
-function Convolution2D:zeroGradParameters()
-   self._conv:zeroGradParameters()
-end
-
 function Convolution2D:_type(type)
    self._input_type = type
    self._output_type = type
@@ -161,6 +129,3 @@ function Convolution2D:share(conv2d, ...)
    return parent.share(self, conv2d, ...)
 end
 
-function Convolution2D:paramModule()
-   return self._conv
-end

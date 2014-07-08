@@ -55,8 +55,8 @@ end
 function Model:forward(input, carry)
    assert(input.isView, "Expecting dp.View input")
    self.input = input
-   self:updateStatistics(carry)
    carry = self:_forward(carry) or carry
+   self:updateStatistics(carry)
    self.forwarded = true
    return self.output, carry
 end
@@ -65,8 +65,8 @@ function Model:evaluate(input, carry)
    assert(input.isView, "Expecting dp.View instance")
    self.input = input
    carry.evaluate = true
-   self:updateStatistics(carry)
    carry = self:_evaluate(carry) or carry
+   self:updateStatistics(carry)
    self.evaluated = true
    self.forwarded = true
    return self.output, carry
@@ -75,6 +75,9 @@ end
 function Model:backward(output, carry)
    assert(output.isView, "Expecting dp.View output")
    self.output = output
+   local scale = carry.scale or 1
+   self._acc_scale = scale
+   self._report.scale = scale
    carry = self:_backward(carry) or carry
    self.backwarded = true
    return self.input, carry
@@ -117,9 +120,7 @@ function Model:_doneBatch(...)
 end
 
 function Model:zeroGradParameters()
-   for param_name, param_table in pairs(self:parameters()) do
-      param_table.grad:zero()
-   end
+   error"Not Implemented"
 end
 
 function Model:reset()

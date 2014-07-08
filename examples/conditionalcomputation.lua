@@ -6,7 +6,7 @@ require 'cunnx'
 --[[command line arguments]]--
 cmd = torch.CmdLine()
 cmd:text()
-cmd:text('Train a Language Model on BillionWords dataset using Conditional Computation SoftmaxTree')
+cmd:text('Train a Language Model on BillionWords dataset using Conditional Computation : BlockSparse + SoftmaxTree')
 cmd:text('Example:')
 cmd:text('$> th conditionalcomputation.lua --small --batchSize 512 ')
 cmd:text('$> th conditionalcomputation.lua --tiny --batchSize 512 ')
@@ -20,22 +20,20 @@ cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
 cmd:option('--maxEpoch', 400, 'maximum number of epochs to run')
 cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better local minima for early-stopping')
 --cmd:option('--dropout', false, 'apply dropout on hidden neurons, requires "nnx" luarock')
+cmd:option('--accUpdate', false, 'accumulate updates inplace using accUpdateGradParameters')
 
 cmd:option('--contextSize', 5, 'number of words preceding the target word used to predict the target work')
 cmd:option('--inputEmbeddingSize', 128, 'number of neurons per word embedding')
 
 --[[ conditional model ]]--
-cmd:option('--hiddenSize', '{1024,1024}', 'number of units used for the hidden layers of the conditional model')
-cmd:option('--gaterSize', '{128,128}', 'use a Convolution1D instead of Neural for the first hidden layer')
-cmd:option('--windowSize', '{128,128}', 'number of output neurons of the convolutional kernel (outputFrameSize)')
-cmd:option('--inputStdv', '{2,2}', 'number of words considered by convolution')
-cmd:option('--outputStdv', '{32,32}', 'stride (step size) of the convolution')
-cmd:option('--noiseStdv', '{0,0}', 'stride (step size) of the convolution')
-cmd:option('--windowLR', '{0.5,0.5}', 'number of words max pooled after convolution')
-
-cmd:option('--outputEmbeddingSize', 128, 'number of hidden units at softmaxtree')
+cmd:option('--hiddenSize', '{32,32}', 'number of units per block in each sparse hidden layer of the conditional model')
+cmd:option('--nBlock', '{256,256}', 'number of blocks used in the hidden layers of the BlockSparse models')
+cmd:option('--windowSize', '{8,8}', 'number of blocks used per example')
+cmd:option('--noiseStdv', '{1,1}', 'standard deviation of gaussian noise used for NoisyReLU')
+cmd:option('--gaterSize', '{128,128}', 'the size of gater hidden layers')
 
 --[[ output layer ]]--
+cmd:option('--outputEmbeddingSize', 128, 'number of hidden units at softmaxtree')
 cmd:option('--softmaxtree', false, 'use the softmaxtree instead of the inefficient (full) softmax')
 
 --[[ data ]]--
@@ -67,17 +65,15 @@ cutorch.setDevice(opt.useDevice)
 print("Input to first hidden layer has "..
    opt.contextSize*opt.inputEmbeddingSize.." neurons.")
 
-print"Using WindowSparse conditional model"
-local conditionalModel = dp.WindowSparse{
+local conditionalModel = dp.BlockSparse{
    input_size = opt.contextSize*opt.inputEmbeddingSize, 
    output_size = opt.outputEmbeddingSize,
+   n_block = table.fromString(opt.nBlock),
    hidden_size = table.fromString(opt.hiddenSize),
    gater_size = table.fromString(opt.gaterSize),
    window_size = table.fromString(opt.windowSize),
-   input_stdv = table.fromString(opt.inputStdv),
-   output_stdv = table.fromString(opt.outputStdv),
-   noise_stdv = table.fromString(opt.noiseStdv),
-   lr = table.fromString(opt.windowLR)
+   noise_std = table.fromString(opt.noiseStdv),
+   acc_update = opt.accUpdate
 }
 
 local softmax
@@ -86,7 +82,8 @@ if opt.softmaxtree then
       input_size = opt.outputEmbeddingSize, 
       hierarchy = datasource:hierarchy(),
       root_id = 880542,
-      dropout = opt.dropout and nn.Dropout() or nil
+      dropout = opt.dropout and nn.Dropout() or nil,
+      acc_update = opt.accUpdate
    }
 else
    print("Warning: you are using full LogSoftMax for last layer, which "..
@@ -96,7 +93,8 @@ else
       input_size = opt.outputEmbeddingSize,
       output_size = table.length(datasource:classes()),
       transfer = nn.LogSoftMax(),
-      dropout = opt.dropout and nn.Dropout() or nil
+      dropout = opt.dropout and nn.Dropout() or nil,
+      acc_update = opt.accUpdate
    }
 end
 
@@ -104,7 +102,8 @@ mlp = dp.Sequential{
    models = {
       dp.Dictionary{
          dict_size = datasource:vocabularySize(),
-         output_size = opt.inputEmbeddingSize
+         output_size = opt.inputEmbeddingSize,
+         acc_update = opt.accUpdate
       },
       conditionalModel,
       softmax

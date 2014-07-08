@@ -430,6 +430,31 @@ function dptest.softmaxtree()
    local input, carry = model:backward(output, carry)
    mytester:assertTensorEq(output:forward('bf'), output2:forward('bf'), 0.00001)
    mytester:assertTensorEq(input:backward('bf'), input2:backward('bf'), 0.00001)
+   -- accUpdate
+   local layer = model
+   local layer2 = dp.SoftmaxTree{input_size=10, hierarchy=hierarchy, root_id=root_id, acc_update=true}
+   layer2._smt.weight = layer._smt.weight:clone()
+   layer2._smt.bias = layer._smt.bias:clone()
+   layer2:zeroGradParameters()
+   layer:zeroGradParameters()
+   local input2 = dp.DataView()
+   input2:forward('bf', input_tensor)
+   input:forward('bf', input_tensor)
+   local output2, carry2 = layer2:forward(input2, {nSample=5, targets=target})
+   local output, carry = layer:forward(input, {nSample=5, targets=target})
+   output2:backward('b', grad_tensor)
+   output:backward('b', grad_tensor)
+   input = layer:backward(output, carry)
+   input2 = layer2:backward(output2, carry2)
+   mytester:assertTensorEq(output2:forward('bf'), output:forward('bf'), 0.00001)
+   mytester:assertTensorEq(input2:backward('bf'), input:backward('bf'), 0.00001)
+   mytester:assertTensorEq(layer2._smt.weight, layer._smt.weight, 0.00001)
+   mytester:assertTensorEq(layer2._smt.bias, layer._smt.bias, 0.00001)
+   layer2:updateParameters(0.1)
+   layer:updateParameters(0.1)
+   mytester:assertTensorEq(layer2._smt.weight, layer._smt.weight, 0.00001)
+   mytester:assertTensorEq(layer2._smt.bias, layer._smt.bias, 0.00001)
+   
 end
 function dptest.convolution1D()
    local size = {8,10,50}

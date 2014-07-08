@@ -26,7 +26,8 @@ function SoftmaxTree:__init(config)
    )
    self._input_size = input_size
    require 'nnx'
-   self._module = nn.SoftMaxTree(self._input_size, hierarchy, root_id, false)
+   self._module = nn.SoftMaxTree(self._input_size, hierarchy, root_id, config.accUpdate)
+   self._smt = self._module
    config.typename = typename
    config.output = dp.DataView()
    config.input_view = 'bf'
@@ -46,25 +47,29 @@ function SoftmaxTree:_forward(carry)
    if not (carry.targets and carry.targets.isClassView) then
       error"carry.targets should refer to a ClassView of targets"
    end
-   local targets = carry.targets:forward('b', self._target_type)
+   self._targets = carry.targets:forward('b', self._target_type)
    -- outputs a column vector of likelihoods of targets
-   self:outputAct(self._module:forward{self:inputAct(), targets})
+   self:outputAct(self._module:forward{self:inputAct(), self._targets})
    return carry
 end
 
 function SoftmaxTree:_backward(carry)
-   if not (carry.targets and carry.targets.isClassView) then
-      error"carry.targets should refer to a ClassView of targets"
-   end
-   local targets = carry.targets:forward('b', self._target_type)
    local input_grad
    if self._acc_update then 
-      input_grad = self._module:updateGradInput({self:inputAct(), targets}, self:outputGrad())
+      input_grad = self._module:updateGradInput({self:inputAct(), self._targets}, self:outputGrad())
    else
-      input_grad = self._module:backward({self:inputAct(), targets}, self:outputGrad(), self._acc_scale)
+      input_grad = self._module:backward({self:inputAct(), self._targets}, self:outputGrad(), self._acc_scale)
    end
    self:inputGrad(input_grad)
    return carry
+end
+
+function SoftmaxTree:updateParameters(lr)
+   if self._acc_update then
+      self._module:accUpdateGradParameters({self:inputAct(), self._targets}, self:outputGrad(), lr*self._acc_scale)
+   else
+      self._module:updateParameters(lr)
+   end
 end
 
 function SoftmaxTree:_type(type)
@@ -101,7 +106,28 @@ function SoftmaxTree:sharedClone()
       module_type=self._module_type, mvstate=self.mvstate
    })
    clone._target_type = self._target_type
-   clone._module = self._module:sharedClone()
+   clone._smt = self._smt:sharedClone()
+   clone._module = self._smt
+   if self._dropout then
+      clone:pushDropout(self._dropout:clone())
+   end
    return clone
+end
+
+function SoftmaxTree:maxNorm(max_out_norm)
+   self._smt:maxNorm(max_out_norm, true)
+   if self._acc_update then
+      self._smt.updates = {}
+   end
+end
+
+function SoftmaxTree:pushDropout(dropout)
+   local concat = nn.ConcatTable()
+   concat:add(dropout)
+   concat:add(nn.Identity())
+   local mlp = nn.Sequential()
+   mlp:add(concat)
+   mlp:add(self._module)
+   self._module = mlp
 end
 

@@ -49,7 +49,6 @@ end
 --[[Model]]--
 local dropout
 if opt.dropout then
-   require 'nnx'
    dropout = nn.Dropout()
 end
 

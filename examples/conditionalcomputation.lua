@@ -6,7 +6,7 @@ require 'cunnx'
 --[[command line arguments]]--
 cmd = torch.CmdLine()
 cmd:text()
-cmd:text('Train a Language Model on BillionWords dataset using Conditional Computation SoftmaxTree')
+cmd:text('Train a Language Model on BillionWords dataset using Conditional Computation : BlockSparse + SoftmaxTree')
 cmd:text('Example:')
 cmd:text('$> th conditionalcomputation.lua --small --batchSize 512 ')
 cmd:text('$> th conditionalcomputation.lua --tiny --batchSize 512 ')
@@ -26,11 +26,11 @@ cmd:option('--contextSize', 5, 'number of words preceding the target word used t
 cmd:option('--inputEmbeddingSize', 128, 'number of neurons per word embedding')
 
 --[[ conditional model ]]--
-cmd:option('--hiddenSize', '{1024,1024}', 'number of units used for the hidden layers of the conditional model')
-cmd:option('--windowSize', '{128,128}', 'number of neurons or blocks used per example')
-cmd:option('--noiseStdv', '{1,1}', 'standard deviation of gaussian noise used for NoisyReLU or WindowGate')
-cmd:option('--gaterSize', '{128,128}', 'the output (windowsparse) or hidden (blocksparse) size of gaters')
+cmd:option('--hiddenSize', '{32,32}', 'number of units per block in each sparse hidden layer of the conditional model')
 cmd:option('--nBlock', '{256,256}', 'number of blocks used in the hidden layers of the BlockSparse models')
+cmd:option('--windowSize', '{8,8}', 'number of blocks used per example')
+cmd:option('--noiseStdv', '{1,1}', 'standard deviation of gaussian noise used for NoisyReLU')
+cmd:option('--gaterSize', '{128,128}', 'the size of gater hidden layers')
 
 --[[ output layer ]]--
 cmd:option('--outputEmbeddingSize', 128, 'number of hidden units at softmaxtree')

@@ -1,3 +1,7 @@
+require 'cutorch'
+require 'cunn'
+require 'cunnx'
+
 local mytester 
 local dptest = {}
 local mediator = dp.Mediator()
@@ -180,7 +184,6 @@ function dptest.softmaxtree()
    local model = dp.SoftmaxTree{input_size=10, hierarchy=hierarchy, root_id=root_id}
    model:float()
    -- nn
-   require 'nnx'
    local mlp = nn.SoftMaxTree(10, hierarchy, root_id)
    mlp.weight = model._module.weight:clone()
    mlp.bias = model._module.bias:clone()
@@ -193,7 +196,6 @@ function dptest.softmaxtree()
    output:backward('b', grad_tensor:cuda())
    input, carry = model:backward(output, carry)
    cutorch.synchronize()
-   print"here5"
    mytester:assertTableEq(output:forward('bf'):size():totable(), {5,1}, 0.000001, "Wrong act size")
    mytester:assertTableEq(input:backward('bf'):size():totable(), {5,10}, 0.000001, "Wrong grad size")
    local gradWeight2 = model._module.gradWeight
@@ -227,6 +229,41 @@ function dptest.softmaxtree()
    local input, carry = model:backward(output, carry)
    mytester:assertTensorEq(output:forward('bf'):float(), output2:forward('bf'):float(), 0.00001)
    mytester:assertTensorEq(input:backward('bf'):float(), input2:backward('bf'):float(), 0.00001)
+end
+
+function dptest.blocksparse()
+   local inputSize = 23
+   local nBlock = {12, 14, 16}
+   local hiddenSize = {64, 32, 64}
+   local gaterSize = {17}
+   local windowSize = {4, 8, 4}
+   local outputSize = 15
+   local batchSize = 8
+   local accUpdate = true
+   
+   local input_tensor = torch.randn(batchSize, inputSize):cuda()
+   local gradOutput_tensor = torch.randn(batchSize, outputSize):cuda()
+   local input = dp.DataView()
+   input:forward('bf', input_tensor)
+
+   local model = dp.BlockSparse{
+      input_size=inputSize, output_size=outputSize, hidden_size=hiddenSize, n_block=nBlock,
+      gater_size=gaterSize, window_size=windowSize, noise_std={1,1}, acc_update=accUpdate
+   }
+   model:cuda()
+   
+   local output, carry = model:forward(input, {nSample=batchSize})
+   local params = model:parameters()
+   params = _.map(params, function(k,v) return v:float() end )
+   output:backward('bf', gradOutput_tensor:cuda())
+   input, carry = model:backward(output, carry)
+   mytester:assertTableEq(output:forward('bf'):size():totable(), {batchSize,outputSize}, 0.000001, "Wrong act size")
+   mytester:assertTableEq(input:backward('bf'):size():totable(), {batchSize,inputSize}, 0.000001, "Wrong grad size")
+   model:updateParameters(0.1)
+   local params2 = model:parameters()
+   for i=1,#params do
+      mytester:assertTensorNe(params[i]:float(), params2[i]:float(), 0.00001)
+   end
 end
 
 function dptest.nll()

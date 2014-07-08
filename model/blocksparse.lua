@@ -1,6 +1,6 @@
 ------------------------------------------------------------------------
 --[[ BlockSparse ]]--
--- A 3 layer model of Distributed Conditional Computation
+-- A n-layer model for Distributed Conditional Computation
 ------------------------------------------------------------------------
 local BlockSparse, parent = torch.class("dp.BlockSparse", "dp.Layer")
 BlockSparse.isBlockSparse = true
@@ -13,7 +13,7 @@ function BlockSparse:__init(config)
       {config},
       'BlockSparse', 
       'Deep mixture of experts model. It is three parametrized '..
-      'layers of gated experts. There are two gaters, one for each '..
+      'layers of gated experts. There are n-1 gaters, one for each '..
       'layer of hidden neurons between nn.BlockSparses.',
       {arg='input_size', type='number', req=true,
        help='Number of input neurons'},
@@ -53,8 +53,6 @@ function BlockSparse:__init(config)
    gater_act = (gater_act == '') and nn.Tanh() or gater_act
    expert_act = (expert_act == '') and nn.Tanh() or expert_act
    
-   require 'nnx'
-      
    -- experts
    self._experts = {}
    local para = nn.ParallelTable()
@@ -62,20 +60,20 @@ function BlockSparse:__init(config)
    para:add(nn.Identity())
    
    local expert = nn.Sequential()
-   expert:add(nn.BlockSparse(1, self._input_size, self._n_block[1], self._hidden_size[1], true))
+   expert:add(nn.BlockSparse(1, self._input_size, self._n_block[1], self._hidden_size[1], config.acc_update))
    expert:add(para)
    table.insert(self._experts, expert)
    
    for i=1,#self._n_block - 1 do
       expert = nn.Sequential()
-      expert:add(nn.BlockSparse(self._n_block[i], self._hidden_size[i], self._n_block[i+1], self._hidden_size[i+1], true))
+      expert:add(nn.BlockSparse(self._n_block[i], self._hidden_size[i], self._n_block[i+1], self._hidden_size[i+1], config.acc_update))
       expert:add(para:clone())
       table.insert(self._experts, expert)
    end
    
    local dept = #self._n_block
    expert = nn.Sequential()
-   expert:add(nn.BlockSparse(self._n_block[dept], self._hidden_size[dept], 1, outputSize, true))
+   expert:add(nn.BlockSparse(self._n_block[dept], self._hidden_size[dept], 1, output_size, config.acc_update))
    expert:add(expert_act:clone())
    table.insert(self._experts, expert)
    
@@ -85,18 +83,22 @@ function BlockSparse:__init(config)
    self._gater = nn.Sequential()
    local inputSize = self._input_size
    for i, gater_size in ipairs(self._gater_size) do
-      self._gater:add(nn.Linear(inputSize, self._gater_size[i]))
+      self._gater:add(nn.Linear(input_size, self._gater_size[i]))
       self._gater:add(gater_act:clone())
       inputSize = self._gater_size[i]
    end
    
    local concat = nn.ConcatTable()
+   self._relus = {}
    for i=1,#self._window_size do
       local gate = nn.Sequential()
       gate:add(nn.Linear(self._gater_size[#self._gater_size], self._n_block[i]))
-      gate:add(nn.NoisyReLU(self._window_size[i]/self._n_block[i], threshold_lr, alpha_range, noise_std[i]))
+      local relu = nn.NoisyReLU(self._window_size[i]/self._n_block[i], threshold_lr, alpha_range, noise_std[i])
+      gate:add(relu)
+      table.insert(self._relus, relu)
       gate:add(nn.LazyKBest(self._window_size[i]))
       concat:add(gate)
+      table.insert(self._gates, gate)
    end
    self._gater:add(concat)
    
@@ -110,10 +112,10 @@ function BlockSparse:__init(config)
    config.tags = config.tags or {}
    config.sparse_init = sparse_init
    parent.__init(self, config)
+   self._stats.std = torch.FloatTensor(#self._window_size):zero()
+   self._stats.mean = torch.FloatTensor(#self._window_size):zero()
    -- only works with cuda
    self:type('torch.CudaTensor')
-   self._stats.std = torch.zero(#self._window_size)
-   self._stats.mean = torch.zero(#self._window_size)
 end
 
 function BlockSparse:sharedClone()
@@ -121,8 +123,17 @@ function BlockSparse:sharedClone()
 end
 
 function BlockSparse:_zeroStatistics()
-   self._stats.std:zero()
-   self._stats.mean:zero()
+   if self._stats.std then
+      self._stats.std:zero()
+      self._stats.mean:zero()
+   end
+end
+
+function BlockSparse:_updateStatistics()
+   for i, relu in ipairs(self._relus) do
+      self._stats.std[i] = 0.9*self._stats.std[i] + 0.1*relu.sparsity:std()
+      self._stats.mean[i] = 0.9*self._stats.mean[i] + 0.1*relu.sparsity:mean()
+   end
 end
 
 function BlockSparse:report()

@@ -1,5 +1,6 @@
 require 'torch'
 require 'nn'
+require 'nnx'
 require 'string'
 _ = require 'moses'
 require 'xlua'

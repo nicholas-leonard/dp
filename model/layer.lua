@@ -53,7 +53,7 @@ end
 
 function Layer:pushDropout(dropout)
    if torch.type(self._module) == 'nn.Sequential' then
-      self._module:push(dropout)
+      self._module:insert(dropout, 1)
    else
       local mlp = nn.Sequential()
       mlp:add(dropout)

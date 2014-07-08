@@ -5,6 +5,7 @@
 -- Use with TreeNLL Loss.
 -- Requires a tensor mapping parent_ids to child_ids. 
 -- Root_id defaults to 1
+-- Should use with acc_update = true for nice speedup
 ------------------------------------------------------------------------
 local SoftmaxTree, parent = torch.class("dp.SoftmaxTree", "dp.Layer")
 SoftmaxTree.isSoftmaxTree = true
@@ -25,8 +26,7 @@ function SoftmaxTree:__init(config)
        help='identifies Model type in reports.'}
    )
    self._input_size = input_size
-   require 'nnx'
-   self._module = nn.SoftMaxTree(self._input_size, hierarchy, root_id, config.accUpdate)
+   self._module = nn.SoftMaxTree(self._input_size, hierarchy, root_id, config.acc_update)
    self._smt = self._module
    config.typename = typename
    config.output = dp.DataView()
@@ -76,7 +76,6 @@ function SoftmaxTree:_type(type)
    self._input_type = type
    self._output_type = type
    if type == 'torch.CudaTensor' then
-      require 'cunnx'
       self._target_type = 'torch.CudaTensor'
    else
       self._target_type = 'torch.IntTensor'

@@ -7,6 +7,7 @@ cmd:text('Train a Language Model on BillionWords dataset using SoftmaxTree')
 cmd:text('Example:')
 cmd:text('$> th languagemodel.lua --small --batchSize 512 ')
 cmd:text('$> th languagemodel.lua --tiny --batchSize 512 ')
+cmd:text('$> th languagemodel.lua --tiny --batchSize 512 --accUpdate --validEpochSize 10000 --trainEpochSize 100000 --softmaxtree')
 cmd:text('Options:')
 cmd:option('--learningRate', 0.1, 'learning rate at t=0')
 cmd:option('--decayPoint', 100, 'epoch at which learning rate is decayed')
@@ -15,7 +16,7 @@ cmd:option('--maxOutNorm', 2, 'max norm each layers output neuron weights')
 cmd:option('--maxNormPeriod', 5, 'Applies MaxNorm Visitor every maxNormPeriod batches')
 cmd:option('--momentum', 0, 'momentum')
 cmd:option('--batchSize', 512, 'number of examples per batch')
-cmd:option('--cuda', true, 'use CUDA')
+cmd:option('--cuda', false, 'use CUDA')
 cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
 cmd:option('--maxEpoch', 400, 'maximum number of epochs to run')
 cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better local minima for early-stopping')
@@ -64,10 +65,6 @@ local datasource = dp.BillionWords{
 }
 
 --[[Model]]--
-if opt.dropout then
-   require 'nnx'
-end
-
 print("Input to first hidden layer has "..
    opt.contextSize*opt.inputEmbeddingSize.." neurons.")
 
@@ -147,6 +144,9 @@ if opt.cuda then
    print"Using CUDA"
    require 'cutorch'
    require 'cunn'
+   if opt.softmaxtree then
+      require 'cunnx'
+   end
    cutorch.setDevice(opt.useDevice)
    mlp:cuda()
 end

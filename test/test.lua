@@ -387,7 +387,6 @@ function dptest.softmaxtree()
    target:forward('b', target_tensor)
    local model = dp.SoftmaxTree{input_size=10, hierarchy=hierarchy, root_id=root_id}
    -- nn
-   require 'nnx'
    local mlp = nn.SoftMaxTree(10, hierarchy, root_id)
    mlp.weight = model._module.weight:clone()
    mlp.bias = model._module.bias:clone()

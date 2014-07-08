@@ -11,8 +11,7 @@ SoftmaxTree.isSoftmaxTree = true
 
 function SoftmaxTree:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, input_size, hierarchy, root_id, typename, maxOutNorm 
-      = xlua.unpack(
+   local args, input_size, hierarchy, root_id, typename = xlua.unpack(
       {config},
       'SoftmaxTree', 
       'A hierarchy of softmaxes',
@@ -23,22 +22,16 @@ function SoftmaxTree:__init(config)
       {arg='root_id', type='number | string', default=1,
        help='id of the root of the tree.'},
       {arg='typename', type='string', default='softmaxtree', 
-       help='identifies Model type in reports.'},
-      {arg='maxOutNorm', type='number', default=1,
-       help='max norm of output neuron weights. '..
-       'Overrides MaxNorm visitor'}
+       help='identifies Model type in reports.'}
    )
    self._input_size = input_size
    require 'nnx'
-   self._module = nn.SoftMaxTree(
-      self._input_size, hierarchy, root_id, maxOutNorm
-   )
+   self._module = nn.SoftMaxTree(self._input_size, hierarchy, root_id, false)
    config.typename = typename
    config.output = dp.DataView()
    config.input_view = 'bf'
    config.output_view = 'b'
    config.tags = config.tags or {}
-   config.tags['no-maxnorm'] = true
    parent.__init(self, config)
    self._target_type = 'torch.IntTensor'
 end
@@ -96,7 +89,7 @@ end
 -- if after feedforward, returns active parameters 
 -- else returns all parameters
 function SoftmaxTree:parameters()
-   return self._module:parameters(not self._acc_update)
+   return self._module:parameters(true)
 end
 
 function SoftmaxTree:sharedClone()
@@ -110,17 +103,5 @@ function SoftmaxTree:sharedClone()
    clone._target_type = self._target_type
    clone._module = self._module:sharedClone()
    return clone
-end
-
-function SoftmaxTree:updateParameters(lr)
-   if self._acc_update then
-      self._module:accUpdateGradParameters(self:inputAct(), self:outputAct(), lr*self._acc_scale)
-   else
-      self._module:updateParameters(lr, true)
-   end
-end
-
-function SoftmaxTree:maxNorm()
-   error"NotImplemented"
 end
 

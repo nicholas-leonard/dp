@@ -20,6 +20,7 @@ cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
 cmd:option('--maxEpoch', 400, 'maximum number of epochs to run')
 cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better local minima for early-stopping')
 --cmd:option('--dropout', false, 'apply dropout on hidden neurons, requires "nnx" luarock')
+cmd:option('--accUpdate', false, 'accumulate updates inplace using accUpdateGradParameters')
 
 cmd:option('--contextSize', 5, 'number of words preceding the target word used to predict the target work')
 cmd:option('--inputEmbeddingSize', 128, 'number of neurons per word embedding')
@@ -71,7 +72,8 @@ local conditionalModel = dp.BlockSparse{
    hidden_size = table.fromString(opt.hiddenSize),
    gater_size = table.fromString(opt.gaterSize),
    window_size = table.fromString(opt.windowSize),
-   noise_std = table.fromString(opt.noiseStdv)
+   noise_std = table.fromString(opt.noiseStdv),
+   acc_update = opt.accUpdate
 }
 
 local softmax
@@ -80,7 +82,8 @@ if opt.softmaxtree then
       input_size = opt.outputEmbeddingSize, 
       hierarchy = datasource:hierarchy(),
       root_id = 880542,
-      dropout = opt.dropout and nn.Dropout() or nil
+      dropout = opt.dropout and nn.Dropout() or nil,
+      acc_update = opt.accUpdate
    }
 else
    print("Warning: you are using full LogSoftMax for last layer, which "..
@@ -90,7 +93,8 @@ else
       input_size = opt.outputEmbeddingSize,
       output_size = table.length(datasource:classes()),
       transfer = nn.LogSoftMax(),
-      dropout = opt.dropout and nn.Dropout() or nil
+      dropout = opt.dropout and nn.Dropout() or nil,
+      acc_update = opt.accUpdate
    }
 end
 
@@ -98,7 +102,8 @@ mlp = dp.Sequential{
    models = {
       dp.Dictionary{
          dict_size = datasource:vocabularySize(),
-         output_size = opt.inputEmbeddingSize
+         output_size = opt.inputEmbeddingSize,
+         acc_update = opt.accUpdate
       },
       conditionalModel,
       softmax

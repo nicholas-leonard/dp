@@ -105,7 +105,7 @@ end
 
 function Layer:updateParameters(lr)
    if self._acc_update then
-      self._module:accUpdateGradParameters(self:inputAct(), self:outputAct(), lr*self._acc_scale)
+      self._module:accUpdateGradParameters(self:inputAct(), self:outputGrad(), lr*self._acc_scale)
    else
       self._module:updateParameters(lr)
    end

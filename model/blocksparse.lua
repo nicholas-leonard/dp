@@ -83,7 +83,7 @@ function BlockSparse:__init(config)
    self._gater = nn.Sequential()
    local inputSize = self._input_size
    for i, gater_size in ipairs(self._gater_size) do
-      self._gater:add(nn.Linear(input_size, self._gater_size[i]))
+      self._gater:add(nn.Linear(inputSize, self._gater_size[i]))
       self._gater:add(gater_act:clone())
       inputSize = self._gater_size[i]
    end
@@ -139,7 +139,7 @@ end
 function BlockSparse:report()
    print(self:name())
    local msg = "mean+-std "
-   for i=1,self._stats.meanA:size(1) do
+   for i=1,self._stats.mean:size(1) do
       msg = msg..self._stats.mean[i].."+-"..self._stats.std[i].." "
    end
    print(msg)

@@ -60,7 +60,7 @@ function SoftmaxTree:_backward(carry)
    else
       input_grad = self._module:backward({self:inputAct(), self._targets}, self:outputGrad(), self._acc_scale)
    end
-   self:inputGrad(input_grad)
+   self:inputGrad(input_grad[1])
    return carry
 end
 
@@ -121,11 +121,11 @@ function SoftmaxTree:maxNorm(max_out_norm)
 end
 
 function SoftmaxTree:pushDropout(dropout)
-   local concat = nn.ConcatTable()
-   concat:add(dropout)
-   concat:add(nn.Identity())
+   local para = nn.ParallelTable()
+   para:add(dropout)
+   para:add(nn.Identity())
    local mlp = nn.Sequential()
-   mlp:add(concat)
+   mlp:add(para)
    mlp:add(self._module)
    self._module = mlp
 end

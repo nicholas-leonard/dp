@@ -1,7 +1,3 @@
-require 'cutorch'
-require 'cunn'
-require 'cunnx'
-
 local mytester 
 local dptest = {}
 local mediator = dp.Mediator()
@@ -202,7 +198,7 @@ function dptest.softmaxtree()
    mytester:assertTensorNe(gradWeight:float(), gradWeight2:float(), 0.00001)
    --- nn
    local mlp_act = mlp:forward{input_tensor, target_tensor}
-   local mlp_grad = mlp:backward({input_tensor, target_tensor}, grad_tensor)
+   local mlp_grad = mlp:backward({input_tensor, target_tensor}, grad_tensor)[1]
    -- compare nn and dp
    mytester:assertTensorEq(mlp_act, output:forward('bf'):float(), 0.001)
    mytester:assertTensorEq(mlp_grad, input:backward('bf'):float(), 0.001)
@@ -309,6 +305,7 @@ end
 function dp.testCuda(tests)
    require 'cutorch'
    require 'cunn'
+   require 'cunnx'
    math.randomseed(os.time())
    mytester = torch.Tester()
    mytester:add(dptest)

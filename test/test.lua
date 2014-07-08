@@ -402,7 +402,7 @@ function dptest.softmaxtree()
    mytester:assertTensorNe(gradWeight, gradWeight2, 0.00001)
    --- nn
    local mlp_act = mlp:forward{input_tensor, target_tensor}
-   local mlp_grad = mlp:backward({input_tensor, target_tensor}, grad_tensor)
+   local mlp_grad = mlp:backward({input_tensor, target_tensor}, grad_tensor)[1]
    -- compare nn and dp
    mytester:assertTensorEq(mlp_act, output:forward('bf'), 0.00001)
    mytester:assertTensorEq(mlp_grad, input:backward('bf'), 0.00001)

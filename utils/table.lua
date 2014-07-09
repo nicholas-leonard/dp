@@ -75,7 +75,7 @@ end
 function table.merge(t1, t2)
     for k, v in pairs(t2) do
         if (torch.type(v) == "table") and (torch.type(t1[k] or false) == "table") then
-            merge(t1[k], t2[k])
+            table.merge(t1[k], t2[k])
         else
             t1[k] = v
         end

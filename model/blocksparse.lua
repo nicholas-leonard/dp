@@ -112,8 +112,6 @@ function BlockSparse:__init(config)
    config.tags = config.tags or {}
    config.sparse_init = sparse_init
    parent.__init(self, config)
-   self._stats.std = torch.FloatTensor(#self._window_size):zero()
-   self._stats.mean = torch.FloatTensor(#self._window_size):zero()
    -- only works with cuda
    self:type('torch.CudaTensor')
 end
@@ -123,10 +121,8 @@ function BlockSparse:sharedClone()
 end
 
 function BlockSparse:_zeroStatistics()
-   if self._stats.std then
-      self._stats.std:zero()
-      self._stats.mean:zero()
-   end
+   self._stats.std = torch.FloatTensor(#self._window_size):zero()
+   self._stats.mean = torch.FloatTensor(#self._window_size):zero()
 end
 
 function BlockSparse:_updateStatistics()

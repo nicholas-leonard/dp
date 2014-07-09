@@ -6,18 +6,13 @@ source = {
 }
 
 description = {
-   summary = "A deep learning library designed for streamlining research and development using the Torch7 distribution, with an emphasis on flexibility through the elegant use of object-oriented design patterns.",
+   summary = "A deep learning library for the Torch7 distribution",
    detailed = [[
-dp is a deep learning library designed for streamlining research and development using the Torch7 distribution, 
-with an emphasis on flexibility through the elegant use of object-oriented design patterns.
-Inspired by pylearn2/Theano, it provides common datasets like MNIST, CIFAR-10 and CIFAR-100, 
-preprocessing like Zero-Component Analysis whitening, Global Contrast Normalization, 
-Lecunn's Local Contrast Normalization and facilities for interfacing your own. Additionally, 
-it provides a high-level framework that abstracts away common usage patterns of the nn and torch7 
-package such as loading datasets and early stopping. The library includes hyperparameter optimization 
-facilities for sampling and running experiments from the command-line or prior hyper-parameter distributions.
+With an emphasis on flexibility through the elegant use of object-oriented design patterns,
+dp is a deep learning library inspired by pylearn2
+designed for streamlining research and development using the Torch7 distribution. 
 ]],
-   homepage = "https://github.com/nicholas-leonard/dp"
+   homepage = "https://github.com/nicholas-leonard/dp/blob/master/README.md"
 }
 
 dependencies = {

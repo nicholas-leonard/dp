@@ -133,10 +133,21 @@ function BlockSparse:_updateStatistics()
 end
 
 function BlockSparse:report()
-   print(self:name())
+   if not self._next_report then
+      self._next_report = true
+      return
+   end
+   local nVal = 5
+   for i, relu in ipairs(self._relus) do
+      local vals = relu.sparsity:select(1,1):float():sort()
+      print(i, 
+         table.tostring(vals:narrow(1,1,nVal):clone():storage():totable()), 
+         table.tostring(vals:narrow(1,vals:size(1)-nVal+1,nVal):clone():storage():totable())
+      )
+   end
    local msg = "mean+-std "
    for i=1,self._stats.mean:size(1) do
       msg = msg..self._stats.mean[i].."+-"..self._stats.std[i].." "
    end
-   print(msg)
+   print(msg)   
 end

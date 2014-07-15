@@ -39,7 +39,9 @@ cmd:option('--convPoolStride', 2, 'stride of the max pooling after the convoluti
 cmd:option('--outputEmbeddingSize', 100, 'number of hidden units at softmaxtree')
 
 --[[ output layer ]]--
-cmd:option('--softmaxtree', false, 'use the softmaxtree instead of the inefficient (full) softmax')
+cmd:option('--softmaxtree', false, 'use SoftmaxTree instead of the inefficient (full) softmax')
+cmd:option('--softmaxforest', false, 'use SoftmaxForest instead of SoftmaxTree (uses more memory)')
+cmd:option('--forestGaterSize', '{}', 'size of hidden layers used for forest gater (trees are experts)')
 
 --[[ data ]]--
 cmd:option('--small', false, 'use a small (1/30th) subset of the training set')
@@ -99,7 +101,21 @@ end
 print("Input to second hidden layer has size "..inputSize)
 
 local softmax
-if opt.softmaxtree then
+if opt.softmaxforest then
+   softmax = dp.SoftmaxForest{
+      input_size = opt.outputEmbeddingSize, 
+      hierarchy = {  
+         datasource:hierarchy('word_tree1.th7'), 
+         datasource:hierarchy('word_tree2.th7'),
+         datasource:hierarchy('word_tree3.th7')
+      },
+      gater_size = table.fromString(opt.forestGaterSize),
+      gater_act = nn.Tanh(),
+      root_id = {880542,880542,880542},
+      dropout = opt.dropout and nn.Dropout() or nil,
+      acc_update = opt.accUpdate
+   }
+elseif opt.softmaxtree then
    softmax = dp.SoftmaxTree{
       input_size = opt.outputEmbeddingSize, 
       hierarchy = datasource:hierarchy(),

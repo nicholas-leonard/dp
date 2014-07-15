@@ -453,7 +453,43 @@ function dptest.softmaxtree()
    layer:updateParameters(0.1)
    mytester:assertTensorEq(layer2._smt.weight, layer._smt.weight, 0.00001)
    mytester:assertTensorEq(layer2._smt.bias, layer._smt.bias, 0.00001)
-   
+end
+function dptest.softmaxforest()
+   local input_tensor = torch.randn(5,10)
+   local target_tensor = torch.IntTensor{20,24,27,10,12}
+   local grad_tensor = torch.randn(5)
+   local root_id = 29
+   local hierarchy={
+      [29]=torch.IntTensor{30,1,2}, [1]=torch.IntTensor{3,4,5}, 
+      [2]=torch.IntTensor{6,7,8}, [3]=torch.IntTensor{9,10,11},
+      [4]=torch.IntTensor{12,13,14}, [5]=torch.IntTensor{15,16,17},
+      [6]=torch.IntTensor{18,19,20}, [7]=torch.IntTensor{21,22,23},
+      [8]=torch.IntTensor{24,25,26,27,28}
+   }
+   -- dp
+   local input = dp.DataView()
+   input:forward('bf', input_tensor)
+   local target = dp.ClassView()
+   target:forward('b', target_tensor)
+   local model = dp.SoftmaxForest{
+      input_size=10, hierarchy={hierarchy,hierarchy,hierarchy}, 
+      root_id={root_id,root_id,root_id}
+   }
+   -- forward backward
+   --- dp
+   local output, carry = model:forward(input, {nSample=5, targets=target})
+   local params, gradParams = model:parameters()
+   local gradParams = table.recurse({}, gradParams, function(t,k,v)
+      t[k] = v:clone()
+   end)
+   output:backward('b', grad_tensor)
+   input, carry = model:backward(output, carry)
+   mytester:assertTableEq(output:forward('bf'):size():totable(), {5,1}, 0.000001, "Wrong act size")
+   mytester:assertTableEq(input:backward('bf'):size():totable(), {5,10}, 0.000001, "Wrong grad size")
+   local params2, gradParams2 = model:parameters()
+   table.recurse(gradParams2, gradParams, function(t,k,v)
+      mytester:assertTensorNe(t[k], v, 0.00001)
+   end)
 end
 function dptest.convolution1D()
    local size = {8,10,50}

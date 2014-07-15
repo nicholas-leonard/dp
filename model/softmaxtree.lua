@@ -93,7 +93,7 @@ end
 -- if after feedforward, returns active parameters 
 -- else returns all parameters
 function SoftmaxTree:parameters()
-   return self._module:parameters(self.forwarded)
+   return self._module:parameters(true)
 end
 
 function SoftmaxTree:sharedClone()

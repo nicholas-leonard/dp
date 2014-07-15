@@ -487,7 +487,7 @@ function dptest.softmaxforest()
    mytester:assertTableEq(output:forward('bf'):size():totable(), {5,1}, 0.000001, "Wrong act size")
    mytester:assertTableEq(input:backward('bf'):size():totable(), {5,10}, 0.000001, "Wrong grad size")
    local params2, gradParams2 = model:parameters()
-   table.recurse(gradParams2, gradParams, function(t,k,v)
+   table.recurse(gradParams, gradParams2, function(t,k,v)
       mytester:assertTensorNe(t[k], v, 0.00001)
    end)
 end

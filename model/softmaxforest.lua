@@ -32,8 +32,11 @@ function SoftmaxForest:__init(config)
    
    -- experts
    self._experts = nn.ConcatTable()
+   self._smts = {}
    for i,tree in ipairs(hierarchy) do
-      self._experts:add(nn.SoftMaxTree(self._input_size, tree, root_id[i], config.acc_update))
+      local smt = nn.SoftMaxTree(self._input_size, tree, root_id[i], config.acc_update)
+      table.insert(self._smts, smt)
+      self._experts:add(smt)
    end
    -- gater
    self._gater = nn.Sequential()
@@ -80,8 +83,7 @@ function SoftmaxForest:parameters()
    _.push(param, unpack(paramG))
    _.push(gradParam, unpack(gradParamG))
    local n = #param
-   for i=1,self._experts:size() do
-      local smt = self._experts:get(i)
+   for i,smt in ipairs(self._smts) do
       local paramE, gradParamE = smt:parameters(true)
       for k,p in pairs(paramE) do
          param[n+k] = p
@@ -97,7 +99,7 @@ function SoftmaxForest:sharedClone()
 end
 
 function SoftmaxForest:maxNorm(max_out_norm, max_in_norm)
-   for i,smt in ipairs(self._experts) do 
+   for i,smt in ipairs(self._smts) do 
       smt:maxNorm(max_out_norm, true)
       if self._acc_update then
          smt.updates = {}

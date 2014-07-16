@@ -8,11 +8,12 @@ BlockSparse.isBlockSparse = true
 function BlockSparse:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, input_size, n_block, hidden_size, window_size, gater_size, 
-      output_size, noise_std, gater_act, expert_act, threshold_lr, 
-      alpha_range, sparse_init, typename = xlua.unpack(
+      output_size, noise_std, gater_act, expert_act, gater_style, 
+      expert_scale, gater_scale, threshold_lr, alpha_range, sparse_init, 
+      typename = xlua.unpack(
       {config},
       'BlockSparse', 
-      'Deep mixture of experts model. It is three parametrized '..
+      'Deep mixture of experts model. It is n parametrized '..
       'layers of gated experts. There are n-1 gaters, one for each '..
       'layer of hidden neurons between nn.BlockSparses.',
       {arg='input_size', type='number', req=true,
@@ -33,6 +34,12 @@ function BlockSparse:__init(config)
        help='gater hidden activation. Defaults to nn.Tanh()'},
       {arg='expert_act', type='table', default='',
        help='expert activation. Defaults. to nn.Tanh()'},
+      {arg='gater_style', type='string', default='NoisyReLU',
+       help='comma-separated sequence of Modules to use for gating'},
+      {arg='expert_scale', type='number', default=1,
+       help='scales the learningRate for the experts'},
+      {arg='gater_scale', type='number', default=1,
+       help='scales the learningRate for the gater'},
       {arg='threshold_lr', type='number', default=0.1,
        help='learning rate to get the optimum threshold for a desired sparsity'},
       {arg='alpha_range', type='table', default='',
@@ -82,20 +89,33 @@ function BlockSparse:__init(config)
    
    self._gater = nn.Sequential()
    local inputSize = self._input_size
-   for i, gater_size in ipairs(self._gater_size) do
-      self._gater:add(nn.Linear(inputSize, self._gater_size[i]))
+   for i, gaterSize in ipairs(self._gater_size) do
+      self._gater:add(nn.Linear(inputSize, gaterSize))
       self._gater:add(gater_act:clone())
-      inputSize = self._gater_size[i]
+      inputSize = gaterSize
    end
    
    local concat = nn.ConcatTable()
    self._relus = {}
+   self._balances = {}
    for i=1,#self._window_size do
       local gate = nn.Sequential()
-      gate:add(nn.Linear(self._gater_size[#self._gater_size], self._n_block[i]))
-      local relu = nn.NoisyReLU(self._window_size[i]/self._n_block[i], threshold_lr, alpha_range, noise_std[i])
-      gate:add(relu)
-      table.insert(self._relus, relu)
+      gate:add(nn.Linear(inputSize, self._n_block[i]))
+      for i,gater_str in ipairs(_.split(gater_style, '[,]')) do
+         if gater_str == 'NoisyReLU' then
+            local relu = nn.NoisyReLU(self._window_size[i]/self._n_block[i], threshold_lr, alpha_range, noise_std[i])
+            gate:add(relu)
+            table.insert(self._relus, relu)
+         elseif gater_str == 'Balance' then
+            local balance = nn.Balance(10)
+            gate:add(balance)
+            table.insert(self._balances, balance)
+         elseif gater_str == 'SoftMax' then
+            gater:add(nn.SoftMax())
+         else
+            error("unknown gater_style:"..gater_str, 2)
+         end
+      end
       gate:add(nn.LazyKBest(self._window_size[i]))
       concat:add(gate)
       table.insert(self._gates, gate)
@@ -103,7 +123,7 @@ function BlockSparse:__init(config)
    self._gater:add(concat)
    
    -- mixture
-   self._module = nn.BlockMixture(self._experts, self._gater)
+   self._module = nn.BlockMixture(self._experts, self._gater, expert_scale, gater_scale)
    
    config.typename = typename
    config.output = dp.DataView()

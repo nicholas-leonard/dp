@@ -15,6 +15,7 @@ cmd:option('--learningRate', 0.1, 'learning rate at t=0')
 cmd:option('--decayPoint', 100, 'epoch at which learning rate is decayed')
 cmd:option('--decayFactor', 0.1, 'factory by which learning rate is decayed at decay point')
 cmd:option('--maxOutNorm', 0, 'max norm each layers output neuron weights')
+cmd:option('--maxNormPeriod', 5, 'Applies MaxNorm Visitor every maxNormPeriod batches')
 cmd:option('--batchSize', 512, 'number of examples per batch')
 cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
 cmd:option('--maxEpoch', 400, 'maximum number of epochs to run')
@@ -31,6 +32,9 @@ cmd:option('--nBlock', '{256,256}', 'number of blocks used in the hidden layers 
 cmd:option('--windowSize', '{8,8}', 'number of blocks used per example')
 cmd:option('--noiseStdv', '{1,1}', 'standard deviation of gaussian noise used for NoisyReLU')
 cmd:option('--gaterSize', '{128,128}', 'the size of gater hidden layers')
+cmd:option('--gaterStyle', 'NoisyReLU', 'comma-separated sequence of Modules to use for gating')
+cmd:option('--gaterScale', 1, 'scales the learningRate for the gater')
+cmd:option('--expertScale', 1, 'scales the learningRate for the experts')
 
 --[[ output layer ]]--
 cmd:option('--outputEmbeddingSize', 128, 'number of hidden units at softmaxtree')
@@ -75,6 +79,9 @@ local conditionalModel = dp.BlockSparse{
    gater_size = table.fromString(opt.gaterSize),
    window_size = table.fromString(opt.windowSize),
    noise_std = table.fromString(opt.noiseStdv),
+   gater_style = opt.gaterStyle,
+   expert_scale = opt.expertScale,
+   gater_scale = opt.gaterScale,
    acc_update = opt.accUpdate
 }
 
@@ -139,7 +146,7 @@ train = dp.Optimizer{
             schedule = {[opt.decayPoint]=opt.learningRate*opt.decayFactor}
          }
       },
-      dp.MaxNorm{max_out_norm = opt.maxOutNorm}
+      dp.MaxNorm{max_out_norm = opt.maxOutNorm, period=opt.maxNormPeriod}
    },
    feedback = dp.Perplexity(),  
    sampler = dp.Sampler{ --shuffle sample takes too much mem

@@ -491,6 +491,32 @@ function dptest.softmaxforest()
       mytester:assertTensorNe(t[k], v, 0.00001)
    end)
 end
+function dptest.mixtureofexperts()
+   local input_tensor = torch.randn(5,10)
+   local grad_tensor = torch.randn(5,6)
+   -- dp
+   local input = dp.DataView()
+   input:forward('bf', input_tensor)
+   local model = dp.MixtureOfExperts{
+      input_size=10, n_expert=3, expert_size={7}, 
+      gater_size={8}, output_size=6
+   }
+   -- forward backward
+   --- dp
+   local output, carry = model:forward(input, {nSample=5})
+   local params, gradParams = model:parameters()
+   local gradParams = table.recurse({}, gradParams, function(t,k,v)
+      t[k] = v:clone()
+   end)
+   output:backward('bf', grad_tensor)
+   input, carry = model:backward(output, carry)
+   mytester:assertTableEq(output:forward('bf'):size():totable(), {5,6}, 0.000001, "Wrong act size")
+   mytester:assertTableEq(input:backward('bf'):size():totable(), {5,10}, 0.000001, "Wrong grad size")
+   local params2, gradParams2 = model:parameters()
+   table.recurse(gradParams, gradParams2, function(t,k,v)
+      mytester:assertTensorNe(t[k], v, 0.00001)
+   end)
+end
 function dptest.convolution1D()
    local size = {8,10,50}
    local output_size = {8,4,100}

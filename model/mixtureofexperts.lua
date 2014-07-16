@@ -47,7 +47,7 @@ function MixtureOfExperts:__init(config)
    -- experts
    self._experts = nn.ConcatTable()
    
-   for i=1,#self._n_expert do
+   for i=1,self._n_expert do
       local inputSize = self._input_size
       local expert = nn.Sequential()
       for i,hiddenSize in ipairs(self._expert_size) do

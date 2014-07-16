@@ -475,8 +475,6 @@ function dptest.softmaxforest()
       input_size=10, hierarchy={hierarchy,hierarchy,hierarchy}, 
       root_id={root_id,root_id,root_id}
    }
-   -- forward backward
-   --- dp
    local output, carry = model:forward(input, {nSample=5, targets=target})
    local params, gradParams = model:parameters()
    local gradParams = table.recurse({}, gradParams, function(t,k,v)
@@ -489,6 +487,55 @@ function dptest.softmaxforest()
    local params2, gradParams2 = model:parameters()
    table.recurse(gradParams, gradParams2, function(t,k,v)
       mytester:assertTensorNe(t[k], v, 0.00001)
+   end)
+   -- nn
+   -- experts
+   local experts = nn.ConcatTable()
+   experts:add(nn.SoftMaxTree(10, hierarchy, root_id))
+   experts:add(nn.SoftMaxTree(10, hierarchy, root_id))
+   experts:add(nn.SoftMaxTree(10, hierarchy, root_id))
+   experts:get(1).weight = model._smts[1].weight:clone()
+   experts:get(2).weight = model._smts[2].weight:clone()
+   experts:get(3).weight = model._smts[3].weight:clone()
+   experts:get(1).bias = model._smts[1].bias:clone()
+   experts:get(2).bias = model._smts[2].bias:clone()
+   experts:get(3).bias = model._smts[3].bias:clone()
+   -- gater
+   local gater = nn.Sequential()
+   gater:add(nn.SelectTable(1)) -- ignore targets
+   gater:add(nn.Linear(10,3))
+   gater:add(nn.SoftMax())
+   gater:get(2).weight = model._gater:get(2).weight:clone()
+   gater:get(2).bias = model._gater:get(2).bias:clone()
+   -- mixture
+   local trunk = nn.ConcatTable()
+   trunk:add(gater)
+   trunk:add(experts)
+   local mixture = nn.MixtureTable()
+   local mlp = nn.Sequential()
+   mlp:add(trunk)
+   mlp:add(mixture)
+   mlp:zeroGradParameters()
+   local mlp_act = mlp:forward{input_tensor, target_tensor}
+   local mlp_grad = mlp:backward({input_tensor, target_tensor}, grad_tensor)[1]
+   -- compare nn and dp
+   mytester:assertTensorEq(mlp_act, output:forward('bf'), 0.00001)
+   mytester:assertTensorEq(mlp_grad, input:backward('bf'), 0.00001)
+   -- update
+   mlp:updateParameters(0.1)
+   model:updateParameters(0.1)
+   for i=1,experts:size() do
+      local expert = experts:get(i)
+      local params, gradParams = expert:parameters()
+      local params2, gradParams2 = model._experts:get(i):parameters()
+      table.recurse(params, params2, function(t,k,v)
+         mytester:assertTensorEq(t[k], v, 0.00001)
+      end)
+   end
+   local params, gradParams = gater:parameters()
+   local params2, gradParams2 = model._gater:parameters()
+   table.recurse(params, params2, function(t,k,v)
+      mytester:assertTensorEq(t[k], v, 0.00001)
    end)
 end
 function dptest.mixtureofexperts()

@@ -106,8 +106,8 @@ if opt.softmaxforest then
       input_size = opt.outputEmbeddingSize, 
       hierarchy = {  
          datasource:hierarchy('word_tree1.th7'), 
-         datasource:hierarchy('word_tree1.th7'),
-         datasource:hierarchy('word_tree1.th7')
+         datasource:hierarchy('word_tree2.th7'),
+         datasource:hierarchy('word_tree3.th7')
       },
       gater_size = table.fromString(opt.forestGaterSize),
       gater_act = nn.Tanh(),

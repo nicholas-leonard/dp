@@ -86,14 +86,14 @@ end
 
 function SoftmaxTree:zeroGradParameters()
    if not self._acc_update then
-      self._module:zeroGradParameters(self.forwarded)
+      self._module:zeroGradParameters()
    end
 end
 
 -- if after feedforward, returns active parameters 
 -- else returns all parameters
 function SoftmaxTree:parameters()
-   return self._module:parameters(true)
+   return self._module:parameters()
 end
 
 function SoftmaxTree:sharedClone()

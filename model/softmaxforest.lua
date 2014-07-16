@@ -67,7 +67,6 @@ function SoftmaxForest:__init(config)
    self._target_type = 'torch.IntTensor'
 end
 
-
 function SoftmaxForest:zeroGradParameters()
    if not self._acc_update then
       for i,smt in ipairs(self._experts) do

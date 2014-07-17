@@ -28,6 +28,9 @@ function Dictionary:__init(config)
    self._dict_size = dict_size
    self._output_size = output_size
    self._module = nn.LookupTable(dict_size, output_size)
+   if self._acc_update then
+      self._module:accUpdateOnly()
+   end
    config.typename = typename
    config.input_type = 'torch.IntTensor'
    config.tags = config.tags or {}

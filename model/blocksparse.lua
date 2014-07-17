@@ -9,8 +9,8 @@ function BlockSparse:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, input_size, n_block, hidden_size, window_size, gater_size, 
       output_size, noise_std, gater_act, expert_act, gater_style, 
-      expert_scale, gater_scale, threshold_lr, alpha_range, sparse_init, 
-      typename = xlua.unpack(
+      expert_scale, gater_scale, interleave, threshold_lr, alpha_range, 
+      sparse_init, typename = xlua.unpack(
       {config},
       'BlockSparse', 
       'Deep mixture of experts model. It is n parametrized '..
@@ -40,6 +40,8 @@ function BlockSparse:__init(config)
        help='scales the learningRate for the experts'},
       {arg='gater_scale', type='number', default=1,
        help='scales the learningRate for the gater'},
+      {arg='interleave', type='boolean', default=false,
+       help='when true, alternate between training gater and experts every epoch'},
       {arg='threshold_lr', type='number', default=0.1,
        help='learning rate to get the optimum threshold for a desired sparsity'},
       {arg='alpha_range', type='table', default='',
@@ -56,6 +58,10 @@ function BlockSparse:__init(config)
    self._n_block = n_block
    self._hidden_size = hidden_size
    self._window_size = window_size
+   self._interleave = interleave
+   self._expert_scale = expert_scale
+   self._gater_scale = gater_scale
+   self._expert_phase = true
    alpha_range = (alpha_range == '') and {0.5, 1000, 0.01} or alpha_range
    gater_act = (gater_act == '') and nn.Tanh() or gater_act
    expert_act = (expert_act == '') and nn.Tanh() or expert_act
@@ -123,7 +129,9 @@ function BlockSparse:__init(config)
    self._gater:add(concat)
    
    -- mixture
-   self._module = nn.BlockMixture(self._experts, self._gater, expert_scale, gater_scale)
+   gater_scale = interleave and 0 or gater_scale
+   self._bm = nn.BlockMixture(self._experts, self._gater, expert_scale, gater_scale)
+   self._module = self._bm
    
    config.typename = typename
    config.output = dp.DataView()
@@ -136,19 +144,12 @@ function BlockSparse:__init(config)
    self:type('torch.CudaTensor')
 end
 
-function BlockSparse:sharedClone()
-   error"NotImplemented"
-end
-
-function BlockSparse:_zeroStatistics()
-   self._stats.std = torch.FloatTensor(#self._window_size):zero()
-   self._stats.mean = torch.FloatTensor(#self._window_size):zero()
-end
-
-function BlockSparse:_updateStatistics()
-   for i, relu in ipairs(self._relus) do
-      self._stats.std[i] = 0.9*self._stats.std[i] + 0.1*relu.sparsity:std()
-      self._stats.mean[i] = 0.9*self._stats.mean[i] + 0.1*relu.sparsity:mean()
+function BlockSparse:doneEpoch(report, ...)
+   self:zeroStatistics()
+   if self._interleave then
+      self._expert_phase = not self._expert_phase
+      self._bm.expertScale = self._expert_phase and self._expert_scale or 0
+      self._bm.gaterScale = (not self._expert_phase) and self._gater_scale or 0
    end
 end
 
@@ -156,6 +157,11 @@ function BlockSparse:report()
    if not self._next_report then
       self._next_report = true
       return
+   end
+   if self._expert_phase then
+      print"Expert Phase"
+   else
+      print"Gater Phase"
    end
    local nVal = 5
    for i, relu in ipairs(self._relus) do
@@ -165,9 +171,4 @@ function BlockSparse:report()
          table.tostring(vals:narrow(1,vals:size(1)-nVal+1,nVal):clone():storage():totable())
       )
    end
-   local msg = "mean+-std "
-   for i=1,self._stats.mean:size(1) do
-      msg = msg..self._stats.mean[i].."+-"..self._stats.std[i].." "
-   end
-   print(msg)   
 end

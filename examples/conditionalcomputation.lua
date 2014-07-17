@@ -35,6 +35,7 @@ cmd:option('--gaterSize', '{128,128}', 'the size of gater hidden layers')
 cmd:option('--gaterStyle', 'NoisyReLU', 'comma-separated sequence of Modules to use for gating')
 cmd:option('--gaterScale', 1, 'scales the learningRate for the gater')
 cmd:option('--expertScale', 1, 'scales the learningRate for the experts')
+cmd:option('--interleave', false, 'when true, alternate between training BlockMixture gater and experts every epoch')
 
 --[[ output layer ]]--
 cmd:option('--outputEmbeddingSize', 128, 'number of hidden units at softmaxtree')
@@ -82,6 +83,7 @@ local conditionalModel = dp.BlockSparse{
    gater_style = opt.gaterStyle,
    expert_scale = opt.expertScale,
    gater_scale = opt.gaterScale,
+   interleave = opt.interleave,
    acc_update = opt.accUpdate
 }
 

@@ -161,7 +161,7 @@ if opt.cuda then
    print"Using CUDA"
    require 'cutorch'
    require 'cunn'
-   if opt.softmaxtree then
+   if opt.softmaxtree or opt.softmaxforest then
       require 'cunnx'
    end
    cutorch.setDevice(opt.useDevice)

@@ -30,7 +30,7 @@ function BillionWordsFactory:build(opt)
       error("Unknown datasource : " .. opt.datasource)
    end
    -- to be used by experiment builder
-   opt.feature_size = datasource:featureSize()
-   opt.nClasses = #datasource:classes()
+   opt.vocabularySize = datasource:vocabularySize()
+   opt.nClasses = datasource:vocabularySize()
    return datasource
 end

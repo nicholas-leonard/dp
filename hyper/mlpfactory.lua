@@ -55,7 +55,8 @@ function MLPFactory:addHidden(mlp, activation, input_size, layer_index, opt)
       dp.Neural{
          input_size=input_size, output_size=output_size,
          transfer=self:buildTransfer(activation), 
-         dropout=self:buildDropout(opt.dropout_probs[layer_index])
+         dropout=self:buildDropout(opt.dropout_probs[layer_index]),
+         acc_update=opt.accUpdate
       }
    )
    print(output_size .. " hidden neurons")
@@ -71,7 +72,8 @@ function MLPFactory:addOutput(mlp, input_size, opt)
       dp.Neural{
          input_size=input_size, output_size=opt.nClasses,
          transfer=nn.LogSoftMax(), 
-         dropout=self:buildDropout(opt.dropout_probs[layer_index])
+         dropout=self:buildDropout(opt.dropout_probs[#(opt.dropout_probs)]),
+         acc_update=opt.accUpdate
       }
    )
    print(opt.nClasses.." output neurons")

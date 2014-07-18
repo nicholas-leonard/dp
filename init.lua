@@ -137,6 +137,7 @@ torch.include('dp', 'hyper/experimentfactory.lua')
 torch.include('dp', 'hyper/priorsampler.lua')
 torch.include('dp', 'hyper/imageclassfactory.lua')
 torch.include('dp', 'hyper/mlpfactory.lua')
+torch.include('dp', 'hyper/billionwordsfactory.lua')
 
 --[[ postgres ]]--
 torch.include('dp', 'postgres/postgres.lua')

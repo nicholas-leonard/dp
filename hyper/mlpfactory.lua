@@ -25,7 +25,6 @@ end
 
 function MLPFactory:buildTransfer(activation)
    if activation == 'ReLU' then
-      require 'nnx'
       return nn.ReLU()
    elseif activation == 'Tanh' then
       return nn.Tanh()
@@ -38,45 +37,55 @@ end
 
 function MLPFactory:buildDropout(dropout_prob)
    if dropout_prob and dropout_prob > 0 and dropout_prob < 1 then
-      require 'nnx'
       return nn.Dropout(dropout_prob)
    end
 end
 
-function MLPFactory:buildModel(opt)
-   local function addHidden(mlp, activation, input_size, layer_index)
-      layer_index = layer_index or 1
-      local output_size = math.ceil(
-         opt.model_width * opt.width_scales[layer_index]
-      )
-      mlp:add(
-         dp.Neural{
-            input_size=input_size, output_size=output_size,
-            transfer=self:buildTransfer(activation), 
-            dropout=self:buildDropout(opt.dropout_probs[layer_index])
-         }
-      )
-      print(output_size .. " hidden neurons")
-      if layer_index < (opt.model_dept-1) then
-         return addHidden(mlp, activation, output_size, layer_index+1)
-      else
-         return output_size
-      end
-   end
-   --[[Model]]--
-   local mlp = dp.Sequential()
-   -- hidden layer(s)
-   print(opt.feature_size .. " input neurons")
-   local last_size = addHidden(mlp, opt.activation, opt.feature_size, 1)
-   -- output layer
+function MLPFactory:addInput(mlp, activation, input_size, opt)
+   print(input_size .. " input neurons")
+   return input_size
+end
+
+function MLPFactory:addHidden(mlp, activation, input_size, layer_index, opt)
+   layer_index = layer_index or 1
+   local output_size = math.ceil(
+      opt.model_width * opt.width_scales[layer_index]
+   )
    mlp:add(
       dp.Neural{
-         input_size=last_size, output_size=opt.nClasses,
+         input_size=input_size, output_size=output_size,
+         transfer=self:buildTransfer(activation), 
+         dropout=self:buildDropout(opt.dropout_probs[layer_index])
+      }
+   )
+   print(output_size .. " hidden neurons")
+   if layer_index < (opt.model_dept-1) then
+      return addHidden(mlp, activation, output_size, layer_index+1, opt)
+   else
+      return output_size
+   end
+end
+
+function MLPFactory:addOutput(mlp, input_size, opt)
+   mlp:add(
+      dp.Neural{
+         input_size=input_size, output_size=opt.nClasses,
          transfer=nn.LogSoftMax(), 
          dropout=self:buildDropout(opt.dropout_probs[layer_index])
       }
    )
    print(opt.nClasses.." output neurons")
+end
+
+function MLPFactory:buildModel(opt)
+   --[[Model]]--
+   local mlp = dp.Sequential()
+   -- input layer
+   local input_size = self:addInput(mlp, opt.activation, opt.feature_size, opt)
+   -- hidden layer(s)
+   local last_size = self:addHidden(mlp, opt.activation, input_size, 1, opt)
+   -- output layer
+   self:addOutput(mlp, input_size, opt)
    --[[GPU or CPU]]--
    if opt.model_type == 'cuda' then
       require 'cutorch'

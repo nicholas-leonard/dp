@@ -168,7 +168,7 @@ if not opt.trainOnly then
       },
       progress = opt.progress
    }
-   test = dp.Evaluator{
+   tester = dp.Evaluator{
       loss = opt.softmaxtree and dp.TreeNLL() or dp.NLL(),
       feedback = dp.Perplexity(),  
       sampler = dp.Sampler{batch_size = opt.softmaxtree and 1024 or opt.batchSize}
@@ -180,7 +180,7 @@ xp = dp.Experiment{
    model = mlp,
    optimizer = train,
    validator = valid,
-   tester = test,
+   tester = tester,
    observer = (not opt.trainOnly) and {
       dp.FileLogger(),
       dp.EarlyStopper{max_epochs = opt.maxTries}

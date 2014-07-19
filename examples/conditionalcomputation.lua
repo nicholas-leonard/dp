@@ -48,6 +48,7 @@ cmd:option('--small', false, 'use a small (1/30th) subset of the training set')
 cmd:option('--tiny', false, 'use a tiny (1/100th) subset of the training set')
 cmd:option('--trainEpochSize', 1000000, 'number of train examples seen between each epoch')
 cmd:option('--validEpochSize', 100000, 'number of valid examples used for early stopping and cross-validation') 
+cmd:option('--trainOnly', false, 'forget the validation and test sets, focus on the training set')
 
 cmd:text()
 opt = cmd:parse(arg or {})
@@ -154,22 +155,24 @@ train = dp.Optimizer{
    sampler = dp.Sampler{ --shuffle sample takes too much mem
       epoch_size = opt.trainEpochSize, batch_size = opt.batchSize
    },
-   progress = true
+   progress = false
 }
-valid = dp.Evaluator{
-   loss = opt.softmaxtree and dp.TreeNLL() or dp.NLL(),
-   feedback = dp.Perplexity(),  
-   sampler = dp.Sampler{
-      epoch_size = opt.validEpochSize, 
-      batch_size = opt.softmaxtree and 1024 or opt.batchSize
-   },
-   progress = true
-}
-test = dp.Evaluator{
-   loss = opt.softmaxtree and dp.TreeNLL() or dp.NLL(),
-   feedback = dp.Perplexity(),  
-   sampler = dp.Sampler{batch_size = opt.softmaxtree and 1024 or opt.batchSize}
-}
+if not opt.targetOnly then
+   valid = dp.Evaluator{
+      loss = opt.softmaxtree and dp.TreeNLL() or dp.NLL(),
+      feedback = dp.Perplexity(),  
+      sampler = dp.Sampler{
+         epoch_size = opt.validEpochSize, 
+         batch_size = opt.softmaxtree and 1024 or opt.batchSize
+      },
+      progress = false
+   }
+   test = dp.Evaluator{
+      loss = opt.softmaxtree and dp.TreeNLL() or dp.NLL(),
+      feedback = dp.Perplexity(),  
+      sampler = dp.Sampler{batch_size = opt.softmaxtree and 1024 or opt.batchSize}
+   }
+end
 
 --[[Experiment]]--
 xp = dp.Experiment{
@@ -177,10 +180,10 @@ xp = dp.Experiment{
    optimizer = train,
    validator = valid,
    tester = test,
-   observer = {
+   observer = (not opt.targetOnly) and {
       dp.FileLogger(),
       dp.EarlyStopper{max_epochs = opt.maxTries}
-   },
+   } or nil,
    random_seed = os.time(),
    max_epoch = opt.maxEpoch
 }

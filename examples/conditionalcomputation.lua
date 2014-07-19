@@ -49,6 +49,7 @@ cmd:option('--tiny', false, 'use a tiny (1/100th) subset of the training set')
 cmd:option('--trainEpochSize', 1000000, 'number of train examples seen between each epoch')
 cmd:option('--validEpochSize', 100000, 'number of valid examples used for early stopping and cross-validation') 
 cmd:option('--trainOnly', false, 'forget the validation and test sets, focus on the training set')
+cmd:option('--progress', false, 'print progress bar')
 
 cmd:text()
 opt = cmd:parse(arg or {})
@@ -155,7 +156,7 @@ train = dp.Optimizer{
    sampler = dp.Sampler{ --shuffle sample takes too much mem
       epoch_size = opt.trainEpochSize, batch_size = opt.batchSize
    },
-   progress = false
+   progress = opt.progress
 }
 if not opt.targetOnly then
    valid = dp.Evaluator{
@@ -165,7 +166,7 @@ if not opt.targetOnly then
          epoch_size = opt.validEpochSize, 
          batch_size = opt.softmaxtree and 1024 or opt.batchSize
       },
-      progress = false
+      progress = opt.progress
    }
    test = dp.Evaluator{
       loss = opt.softmaxtree and dp.TreeNLL() or dp.NLL(),

@@ -118,6 +118,10 @@ function BlockSparse:__init(config)
             table.insert(self._balances, balance)
          elseif gater_str == 'SoftMax' then
             gate:add(nn.SoftMax())
+         elseif gater_str == 'MultinomialStatistics' then
+            local ms = nn.MultinomialStatistics()
+            table.insert(self._balances, ms)
+            gate:add(ms)
          else
             error("unknown gater_style:"..gater_str, 2)
          end

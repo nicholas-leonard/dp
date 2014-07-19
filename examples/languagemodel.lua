@@ -189,7 +189,7 @@ train = dp.Optimizer{
    progress = opt.progress
 }
 
-if not opt.targetOnly then
+if not opt.trainOnly then
    valid = dp.Evaluator{
       loss = opt.softmaxtree and dp.TreeNLL() or dp.NLL(),
       feedback = dp.Perplexity(),  
@@ -212,7 +212,7 @@ xp = dp.Experiment{
    optimizer = train,
    validator = valid,
    tester = test,
-   observer = (not opt.targetOnly) and {
+   observer = (not opt.trainOnly) and {
       dp.FileLogger(),
       dp.EarlyStopper{max_epochs = opt.maxTries}
    } or nil,

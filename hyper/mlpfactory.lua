@@ -87,7 +87,7 @@ function MLPFactory:buildModel(opt)
    -- hidden layer(s)
    local last_size = self:addHidden(mlp, opt.activation, input_size, 1, opt)
    -- output layer
-   self:addOutput(mlp, input_size, opt)
+   self:addOutput(mlp, last_size, opt)
    --[[GPU or CPU]]--
    if opt.model_type == 'cuda' then
       require 'cutorch'

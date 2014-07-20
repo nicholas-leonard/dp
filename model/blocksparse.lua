@@ -117,7 +117,11 @@ function BlockSparse:__init(config)
             gate:add(balance)
             table.insert(self._balances, balance)
          elseif gater_str == 'SoftMax' then
-            gater:add(nn.SoftMax())
+            gate:add(nn.SoftMax())
+         elseif gater_str == 'MultinomialStatistics' then
+            local ms = nn.MultinomialStatistics()
+            table.insert(self._balances, ms)
+            gate:add(ms)
          else
             error("unknown gater_style:"..gater_str, 2)
          end
@@ -158,15 +162,24 @@ function BlockSparse:report()
       self._next_report = true
       return
    end
-   if self._expert_phase then
-      print"Expert Phase"
-   else
-      print"Gater Phase"
+   if self._interleave then
+      if self._expert_phase then
+         print"Expert Phase"
+      else
+         print"Gater Phase"
+      end
    end
    local nVal = 5
    for i, relu in ipairs(self._relus) do
       local vals = relu.sparsity:select(1,1):float():sort()
-      print(i, 
+      print("ReLU "..i, 
+         table.tostring(vals:narrow(1,1,nVal):clone():storage():totable()), 
+         table.tostring(vals:narrow(1,vals:size(1)-nVal+1,nVal):clone():storage():totable())
+      )
+   end
+   for i, balance in ipairs(self._balances) do
+      local vals = balance.prob:select(1,1):float():sort()
+      print("Balance "..i, 
          table.tostring(vals:narrow(1,1,nVal):clone():storage():totable()), 
          table.tostring(vals:narrow(1,vals:size(1)-nVal+1,nVal):clone():storage():totable())
       )

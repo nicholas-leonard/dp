@@ -475,6 +475,12 @@ function dptest.softmaxforest()
       input_size=10, hierarchy={hierarchy,hierarchy,hierarchy}, 
       root_id={root_id,root_id,root_id}
    }
+   for i=1,3 do
+      local params2, gradParams2 = model._experts:get(i):parameters()
+      for k,v in pairs(gradParams2) do
+         mytester:assert(math.abs(v:sum()) < 0.0001)
+      end
+   end
    local output, carry = model:forward(input, {nSample=5, targets=target})
    local params, gradParams = model:parameters()
    local gradParams = table.recurse({}, gradParams, function(t,k,v)
@@ -516,6 +522,12 @@ function dptest.softmaxforest()
    mlp:add(trunk)
    mlp:add(mixture)
    mlp:zeroGradParameters()
+   for i=1,3 do
+      local params2, gradParams2 = experts:get(i):parameters()
+      for k,v in pairs(gradParams2) do
+         mytester:assert(math.abs(v:sum()) < 0.0001)
+      end
+   end
    local mlp_act = mlp:forward{input_tensor, target_tensor}
    local mlp_grad = mlp:backward({input_tensor, target_tensor}, grad_tensor)[1]
    -- compare nn and dp

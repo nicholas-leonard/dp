@@ -69,8 +69,8 @@ end
 
 function SoftmaxForest:zeroGradParameters()
    if not self._acc_update then
-      for i,smt in ipairs(self._experts) do
-         smt:zeroGradParameters(true)
+      for i=1,self._experts:size() do
+         self._experts:get(i):zeroGradParameters(true)
       end
       self._gater:zeroGradParameters()      
    end

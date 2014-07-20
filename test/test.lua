@@ -453,7 +453,128 @@ function dptest.softmaxtree()
    layer:updateParameters(0.1)
    mytester:assertTensorEq(layer2._smt.weight, layer._smt.weight, 0.00001)
    mytester:assertTensorEq(layer2._smt.bias, layer._smt.bias, 0.00001)
-   
+end
+function dptest.softmaxforest()
+   local input_tensor = torch.randn(5,10)
+   local target_tensor = torch.IntTensor{20,24,27,10,12}
+   local grad_tensor = torch.randn(5)
+   local root_id = 29
+   local hierarchy={
+      [29]=torch.IntTensor{30,1,2}, [1]=torch.IntTensor{3,4,5}, 
+      [2]=torch.IntTensor{6,7,8}, [3]=torch.IntTensor{9,10,11},
+      [4]=torch.IntTensor{12,13,14}, [5]=torch.IntTensor{15,16,17},
+      [6]=torch.IntTensor{18,19,20}, [7]=torch.IntTensor{21,22,23},
+      [8]=torch.IntTensor{24,25,26,27,28}
+   }
+   -- dp
+   local input = dp.DataView()
+   input:forward('bf', input_tensor)
+   local target = dp.ClassView()
+   target:forward('b', target_tensor)
+   local model = dp.SoftmaxForest{
+      input_size=10, hierarchy={hierarchy,hierarchy,hierarchy}, 
+      root_id={root_id,root_id,root_id}
+   }
+   for i=1,3 do
+      local params2, gradParams2 = model._experts:get(i):parameters()
+      for k,v in pairs(gradParams2) do
+         mytester:assert(math.abs(v:sum()) < 0.0001)
+      end
+   end
+   local output, carry = model:forward(input, {nSample=5, targets=target})
+   local params, gradParams = model:parameters()
+   local gradParams = table.recurse({}, gradParams, function(t,k,v)
+      t[k] = v:clone()
+   end)
+   output:backward('b', grad_tensor)
+   input, carry = model:backward(output, carry)
+   mytester:assertTableEq(output:forward('bf'):size():totable(), {5,1}, 0.000001, "Wrong act size")
+   mytester:assertTableEq(input:backward('bf'):size():totable(), {5,10}, 0.000001, "Wrong grad size")
+   local params2, gradParams2 = model:parameters()
+   table.recurse(gradParams, gradParams2, function(t,k,v)
+      mytester:assertTensorNe(t[k], v, 0.00001)
+   end)
+   -- nn
+   -- experts
+   local experts = nn.ConcatTable()
+   experts:add(nn.SoftMaxTree(10, hierarchy, root_id))
+   experts:add(nn.SoftMaxTree(10, hierarchy, root_id))
+   experts:add(nn.SoftMaxTree(10, hierarchy, root_id))
+   experts:get(1).weight = model._smts[1].weight:clone()
+   experts:get(2).weight = model._smts[2].weight:clone()
+   experts:get(3).weight = model._smts[3].weight:clone()
+   experts:get(1).bias = model._smts[1].bias:clone()
+   experts:get(2).bias = model._smts[2].bias:clone()
+   experts:get(3).bias = model._smts[3].bias:clone()
+   -- gater
+   local gater = nn.Sequential()
+   gater:add(nn.SelectTable(1)) -- ignore targets
+   gater:add(nn.Linear(10,3))
+   gater:add(nn.SoftMax())
+   gater:get(2).weight = model._gater:get(2).weight:clone()
+   gater:get(2).bias = model._gater:get(2).bias:clone()
+   -- mixture
+   local trunk = nn.ConcatTable()
+   trunk:add(gater)
+   trunk:add(experts)
+   local mixture = nn.MixtureTable()
+   local mlp = nn.Sequential()
+   mlp:add(trunk)
+   mlp:add(mixture)
+   mlp:zeroGradParameters()
+   for i=1,3 do
+      local params2, gradParams2 = experts:get(i):parameters()
+      for k,v in pairs(gradParams2) do
+         mytester:assert(math.abs(v:sum()) < 0.0001)
+      end
+   end
+   local mlp_act = mlp:forward{input_tensor, target_tensor}
+   local mlp_grad = mlp:backward({input_tensor, target_tensor}, grad_tensor)[1]
+   -- compare nn and dp
+   mytester:assertTensorEq(mlp_act, output:forward('bf'), 0.00001)
+   mytester:assertTensorEq(mlp_grad, input:backward('bf'), 0.00001)
+   -- update
+   mlp:updateParameters(0.1)
+   model:updateParameters(0.1)
+   for i=1,experts:size() do
+      local expert = experts:get(i)
+      local params, gradParams = expert:parameters()
+      local params2, gradParams2 = model._experts:get(i):parameters()
+      table.recurse(params, params2, function(t,k,v)
+         mytester:assertTensorEq(t[k], v, 0.00001)
+      end)
+   end
+   local params, gradParams = gater:parameters()
+   local params2, gradParams2 = model._gater:parameters()
+   table.recurse(params, params2, function(t,k,v)
+      mytester:assertTensorEq(t[k], v, 0.00001)
+   end)
+end
+function dptest.mixtureofexperts()
+   local input_tensor = torch.randn(5,10)
+   local grad_tensor = torch.randn(5,6)
+   -- dp
+   local input = dp.DataView()
+   input:forward('bf', input_tensor)
+   local model = dp.MixtureOfExperts{
+      input_size=10, n_expert=3, expert_size={7}, 
+      gater_size={8}, output_size=6
+   }
+   -- forward backward
+   --- dp
+   local output, carry = model:forward(input, {nSample=5})
+   local params, gradParams = model:parameters()
+   local gradParams = table.recurse({}, gradParams, function(t,k,v)
+      t[k] = v:clone()
+   end)
+   output:backward('bf', grad_tensor)
+   input, carry = model:backward(output, carry)
+   mytester:assertTableEq(output:forward('bf'):size():totable(), {5,6}, 0.000001, "Wrong act size")
+   mytester:assertTableEq(input:backward('bf'):size():totable(), {5,10}, 0.000001, "Wrong grad size")
+   local params2, gradParams2 = model:parameters()
+   table.recurse(gradParams, gradParams2, function(t,k,v)
+      mytester:assertTensorNe(t[k], v, 0.00001)
+   end)
 end
 function dptest.convolution1D()
    local size = {8,10,50}

@@ -119,7 +119,9 @@ function Experiment:run(datasource)
    repeat
       self._epoch = self._epoch + 1
       self._optimizer:propagateEpoch(train_set, report)
-      self._validator:propagateEpoch(valid_set, report)
+      if self._validator then
+         self._validator:propagateEpoch(valid_set, report)
+      end
       if self._tester then
          self._tester:propagateEpoch(test_set, report)
       end
@@ -165,7 +167,7 @@ end
 function Experiment:report()
    local report = {
       optimizer = self:optimizer():report(),
-      validator = self:validator():report(),
+      validator = self:validator() and self:validator():report(),
       tester = self:tester() and self:tester():report(),
       epoch = self:epoch(),
       random_seed = self:randomSeed(),

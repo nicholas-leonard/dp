@@ -39,13 +39,17 @@ cmd:option('--convPoolStride', 2, 'stride of the max pooling after the convoluti
 cmd:option('--outputEmbeddingSize', 100, 'number of hidden units at softmaxtree')
 
 --[[ output layer ]]--
-cmd:option('--softmaxtree', false, 'use the softmaxtree instead of the inefficient (full) softmax')
+cmd:option('--softmaxtree', false, 'use SoftmaxTree instead of the inefficient (full) softmax')
+cmd:option('--softmaxforest', false, 'use SoftmaxForest instead of SoftmaxTree (uses more memory)')
+cmd:option('--forestGaterSize', '{}', 'size of hidden layers used for forest gater (trees are experts)')
 
 --[[ data ]]--
 cmd:option('--small', false, 'use a small (1/30th) subset of the training set')
 cmd:option('--tiny', false, 'use a tiny (1/100th) subset of the training set')
 cmd:option('--trainEpochSize', 1000000, 'number of train examples seen between each epoch')
 cmd:option('--validEpochSize', 100000, 'number of valid examples used for early stopping and cross-validation') 
+cmd:option('--trainOnly', false, 'forget the validation and test sets, focus on the training set')
+cmd:option('--progress', false, 'print progress bar')
 
 cmd:text()
 opt = cmd:parse(arg or {})
@@ -99,7 +103,22 @@ end
 print("Input to second hidden layer has size "..inputSize)
 
 local softmax
-if opt.softmaxtree then
+if opt.softmaxforest then
+   softmax = dp.SoftmaxForest{
+      input_size = opt.outputEmbeddingSize, 
+      hierarchy = {  
+         datasource:hierarchy('word_tree1.th7'), 
+         datasource:hierarchy('word_tree2.th7'),
+         datasource:hierarchy('word_tree3.th7')
+      },
+      gater_size = table.fromString(opt.forestGaterSize),
+      gater_act = nn.Tanh(),
+      root_id = {880542,880542,880542},
+      dropout = opt.dropout and nn.Dropout() or nil,
+      acc_update = opt.accUpdate
+   }
+   opt.softmaxtree = true
+elseif opt.softmaxtree then
    softmax = dp.SoftmaxTree{
       input_size = opt.outputEmbeddingSize, 
       hierarchy = datasource:hierarchy(),
@@ -167,33 +186,36 @@ train = dp.Optimizer{
    sampler = dp.Sampler{ --shuffle sample takes too much mem
       epoch_size = opt.trainEpochSize, batch_size = opt.batchSize
    },
-   progress = true
+   progress = opt.progress
 }
-valid = dp.Evaluator{
-   loss = opt.softmaxtree and dp.TreeNLL() or dp.NLL(),
-   feedback = dp.Perplexity(),  
-   sampler = dp.Sampler{
-      epoch_size = opt.validEpochSize, 
-      batch_size = opt.softmaxtree and 1024 or opt.batchSize
-   },
-   progress = true
-}
-test = dp.Evaluator{
-   loss = opt.softmaxtree and dp.TreeNLL() or dp.NLL(),
-   feedback = dp.Perplexity(),  
-   sampler = dp.Sampler{batch_size = opt.softmaxtree and 1024 or opt.batchSize}
-}
+
+if not opt.trainOnly then
+   valid = dp.Evaluator{
+      loss = opt.softmaxtree and dp.TreeNLL() or dp.NLL(),
+      feedback = dp.Perplexity(),  
+      sampler = dp.Sampler{
+         epoch_size = opt.validEpochSize, 
+         batch_size = opt.softmaxtree and 1024 or opt.batchSize
+      },
+      progress = opt.progress
+   }
+   tester = dp.Evaluator{
+      loss = opt.softmaxtree and dp.TreeNLL() or dp.NLL(),
+      feedback = dp.Perplexity(),  
+      sampler = dp.Sampler{batch_size = opt.softmaxtree and 1024 or opt.batchSize}
+   }
+end
 
 --[[Experiment]]--
 xp = dp.Experiment{
    model = mlp,
    optimizer = train,
    validator = valid,
-   tester = test,
-   observer = {
+   tester = tester,
+   observer = (not opt.trainOnly) and {
       dp.FileLogger(),
       dp.EarlyStopper{max_epochs = opt.maxTries}
-   },
+   } or nil,
    random_seed = os.time(),
    max_epoch = opt.maxEpoch
 }

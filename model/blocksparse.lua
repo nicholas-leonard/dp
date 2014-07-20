@@ -8,11 +8,12 @@ BlockSparse.isBlockSparse = true
 function BlockSparse:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, input_size, n_block, hidden_size, window_size, gater_size, 
-      output_size, noise_std, gater_act, expert_act, threshold_lr, 
-      alpha_range, sparse_init, typename = xlua.unpack(
+      output_size, noise_std, gater_act, expert_act, gater_style, 
+      expert_scale, gater_scale, interleave, threshold_lr, alpha_range, 
+      sparse_init, typename = xlua.unpack(
       {config},
       'BlockSparse', 
-      'Deep mixture of experts model. It is three parametrized '..
+      'Deep mixture of experts model. It is n parametrized '..
       'layers of gated experts. There are n-1 gaters, one for each '..
       'layer of hidden neurons between nn.BlockSparses.',
       {arg='input_size', type='number', req=true,
@@ -33,6 +34,14 @@ function BlockSparse:__init(config)
        help='gater hidden activation. Defaults to nn.Tanh()'},
       {arg='expert_act', type='table', default='',
        help='expert activation. Defaults. to nn.Tanh()'},
+      {arg='gater_style', type='string', default='NoisyReLU',
+       help='comma-separated sequence of Modules to use for gating'},
+      {arg='expert_scale', type='number', default=1,
+       help='scales the learningRate for the experts'},
+      {arg='gater_scale', type='number', default=1,
+       help='scales the learningRate for the gater'},
+      {arg='interleave', type='boolean', default=false,
+       help='when true, alternate between training gater and experts every epoch'},
       {arg='threshold_lr', type='number', default=0.1,
        help='learning rate to get the optimum threshold for a desired sparsity'},
       {arg='alpha_range', type='table', default='',
@@ -49,6 +58,10 @@ function BlockSparse:__init(config)
    self._n_block = n_block
    self._hidden_size = hidden_size
    self._window_size = window_size
+   self._interleave = interleave
+   self._expert_scale = expert_scale
+   self._gater_scale = gater_scale
+   self._expert_phase = true
    alpha_range = (alpha_range == '') and {0.5, 1000, 0.01} or alpha_range
    gater_act = (gater_act == '') and nn.Tanh() or gater_act
    expert_act = (expert_act == '') and nn.Tanh() or expert_act
@@ -82,20 +95,37 @@ function BlockSparse:__init(config)
    
    self._gater = nn.Sequential()
    local inputSize = self._input_size
-   for i, gater_size in ipairs(self._gater_size) do
-      self._gater:add(nn.Linear(inputSize, self._gater_size[i]))
+   for i, gaterSize in ipairs(self._gater_size) do
+      self._gater:add(nn.Linear(inputSize, gaterSize))
       self._gater:add(gater_act:clone())
-      inputSize = self._gater_size[i]
+      inputSize = gaterSize
    end
    
    local concat = nn.ConcatTable()
    self._relus = {}
+   self._balances = {}
    for i=1,#self._window_size do
       local gate = nn.Sequential()
-      gate:add(nn.Linear(self._gater_size[#self._gater_size], self._n_block[i]))
-      local relu = nn.NoisyReLU(self._window_size[i]/self._n_block[i], threshold_lr, alpha_range, noise_std[i])
-      gate:add(relu)
-      table.insert(self._relus, relu)
+      gate:add(nn.Linear(inputSize, self._n_block[i]))
+      for i,gater_str in ipairs(_.split(gater_style, '[,]')) do
+         if gater_str == 'NoisyReLU' then
+            local relu = nn.NoisyReLU(self._window_size[i]/self._n_block[i], threshold_lr, alpha_range, noise_std[i])
+            gate:add(relu)
+            table.insert(self._relus, relu)
+         elseif gater_str == 'Balance' then
+            local balance = nn.Balance(10)
+            gate:add(balance)
+            table.insert(self._balances, balance)
+         elseif gater_str == 'SoftMax' then
+            gate:add(nn.SoftMax())
+         elseif gater_str == 'MultinomialStatistics' then
+            local ms = nn.MultinomialStatistics()
+            table.insert(self._balances, ms)
+            gate:add(ms)
+         else
+            error("unknown gater_style:"..gater_str, 2)
+         end
+      end
       gate:add(nn.LazyKBest(self._window_size[i]))
       concat:add(gate)
       table.insert(self._gates, gate)
@@ -103,7 +133,9 @@ function BlockSparse:__init(config)
    self._gater:add(concat)
    
    -- mixture
-   self._module = nn.BlockMixture(self._experts, self._gater)
+   gater_scale = interleave and 0 or gater_scale
+   self._bm = nn.BlockMixture(self._experts, self._gater, expert_scale, gater_scale)
+   self._module = self._bm
    
    config.typename = typename
    config.output = dp.DataView()
@@ -116,19 +148,12 @@ function BlockSparse:__init(config)
    self:type('torch.CudaTensor')
 end
 
-function BlockSparse:sharedClone()
-   error"NotImplemented"
-end
-
-function BlockSparse:_zeroStatistics()
-   self._stats.std = torch.FloatTensor(#self._window_size):zero()
-   self._stats.mean = torch.FloatTensor(#self._window_size):zero()
-end
-
-function BlockSparse:_updateStatistics()
-   for i, relu in ipairs(self._relus) do
-      self._stats.std[i] = 0.9*self._stats.std[i] + 0.1*relu.sparsity:std()
-      self._stats.mean[i] = 0.9*self._stats.mean[i] + 0.1*relu.sparsity:mean()
+function BlockSparse:doneEpoch(report, ...)
+   self:zeroStatistics()
+   if self._interleave then
+      self._expert_phase = not self._expert_phase
+      self._bm.expertScale = self._expert_phase and self._expert_scale or 0
+      self._bm.gaterScale = (not self._expert_phase) and self._gater_scale or 0
    end
 end
 
@@ -137,17 +162,26 @@ function BlockSparse:report()
       self._next_report = true
       return
    end
+   if self._interleave then
+      if self._expert_phase then
+         print"Expert Phase"
+      else
+         print"Gater Phase"
+      end
+   end
    local nVal = 5
    for i, relu in ipairs(self._relus) do
       local vals = relu.sparsity:select(1,1):float():sort()
-      print(i, 
+      print("ReLU "..i, 
          table.tostring(vals:narrow(1,1,nVal):clone():storage():totable()), 
          table.tostring(vals:narrow(1,vals:size(1)-nVal+1,nVal):clone():storage():totable())
       )
    end
-   local msg = "mean+-std "
-   for i=1,self._stats.mean:size(1) do
-      msg = msg..self._stats.mean[i].."+-"..self._stats.std[i].." "
+   for i, balance in ipairs(self._balances) do
+      local vals = balance.prob:select(1,1):float():sort()
+      print("Balance "..i, 
+         table.tostring(vals:narrow(1,1,nVal):clone():storage():totable()), 
+         table.tostring(vals:narrow(1,vals:size(1)-nVal+1,nVal):clone():storage():totable())
+      )
    end
-   print(msg)   
 end

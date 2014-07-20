@@ -160,7 +160,7 @@ function Layer:maxNorm(max_out_norm, max_in_norm)
          end
          if max_in_norm then
             -- cols feed out from input neurons
-            param:renorm(2, 2, max_out_norm)
+            param:renorm(2, 2, max_in_norm)
          end
       end
    end

@@ -42,12 +42,13 @@ In order to help you get up and running we provide a quick [neural network tutor
 
 <a name="dp.install"/>
 ## Install ##
-To use this library, we will require some lua rocks:
+To use this library, clone and make it:
 ```shell
-$> sudo luarocks install fs
-$> sudo luarocks install moses
-$> sudo luarocks install nnx
+$> git clone git@github.com:nicholas-leonard/dp.git
+$> cd dp
+$> sudo luarocks make dp-scm-1.rockspec 
 ```
+
 Optional:
 ```shell
 $> sudo apt-get install libpq-dev

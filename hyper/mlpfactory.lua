@@ -25,7 +25,6 @@ end
 
 function MLPFactory:buildTransfer(activation)
    if activation == 'ReLU' then
-      require 'nnx'
       return nn.ReLU()
    elseif activation == 'Tanh' then
       return nn.Tanh()
@@ -38,45 +37,57 @@ end
 
 function MLPFactory:buildDropout(dropout_prob)
    if dropout_prob and dropout_prob > 0 and dropout_prob < 1 then
-      require 'nnx'
       return nn.Dropout(dropout_prob)
    end
 end
 
-function MLPFactory:buildModel(opt)
-   local function addHidden(mlp, activation, input_size, layer_index)
-      layer_index = layer_index or 1
-      local output_size = math.ceil(
-         opt.model_width * opt.width_scales[layer_index]
-      )
-      mlp:add(
-         dp.Neural{
-            input_size=input_size, output_size=output_size,
-            transfer=self:buildTransfer(activation), 
-            dropout=self:buildDropout(opt.dropout_probs[layer_index])
-         }
-      )
-      print(output_size .. " hidden neurons")
-      if layer_index < (opt.model_dept-1) then
-         return addHidden(mlp, activation, output_size, layer_index+1)
-      else
-         return output_size
-      end
-   end
-   --[[Model]]--
-   local mlp = dp.Sequential()
-   -- hidden layer(s)
-   print(opt.feature_size .. " input neurons")
-   local last_size = addHidden(mlp, opt.activation, opt.feature_size, 1)
-   -- output layer
+function MLPFactory:addInput(mlp, activation, input_size, opt)
+   print(input_size .. " input neurons")
+   return input_size
+end
+
+function MLPFactory:addHidden(mlp, activation, input_size, layer_index, opt)
+   layer_index = layer_index or 1
+   local output_size = math.ceil(
+      opt.model_width * opt.width_scales[layer_index]
+   )
    mlp:add(
       dp.Neural{
-         input_size=last_size, output_size=opt.nClasses,
+         input_size=input_size, output_size=output_size,
+         transfer=self:buildTransfer(activation), 
+         dropout=self:buildDropout(opt.dropout_probs[layer_index]),
+         acc_update=opt.acc_update
+      }
+   )
+   print(output_size .. " hidden neurons")
+   if layer_index < (opt.model_dept-1) then
+      return addHidden(mlp, activation, output_size, layer_index+1, opt)
+   else
+      return output_size
+   end
+end
+
+function MLPFactory:addOutput(mlp, input_size, opt)
+   mlp:add(
+      dp.Neural{
+         input_size=input_size, output_size=opt.nClasses,
          transfer=nn.LogSoftMax(), 
-         dropout=self:buildDropout(opt.dropout_probs[layer_index])
+         dropout=self:buildDropout(opt.dropout_probs[#(opt.dropout_probs)]),
+         acc_update=opt.acc_update
       }
    )
    print(opt.nClasses.." output neurons")
+end
+
+function MLPFactory:buildModel(opt)
+   --[[Model]]--
+   local mlp = dp.Sequential()
+   -- input layer
+   local input_size = self:addInput(mlp, opt.activation, opt.feature_size, opt)
+   -- hidden layer(s)
+   local last_size = self:addHidden(mlp, opt.activation, input_size, 1, opt)
+   -- output layer
+   self:addOutput(mlp, last_size, opt)
    --[[GPU or CPU]]--
    if opt.model_type == 'cuda' then
       require 'cutorch'
@@ -87,6 +98,7 @@ function MLPFactory:buildModel(opt)
    elseif opt.model_type == 'float' then
       mlp:float()
    end
+   print(mlp)
    return mlp
 end
 
@@ -119,28 +131,38 @@ function MLPFactory:buildLearningRateSchedule(opt)
 end
 
 function MLPFactory:buildVisitor(opt)
-   local lr_schedule = self:buildLearningRateSchedule(opt)
    --[[ Visitor ]]--
    local visitor = {}
    if opt.momentum and opt.momentum > 0 then
+      if opt.acc_update then
+         print"Warning : momentum is ignored with acc_update = true"
+      end
       table.insert(visitor, 
          dp.Momentum{
-            momentum_factor=opt.momentum, nesterov=opt.nesterov,
-            exclude=opt.exclude_momentum
+            momentum_factor = opt.momentum, 
+            nesterov = opt.nesterov
          }
       )
    end
    if opt.weightdecay and opt.weightdecay > 0 then
-      table.insert(visitor, dp.WeightDecay{wd_factor=opt.weightdecay})
+      if opt.acc_update then
+         print"Warning : weightdecay is ignored with acc_update = true"
+      end
+      table.insert(visitor, dp.WeightDecay{wd_factor=opt.weight_decay})
    end
    table.insert(visitor, 
       dp.Learn{
          learning_rate = opt.learning_rate, 
-         observer = lr_schedule
+         observer = self:buildLearningRateSchedule(opt)
       }
    )
    if opt.max_out_norm and opt.max_out_norm > 0 then
-      table.insert(visitor, dp.MaxNorm{max_out_norm=opt.max_out_norm})
+      table.insert(visitor, 
+         dp.MaxNorm{
+            max_out_norm = opt.max_out_norm,
+            period = opt.max_norm_period
+         }
+      )
    end
    return visitor
 end

@@ -23,7 +23,6 @@ function HyperparamSampler:name()
    return self._name
 end
 
-
 function HyperparamSampler:hyperReport()
    return {name = self._name}
 end 

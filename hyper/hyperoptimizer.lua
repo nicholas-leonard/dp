@@ -52,10 +52,11 @@ function HyperOptimizer:run()
       local id = self:nextID()
       -- build datasource
       local ds = self._ds_factory:build(hp)
+      local ds_name = hp.datasource
       hp.datasource = ds
       -- build experiment
       local xp = self._xp_factory:build(hp, id)
-      hp.datasource = nil
+      hp.datasource = ds_name
       -- setup experiment (required for setting up logger)
       xp:setup(ds)
       -- log hyper-report

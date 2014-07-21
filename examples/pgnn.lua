@@ -31,7 +31,7 @@ cmd:option('--datasource', 'Mnist', 'datasource to use : Mnist | NotMnist | Cifa
 cmd:option('--zca_gcn', false, 'apply GCN followed by ZCA input preprocessing')
 cmd:option('--standardize', false, 'apply Standardize input preprocessing')
 cmd:option('--lecunLCN', false, 'apply LeCunLCN preprocessing to datasource inputs')
-cmd:option('--collection', 'hyperoptimization example 1', 'identifies a collection of related experiments')
+cmd:option('--collection', 'MLP-1', 'identifies a collection of related experiments')
 cmd:option('--validRatio', 1/6, 'proportion of train set used for cross-validation')
 cmd:option('--progress', false, 'display progress bar')
 cmd:option('--pg', false, 'use postgresql')

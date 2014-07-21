@@ -9,7 +9,7 @@ local ContextWordFactory, parent = torch.class("dp.ContextWordFactory", "dp.Data
 ContextWordFactory.isContextWordFactory = true
 
 function ContextWordFactory:__init(...)
-   parent.__init(self, {name='BillionWords'})
+   parent.__init(self, {name='ContextWorkFactory'})
 end
 
 function ContextWordFactory:build(opt)
@@ -24,7 +24,7 @@ function ContextWordFactory:build(opt)
       elseif opt.tiny then 
          train_file = 'train_tiny.th7'
       end
-      local datasource = dp.BillionWords{
+      datasource = dp.BillionWords{
          context_size = opt.context_size, train_file = train_file
       }
       self._cache[opt.datasource] = datasource

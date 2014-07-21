@@ -98,6 +98,7 @@ function MLPFactory:buildModel(opt)
    elseif opt.model_type == 'float' then
       mlp:float()
    end
+   print(mlp)
    return mlp
 end
 

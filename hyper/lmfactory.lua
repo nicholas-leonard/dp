@@ -47,7 +47,6 @@ function LMFactory:addOutput(mlp, input_size, opt)
          acc_update=opt.acc_update
       }
    )
-   print(opt.nClasses.." output neurons")
    local rootId = opt.datasource:rootId()
    local softmax
    if opt.softmaxforest then
@@ -68,7 +67,7 @@ function LMFactory:addOutput(mlp, input_size, opt)
    elseif opt.softmaxtree then
       softmax = dp.SoftmaxTree{
          input_size = opt.output_embedding_size, 
-         hierarchy = datasource:hierarchy(),
+         hierarchy = opt.datasource:hierarchy(),
          root_id = rootId,
          dropout = self:buildDropout(opt.dropout_probs[#(opt.dropout_probs)]),
          acc_update = opt.acc_update
@@ -85,11 +84,12 @@ function LMFactory:addOutput(mlp, input_size, opt)
          acc_update = opt.acc_update
       }
    end
+   mlp:add(softmax)
    print(opt.nClasses.." output neurons")
 end
 
 function LMFactory:buildModel(opt)
-   if opt.softmaxtree or opt.softmaxforest then
+   if opt.softmaxtree and (opt.model_type == 'cuda') then
       require 'cunnx'
    end
    --[[Model]]--
@@ -110,6 +110,7 @@ function LMFactory:buildModel(opt)
    elseif opt.model_type == 'float' then
       mlp:float()
    end
+   print(mlp)
    return mlp
 end
 

@@ -1,21 +1,23 @@
 ------------------------------------------------------------------------
---[[ BillionWordsFactory ]]--
+--[[ ContextWordFactory ]]--
 -- interface, factory
--- Builds BillionWords datasource instances
+-- Builds context word datasources like BillionWords, where the 
+-- task involves predicting the next work given a preceding 
+-- context of words
 ------------------------------------------------------------------------
-local BillionWordsFactory, parent = torch.class("dp.BillionWordsFactory", "dp.DatasourceFactory")
-BillionWordsFactory.isBillionWordsFactory = true
+local ContextWordFactory, parent = torch.class("dp.ContextWordFactory", "dp.DatasourceFactory")
+ContextWordFactory.isContextWordFactory = true
 
-function BillionWordsFactory:__init(...)
+function ContextWordFactory:__init(...)
    parent.__init(self, {name='BillionWords'})
 end
 
-function BillionWordsFactory:build(opt)
+function ContextWordFactory:build(opt)
    local datasource
    if self._cache[opt.datasource] then
       datasource = self._cache[opt.datasource]
       assert(torch.typename(datasource) and datasource.isBillionWords)
-   elseif opt.datasource == 'billionwords' then
+   elseif opt.datasource == 'BillionWords' then
       local train_file = 'train_data.th7' 
       if opt.small then 
          train_file = 'train_small.th7'

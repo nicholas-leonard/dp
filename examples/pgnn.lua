@@ -34,7 +34,7 @@ cmd:option('--lecunLCN', false, 'apply LeCunLCN preprocessing to datasource inpu
 cmd:option('--collection', 'hyperoptimization example 1', 'identifies a collection of related experiments')
 cmd:option('--validRatio', 1/6, 'proportion of train set used for cross-validation')
 cmd:option('--progress', false, 'display progress bar')
-cmd:option('--nopg', false, 'dont use postgresql')
+cmd:option('--pg', false, 'use postgresql')
 cmd:option('--minAccuracy', 0.1, 'minimum accuracy that must be maintained after 10 epochs')
 cmd:option('--accUpdate', false, 'accumulate updates inplace using accUpdateGradParameters')
 cmd:text()
@@ -79,7 +79,7 @@ local hp = {
    acc_update = opt.accUpdate
 }
 
-if opt.nopg then
+if not opt.pg then
    local logger = dp.FileLogger()
    hyperopt = dp.HyperOptimizer{
       collection_name=opt.collection,

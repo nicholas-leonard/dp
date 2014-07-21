@@ -5,8 +5,8 @@ cmd = torch.CmdLine()
 cmd:text()
 cmd:text('PostgreSQL Language Model Training/Optimization')
 cmd:text('Example:')
-cmd:text('$> th pgnn.lua --collection "MnistMLP1" --batchSize 128 --momentum 0.5')
-cmd:text('$> th pgnn.lua --collection "Mnist-MLP-baseline1" --batchSize 128 --learningRate 0.1 --momentum 0.995 --modelWidth 1024 --widthScales "{1,0.37109375,0.043945312}" --modelDept 4 --progress')
+cmd:text('$> th pglm.lua --collection "BW-LM-1" --batchSize 128 --momentum 0.5')
+cmd:text('$> th pglm.lua --collection "BW-LM-2" --batchSize 128 --learningRate 0.1 --modelWidth 1024 --widthScales "{1,0.37109375,0.043945312}" --modelDept 4 --progress')
 cmd:text('Options:')
 cmd:option('--learningRate', 0.1, 'learning rate at t=0')
 cmd:option('--decayPoints', '{400,600,700}', 'epochs at which learning rate is decayed')
@@ -27,8 +27,9 @@ cmd:option('--dropoutProbs', '{0}', 'probability of dropout on inputs to each la
 cmd:option('--collection', 'lm-bw-1', 'identifies a collection of related experiments')
 cmd:option('--validRatio', 1/6, 'proportion of train set used for cross-validation')
 cmd:option('--progress', false, 'display progress bar')
-cmd:option('--nopg', false, 'dont use postgresql')
+cmd:option('--pg', false, 'use postgresql')
 cmd:option('--minAccuracy', 0.1, 'minimum accuracy that must be maintained after 10 epochs')
+cmd:option('--datasource', 'BillionWords', 'datasource to use : Mnist | NotMnist | Cifar10')
 cmd:option('--accUpdate', false, 'accumulate updates inplace using accUpdateGradParameters')
 
 cmd:option('--contextSize', 5, 'number of words preceding the target word used to predict the target work')
@@ -87,18 +88,18 @@ local hp = {
    acc_update = opt.accUpdate
 }
 
-if opt.nopg then
+if not opt.pg then
    local logger = dp.FileLogger()
    hyperopt = dp.HyperOptimizer{
       collection_name=opt.collection,
       hyperparam_sampler = dp.PriorSampler{--only samples random_seed
-         name='MLP+'..opt.datasource..':user_dist', dist=hp 
+         name='LM+'..opt.datasource..':user_dist', dist=hp 
       },
       experiment_factory = dp.LMFactory{
          logger=logger,
          save_strategy=dp.SaveToFile()
       },
-      datasource_factory=dp.ImageClassFactory(),
+      datasource_factory=dp.ContextWordFactory(),
       logger=logger
    }
    hyperopt:run()
@@ -110,13 +111,13 @@ local logger = dp.PGLogger{pg=pg}
 hyperopt = dp.PGHyperOptimizer{
    collection_name=opt.collection,
    hyperparam_sampler = dp.PriorSampler{--only samples random_seed
-      name='MLP+'..opt.datasource..':user_dist', dist=hp 
+      name='LM+'..opt.datasource..':user_dist', dist=hp 
    },
-   experiment_factory = dp.PGMLPFactory{
+   experiment_factory = dp.PGLMFactory{
       logger=logger, pg=pg, 
       save_strategy=dp.PGSaveToFile{pg=pg}
    },
-   datasource_factory=dp.ImageClassFactory(),
+   datasource_factory=dp.ContextWordFactory(),
    logger=logger
 }
 

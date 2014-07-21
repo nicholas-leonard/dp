@@ -56,7 +56,7 @@ function MLPFactory:addHidden(mlp, activation, input_size, layer_index, opt)
          input_size=input_size, output_size=output_size,
          transfer=self:buildTransfer(activation), 
          dropout=self:buildDropout(opt.dropout_probs[layer_index]),
-         acc_update=opt.accUpdate
+         acc_update=opt.acc_update
       }
    )
    print(output_size .. " hidden neurons")
@@ -73,7 +73,7 @@ function MLPFactory:addOutput(mlp, input_size, opt)
          input_size=input_size, output_size=opt.nClasses,
          transfer=nn.LogSoftMax(), 
          dropout=self:buildDropout(opt.dropout_probs[#(opt.dropout_probs)]),
-         acc_update=opt.accUpdate
+         acc_update=opt.acc_update
       }
    )
    print(opt.nClasses.." output neurons")
@@ -130,28 +130,38 @@ function MLPFactory:buildLearningRateSchedule(opt)
 end
 
 function MLPFactory:buildVisitor(opt)
-   local lr_schedule = self:buildLearningRateSchedule(opt)
    --[[ Visitor ]]--
    local visitor = {}
    if opt.momentum and opt.momentum > 0 then
+      if opt.acc_update then
+         print"Warning : momentum is ignored with acc_update = true"
+      end
       table.insert(visitor, 
          dp.Momentum{
-            momentum_factor=opt.momentum, nesterov=opt.nesterov,
-            exclude=opt.exclude_momentum
+            momentum_factor = opt.momentum, 
+            nesterov = opt.nesterov
          }
       )
    end
    if opt.weightdecay and opt.weightdecay > 0 then
-      table.insert(visitor, dp.WeightDecay{wd_factor=opt.weightdecay})
+      if opt.acc_update then
+         print"Warning : weightdecay is ignored with acc_update = true"
+      end
+      table.insert(visitor, dp.WeightDecay{wd_factor=opt.weight_decay})
    end
    table.insert(visitor, 
       dp.Learn{
          learning_rate = opt.learning_rate, 
-         observer = lr_schedule
+         observer = self:buildLearningRateSchedule(opt)
       }
    )
    if opt.max_out_norm and opt.max_out_norm > 0 then
-      table.insert(visitor, dp.MaxNorm{max_out_norm=opt.max_out_norm})
+      table.insert(visitor, 
+         dp.MaxNorm{
+            max_out_norm = opt.max_out_norm,
+            period = opt.max_norm_period
+         }
+      )
    end
    return visitor
 end

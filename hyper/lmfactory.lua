@@ -29,11 +29,11 @@ function LMFactory:addInput(mlp, activation, input_size, opt)
    mlp:add(
       dp.Dictionary{
          dict_size = opt.vocabularySize,
-         output_size = opt.inputEmbeddingSize,
-         acc_update = opt.accUpdate
+         output_size = opt.input_embedding_size,
+         acc_update = opt.acc_update
       }
    )
-   local input_size = opt.contextSize*opt.inputEmbeddingSize
+   local input_size = opt.context_size*opt.input_embedding_size
    print("Input to first hidden layer has ".. input_size.." neurons.")
    return input_size
 end
@@ -41,10 +41,10 @@ end
 function LMFactory:addOutput(mlp, input_size, opt)
    mlp:add(
       dp.Neural{
-         input_size=input_size, output_size=opt.outputEmbeddingSize,
+         input_size=input_size, output_size=opt.output_embedding_size,
          transfer=self:buildTransfer(opt.activation), 
          dropout=self:buildDropout(opt.dropout_probs[#(opt.dropout_probs)-1]),
-         acc_update=opt.accUpdate
+         acc_update=opt.acc_update
       }
    )
    print(opt.nClasses.." output neurons")
@@ -52,37 +52,37 @@ function LMFactory:addOutput(mlp, input_size, opt)
    local softmax
    if opt.softmaxforest then
       softmax = dp.SoftmaxForest{
-         input_size = opt.outputEmbeddingSize, 
+         input_size = opt.output_embedding_size, 
          hierarchy = {  
             opt.datasource:hierarchy('word_tree1.th7'), 
             opt.datasource:hierarchy('word_tree2.th7'),
             opt.datasource:hierarchy('word_tree3.th7')
          },
-         gater_size = table.fromString(opt.forestGaterSize),
+         gater_size = table.fromString(opt.forest_gater_size),
          gater_act = self:buildTransfer(opt.activation),
          root_id = {rootId,rootId,rootId},
          dropout = self:buildDropout(opt.dropout_probs[#(opt.dropout_probs)]),
-         acc_update = opt.accUpdate
+         acc_update = opt.acc_update
       }
       opt.softmaxtree = true
    elseif opt.softmaxtree then
       softmax = dp.SoftmaxTree{
-         input_size = opt.outputEmbeddingSize, 
+         input_size = opt.output_embedding_size, 
          hierarchy = datasource:hierarchy(),
          root_id = rootId,
          dropout = self:buildDropout(opt.dropout_probs[#(opt.dropout_probs)]),
-         acc_update = opt.accUpdate
+         acc_update = opt.acc_update
       }
    else
       print("Warning: you are using full LogSoftMax for last layer, which "..
          "is really slow (800,000 x outputEmbeddingSize multiply adds "..
          "per example. Try --softmaxtree instead.")
       softmax = dp.Neural{
-         input_size = opt.outputEmbeddingSize,
+         input_size = opt.output_embedding_size,
          output_size = opt.nClasses,
          transfer = nn.LogSoftMax(),
          dropout = self:buildDropout(opt.dropout_probs[#(opt.dropout_probs)]),
-         acc_update = opt.accUpdate
+         acc_update = opt.acc_update
       }
    end
    print(opt.nClasses.." output neurons")
@@ -135,7 +135,7 @@ function LMFactory:buildOptimizer(opt)
       visitor = self:buildVisitor(opt),
       feedback = dp.Perplexity(),  
       sampler = dp.Sampler{ --we assume large datasets (no shuffling)
-         epoch_size = opt.trainEpochSize, batch_size = opt.batchSize
+         epoch_size = opt.train_epoch_size, batch_size = opt.batch_size
       },
       progress = opt.progress or true
    }
@@ -146,8 +146,8 @@ function LMFactory:buildValidator(opt)
       loss = opt.softmaxtree and dp.TreeNLL() or dp.NLL(),
       feedback = dp.Perplexity(),  
       sampler = dp.Sampler{
-         epoch_size = opt.validEpochSize, 
-         batch_size = opt.softmaxtree and 1024 or opt.batchSize
+         epoch_size = opt.valid_epoch_size, 
+         batch_size = opt.softmaxtree and 1024 or opt.batch_size
       }
    }
 end
@@ -157,7 +157,7 @@ function LMFactory:buildTester(opt)
       loss = opt.softmaxtree and dp.TreeNLL() or dp.NLL(),
       feedback = dp.Perplexity(),  
       sampler = dp.Sampler{
-         batch_size = opt.softmaxtree and 1024 or opt.batchSize
+         batch_size = opt.softmaxtree and 1024 or opt.batch_size
       }
    }
 end

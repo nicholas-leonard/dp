@@ -49,7 +49,12 @@ $> cd dp
 $> sudo luarocks make dp-scm-1.rockspec 
 ```
 
-Optional:
+### Optional Dependencies ###
+For CUDA:
+```shell
+$> sudo apt-get install cunnx
+```
+For PostgresSQL
 ```shell
 $> sudo apt-get install libpq-dev
 $> sudo luarocks install luasql-postgres PGSQL_INCDIR=/usr/include/postgresql

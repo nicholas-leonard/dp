@@ -148,6 +148,7 @@ torch.include('dp', 'postgres/savetofile.lua')
 torch.include('dp', 'postgres/earlystopper.lua')
 torch.include('dp', 'postgres/done.lua')
 torch.include('dp', 'postgres/mlpfactory.lua')
+torch.include('dp', 'postgres/lmfactory.lua')
 torch.include('dp', 'postgres/hyperoptimizer.lua')
 
 --[[ test ]]--

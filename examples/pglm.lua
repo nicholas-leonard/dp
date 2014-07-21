@@ -25,7 +25,6 @@ cmd:option('--maxEpoch', 400, 'maximum number of epochs to run')
 cmd:option('--maxTries', 50, 'maximum number of epochs to try to find a better local minima for early-stopping')
 cmd:option('--dropoutProbs', '{0}', 'probability of dropout on inputs to each layer')
 cmd:option('--collection', 'lm-bw-1', 'identifies a collection of related experiments')
-cmd:option('--validRatio', 1/6, 'proportion of train set used for cross-validation')
 cmd:option('--progress', false, 'display progress bar')
 cmd:option('--pg', false, 'use postgresql')
 cmd:option('--minAccuracy', 0.1, 'minimum accuracy that must be maintained after 10 epochs')
@@ -81,7 +80,6 @@ local hp = {
    width_scales = table.fromString(opt.widthScales),
    activation = opt.activation,
    dropout_probs = table.fromString(opt.dropoutProbs),
-   valid_ratio = opt.validRatio,
    collection = opt.collection,
    progress = opt.progress,
    max_error = opt.minAccuracy,

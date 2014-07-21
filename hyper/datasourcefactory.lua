@@ -7,9 +7,9 @@
 local DatasourceFactory = torch.class("dp.DatasourceFactory")
 DatasourceFactory.isDatasourceFactory = true
 
-function DatasourceFactory:__init(...)
+function DatasourceFactory:__init(config)
    local args, name = xlua.unpack(
-      {... or {}},
+      {config or {}},
       'DatasourceFactory', nil,
       {arg='name', type='string', req=true}
    )
@@ -20,6 +20,9 @@ end
 
 function DatasourceFactory:build(hyperparameters)
    error"NotImplementedError : DatasourceFactory:build()"
+end
+
+function DatasourceFactory:buildInputPreprocess(opt)
 end
 
 function DatasourceFactory:name()

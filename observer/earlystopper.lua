@@ -99,6 +99,7 @@ function EarlyStopper:compareError(current_error, ...)
    current_error = current_error * self._sign
    if self._epoch >= self._min_epoch then
       if (self._max_error ~= 0) and current_error > self._max_error then
+         print"EarlyStopper ending experiment. Error too high" 
          self._mediator:publish("doneExperiment")
       end
    end

@@ -52,7 +52,7 @@ $> sudo luarocks make dp-scm-1.rockspec
 ### Optional Dependencies ###
 For CUDA:
 ```shell
-$> sudo apt-get install cunnx
+$> sudo luarocks install cunnx
 ```
 For PostgresSQL
 ```shell

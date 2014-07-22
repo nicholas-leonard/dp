@@ -3,12 +3,13 @@ require 'dp'
 --[[command line arguments]]--
 cmd = torch.CmdLine()
 cmd:text()
-cmd:text('Image Classification using Convolutional Neural Network Training/Optimization')
+cmd:text('Image Classification using Convolution Neural Network Training/Optimization')
 cmd:text('Example:')
 cmd:text('$> th convolutionneuralnetwork.lua --batchSize 128 --momentum 0.5')
 cmd:text('Options:')
 cmd:option('--learningRate', 0.1, 'learning rate at t=0')
 cmd:option('--maxOutNorm', 1, 'max norm each layers output neuron weights')
+cmd:option('--maxNormPeriod', 2, 'Applies MaxNorm Visitor every maxNormPeriod batches')
 cmd:option('--momentum', 0, 'momentum')
 cmd:option('--channelSize', '{64,128}', 'Number of output channels for each convolution layer.')
 cmd:option('--kernelSize', '{5,5}', 'kernel size of each convolution layer. Height = Width')
@@ -80,8 +81,8 @@ for i=1,#opt.channelSize do
    }
    cnn:add(conv)
    inputSize = opt.channelSize[i]
-   outputSize[1] = conv:nOutputFrame(outputSize[1])
-   outputSize[2] = conv:nOutputFrame(outputSize[2])
+   outputSize[1] = conv:nOutputFrame(outputSize[1], 1)
+   outputSize[2] = conv:nOutputFrame(outputSize[2], 2)
 end
 
 inputSize = inputSize
@@ -93,7 +94,7 @@ cnn:add(
       dropout = opt.dropout and nn.Dropout(opt.dropoutProb[#opt.channelSize]),
       acc_update = opt.accUpdate
    }
-}
+)
 
 --[[GPU or CPU]]--
 if opt.cuda then
@@ -111,7 +112,9 @@ if opt.momentum > 0 then
    table.insert(visitor, dp.Momentum{momentum_factor = opt.momentum})
 end
 table.insert(visitor, dp.Learn{learning_rate = opt.learningRate})
-table.insert(visitor, dp.MaxNorm{max_out_norm = opt.maxOutNorm})
+--[[table.insert(visitor, dp.MaxNorm{
+   max_out_norm = opt.maxOutNorm, period=opt.maxNormPeriod
+})--]]
 
 --[[Propagators]]--
 train = dp.Optimizer{

@@ -46,7 +46,7 @@ function Convolution2D:__init(config)
    self._pool_size = pool_size
    self._pool_stride = pool_stride
    self._transfer = transfer
-   self._conv = nn.SpatialConvolution(
+   self._conv = nn.SpatialConvolutionMM(
       input_size, output_size, 
       kernel_size[1], kernel_size[2], 
       kernel_stride[1], kernel_stride[2]
@@ -66,62 +66,26 @@ function Convolution2D:__init(config)
    parent.__init(self, config)
 end
 
-function Convolution2D:_type(type)
-   self._input_type = type
-   self._output_type = type
-   if type == 'torch.CudaTensor' 
-         and torch.type(self._conv) == 'nn.SpatialConvolution' then
-      local conv = nn.SpatialConvolutionCUDA(
-         self._input_size, self._output_size, 
-         self._kernel_size[1], self._kernel_size[2], 
-         self._kernel_stride[1], self._kernel_stride[2]
-      )
-      self._conv:copy(conv)
-      self._pool = nn.SpatialMaxPoolingCUDA(
-         self._pool_size[1], self._pool_size[2],
-         self._pool_stride[1], self._pool_stride[2]
-      )
-      self._module = nn.Sequential()
-      self._module:add(self._conv)
-      self._module:add(self._transfer)
-      self._module:add(self._pool)
-      self._input_view = 'chwb'
-      self._output_view = 'chwb'
-   elseif type ~= 'torch.CudaTensor'
-         and torch.type(self._conv) == 'nn.SpatialConvolutionCUDA' then
-      error"NotImplemented"
-      self._conv = nn.SpatialConvolution(
-         self._input_size, self._output_size, 
-         self._kernel_size[1], self._kernel_size[2], 
-         self._kernel_stride[1], self._kernel_stride[2]
-      )
-      -- TODO: share weights
-      self._pool = nn.SpatialMaxPooling(
-         self._pool_size[1], self._pool_size[2],
-         self._pool_stride[1], self._pool_stride[2]
-      )
-   end
-   if type ~= 'torch.CudaTensor' and not self._uncuda then
-      self._transfer:type(type)
-   end
-   if self._dropout then
-      self._dropout:type(type)
-   end
-   return self
-end
-
 function Convolution2D:reset()
    self._conv:reset()
    if self._sparse_init then
-      print"Warning : this wont work with SpatialConvolutionCUDA"
       local W = self._conv.weight
-      W = W:reshape(W:size(1)*W:size(2)*W:size(3), W:size(4))
-      self._sparseReset(W:t())
+      self._sparseReset(W:view(W:size(1), -1))
    end
 end
 
 function Convolution2D:maxNorm(max_out_norm, max_in_norm)
-   error"Not Implemented"
+   assert(self.backwarded, "Should call maxNorm after a backward pass")
+   max_out_norm = self.mvstate.max_out_norm or max_out_norm
+   max_in_norm = self.mvstate.max_in_norm or max_in_norm
+   local W = self._conv.weight
+   W = W:view(W:size(1), -1)
+   if max_out_norm then
+      W:renorm(1, 2, max_out_norm)
+   end
+   if max_in_norm then
+      W:renorm(2, 2, max_in_norm)
+   end
 end
 
 function Convolution2D:share(conv2d, ...)

@@ -149,7 +149,8 @@ end
 
 function DataSource:imageSize(idx)
    if torch.type(idx) == 'string' then
-      local axis_pos = self:imageAxes():find(idx)
+      local view = string.gsub(self:imageAxes(), 'b', '')
+      local axis_pos = view:find(idx)
       if not axis_pos then
          error("Datasource has no axis '"..idx.."'", 2)
       end

@@ -23,9 +23,19 @@ cmd:option('--dropout', false, 'apply dropout on hidden neurons, requires "nnx" 
 cmd:option('--dataset', 'Mnist', 'which dataset to use : Mnist | NotMnist | Cifar10 | Cifar100')
 cmd:option('--standardize', false, 'apply Standardize preprocessing')
 cmd:option('--zca', false, 'apply Zero-Component Analysis whitening')
+cmd:option('--activation', 'Tanh', 'transfer function like ReLU, Tanh, Sigmoid')
+cmd:option('--dropout', false, 'use dropout')
+cmd:option('--dropoutProb' '{0.2,0.5,0.5}', 'dropout probabilities')
 cmd:text()
 opt = cmd:parse(arg or {})
 print(opt)
+
+opt.channelSize = table.fromString(opt.channelSize)
+opt.kernelSize = table.fromString(opt.kernelSize)
+opt.kernelStride = table.fromString(opt.kernelStride)
+opt.poolSize = table.fromString(opt.poolSize)
+opt.poolStride = table.fromString(opt.poolStride)
+opt.dropoutProb = table.fromString(opt.dropoutProb)
 
 --[[preprocessing]]--
 local input_preprocess = {}
@@ -51,37 +61,34 @@ else
 end
 
 --[[Model]]--
-local dropout
-if opt.dropout then
-   dropout = nn.Dropout()
+
+mlp = dp.Sequential()
+inputSize = datasource:imageSize('c')
+outputSize = {datasource:imageSize('h'), datasource:imageSize('w')}
+for i=1,#opt.channelSize do
+   local conv = dp.Convolution2D{
+      input_size = inputSize, 
+      kernel_size = {opt.kernelSize[i], opt.kernelSize[i]},
+      kernel_stride = {opt.kernelStride[i], opt.kernelStride[i]},
+      pool_size = {opt.poolSize[i], opt.poolSize[i]},
+      pool_stride = {opt.poolStride[i], opt.poolStride[i]},
+      output_size = opt.channelSize[i], 
+      transfer = nn[opt.activation](),
+      dropout = opt.dropout and nn.Dropout(opt.dropoutProb[i])
+   }
+   mlp:add(conv)
+   inputSize = opt.channelSize[i]
+   outputSize[1] = conv:nOutputFrame(outputSize[1])
+   outputSize[2] = conv:nOutputFrame(outputSize[2])
 end
 
-mlp = dp.Sequential{
-   models = {
-      dp.Convolution2D{
-         input_size = datasource:imageSize('c'), 
-         kernel_size = {opt.kernelSize[1], opt.kernelSize[1]},
-         kernel_stride = {opt.kernelStride[1], opt.kernelStride[1]},
-         pool_size = {opt.poolSize[1], opt.poolSize[1]},
-         pool_stride = {opt.poolStride[1], opt.poolStride[1]},
-         output_size = opt.channelSize[1], 
-         transfer = nn.Tanh()
-      },
-      dp.Convolution2D{
-         input_size = opt.channelSize[1], 
-         kernel_size = {opt.kernelSize[2], opt.kernelSize[2]},
-         kernel_stride = {opt.kernelStride[2], opt.kernelStride[2]},
-         pool_size = {opt.poolSize[2], opt.poolSize[2]},
-         pool_stride = {opt.poolStride[2], opt.poolStride[2]},
-         output_size = opt.channelSize[2], 
-         transfer = nn.Tanh()
-      },
-      dp.Neural{
-         input_size = opt.nHidden, 
-         output_size = #(datasource:classes()),
-         transfer = nn.LogSoftMax(),
-         dropout = dropout
-      }
+inputSize = inputSize
+mlp:add(
+   dp.Neural{
+      input_size = inputSize*outputSize[1]*outputSize[2], 
+      output_size = #(datasource:classes()),
+      transfer = nn.LogSoftMax(),
+      dropout = opt.dropout and nn.Dropout(opt.dropoutProb[#opt.channelSize])
    }
 }
 

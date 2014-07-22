@@ -25,7 +25,8 @@ cmd:option('--standardize', false, 'apply Standardize preprocessing')
 cmd:option('--zca', false, 'apply Zero-Component Analysis whitening')
 cmd:option('--activation', 'Tanh', 'transfer function like ReLU, Tanh, Sigmoid')
 cmd:option('--dropout', false, 'use dropout')
-cmd:option('--dropoutProb' '{0.2,0.5,0.5}', 'dropout probabilities')
+cmd:option('--dropoutProb', '{0.2,0.5,0.5}', 'dropout probabilities')
+cmd:option('--accUpdate', false, 'accumulate gradients inplace')
 cmd:text()
 opt = cmd:parse(arg or {})
 print(opt)
@@ -62,7 +63,7 @@ end
 
 --[[Model]]--
 
-mlp = dp.Sequential()
+cnn = dp.Sequential()
 inputSize = datasource:imageSize('c')
 outputSize = {datasource:imageSize('h'), datasource:imageSize('w')}
 for i=1,#opt.channelSize do
@@ -74,21 +75,23 @@ for i=1,#opt.channelSize do
       pool_stride = {opt.poolStride[i], opt.poolStride[i]},
       output_size = opt.channelSize[i], 
       transfer = nn[opt.activation](),
-      dropout = opt.dropout and nn.Dropout(opt.dropoutProb[i])
+      dropout = opt.dropout and nn.Dropout(opt.dropoutProb[i]),
+      acc_update = opt.accUpdate
    }
-   mlp:add(conv)
+   cnn:add(conv)
    inputSize = opt.channelSize[i]
    outputSize[1] = conv:nOutputFrame(outputSize[1])
    outputSize[2] = conv:nOutputFrame(outputSize[2])
 end
 
 inputSize = inputSize
-mlp:add(
+cnn:add(
    dp.Neural{
       input_size = inputSize*outputSize[1]*outputSize[2], 
       output_size = #(datasource:classes()),
       transfer = nn.LogSoftMax(),
-      dropout = opt.dropout and nn.Dropout(opt.dropoutProb[#opt.channelSize])
+      dropout = opt.dropout and nn.Dropout(opt.dropoutProb[#opt.channelSize]),
+      acc_update = opt.accUpdate
    }
 }
 
@@ -96,22 +99,24 @@ mlp:add(
 if opt.cuda then
    require 'cutorch'
    require 'cunn'
-   mlp:cuda()
+   cnn:cuda()
 end
+
+local visitor = {}
+-- the ordering here is important:
+if opt.momentum > 0 then
+   if opt.accUpdate then
+      error"momentum doesn't work with --accUpdate"
+   end
+   table.insert(visitor, dp.Momentum{momentum_factor = opt.momentum})
+end
+table.insert(visitor, dp.Learn{learning_rate = opt.learningRate})
+table.insert(visitor, dp.MaxNorm{max_out_norm = opt.maxOutNorm})
 
 --[[Propagators]]--
 train = dp.Optimizer{
    loss = dp.NLL(),
-   visitor = { -- the ordering here is important:
-      dp.Momentum{momentum_factor = opt.momentum},
-      dp.Learn{
-         learning_rate = opt.learningRate, 
-         observer = dp.LearningRateSchedule{
-            schedule = {[200]=0.01, [400]=0.001}
-         }
-      },
-      dp.MaxNorm{max_out_norm = opt.maxOutNorm}
-   },
+   visitor = visitor,
    feedback = dp.Confusion(),
    sampler = dp.ShuffleSampler{batch_size = opt.batchSize},
    progress = true
@@ -129,7 +134,7 @@ test = dp.Evaluator{
 
 --[[Experiment]]--
 xp = dp.Experiment{
-   model = mlp,
+   model = cnn,
    optimizer = train,
    validator = valid,
    tester = test,

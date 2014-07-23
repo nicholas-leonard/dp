@@ -28,7 +28,7 @@ In order to help you get up and running we provide a quick [neural network tutor
     * [Preprocess](doc/preprocess.md) : data preprocessing like [ZCA](doc/preprocess.md#dp.ZCA) and [Standardize](doc/preprocess.md#dp.Standardize);
   * Node Library
     * [Node](doc/node.md) : abstract class that defines Model and Loss commonalities;
-    * [Model](doc/model.md) : parameterized Nodes like [Neural](doc/model.md#dp.Neural) and [Convolution2D](doc/model.md#dp.Convolution2d) that adapt [Modules](https://github.com/torch/nn/blob/master/doc/module.md#module) to [Model](doc/model.md#dp.Model);
+    * [Model](doc/model.md) : parameterized Nodes like [Neural](doc/model.md#dp.Neural) and [Convolution2D](doc/model.md#dp.Convolution2D) that adapt [Modules](https://github.com/torch/nn/blob/master/doc/module.md#module) to [Model](doc/model.md#dp.Model);
     * [Loss](doc/loss.md) : non-parameterized Nodes like [NLL](doc/loss.md#dp.NLL) that adapt [Criterion](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.Criterion) to [Loss](doc/loss.md#dp.Loss);
   * Experiment Library
     * Experiment : trains a Model using a DataSource and a Loss;

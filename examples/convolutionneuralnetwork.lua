@@ -112,9 +112,9 @@ if opt.momentum > 0 then
    table.insert(visitor, dp.Momentum{momentum_factor = opt.momentum})
 end
 table.insert(visitor, dp.Learn{learning_rate = opt.learningRate})
---[[table.insert(visitor, dp.MaxNorm{
+table.insert(visitor, dp.MaxNorm{
    max_out_norm = opt.maxOutNorm, period=opt.maxNormPeriod
-})--]]
+})
 
 --[[Propagators]]--
 train = dp.Optimizer{
@@ -127,12 +127,12 @@ train = dp.Optimizer{
 valid = dp.Evaluator{
    loss = dp.NLL(),
    feedback = dp.Confusion(),  
-   sampler = dp.Sampler()
+   sampler = dp.Sampler{batch_size = opt.batchSize}
 }
 test = dp.Evaluator{
    loss = dp.NLL(),
    feedback = dp.Confusion(),
-   sampler = dp.Sampler()
+   sampler = dp.Sampler{batch_size = opt.batchSize}
 }
 
 --[[Experiment]]--

@@ -160,6 +160,55 @@ function dptest.dictionary()
    mytester:assertTensorNe(act_ten:float(), output:forward('bwc'):float(), 0.00001)
 end
 
+function dptest.convolution2D()
+   local size = {8,32,32,3}
+   local output_size = {8,32,15,15}
+   local data = torch.rand(unpack(size)):float()
+   local grad_tensor = torch.randn(unpack(output_size)):float()
+   -- dp
+   local input = dp.ImageView('bhwc', data)
+   local layer = dp.Convolution2D{
+      input_size=3, output_size=32, kernel_size={3,3}, 
+      kernel_stride={1,1}, pool_size={2,2}, pool_stride={2,2},
+      transfer=nn.Tanh()
+   }
+   layer:cuda()
+   local output, carry = layer:forward(input, {nSample=8})
+   mytester:assertTableEq(output:forward('bchw'):size():totable(), output_size, 0.00001)
+   output:backward('bchw', grad_tensor:cuda())
+   input = layer:backward(output, carry)
+   mytester:assertTableEq(input:backward('bhwc'):size():totable(), size, 0.00001)
+   -- nn
+   local mlp = nn.Sequential()
+   local m = nn.SpatialConvolutionMM(3,32,3,3,1,1)
+   m:cuda()
+   m:share(layer._conv, 'weight', 'bias')
+   mlp:add(m)
+   mlp:add(nn.Tanh())
+   mlp:add(nn.SpatialMaxPooling(2,2,2,2))
+   mlp:cuda()
+   local mlp_act = mlp:forward(input:forward('bchw', 'torch.CudaTensor'))
+   local mlp_grad = mlp:backward(input:forward('bchw', 'torch.CudaTensor'), grad_tensor:cuda())
+   -- compare nn and dp
+   mlp_grad = dp.ImageView('bchw', mlp_grad):forward('bhwc', 'torch.FloatTensor')
+   mytester:assertTensorEq(mlp_act:float(), output:forward('bchw', 'torch.FloatTensor'), 0.00001)
+   mytester:assertTableEq(mlp_grad:size():totable(), input:backward('bhwc'):size():totable(), 0.00001)
+   mytester:assertTensorEq(mlp_grad:float(), input:backward('bhwc', 'torch.FloatTensor'), 0.00001)
+   -- update
+   local act_ten = output:forward('bhwc', 'torch.FloatTensor'):clone()
+   local grad_ten = input:backward('bhwc', 'torch.FloatTensor'):clone()
+   local visitor = dp.Learn{learning_rate=0.1}
+   visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
+   layer:accept(visitor)
+   layer:doneBatch()
+   -- forward backward
+   output, carry2 = layer:forward(input, {nSample=8})
+   output:backward('bchw', grad_tensor:cuda())
+   input, carry2 = layer:backward(output, carry2)
+   mytester:assertTensorNe(act_ten, output:forward('bhwc', 'torch.FloatTensor'), 0.00001)
+   mytester:assertTensorNe(grad_ten, input:backward('bhwc', 'torch.FloatTensor'), 0.00001)
+end
+
 function dptest.softmaxtree()
    local input_tensor = torch.randn(5,10):float()
    local target_tensor = torch.IntTensor{20,24,27,10,12}

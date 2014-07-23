@@ -1,9 +1,7 @@
--- WORK IN PROGRESS : NOT READY FOR USE
 ------------------------------------------------------------------------
 --[[ Convolution2D ]]--
--- Uses CUDA 
+-- Spatial Convolution Layer
 -- [dropout] + convolution + max pooling + transfer function
--- Works on a ImageTensor:imageCHWB() view.
 ------------------------------------------------------------------------
 local Convolution2D, parent = torch.class("dp.Convolution2D", "dp.Layer")
 Convolution2D.isConvolution2D = true
@@ -19,7 +17,7 @@ function Convolution2D:__init(config)
       {arg='input_size', type='number', req=true,
        help='Number of input channels or colors'},
       {arg='output_size', type='number', req=true,
-       help='Number of output channels.'},
+       help='Number of output channels. For cuda, this should be a multiple of 8'},
       {arg='kernel_size', type='number tuple', req=true,
        help='The size (height, width) of the convolution kernel.'},
       {arg='kernel_stride', type='number tuple',

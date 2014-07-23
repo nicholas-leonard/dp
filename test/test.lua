@@ -639,7 +639,7 @@ function dptest.convolution2D()
    mytester:assertTableEq(input:backward('bhwc'):size():totable(), size, 0.00001)
    -- nn
    local mlp = nn.Sequential()
-   local m = nn.SpatialConvolution(3,20,3,3,1,1)
+   local m = nn.SpatialConvolutionMM(3,20,3,3,1,1)
    m:share(layer._conv, 'weight', 'bias')
    mlp:add(m)
    mlp:add(nn.Tanh())

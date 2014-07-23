@@ -13,6 +13,7 @@ BillionWords._name = 'BillionWords'
 BillionWords._sentence_start = 793470 --"<S>"
 BillionWords._sentence_end = 793471 --"</S>"
 BillionWords._unknown_word = 793469 --"<UNK>"
+BillionWords._root_id = 880542
 
 function BillionWords:__init(config) 
    config = config or {}
@@ -131,4 +132,8 @@ function BillionWords:hierarchy(file_name)
          "Hierarchy values should be torch.IntTensors")
    end)
    return hierarchy
+end
+
+function BillionWords:rootId()
+   return self._root_id
 end

@@ -62,7 +62,7 @@ function BlockSparse:__init(config)
    self._expert_scale = expert_scale
    self._gater_scale = gater_scale
    self._expert_phase = true
-   alpha_range = (alpha_range == '') and {0.5, 1000, 0.01} or alpha_range
+   alpha_range = (alpha_range == '') and {0.5, 1000, 0.1} or alpha_range
    gater_act = (gater_act == '') and nn.Tanh() or gater_act
    expert_act = (expert_act == '') and nn.Tanh() or expert_act
    

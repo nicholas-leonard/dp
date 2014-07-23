@@ -13,6 +13,7 @@ cmd:option('--decayPoints', '{400,600,700}', 'epochs at which learning rate is d
 cmd:option('--decayFactor', 0.1, 'factor by which learning rate is decayed at each point')
 cmd:option('--linearDecay', false, 'linear decay from first to second from second to third point, etc')
 cmd:option('--maxOutNorm', 1, 'max norm each layers output neuron weights')
+cmd:option('--maxNormPeriod', 2, 'Applies MaxNorm Visitor every maxNormPeriod batches')
 cmd:option('--weightDecay', 0, 'weight decay factor')
 cmd:option('--momentum', 0, 'momentum')
 cmd:option('--nesterov', false, 'use nesterov momentum')
@@ -25,16 +26,17 @@ cmd:option('--type', 'double', 'type: double | float | cuda')
 cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
 cmd:option('--maxEpoch', 2000, 'maximum number of epochs to run')
 cmd:option('--maxTries', 200, 'maximum number of epochs to try to find a better local minima for early-stopping')
-cmd:option('--dropoutProbs', '{0}', 'probability of dropout on inputs to each layer, requires "nnx" luarock')
+cmd:option('--dropoutProbs', '{0}', 'probability of dropout on inputs to each layer')
 cmd:option('--datasource', 'Mnist', 'datasource to use : Mnist | NotMnist | Cifar10')
 cmd:option('--zca_gcn', false, 'apply GCN followed by ZCA input preprocessing')
 cmd:option('--standardize', false, 'apply Standardize input preprocessing')
 cmd:option('--lecunLCN', false, 'apply LeCunLCN preprocessing to datasource inputs')
-cmd:option('--collection', 'hyperoptimization example 1', 'identifies a collection of related experiments')
+cmd:option('--collection', 'MLP-1', 'identifies a collection of related experiments')
 cmd:option('--validRatio', 1/6, 'proportion of train set used for cross-validation')
 cmd:option('--progress', false, 'display progress bar')
-cmd:option('--nopg', false, 'dont use postgresql')
+cmd:option('--pg', false, 'use postgresql')
 cmd:option('--minAccuracy', 0.1, 'minimum accuracy that must be maintained after 10 epochs')
+cmd:option('--accUpdate', false, 'accumulate updates inplace using accUpdateGradParameters')
 cmd:text()
 opt = cmd:parse(arg or {})
 
@@ -59,6 +61,7 @@ local hp = {
    decay_factor = opt.decayFactor,
    linear_decay = opt.linearDecay,
    max_out_norm = opt.maxOutNorm,
+   max_norm_period = opt.maxNormPeriod,
    weight_decay = opt.weightDecay,
    momentum = opt.momentum,
    nesterov = opt.nesterov,
@@ -72,10 +75,11 @@ local hp = {
    zca_gcn = opt.zca_gcn,
    standardize = opt.standardize,
    lecunlcn = opt.lecunLCN,
-   max_error = opt.minAccuracy
+   max_error = opt.minAccuracy,
+   acc_update = opt.accUpdate
 }
 
-if opt.nopg then
+if not opt.pg then
    local logger = dp.FileLogger()
    hyperopt = dp.HyperOptimizer{
       collection_name=opt.collection,

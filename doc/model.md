@@ -3,7 +3,8 @@
  * [Model](#dp.Model) : abstract class inherited by Layer and Container;
  * [Layer](#dp.Layer) : abstract class inherited by component Models ;
    * [Neural](#dp.Neural) : Linear followed by a Transfer Module;
-   * [Convolution1D](#dp.Convolution1D) : SpatialConvolution followed by a Transfer Module and SpatialMaxPooling;
+   * [Convolution1D](#dp.Convolution1D) : TemporalConvolution followed by a Transfer Module and TemporalMaxPooling;
+   * [Convolution2D](#dp.Convolution2D) : SpatialConvolution followed by a Transfer Module and SpatialMaxPooling;
  * [Container](#dp.Container) : abstract class inherited by composite Models;
    * [Sequential](#dp.Sequential) : a sequence of Models.
 
@@ -104,7 +105,7 @@ This is usually hardcoded for each sub-class.
 it is applied to the inputs of the Model. Defaults to not using dropout.
 
 `sparse_init` is a boolean with a default value of true. When true, applies a sparse initialization of weights. See Martens (2010), [Deep learning via Hessian-free optimization](http://machinelearning.wustl.edu/mlpapers/paper_files/icml2010_Martens10.pdf). This is 
-the recommended initialization for [ReLU](https://github.com/clementfarabet/lua---nnx/blob/master/ReLU.lua) Transfer Modules.
+the recommended initialization for [ReLU](https://github.com/torch/nn/blob/master/doc/transfer.md#relu) Transfer Modules.
 
 <a name='dp.Layer.inputAct'/>
 ### [act] inputAct() ###
@@ -137,23 +138,88 @@ Assumes that 2D parameters are arranged : `output_dim x input_dim`.
 
 <a name='dp.Neural'/>
 ## Neural ##
-[Linear](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Linear) (an affine transformation) followed by a [Transfer](https://github.com/torch/nn/blob/master/doc/transfer.md) Module. 
+[Linear](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Linear) (an affine transformation) 
+followed by a [Transfer](https://github.com/torch/nn/blob/master/doc/transfer.md) Module. 
 Both the `input_view` and `output_view` are _bf_. 
 
 <a name='dp.Neural.__init'/>
 ### dp.Neural{input_size, output_size, transfer} ###
-Constructs a Neural. Arguments should be specified as key-value pairs. Other then the following 
+Constructs a Neural Layer. Arguments should be specified as key-value pairs. Other then the following 
 arguments, those specified in [Layer](#dp.Layer.__init) also apply.
 
 `input_size` specifies the number of input neurons.
 
 `output_size` specifies the Number of output neurons.
 
-`transfer` is a [Transfer](https://github.com/torch/nn/blob/master/doc/transfer.md) Module instance like [Tanh](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Tanh),
+`transfer` is a [Transfer](https://github.com/torch/nn/blob/master/doc/transfer.md) Module instance 
+like [Tanh](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Tanh),
 [Sigmoid](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Sigmoid), 
-[ReLU]([ReLU](https://github.com/clementfarabet/lua---nnx/blob/master/ReLU.lua), etc. If the intent is to 
+[ReLU]([ReLU](https://github.com/torch/nn/blob/master/doc/transfer.md#relu), etc. If the intent is to 
 use Neural as a linear affine transform (without a non-linearity), one can use an
 [Identity](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Identity) Module instance.
+
+<a name='dp.Convolution1D'/>
+## Convolution1D ##
+[TemporalConvolution](https://github.com/torch/nn/blob/master/doc/convolution.md#temporalconvolution) (a 1D convolution) 
+followed by a [Transfer](https://github.com/torch/nn/blob/master/doc/transfer.md) Module and a 
+[TemporalMaxPooling](https://github.com/torch/nn/blob/master/doc/convolution.md#temporalmaxpooling). 
+Both the `input_view` and `output_view` are _bwc_. 
+
+<a name='dp.Convolution1D.__init'/>
+### dp.Convolution1D{input_size, output_size, kernel_size, kernel_stride, pool_size, pool_stride, transfer} ###
+Constructs a Convolution1D Layer. Arguments should be specified as key-value pairs. 
+Other then the following arguments, those specified in [Layer](#dp.Layer.__init) also apply.
+
+`input_size` specifies the number of input channels (the size of the word embedding).
+
+`output_size` specifies the number of output channels, i.e. the `outputFrameSize`.
+
+`kernel_size` is a number specifying the size of the temporal convolution kernel.
+
+`kernel_stride` specifies the stride of the temporal convolution. 
+Note that depending of the size of your kernel, several (of the last) 
+columns of the input sequence might be lost. It is up to the user 
+to add proper padding in sequences. Defaults to 1.
+ 
+`pool_size` is a number specifying the size of the temporal max pooling.
+
+`pool_stride` is a number specifying the stride of the temporal max pooling.
+
+`transfer` is a transfer Module like [Tanh](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Tanh),
+[Sigmoid](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Sigmoid), 
+[ReLU]([ReLU](https://github.com/torch/nn/blob/master/doc/transfer.md#relu), etc.
+
+<a name='dp.Convolution2D'/>
+## Convolution2D ##
+[SpatialConvolutionMM](https://github.com/torch/nn/blob/master/doc/convolution.md#spatialconvolution) (a 2D convolution) 
+followed by a [Transfer](https://github.com/torch/nn/blob/master/doc/transfer.md) Module and a 
+[SpatialMaxPooling](https://github.com/torch/nn/blob/master/doc/convolution.md#spatialmaxpooling). 
+Both the `input_view` and `output_view` are _bcwh_. 
+
+<a name='dp.Convolution2D.__init'/>
+### dp.Convolution2D{input_size, output_size, kernel_size, kernel_stride, pool_size, pool_stride, transfer} ###
+Constructs a Convolution2D Layer. Arguments should be specified as key-value pairs. 
+Other then the following arguments, those specified in [Layer](#dp.Layer.__init) also apply.
+
+`input_size` specifies the number of input channels (like the number of colors).
+
+`output_size` specifies the number of output channels, i.e. the `outputFrameSize`. 
+If using CUDA, should be a multiple of 8.
+
+`kernel_size` is a table-pair specifying the size `{width,height}` of the spatial convolution kernel.
+
+`kernel_stride` is a table-pair specifying the stride `{width,height}` of the temporal convolution. 
+Note that depending of the size of your kernel, several (of 
+the last) columns or rows of the input image might be lost. 
+It is up to the user to add proper padding in images. Defaults to `{1,1}`
+ 
+`pool_size` is a table-pair specifying the size `{width,height}` of the spatial max pooling.
+
+`pool_stride` is a table-pair specifying the stride `{width,height}` of the spatial max pooling.
+
+`transfer` is a transfer Module like [Tanh](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Tanh),
+[Sigmoid](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Sigmoid), 
+[ReLU]([ReLU](https://github.com/torch/nn/blob/master/doc/transfer.md#relu), etc.
 
 <a name='dp.Container'/>
 ## Container ##

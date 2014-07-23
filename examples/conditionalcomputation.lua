@@ -20,7 +20,7 @@ cmd:option('--batchSize', 512, 'number of examples per batch')
 cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
 cmd:option('--maxEpoch', 400, 'maximum number of epochs to run')
 cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better local minima for early-stopping')
---cmd:option('--dropout', false, 'apply dropout on hidden neurons, requires "nnx" luarock')
+--cmd:option('--dropout', false, 'apply dropout on hidden neurons')
 cmd:option('--accUpdate', false, 'accumulate updates inplace using accUpdateGradParameters')
 
 cmd:option('--contextSize', 5, 'number of words preceding the target word used to predict the target work')
@@ -36,6 +36,9 @@ cmd:option('--gaterStyle', 'NoisyReLU', 'comma-separated sequence of Modules to 
 cmd:option('--gaterScale', 1, 'scales the learningRate for the gater')
 cmd:option('--expertScale', 1, 'scales the learningRate for the experts')
 cmd:option('--interleave', false, 'when true, alternate between training BlockMixture gater and experts every epoch')
+cmd:option('--noisyAlpha', 0.01, 'weight of the present batch in determining P(E) in noisyReLU')
+cmd:option('--noisyBalance', 0.1, 'learning rate of the threshold, which serves to balance P(E)')
+cmd:option('--sparseInit', false, 'sparse initialization of the BlockSparse model')
 
 --[[ output layer ]]--
 cmd:option('--outputEmbeddingSize', 128, 'number of hidden units at softmaxtree')
@@ -86,7 +89,10 @@ local conditionalModel = dp.BlockSparse{
    expert_scale = opt.expertScale,
    gater_scale = opt.gaterScale,
    interleave = opt.interleave,
-   acc_update = opt.accUpdate
+   acc_update = opt.accUpdate,
+   alpha_range = {0.5, 1000, opt.noisyAlpha},
+   threshold_lr = opt.noisyBalance,
+   sparse_init = opt.sparseInit
 }
 
 local softmax

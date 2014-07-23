@@ -147,16 +147,24 @@ function DataSource:classes()
    return self._classes
 end
 
-function DataSource:imageSize()
-   return self._image_size
+function DataSource:imageSize(idx)
+   if torch.type(idx) == 'string' then
+      local view = string.gsub(self:imageAxes(), 'b', '')
+      local axis_pos = view:find(idx)
+      if not axis_pos then
+         error("Datasource has no axis '"..idx.."'", 2)
+      end
+      idx = axis_pos
+   end
+   return idx and self._image_size[idx] or self._image_size
 end
 
 function DataSource:featureSize()
    return self._feature_size
 end
 
-function DataSource:imageAxes()
-   return self._image_axes
+function DataSource:imageAxes(idx)
+   return idx and self._image_axes[idx] or self._image_axes
 end
 -- end access static attributes
 

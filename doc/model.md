@@ -250,6 +250,5 @@ Returns the component Model at index `index`.
 
 <a name='dp.Sequential'/>
 ## Sequential ##
-
-
+This Container is used for building multi-layer perceptrons (MLP). It has a similar interface to nn.Sequential, but it does not use it internally, i.e. it does not adapt it. 
 

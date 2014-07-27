@@ -11,7 +11,7 @@ Cifar100.isCifar100 = true
 Cifar100._name = 'cifar100'
 Cifar100._image_size = {3, 32, 32}
 Cifar100._feature_size = 3*32*32
-Cifar100._image_axes = 'bcwh'
+Cifar100._image_axes = 'bchw'
 
 function Cifar100:__init(config)
    config = config or {}

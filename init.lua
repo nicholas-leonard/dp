@@ -63,6 +63,7 @@ torch.include('dp', 'data/sampler.lua')
 torch.include('dp', 'data/cifar10.lua')
 torch.include('dp', 'data/cifar100.lua')
 torch.include('dp', 'data/notmnist.lua')
+torch.include('dp', 'data/facialkeypoints.lua')
 torch.include('dp', 'data/billionwords.lua')
 
 --[[ preprocess ]]--

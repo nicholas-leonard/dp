@@ -164,7 +164,7 @@ function Cifar10:loadData(download_url, which_set)
        
 end
 
-function cifar10test(num_images)
+local function cifar10test(num_images)
    local c = dp.Cifar10()
    require 'image'
    local dt = c:trainSet():inputs(1)

@@ -163,7 +163,7 @@ function Cifar100:loadData(file_name, download_url)
    return data
 end
 
-function cifar100test(num_images)
+local function cifar100test(num_images)
    local c = dp.Cifar100()
    require 'image'
    local dt = c:trainSet():inputs(1)

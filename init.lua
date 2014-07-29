@@ -129,6 +129,7 @@ torch.include('dp', 'model/convolution2D.lua')
 torch.include('dp', 'loss/loss.lua')
 torch.include('dp', 'loss/nll.lua')
 torch.include('dp', 'loss/treenll.lua')
+torch.include('dp', 'loss/null.lua')
 
 --[[ hyper ]]--
 torch.include('dp', 'hyper/hyperoptimizer.lua')

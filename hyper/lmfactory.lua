@@ -138,7 +138,7 @@ function LMFactory:buildOptimizer(opt)
       sampler = dp.Sampler{ --we assume large datasets (no shuffling)
          epoch_size = opt.train_epoch_size, batch_size = opt.batch_size
       },
-      progress = opt.progress or true
+      progress = opt.progress
    }
 end
 

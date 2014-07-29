@@ -61,7 +61,7 @@ function MLPFactory:addHidden(mlp, activation, input_size, layer_index, opt)
    )
    print(output_size .. " hidden neurons")
    if layer_index < (opt.model_dept-1) then
-      return addHidden(mlp, activation, output_size, layer_index+1, opt)
+      return self:addHidden(mlp, activation, output_size, layer_index+1, opt)
    else
       return output_size
    end
@@ -177,7 +177,7 @@ function MLPFactory:buildOptimizer(opt)
       sampler = dp.ShuffleSampler{
          batch_size=opt.batch_size, sample_type=opt.model_type
       },
-      progress = opt.progress or true
+      progress = opt.progress
    }
 end
 

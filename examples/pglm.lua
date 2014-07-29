@@ -27,7 +27,7 @@ cmd:option('--dropoutProbs', '{0}', 'probability of dropout on inputs to each la
 cmd:option('--collection', 'lm-bw-1', 'identifies a collection of related experiments')
 cmd:option('--progress', false, 'display progress bar')
 cmd:option('--pg', false, 'use postgresql')
-cmd:option('--minAccuracy', 0.1, 'minimum accuracy that must be maintained after 10 epochs')
+cmd:option('--maxError', 0, 'maximum NLL that must be maintained after 10 epochs (0 means ignore)')
 cmd:option('--datasource', 'BillionWords', 'datasource to use : Mnist | NotMnist | Cifar10')
 cmd:option('--accUpdate', false, 'accumulate updates inplace using accUpdateGradParameters')
 

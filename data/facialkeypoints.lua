@@ -6,7 +6,7 @@
 -- The test set can only be evaluated on kaggle.
 -- https://www.kaggle.com/c/facial-keypoints-detection/data
 ------------------------------------------------------------------------
-local FacialKeypoints, parent = torch.class("dp.FacialKeypoints", "dp.DataSource")
+local FacialKeypoints, DataSource = torch.class("dp.FacialKeypoints", "dp.DataSource")
 FacialKeypoints.isFacialKeypoints = true
 
 FacialKeypoints._name = 'FacialKeypoints'
@@ -19,7 +19,7 @@ function FacialKeypoints:__init(config)
    assert(torch.type(config) == 'table' and not config[1], 
       "Constructor requires key-value arguments")
    local args, load_all
-   args, valid_ratio, self._train_file, self._test_file, 
+   args, self._valid_ratio, self._train_file, self._test_file, 
       self._data_path, self._download_url, self._stdv, self._scale, 
       self._shuffle, load_all = xlua.unpack(
       {config},
@@ -34,7 +34,7 @@ function FacialKeypoints:__init(config)
       {arg='data_path', type='string', default=dp.DATA_DIR,
        help='path to data repository'},
       {arg='download_url', type='string',
-       default='http://data.neuflow.org/data/facialkeypoints.tar.gz',
+       default='http://data.neuflow.org/data/FacialKeypoints.tar.gz',
        help='URL from which to download dataset if not found on disk.'},
       {arg='stdv', type='number', default=0.8, 
        help='standard deviation of the gaussian blur used for targets'},
@@ -53,13 +53,14 @@ function FacialKeypoints:__init(config)
        '(fitting) on the train_set only, and reusing these to ' ..
        'preprocess the valid_set and test_set.'}  
    )
+   self._scale = self._scale or {0,1}
+   self._pixels = torch.range(0,97):float()
    if load_all then
       self:loadTrain()
       self:loadValid()
       self:loadTest()
    end
-   self._pixels = torch.range(0,97):float()
-   parent.__init(self, {
+   DataSource.__init(self, {
       train_set=self:trainSet(), 
       valid_set=self:validSet(),
       test_set=self:testSet()
@@ -91,9 +92,9 @@ function FacialKeypoints:loadValid()
 end
 
 function FacialKeypoints:loadTest()
-   local test_data = self:loadData(self._test_file, self._download_url)
+   local data = self:loadData(self._test_file, self._download_url)
    
-   local inputs = data:narrow(2, 2, 96*96):clone():view(1,96,96)
+   local inputs = data:narrow(2, 2, 96*96):clone():view(data:size(1),1,96,96)
    self._image_ids = data:select(2, 1):clone()
    if self._scale then
       DataSource.rescale(inputs, self._scale[1], self._scale[2])
@@ -101,7 +102,7 @@ function FacialKeypoints:loadTest()
    
    local input_v = dp.ImageView()
    input_v:forward(self._image_axes, inputs)
-   self:setTestSet(inputs=input_v,which_set=which_set)
+   self:setTestSet(dp.DataSet{inputs=input_v,which_set=which_set})
    return self:testSet()
 end
 
@@ -110,8 +111,8 @@ function FacialKeypoints:createTrainSet(data, which_set)
    if self._shuffle then
       data = data:index(1, torch.randperm(data:size(1)):long())
    end
-   local inputs = data:narrow(2, 31, 96*96):clone():view(1,96,96)
-   local targets = self:maxTargets(data:narrow(2, 1, 30))
+   local inputs = data:narrow(2, 31, 96*96):clone():view(data:size(1),1,96,96)
+   local targets = self:makeTargets(data:narrow(2, 1, 30))
    
    if self._scale then
       DataSource.rescale(inputs, self._scale[1], self._scale[2])
@@ -125,7 +126,7 @@ function FacialKeypoints:createTrainSet(data, which_set)
    return dp.DataSet{inputs=input_v,targets=target_v,which_set=which_set}
 end
 
-function FacialKeypoints:makeTargets(y):
+function FacialKeypoints:makeTargets(y)
    -- y : (batch_size, num_keypoints)
    -- Y : (batch_size, num_keypoints*2, 98)
    Y = torch.FloatTensor(y:size(1), y:size(2), 98):zero()

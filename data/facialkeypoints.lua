@@ -20,7 +20,7 @@ function FacialKeypoints:__init(config)
       "Constructor requires key-value arguments")
    local args, load_all
    args, valid_ratio, self._train_file, self._test_file, 
-      self._data_path, self._download_url, self._scale, 
+      self._data_path, self._download_url, self._stdv, self._scale, 
       self._shuffle, load_all = xlua.unpack(
       {config},
       'FacialKeypoints', 
@@ -36,6 +36,8 @@ function FacialKeypoints:__init(config)
       {arg='download_url', type='string',
        default='http://data.neuflow.org/data/facialkeypoints.tar.gz',
        help='URL from which to download dataset if not found on disk.'},
+      {arg='stdv', type='number', default=0.8, 
+       help='standard deviation of the gaussian blur used for targets'},
       {arg='scale', type='table', 
        help='bounds to scale the values between. [Default={0,1}]'},
       {arg='shuffle', type='boolean', 
@@ -56,6 +58,7 @@ function FacialKeypoints:__init(config)
       self:loadValid()
       self:loadTest()
    end
+   self._pixels = torch.range(0,97):float()
    parent.__init(self, {
       train_set=self:trainSet(), 
       valid_set=self:validSet(),
@@ -91,7 +94,7 @@ function FacialKeypoints:loadTest()
    local test_data = self:loadData(self._test_file, self._download_url)
    
    local inputs = data:narrow(2, 2, 96*96):clone():view(1,96,96)
-   local imageIds = data:select(2, 1):clone()
+   self._image_ids = data:select(2, 1):clone()
    if self._scale then
       DataSource.rescale(inputs, self._scale[1], self._scale[2])
    end
@@ -108,7 +111,7 @@ function FacialKeypoints:createTrainSet(data, which_set)
       data = data:index(1, torch.randperm(data:size(1)):long())
    end
    local inputs = data:narrow(2, 31, 96*96):clone():view(1,96,96)
-   local targets = data:narrow(2, 1, 30):clone():view(15,2)
+   local targets = self:maxTargets(data:narrow(2, 1, 30))
    
    if self._scale then
       DataSource.rescale(inputs, self._scale[1], self._scale[2])
@@ -120,6 +123,31 @@ function FacialKeypoints:createTrainSet(data, which_set)
    target_v:forward('bwc', targets)
    -- construct dataset
    return dp.DataSet{inputs=input_v,targets=target_v,which_set=which_set}
+end
+
+function FacialKeypoints:makeTargets(y):
+   -- y : (batch_size, num_keypoints)
+   -- Y : (batch_size, num_keypoints*2, 98)
+   Y = torch.FloatTensor(y:size(1), y:size(2), 98):zero()
+   local pixels = self._pixels
+   local stdv = self._stdv
+   for i=1,y:size(1) do
+      keypoints = y[i]
+      new_keypoints = Y[i]
+      for j=1,y:size(2) do
+         if kp ~= -1 then
+            local kp = keypoints[j]
+            new_kp = new_keypoints[j]
+            new_kp:add(pixels, -kp) --verify
+            new_kp:cmul(new_kp)
+            new_kp:div(2*stdv*stdv)
+            new_kp:mul(-1)
+            new_kp:exp(new_kp)
+            new_kp:div(math.sqrt(2*math.pi)*stdv)
+         end
+      end
+   end
+   return Y
 end
 
 function FacialKeypoints:loadData(file_name, download_url)

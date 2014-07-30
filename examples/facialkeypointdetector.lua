@@ -128,13 +128,13 @@ table.insert(visitor, dp.MaxNorm{
 
 --[[Propagators]]--
 train = dp.Optimizer{
-   loss = dp.NLL(),
+   loss = dp.DistKLDivCriterion(),
    visitor = visitor,
    sampler = dp.ShuffleSampler{batch_size = opt.batchSize},
    progress = true
 }
 valid = dp.Evaluator{
-   loss = dp.NLL(),
+   loss = dp.DistKLDivCriterion(),
    sampler = dp.Sampler{batch_size = opt.batchSize}
 }
 test = dp.Evaluator{

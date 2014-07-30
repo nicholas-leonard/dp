@@ -139,7 +139,7 @@ function FacialKeypoints:makeTargets(y)
          if kp ~= -1 then
             local kp = keypoints[j]
             new_kp = new_keypoints[j]
-            new_kp:add(pixels, -kp) --verify
+            new_kp:add(pixels, -kp)
             new_kp:cmul(new_kp)
             new_kp:div(2*stdv*stdv)
             new_kp:mul(-1)
@@ -153,10 +153,20 @@ end
 
 function FacialKeypoints:loadData(file_name, download_url)
    local path = DataSource.getDataPath{
-      name=self._name, url=download_url, decompress_file=file_name, 
+      name=self._name, url=download_url, 
+      decompress_file=file_name, 
       data_dir=self._data_path
    }
-
    return torch.load(path)
+end
+
+function FacialKeypoints:loadSubmission(path)
+   path = path or DataSource.getDataPath{
+      name=self._name, url=download_url, 
+      decompress_file='submissionFileFormat.csv', 
+      data_dir=self._data_path
+   }
+   require 'csvigo'
+   return csvigo.open{path=path,mode='raw'}
 end
 

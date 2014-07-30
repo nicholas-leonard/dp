@@ -139,7 +139,7 @@ valid = dp.Evaluator{
 }
 test = dp.Evaluator{
    loss = dp.Null(), -- because we don't have targets for the test set
-   feedback = dp.FKDKaggle(),
+   feedback = dp.FKDKaggle{submission=datasource:loadSubmission()},
    sampler = dp.Sampler{batch_size = opt.batchSize}
 }
 

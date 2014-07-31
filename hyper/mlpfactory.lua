@@ -24,15 +24,7 @@ function MLPFactory:__init(config)
 end
 
 function MLPFactory:buildTransfer(activation)
-   if activation == 'ReLU' then
-      return nn.ReLU()
-   elseif activation == 'Tanh' then
-      return nn.Tanh()
-   elseif activation == 'Sigmoid' then
-      return nn.Sigmoid()
-   elseif activation ~= 'Linear' then
-      error("Unknown activation function : " .. activation)
-   end
+   return nn[activation]()
 end
 
 function MLPFactory:buildDropout(dropout_prob)

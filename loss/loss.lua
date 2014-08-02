@@ -18,7 +18,8 @@ function Loss:__init(config)
        help='view of the input like "bf", "bhwc", etc.'},
       {arg='target_view', type='string', req=true,
        help='view of the target like "bt", "b", etc.'},
-      {arg='target_type', type='string', req=true,
+      {arg='target_type', type='string', 
+       default=torch.getdefaulttensortype(),
        'type of target tensors'}
    )
    self:inputView(input_view)
@@ -60,6 +61,18 @@ function Loss:backward(input, target, carry)
    return self.input, carry
 end
 
+function Loss:_forward(carry)
+   local input, target = self:inputAct(), self:targetAct()
+   self.loss = self._criterion:forward(input, target)
+   return carry
+end
+
+function Loss:_backward(carry)
+   local input, target = self:inputAct(), self:targetAct()
+   self:inputGrad(self._criterion:backward(input, target))
+   return carry
+end
+
 -- Get
 function Loss:inputAct()
    return self.input:forward(self._input_view, self._input_type)
@@ -94,4 +107,10 @@ function Loss:report()
 end
 
 function Loss:_report(report)
+end
+
+function Loss:_type(type)
+   self:inputType(type)
+   self:outputType(type)
+   self._criterion:type(type)
 end

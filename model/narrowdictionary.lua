@@ -30,7 +30,7 @@ function NarrowDictionary:__init(config)
    self._dict_size = dict_size
    self._output_size = output_size
    self._delta_size = delta_size
-   self._module = nn.NarrowLookupTable(delta_size, dict_size, output_size)
+   self._module = nn.NarrowLookupTable(delta_size, dict_size, output_size, true)
    if self._acc_update then
       self._module:accUpdateOnly()
    end

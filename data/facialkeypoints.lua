@@ -170,6 +170,13 @@ function FacialKeypoints:loadSubmission(path)
       data_dir=self._data_path
    }
    require 'csvigo'
-   return csvigo.load{path=path,mode='raw'}
+   local csv = csvigo.load{path=path,mode='raw'}
+   -- fix weird string bug
+   for i, row in ipairs(csv) do
+      if i ~= 1 then
+         row[3] = row[3]:sub(1,#row[3]-1)
+      end
+   end
+   return csv
 end
 

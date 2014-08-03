@@ -91,7 +91,6 @@ function FKDKaggle:_reset()
 end
 
 function FKDKaggle:foundMinima()
-   print("FKDKaggle", self._i, #self._submission)
    csvigo.save{path=self._path,data=self._submission,mode='raw'}
 end
 

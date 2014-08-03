@@ -96,14 +96,16 @@ function FacialKeypoints:loadTest()
    local data = self:loadData(self._test_file, self._download_url)
    
    local inputs = data:narrow(2, 2, 96*96):clone():view(data:size(1),1,96,96)
+   local targets = data:select(2, 1):int()
    self._image_ids = data:select(2, 1):clone()
    if self._scale then
       DataSource.rescale(inputs, self._scale[1], self._scale[2])
    end
    
-   local input_v = dp.ImageView()
+   local input_v, target_v = dp.ImageView(), dp.ClassView()
    input_v:forward(self._image_axes, inputs)
-   self:setTestSet(dp.DataSet{inputs=input_v,which_set=which_set})
+   target_v:forward('b', targets)
+   self:setTestSet(dp.DataSet{inputs=input_v,targets=target_v,which_set=which_set})
    return self:testSet()
 end
 

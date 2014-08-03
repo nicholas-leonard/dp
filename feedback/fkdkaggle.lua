@@ -6,6 +6,24 @@
 ------------------------------------------------------------------------
 local FKDKaggle, parent = torch.class("dp.FKDKaggle", "dp.Feedback")
 FKDKaggle.isFKDKaggle = true
+
+FKDKaggle._submission_map = {
+   ['left_eye_center_x'] = 1, ['left_eye_center_y'] = 2,
+   ['right_eye_center_x'] = 3, ['right_eye_center_y'] = 4,
+   ['left_eye_inner_corner_x'] = 5, ['left_eye_inner_corner_y'] = 6,
+   ['left_eye_outer_corner_x'] = 7, ['left_eye_outer_corner_y'] = 8,
+   ['right_eye_inner_corner_x'] = 9, ['right_eye_inner_corner_y'] = 10,
+   ['right_eye_outer_corner_x'] = 11, ['right_eye_outer_corner_y'] = 12,
+   ['left_eyebrow_inner_end_x'] = 13, ['left_eyebrow_inner_end_y'] = 14,
+   ['left_eyebrow_outer_end_x'] = 15, ['left_eyebrow_outer_end_y'] = 16,
+   ['right_eyebrow_inner_end_x'] = 17, ['right_eyebrow_inner_end_y'] = 18,
+   ['right_eyebrow_outer_end_x'] = 19, ['right_eyebrow_outer_end_y'] = 20,
+   ['nose_tip_x'] = 21, ['nose_tip_y'] = 22,
+   ['mouth_left_corner_x'] = 23, ['mouth_left_corner_y'] = 24,
+   ['mouth_right_corner_x'] = 25, ['mouth_right_corner_y'] = 26,
+   ['mouth_center_top_lip_x'] = 27, ['mouth_center_top_lip_y'] = 28,
+   ['mouth_center_bottom_lip_x'] = 29, ['mouth_center_bottom_lip_y'] = 30
+}
    
 function FKDKaggle:__init(config)
    config = config or {}
@@ -45,14 +63,24 @@ function FKDKaggle:setup(config)
 end
 
 function FKDKaggle:_add(batch, output, carry, report)
+   local target = batch:targets():forward('b')
    local act = output:forward('bwc', 'torch.FloatTensor')
    local pixels = self._pixels:expandAs(act)
    self._output:cmul(act, pixels)
    self._keypoints:sum(self._output, 3)
    for i=1,act:size(1) do
       local keypoint = self._keypoints[i]:select(2,1)
-      for j=1,act:size(2) do
-         self._submission[self._i][4] = keypoint[j]
+      local row = self._submission[self._i]
+      local imageId = tonumber(row[2])
+      assert(imageId == target[i])
+      while (imageId == target[i]) do
+         row = self._submission[self._i]
+         if not row then
+            break
+         end
+         imageId = tonumber(row[2])
+         local keypointName = row[3]
+         row[4] = keypoint[self._submission_map[keypointName]]
          self._i = self._i + 1
       end
    end

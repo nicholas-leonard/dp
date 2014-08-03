@@ -43,7 +43,8 @@ function Sampler:setup(config)
       {arg='overwrite', type='boolean', default=false,
        help='overwrite existing values if not nil.' .. 
        'If nil, initialize whatever the value of overwrite.'},
-      {arg='mediator', type='dp.Mediator'}
+      {arg='mediator', type='dp.Mediator',
+       help='used for communication between objects'}
    )
    if batch_size and (not self._batch_size or overwrite) then
       self:setBatchSize(batch_size)
@@ -86,7 +87,7 @@ function Sampler:sampleEpoch(dataset)
    -- build iterator
    local epochSamples = 
       function(batch)
-         if nSampled > epochSize then
+         if nSampled >= epochSize then
             return
          end
          batch = batch or dataset:batch(self._batch_size)

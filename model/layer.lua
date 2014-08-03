@@ -115,7 +115,7 @@ function Layer:checkParams()
    local params = self:parameters()
    for k,param in pairs(params) do
       if _.isNaN(param:sum()) then
-         error("NaN Error for param at index" ..k)
+         error(self:name().." NaN Error for param at index" ..k)
       end
    end
 end

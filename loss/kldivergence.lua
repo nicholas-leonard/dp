@@ -15,3 +15,4 @@ function KLDivergence:__init(config)
    config.input_view = config.input_view or 'default'
    parent.__init(self, config)
 end
+

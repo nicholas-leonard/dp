@@ -32,6 +32,7 @@ cmd:option('--dropoutProb', '{0.2,0.5,0.5}', 'dropout probabilities')
 cmd:option('--accUpdate', false, 'accumulate gradients inplace')
 cmd:option('--submissionFile', '', 'Kaggle submission will be saved to a file with this name')
 cmd:option('--progress', false, 'print progress bar')
+cmd:option('--normalInit', false, 'initialize inputs using a normal distribution (as opposed to sparse initialization)')
 cmd:text()
 opt = cmd:parse(arg or {})
 print(opt)
@@ -77,7 +78,8 @@ for i=1,#opt.channelSize do
       output_size = opt.channelSize[i], 
       transfer = nn[opt.activation](),
       dropout = opt.dropout and nn.Dropout(opt.dropoutProb[i]),
-      acc_update = opt.accUpdate
+      acc_update = opt.accUpdate,
+      sparse_init = not opt.normalInit
    }
    cnn:add(conv)
    inputSize = opt.channelSize[i]
@@ -91,7 +93,8 @@ cnn:add(
       output_size = opt.hiddenSize,
       transfer = nn[opt.activation](),
       dropout = opt.dropout and nn.Dropout(opt.dropoutProb[#opt.channelSize]),
-      acc_update = opt.accUpdate
+      acc_update = opt.accUpdate,
+      sparse_init = not opt.normalInit
    }
 )
 
@@ -99,6 +102,7 @@ cnn:add(
 local multisoftmax = nn.Sequential()
 multisoftmax:add(nn.Reshape(30,98))
 multisoftmax:add(nn.MultiSoftMax())
+multisoftmax:add(nn.AddConstant(0.00000001)) -- fixes log(0)=NaN errors
 multisoftmax:add(nn.Log())
 cnn:add(
    dp.Neural{
@@ -107,6 +111,7 @@ cnn:add(
       transfer = multisoftmax,
       dropout = opt.dropout and nn.Dropout(opt.dropoutProb[#opt.channelSize]),
       acc_update = opt.accUpdate,
+      sparse_init = not opt.normalInit,
       output_view = 'bwc' -- because of the multisoftmax
    }
 )

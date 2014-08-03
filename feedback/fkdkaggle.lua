@@ -27,7 +27,7 @@ function FKDKaggle:__init(config)
    self._submission = submission
    self._file_name = file_name
    parent.__init(self, config)
-   self._pixels = torch.randn(0,97):float()
+   self._pixels = torch.range(0,97):float():view(1,1,98)
    self._pixelView = torch.FloatTensor()
    self._output = torch.FloatTensor()
    self._keypoints = torch.FloatTensor()
@@ -43,7 +43,7 @@ end
 
 function FKDKaggle:_add(batch, output, carry, report)
    local act = output:forward('bwc', 'torch.FloatTensor')
-   self._pixelView:view(self._pixels, act:size())
+   self._pixelView:view(self._pixels, 1,1,self._pixels:size(1))
    self._output:cmul(act, self._pixelView)
    self._keypoints:sum(self._output, 3)
    for i=1,act:size(1) do

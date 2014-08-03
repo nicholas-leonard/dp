@@ -13,6 +13,7 @@ FacialKeypoints._name = 'FacialKeypoints'
 FacialKeypoints._image_size = {1, 96, 96}
 FacialKeypoints._feature_size = 1*96*96
 FacialKeypoints._image_axes = 'bchw'
+FacialKeypoints._target_axes = 'bwc'
 
 function FacialKeypoints:__init(config) 
    config = config or {}
@@ -121,7 +122,7 @@ function FacialKeypoints:createTrainSet(data, which_set)
    -- construct inputs and targets dp.Views 
    local input_v, target_v = dp.ImageView(), dp.SequenceView()
    input_v:forward(self._image_axes, inputs)
-   target_v:forward('bwc', targets)
+   target_v:forward(self._target_axes, targets)
    -- construct dataset
    return dp.DataSet{inputs=input_v,targets=target_v,which_set=which_set}
 end

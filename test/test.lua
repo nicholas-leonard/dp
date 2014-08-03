@@ -721,17 +721,17 @@ function dptest.nll()
 end
 function dptest.kldivergence()
    local input_tensor = torch.randn(5,10)
-   local target_tensor = torch.randperm(10):sub(1,5)
+   local target_tensor = torch.randn(5,10)
    -- dp
    local input = dp.DataView('bf', input_tensor)
-   local target = dp.ClassView('b', target_tensor)
+   local target = dp.DataView('bf', target_tensor)
    local loss = dp.KLDivergence()
    -- test conversion
    loss:float()
    local err, carry = loss:forward(input, target, {nSample=5})
    input = loss:backward(input, target, carry)
    -- nn
-   local criterion = nn.ClassNLLCriterion():float()
+   local criterion = nn.DistKLDivCriterion():float()
    local c_err = criterion:forward(input_tensor:float(), target_tensor:float())
    local c_grad = criterion:backward(input_tensor:float(), target_tensor:float())
    -- compare nn and dp

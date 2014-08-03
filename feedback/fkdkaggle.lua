@@ -43,7 +43,7 @@ end
 
 function FKDKaggle:_add(batch, output, carry, report)
    local act = output:forward('bwc', 'torch.FloatTensor')
-   self._pixelView:view(self._pixels, act:size)
+   self._pixelView:view(self._pixels, act:size())
    self._output:cmul(act, self._pixelView)
    self._keypoints:sum(self._output, 3)
    for i=1,act:size(1) do

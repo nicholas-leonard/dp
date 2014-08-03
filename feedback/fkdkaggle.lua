@@ -46,7 +46,8 @@ function FKDKaggle:__init(config)
    require 'csvigo'
    config.name = name
    self._save_dir = save_dir
-   self._submission = submission
+   self._template = submission
+   self._submission = {{submission[1][1],submission[1][4]}}
    self._file_name = file_name
    parent.__init(self, config)
    self._pixels = torch.range(0,97):float():view(1,1,98)
@@ -70,17 +71,19 @@ function FKDKaggle:_add(batch, output, carry, report)
    self._keypoints:sum(self._output, 3)
    for i=1,act:size(1) do
       local keypoint = self._keypoints[i]:select(2,1)
-      local row = self._submission[self._i]
+      local row = self._template[self._i]
       local imageId = tonumber(row[2])
       assert(imageId == target[i])
       while (imageId == target[i]) do
-         row = self._submission[self._i]
+         row = self._template[self._i]
          if not row then
             break
          end
          imageId = tonumber(row[2])
          local keypointName = row[3]
-         row[4] = keypoint[self._submission_map[keypointName]]
+         self._submission[self._i] = {
+            row[1],keypoint[self._submission_map[keypointName]]
+         }
          self._i = self._i + 1
       end
    end

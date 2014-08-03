@@ -102,8 +102,6 @@ cnn:add(
 local multisoftmax = nn.Sequential()
 multisoftmax:add(nn.Reshape(30,98))
 multisoftmax:add(nn.MultiSoftMax())
-multisoftmax:add(nn.AddConstant(0.00000001)) -- fixes log(0)=NaN errors
-multisoftmax:add(nn.Log())
 cnn:add(
    dp.Neural{
       input_size = opt.hiddenSize, 
@@ -137,15 +135,19 @@ table.insert(visitor, dp.MaxNorm{
    max_out_norm = opt.maxOutNorm, period = opt.maxNormPeriod
 })
 
+local logModule = nn.Sequential()
+logModule:add(nn.AddConstant(0.00000001)) -- fixes log(0)=NaN errors
+logModule:add(nn.Log())
+
 --[[Propagators]]--
 train = dp.Optimizer{
-   loss = dp.KLDivergence(),
+   loss = dp.KLDivergence{input_module=logModule:clone()},
    visitor = visitor,
    sampler = dp.ShuffleSampler{batch_size = opt.batchSize},
    progress = opt.progress
 }
 valid = dp.Evaluator{
-   loss = dp.KLDivergence(),
+   loss = dp.KLDivergence{input_module=logModule:clone()},
    sampler = dp.Sampler{batch_size = opt.batchSize}
 }
 test = dp.Evaluator{

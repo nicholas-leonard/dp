@@ -7,9 +7,9 @@ local Loss, parent = torch.class("dp.Loss", "dp.Node")
 Loss.isLoss = true
 
 function Loss:__init(config)
-    assert(torch.type(config) == 'table' and not config[1], 
+   assert(torch.type(config) == 'table' and not config[1], 
       "Constructor requires key-value arguments")
-   local args, input_view, target_view, target_type 
+   local args, input_view, target_view, target_type, input_module
       = xlua.unpack(
       {config},
       'Loss', 
@@ -20,8 +20,11 @@ function Loss:__init(config)
        help='view of the target like "bt", "b", etc.'},
       {arg='target_type', type='string', 
        default=torch.getdefaulttensortype(),
-       'type of target tensors'}
+       'type of target tensors'},
+      {arg='input_module', type='nn.Module',
+       help='nn.Module to use on the inputs (e.g. nn.Log())'}
    )
+   self._input_module = input_module
    self:inputView(input_view)
    self:outputView(target_view)
    config.output_type = target_type
@@ -63,13 +66,24 @@ end
 
 function Loss:_forward(carry)
    local input, target = self:inputAct(), self:targetAct()
+   if self._input_module then
+      input = self._input_module:forward(input)
+   end
    self.loss = self._criterion:forward(input, target)
    return carry
 end
 
 function Loss:_backward(carry)
    local input, target = self:inputAct(), self:targetAct()
-   self:inputGrad(self._criterion:backward(input, target))
+   local input_grad
+   if self._input_module then
+      local crt_input = self._input_module.output
+      input_grad = self._criterion:backward(crt_input, target)
+      input_grad = self._input_module:backward(input, input_grad)
+   else
+      input_grad = self._criterion:backward(input, target)
+   end
+   self:inputGrad(input_grad)
    return carry
 end
 

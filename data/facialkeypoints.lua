@@ -163,11 +163,11 @@ end
 
 function FacialKeypoints:loadSubmission(path)
    path = path or DataSource.getDataPath{
-      name=self._name, url=download_url, 
+      name=self._name, url=self._download_url, 
       decompress_file='submissionFileFormat.csv', 
       data_dir=self._data_path
    }
    require 'csvigo'
-   return csvigo.open{path=path,mode='raw'}
+   return csvigo.load{path=path,mode='raw'}
 end
 

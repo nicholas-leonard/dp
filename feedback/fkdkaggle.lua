@@ -16,10 +16,14 @@ function FKDKaggle:__init(config)
       'FKDKaggle', 
       'Used to prepare a Kaggle Submission for the '..
       'Facial Keypoints Detection challenge',
-      {arg='submission', type='table', req=true},
-      {arg='file_name', type='string', req=true},
-      {arg='save_dir', type='string', help='defaults to dp.SAVE_DIR'},
-      {arg='name', type='string', default='FKDKaggle'}
+      {arg='submission', type='table', req=true, 
+       help='sample submission table'},
+      {arg='file_name', type='string', req=true,
+       help='name of file to save submission to'},
+      {arg='save_dir', type='string', default=dp.SAVE_DIR,
+       help='defaults to dp.SAVE_DIR'},
+      {arg='name', type='string', default='FKDKaggle',
+       help='name identifying Feedback in reports'}
    )
    require 'csvigo'
    config.name = name
@@ -28,7 +32,6 @@ function FKDKaggle:__init(config)
    self._file_name = file_name
    parent.__init(self, config)
    self._pixels = torch.range(0,97):float():view(1,1,98)
-   self._pixelView = torch.FloatTensor()
    self._output = torch.FloatTensor()
    self._keypoints = torch.FloatTensor()
    self._keypoint = torch.FloatTensor()
@@ -43,13 +46,13 @@ end
 
 function FKDKaggle:_add(batch, output, carry, report)
    local act = output:forward('bwc', 'torch.FloatTensor')
-   self._pixelView:view(self._pixels, 1,1,self._pixels:size(1))
-   self._output:cmul(act, self._pixelView)
+   local pixels = self._pixels:expandAs(act)
+   self._output:cmul(act, pixels)
    self._keypoints:sum(self._output, 3)
    for i=1,act:size(1) do
-      local keypoint = self._keypoints:select(1,i):select(2,1)
+      local keypoint = self._keypoints[i][1]
       for j=1,act:size(2) do
-         self._submision[self._i][4] = keypoint[j]
+         self._submission[self._i][4] = keypoint[j]
          self._i = self._i + 1
       end
    end
@@ -60,6 +63,7 @@ function FKDKaggle:_reset()
 end
 
 function FKDKaggle:foundMinima()
+   print(self._i, #self._submission)
    csvigo.save{path=self._path,data=self._submission,mode='raw'}
 end
 

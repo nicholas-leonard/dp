@@ -12,7 +12,8 @@ function CompositeFeedback:__init(config)
       {config},
       'CompositeFeedback', 
       'Composite of many Feedback components',
-      {arg='feedbacks', type='table'}
+      {arg='feedbacks', type='table', req=true,
+       help='list of feedbacks'}
    )
    self._feedbacks = feedbacks
    config.name = 'compositefeedback'

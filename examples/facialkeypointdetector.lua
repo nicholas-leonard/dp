@@ -19,19 +19,24 @@ cmd:option('--poolStride', '{2,2}', 'stride of the max pooling of each convoluti
 cmd:option('--hiddenSize', 1000, 'size of the dense hidden layer (after convolutions, before output)')
 cmd:option('--batchSize', 128, 'number of examples per batch')
 cmd:option('--cuda', false, 'use CUDA')
+cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
 cmd:option('--maxEpoch', 100, 'maximum number of epochs to run')
 cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better local minima for early-stopping')
 cmd:option('--dropout', false, 'apply dropout on hidden neurons, requires "nnx" luarock')
-cmd:option('--dataset', 'Mnist', 'which dataset to use : Mnist | NotMnist | Cifar10 | Cifar100')
+cmd:option('--dataset', 'FacialKeypoints', 'which dataset to use : Mnist | NotMnist | Cifar10 | Cifar100')
 cmd:option('--standardize', false, 'apply Standardize preprocessing')
 cmd:option('--zca', false, 'apply Zero-Component Analysis whitening')
-cmd:option('--activation', 'Tanh', 'transfer function like ReLU, Tanh, Sigmoid')
+cmd:option('--activation', 'ReLU', 'transfer function like ReLU, Tanh, Sigmoid')
 cmd:option('--dropout', false, 'use dropout')
 cmd:option('--dropoutProb', '{0.2,0.5,0.5}', 'dropout probabilities')
 cmd:option('--accUpdate', false, 'accumulate gradients inplace')
+cmd:option('--submissionFile', '', 'Kaggle submission will be saved to a file with this name')
+cmd:option('--progress', false, 'print progress bar')
 cmd:text()
 opt = cmd:parse(arg or {})
 print(opt)
+
+assert(opt.submissionFile ~= '', 'provide filename, e.g.: --submissionFile submission12.csv')
 
 opt.channelSize = table.fromString(opt.channelSize)
 opt.kernelSize = table.fromString(opt.kernelSize)
@@ -80,7 +85,6 @@ for i=1,#opt.channelSize do
    outputSize[2] = conv:nOutputFrame(outputSize[2], 2)
 end
 
-inputSize = inputSize
 cnn:add(
    dp.Neural{
       input_size = inputSize*outputSize[1]*outputSize[2], 
@@ -102,7 +106,8 @@ cnn:add(
       output_size = 30*98,
       transfer = multisoftmax,
       dropout = opt.dropout and nn.Dropout(opt.dropoutProb[#opt.channelSize]),
-      acc_update = opt.accUpdate
+      acc_update = opt.accUpdate,
+      output_view = 'bwc' -- because of the multisoftmax
    }
 )
 
@@ -110,6 +115,7 @@ cnn:add(
 if opt.cuda then
    require 'cutorch'
    require 'cunn'
+   cutorch.setDevice(opt.useDevice)
    cnn:cuda()
 end
 
@@ -128,18 +134,21 @@ table.insert(visitor, dp.MaxNorm{
 
 --[[Propagators]]--
 train = dp.Optimizer{
-   loss = dp.DistKLDivCriterion(),
+   loss = dp.KLDivergence(),
    visitor = visitor,
    sampler = dp.ShuffleSampler{batch_size = opt.batchSize},
-   progress = true
+   progress = opt.progress
 }
 valid = dp.Evaluator{
-   loss = dp.DistKLDivCriterion(),
+   loss = dp.KLDivergence(),
    sampler = dp.Sampler{batch_size = opt.batchSize}
 }
 test = dp.Evaluator{
    loss = dp.Null(), -- because we don't have targets for the test set
-   feedback = dp.FKDKaggle{submission=datasource:loadSubmission()},
+   feedback = dp.FKDKaggle{
+      submission = datasource:loadSubmission(), 
+      file_name = opt.submissionFile
+   },
    sampler = dp.Sampler{batch_size = opt.batchSize}
 }
 

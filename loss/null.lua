@@ -14,12 +14,17 @@ function Null:__init(config)
    parent.__init(self, config)
 end
 
-function Null:_forward(carry)
+function Null:forward(input, target, carry)
    self.loss = 0.000000001
    return carry
 end
 
-function Null:_backward(carry)
+function Null:evaluate(input, target, carry)
+   self.loss = 0.000000001
+   return carry
+end
+
+function Null:backward(input, target, carry)
    self.loss = 0.000000001
    return carry
 end

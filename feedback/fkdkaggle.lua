@@ -36,11 +36,11 @@ function FKDKaggle:__init(config)
    self._keypoints = torch.FloatTensor()
    self._keypoint = torch.FloatTensor()
    self._i = 2
+   self._path = paths.concat(self._save_dir, self._file_name)
 end
 
 function FKDKaggle:setup(config)
    parent.setup(self, config)
-   self._path = paths.concat(self._save_dir, self._file_name)
    self._mediator:subscribe("foundMinima", self, "foundMinima")
 end
 
@@ -50,7 +50,7 @@ function FKDKaggle:_add(batch, output, carry, report)
    self._output:cmul(act, pixels)
    self._keypoints:sum(self._output, 3)
    for i=1,act:size(1) do
-      local keypoint = self._keypoints[i][1]
+      local keypoint = self._keypoints[i]:select(2,1)
       for j=1,act:size(2) do
          self._submission[self._i][4] = keypoint[j]
          self._i = self._i + 1
@@ -63,7 +63,7 @@ function FKDKaggle:_reset()
 end
 
 function FKDKaggle:foundMinima()
-   print(self._i, #self._submission)
+   print("FKDKaggle", self._i, #self._submission)
    csvigo.save{path=self._path,data=self._submission,mode='raw'}
 end
 

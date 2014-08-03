@@ -756,7 +756,22 @@ function dptest.treenll()
    mytester:asserteq(c_err, err, 0.00001)
    mytester:assertTensorEq(c_grad:narrow(2,1,1), input:backward('bf'), 0.00001)
 end
-
+function dptest.fkdkaggle()
+   local tensor = torch.randn(2,3,98)
+   -- dp
+   local output = dp.DataView('bwc', tensor)
+   local submission = {
+      {"RowId", "ImageId", "FeatureName", "Location"},
+      {},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},
+      {},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},
+      {},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},
+      {},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},
+      {},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}
+   }
+   local feedback = dp.FKDKaggle{submission=submission,file_name='test.csv'}
+   local carry = feedback:_add(nil, output, {nSample=2}, {})
+   feedback:foundMinima()
+end
 
 function dp.test(tests)
    math.randomseed(os.time())

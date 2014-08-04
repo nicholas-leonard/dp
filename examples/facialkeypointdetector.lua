@@ -33,6 +33,7 @@ cmd:option('--accUpdate', false, 'accumulate gradients inplace')
 cmd:option('--submissionFile', '', 'Kaggle submission will be saved to a file with this name')
 cmd:option('--progress', false, 'print progress bar')
 cmd:option('--normalInit', false, 'initialize inputs using a normal distribution (as opposed to sparse initialization)')
+cmd:option('--validRatio', 1/10, 'proportion of dataset used for cross-validation')
 cmd:text()
 opt = cmd:parse(arg or {})
 print(opt)
@@ -58,7 +59,8 @@ end
 --[[data]]--
 local datasource
 if opt.dataset == 'FacialKeypoints' then
-   datasource = dp.FacialKeypoints{input_preprocess = input_preprocess}
+   datasource = dp.FacialKeypoints{
+      input_preprocess = input_preprocess, valid_ratio = opt.validRatio}
 else
     error("Unknown Dataset")
 end
@@ -86,6 +88,7 @@ for i=1,#opt.channelSize do
    outputSize[1] = conv:nOutputFrame(outputSize[1], 1)
    outputSize[2] = conv:nOutputFrame(outputSize[2], 2)
 end
+print("input to first Neural layer has:", inputSize*outputSize[1]*outputSize[2], "neurons")
 
 cnn:add(
    dp.Neural{

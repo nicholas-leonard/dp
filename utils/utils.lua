@@ -145,3 +145,9 @@ function list_iter (t)
           end
 end
 
+function math.round(a)
+   if (a - math.floor(a)) >= 0.5 then
+      return math.ceil(a)
+   end
+   return math.floor(a)
+end 

@@ -142,7 +142,7 @@ end
 
 -- do not use this to change the type of parameters.
 function Layer:parameters()
-   return self._module:parameters()
+   return self._module:parameters() or {},{}
 end
 
 -- Only affects 2D parameters.

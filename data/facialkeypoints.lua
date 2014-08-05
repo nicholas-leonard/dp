@@ -130,7 +130,7 @@ function FacialKeypoints:createTrainSet(data, which_set)
 end
 
 function FacialKeypoints:makeTargets(y)
-   -- y : (batch_size, num_keypoints)
+   -- y : (batch_size, num_keypoints*2)
    -- Y : (batch_size, num_keypoints*2, 98)
    Y = torch.FloatTensor(y:size(1), y:size(2), 98):zero()
    local pixels = self._pixels

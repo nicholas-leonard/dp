@@ -82,7 +82,7 @@ function FKDKaggle:_add(batch, output, carry, report)
          imageId = tonumber(row[2])
          local keypointName = row[3]
          self._submission[self._i] = {
-            row[1],keypoint[self._submission_map[keypointName]]
+            row[1], keypoint[self._submission_map[keypointName]]
          }
          self._i = self._i + 1
       end

@@ -35,9 +35,6 @@ function Batch:setup(config)
        'update progress bar. Shouldn\'t be larger than epoch_size.'}, 
       {arg='batch_size', type='number',
        help='Maximum number of examples in batch.'},
-      {arg='n_sample', type='number',
-       help='Actual number of examples in batch. Shouldn\'t be '..
-       'larger than batch_size.'},
       {arg='grad_type', type='string',
        help='Type of output gradient : cuda | float | double'},
       {arg='indices', type='torch.Tensor', 
@@ -50,10 +47,6 @@ end
 
 function Batch:batchSize()
    return self._batch_size
-end
-
-function Batch:nSample()
-   return self._n_sample
 end
 
 function Batch:epochSize()

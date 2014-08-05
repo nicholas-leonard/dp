@@ -142,7 +142,11 @@ end
 
 -- do not use this to change the type of parameters.
 function Layer:parameters()
-   return self._module:parameters() or {},{}
+   local param, gradParam = self._module:parameters()
+   if param == nil then
+      return {},{}
+   end
+   return param, gradParam
 end
 
 -- Only affects 2D parameters.

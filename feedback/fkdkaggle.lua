@@ -53,7 +53,6 @@ function FKDKaggle:__init(config)
    self._pixels = torch.range(0,97):float():view(1,1,98)
    self._output = torch.FloatTensor()
    self._keypoints = torch.FloatTensor()
-   self._keypoint = torch.FloatTensor()
    self._i = 2
    self._path = paths.concat(self._save_dir, self._file_name)
 end

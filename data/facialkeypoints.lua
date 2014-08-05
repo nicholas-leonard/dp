@@ -180,3 +180,11 @@ function FacialKeypoints:loadSubmission(path)
    return csv
 end
 
+function FacialKeypoints:loadBaseline(path)
+   path = path or DataSource.getDataPath{
+      name=self._name, url=self._download_url, 
+      decompress_file='baseline.th7', 
+      data_dir=self._data_path
+   }
+   return torch.load(path)
+end

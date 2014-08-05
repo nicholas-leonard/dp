@@ -34,6 +34,7 @@ cmd:option('--submissionFile', '', 'Kaggle submission will be saved to a file wi
 cmd:option('--progress', false, 'print progress bar')
 cmd:option('--normalInit', false, 'initialize inputs using a normal distribution (as opposed to sparse initialization)')
 cmd:option('--validRatio', 1/10, 'proportion of dataset used for cross-validation')
+cmd:option('--neuralSize', -1, 'Size of first neural layer. A positive value results in the use of an non-convolution neural network.')
 cmd:text()
 opt = cmd:parse(arg or {})
 print(opt)
@@ -138,6 +139,7 @@ table.insert(visitor, dp.MaxNorm{
    max_out_norm = opt.maxOutNorm, period = opt.maxNormPeriod
 })
 
+local baseline = datasource:loadBaseline()
 local logModule = nn.Sequential()
 logModule:add(nn.AddConstant(0.00000001)) -- fixes log(0)=NaN errors
 logModule:add(nn.Log())
@@ -147,11 +149,13 @@ train = dp.Optimizer{
    loss = dp.KLDivergence{input_module=logModule:clone()},
    visitor = visitor,
    sampler = dp.ShuffleSampler{batch_size = opt.batchSize},
-   progress = opt.progress
+   progress = opt.progress,
+   feedback = dp.FacialKeypointFeedback{baseline=baseline, precision=98}
 }
 valid = dp.Evaluator{
    loss = dp.KLDivergence{input_module=logModule:clone()},
-   sampler = dp.Sampler{batch_size = opt.batchSize}
+   sampler = dp.Sampler{batch_size = opt.batchSize},
+   feedback = dp.FacialKeypointFeedback{baseline=baseline, precision=98}
 }
 test = dp.Evaluator{
    loss = dp.Null(), -- because we don't have targets for the test set

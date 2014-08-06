@@ -288,9 +288,145 @@ FacialKeypoints Feedbacks, which are initialized with the output of
 `loadSubmission` and `loadBaseline`.
 
 ### FKDKaggle ###
-The FKDKaggle is a Feedback class used to prepare Kaggle submission and 
+Feedbacks are a little tricky to get the hand off,
+but are very useful for extending an experiment with task-tailored 
+I/O functionality. 
+The [FKDKaggle](../feedback/fkdkaggle.lua) is a Feedback class 
+used to prepare Kaggle submissions and 
 persist them to disk in CSV-format each time a new minima is found on 
-the validation set.  
+the validation set. 
+```lua
+local FKDKaggle, parent = torch.class("dp.FKDKaggle", "dp.Feedback")
+FKDKaggle.isFKDKaggle = true
+```
+Kaggle requires a CSV submission with two columns: 
+RowId, Location. Each such RowId is associated to an 
+ImageId and FeatureName in the `submissionFileFormat.csv` file. Furthermore, 
+some of the images in the test set only need to predict a subset of all 
+keypoints (identified by FeatureName). So we map each FeatureName string
+to an index of the output space:
+```lua
+FKDKaggle._submission_map = {
+   ['left_eye_center_x'] = 1, ['left_eye_center_y'] = 2,
+   ['right_eye_center_x'] = 3, ['right_eye_center_y'] = 4,
+   ['left_eye_inner_corner_x'] = 5, ['left_eye_inner_corner_y'] = 6,
+   ['left_eye_outer_corner_x'] = 7, ['left_eye_outer_corner_y'] = 8,
+   ['right_eye_inner_corner_x'] = 9, ['right_eye_inner_corner_y'] = 10,
+   ['right_eye_outer_corner_x'] = 11, ['right_eye_outer_corner_y'] = 12,
+   ['left_eyebrow_inner_end_x'] = 13, ['left_eyebrow_inner_end_y'] = 14,
+   ['left_eyebrow_outer_end_x'] = 15, ['left_eyebrow_outer_end_y'] = 16,
+   ['right_eyebrow_inner_end_x'] = 17, ['right_eyebrow_inner_end_y'] = 18,
+   ['right_eyebrow_outer_end_x'] = 19, ['right_eyebrow_outer_end_y'] = 20,
+   ['nose_tip_x'] = 21, ['nose_tip_y'] = 22,
+   ['mouth_left_corner_x'] = 23, ['mouth_left_corner_y'] = 24,
+   ['mouth_right_corner_x'] = 25, ['mouth_right_corner_y'] = 26,
+   ['mouth_center_top_lip_x'] = 27, ['mouth_center_top_lip_y'] = 28,
+   ['mouth_center_bottom_lip_x'] = 29, ['mouth_center_bottom_lip_y'] = 30
+}
+```
+The constructor is pretty straightforward. It requires a sample `submission` 
+table (see `FacialKeypoints:loadSubmission` above), and a `file_name` 
+of the submissions that will be prepared for Kaggle. We also 
+prepare some Tensors required for translating outputs to keypoint 
+coordinate values. Notice that the `csvigo` package is imported inside 
+the constructor, which doesn't make it a dependency of the entire __dp__ 
+package:
+```lua
+function FKDKaggle:__init(config)
+   config = config or {}
+   assert(torch.type(config) == 'table' and not config[1], 
+      "Constructor requires key-value arguments")
+   local args, submission, file_name, save_dir, name = xlua.unpack(
+      {config},
+      'FKDKaggle', 
+      'Used to prepare a Kaggle Submission for the '..
+      'Facial Keypoints Detection challenge',
+      {arg='submission', type='table', req=true, 
+       help='sample submission table'},
+      {arg='file_name', type='string', req=true,
+       help='name of file to save submission to'},
+      {arg='save_dir', type='string', default=dp.SAVE_DIR,
+       help='defaults to dp.SAVE_DIR'},
+      {arg='name', type='string', default='FKDKaggle',
+       help='name identifying Feedback in reports'}
+   )
+   require 'csvigo'
+   config.name = name
+   self._save_dir = save_dir
+   self._template = submission
+   self._submission = {{submission[1][1],submission[1][4]}}
+   self._file_name = file_name
+   parent.__init(self, config)
+   self._pixels = torch.range(0,97):float():view(1,1,98)
+   self._output = torch.FloatTensor()
+   self._keypoints = torch.FloatTensor()
+   self._i = 2
+   self._path = paths.concat(self._save_dir, self._file_name)
+end
+```
+The next Feedback method is called by the `Propagator` after every forward 
+propagation of the Batch. Here we use it to translate the output (a 
+SequenceView) to scalar coordinate values. This is done by taking the 
+expectation of each coordinate. We use `torch.range` (see previous snipped)
+over the coordinate space (the width and height of the image) : `0,1,2,...,97`.
+The expected coordinate is taken by summing the element-wise multiplication of 
+this range by each keypoint prediction. Remember that each keypoint prediction 
+will be passed through a softmax to obtain multinomial probabilities. 
+This method also prepares a table of submissions in a format 
+that package `csvigo` understands. 
+```lua
+function FKDKaggle:_add(batch, output, carry, report)
+   local target = batch:targets():forward('b')
+   local act = output:forward('bwc', 'torch.FloatTensor')
+   local pixels = self._pixels:expandAs(act)
+   self._output:cmul(act, pixels)
+   self._keypoints:sum(self._output, 3)
+   for i=1,act:size(1) do
+      local keypoint = self._keypoints[i]:select(2,1)
+      local row = self._template[self._i]
+      local imageId = tonumber(row[2])
+      assert(imageId == target[i])
+      while (imageId == target[i]) do
+         row = self._template[self._i]
+         if not row then
+            break
+         end
+         imageId = tonumber(row[2])
+         local keypointName = row[3]
+         self._submission[self._i] = {
+            row[1], keypoint[self._submission_map[keypointName]]
+         }
+         self._i = self._i + 1
+      end
+   end
+end
+
+function FKDKaggle:_reset()
+   self._i = 2
+end
+```
+
+When all test set batches and outputs (predictions) have been passed 
+to the Feedback, the `submission` contains all the information 
+necessary for generating the CSV file. However, this file is only 
+prepared when a new minima is discovered by the EarlyStopper. Almost 
+all objects part of an Experiment can communicate via the Mediator 
+[Singleton](https://en.wikipedia.org/wiki/Singleton_pattern). Listeners 
+need only subscribe to a channel and register a callback. In this case, both 
+have the same name: `foundMinima`. The EarlySopper notifies the `foundMinima` 
+channel (via the Mediator) every time a new minima is found and this gets 
+results in all registered callbacks being activated. In our case, this 
+means the CSV file is created: 
+```lua
+function FKDKaggle:setup(config)
+   parent.setup(self, config)
+   self._mediator:subscribe("foundMinima", self, "foundMinima")
+end
+
+function FKDKaggle:foundMinima()
+   csvigo.save{path=self._path,data=self._submission,mode='raw'}
+end
+```
 
 ### facialkeypointsdetector.lua ###
 launch script with cmd-line options for specifying Model assembly and Experiment hyper-parameters

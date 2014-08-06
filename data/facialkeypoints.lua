@@ -3,6 +3,7 @@
 -- The task consists in predicting 15 (x,y) coordinate keypoints
 -- from black-and-white 96x96 images. Courtesy of Yoshua Bengio's 
 -- LISA Lab at Universite de Montreal.
+-- The train/valid set have been pre-shuffled in train.th7
 -- The test set can only be evaluated on kaggle.
 -- https://www.kaggle.com/c/facial-keypoints-detection/data
 ------------------------------------------------------------------------
@@ -135,19 +136,22 @@ function FacialKeypoints:makeTargets(y)
    Y = torch.FloatTensor(y:size(1), y:size(2), 98):zero()
    local pixels = self._pixels
    local stdv = self._stdv
+   local k = 0
    for i=1,y:size(1) do
-      keypoints = y[i]
-      new_keypoints = Y[i]
+      local keypoints = y[i]
+      local new_keypoints = Y[i]
       for j=1,y:size(2) do
+         local kp = keypoints[j]
          if kp ~= -1 then
-            local kp = keypoints[j]
-            new_kp = new_keypoints[j]
+            local new_kp = new_keypoints[j]
             new_kp:add(pixels, -kp)
             new_kp:cmul(new_kp)
             new_kp:div(2*stdv*stdv)
             new_kp:mul(-1)
             new_kp:exp(new_kp)
             new_kp:div(math.sqrt(2*math.pi)*stdv)
+         else
+            k = k + 1
          end
       end
    end

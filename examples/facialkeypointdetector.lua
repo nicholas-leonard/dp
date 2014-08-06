@@ -35,7 +35,7 @@ cmd:option('--progress', false, 'print progress bar')
 cmd:option('--normalInit', false, 'initialize inputs using a normal distribution (as opposed to sparse initialization)')
 cmd:option('--validRatio', 1/10, 'proportion of dataset used for cross-validation')
 cmd:option('--neuralSize', 1000, 'Size of first neural layer in 3 Neural Layer MLP.')
-cmd:option('--mlp', true, 'use multi-layer perceptron, as opposed to convolution neural network')
+cmd:option('--mlp', false, 'use multi-layer perceptron, as opposed to convolution neural network')
 cmd:text()
 opt = cmd:parse(arg or {})
 print(opt)
@@ -62,7 +62,8 @@ end
 local datasource
 if opt.dataset == 'FacialKeypoints' then
    datasource = dp.FacialKeypoints{
-      input_preprocess = input_preprocess, valid_ratio = opt.validRatio}
+      input_preprocess = input_preprocess, valid_ratio = opt.validRatio
+   }
 else
     error("Unknown Dataset")
 end
@@ -94,7 +95,7 @@ if not opt.mlp then
       outputSize[2] = conv:nOutputFrame(outputSize[2], 2)
    end
    inputSize = inputSize*outputSize[1]*outputSize[2]
-   print("input to first Neural layer has:", inputSize, "neurons")
+   print("input to first Neural layer has: "..inputSize.." neurons")
 else
    inputSize = datasource:featureSize()
    if opt.neuralSize > 0 then
@@ -138,6 +139,8 @@ cnn:add(
       output_view = 'bwc' -- because of the multisoftmax
    }
 )
+
+print(cnn)
 
 --[[GPU or CPU]]--
 if opt.cuda then

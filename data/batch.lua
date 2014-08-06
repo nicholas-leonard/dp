@@ -64,7 +64,7 @@ end
 -- generate a carry table to be passed along through forward/backward
 function Batch:carry()
    return {
-      nSample=self._n_sample, 
+      nSample=self:nSample(), 
       epochSize=self._epoch_size,
       batchIter=self._batch_iter, 
       targets=self:targets() -- this is necessary for SoftmaxTree

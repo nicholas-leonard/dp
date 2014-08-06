@@ -26,23 +26,36 @@ function FacialKeypointFeedback:__init(config)
    config.name = name
    if baseline then
       assert(baseline:dim() == 1, "expecting 1D constant-value baseline")
-      self._baseline = baseline:view(1,1,baseline:size(1))
-      self._baselineSum = torch.Tensor(precision):zero()
+      self._baseline = baseline
+      self._baselineSum = torch.Tensor():zero()
    end
    self._precision = precision
    parent.__init(self, config)
-   self._pixels = torch.range(0,precision):float():view(1,1,precision)
+   self._pixels = torch.range(0,precision-1):float():view(1,1,precision)
    self._output = torch.FloatTensor()
    self._keypoints = torch.FloatTensor()
    self._targets = torch.FloatTensor()
-   self._sum = torch.Tensor(precision):zero()
-   self._count = torch.Tensor(precision):zero()
+   self._sum = torch.Tensor():zero()
+   self._count = torch.Tensor():zero()
    self._mse = torch.Tensor()
+end
+
+function FacialKeypointFeedback:setup(config)
+   parent.setup(self, config)
+   self._mediator:subscribe("doneEpoch", self, "doneEpoch")
 end
 
 function FacialKeypointFeedback:_add(batch, output, carry, report)
    local target = batch:targets():forward('bwc')
    local act = output:forward('bwc', 'torch.FloatTensor')
+   if not self._isSetup then
+      self._sum:resize(act:size(2)):zero()
+      self._count:resize(act:size(2)):zero()
+      if self._baseline then
+         self._baselineSum:resize(act:size(2)):zero()
+      end
+      self._isSetup = true
+   end
    local pixels = self._pixels:expandAs(act)
    self._output:cmul(act, pixels)
    self._keypoints:sum(self._output, 3)

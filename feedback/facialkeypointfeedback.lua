@@ -20,7 +20,7 @@ function FacialKeypointFeedback:__init(config)
        help='precision (an integer) of the keypoint coordinates'},
       {arg='baseline', type='torch.Tensor', default=false,
        help='Constant baseline used for comparison'},
-      {arg='name', type='string', default='FacialKeypointFeedback',
+      {arg='name', type='string', default='facialkeypoint',
        help='name identifying Feedback in reports'}
    )
    config.name = name

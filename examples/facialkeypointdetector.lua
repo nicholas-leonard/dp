@@ -198,7 +198,10 @@ xp = dp.Experiment{
    tester = test,
    observer = {
       dp.FileLogger(),
-      dp.EarlyStopper{max_epochs = opt.maxTries}
+      dp.EarlyStopper{
+         error_report = {'validator','feedback','facialkeypoint','mse'},
+         max_epochs = opt.maxTries
+      }
    },
    random_seed = os.time(),
    max_epoch = opt.maxEpoch

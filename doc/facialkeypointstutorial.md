@@ -54,10 +54,10 @@ preparing Kaggle submissions when new minima on the valid set are found
 From the above analysis, we can begin to draw a roadmap of components to 
 build :
  1. [FacialKeypoints](#facialkeypoints) : wrapper for the DataSource;
- 2. FKDKaggle : a Feedback for creating a Kaggle submission out of predictions;
- 3. FacialKeypoints : a Feedback for monitoring performance (and comparing to baseline);
- 4. nn.MultiSoftMax : a nn.Module that will allow us to apply a softmax for each keypoint.
- 5. facialkeypointsdetector.lua : main launch script; 
+ 2. [FKDKaggle](#fkdkaggle) : a Feedback for creating a Kaggle submission out of predictions;
+ 3. [FacialKeypointFeedback](#facialkeypointfeedback) : a Feedback for monitoring performance (and comparing to baseline);
+ 4. [MultiSoftMax](#multisoftmax) : a nn.Module that will allow us to apply a softmax for each keypoint.
+ 5. [facialkeypointsdetector.lua](#facialkeypointsdetector.lua) : main launch script; 
 
 ### FacialKeypoints ###
 The first task of any machine learning endeavor is to prepare the 
@@ -427,6 +427,149 @@ function FKDKaggle:foundMinima()
    csvigo.save{path=self._path,data=self._submission,mode='raw'}
 end
 ```
+
+### FacialKeypointFeedback ###
+Unlike the previous Feedback which is used for preparing submissions 
+base on the model predictions given the test set, this one is used for 
+the train and valid set. Its can take an optional baseline Tensor, 
+which contains the mean of the 30 keypoints over the train and valid set. 
+We built a [simple script](../examples/fkdbaseline.lua) to prepare this 
+baseline and generate `baseline.th7`, which can be obtained via the 
+[FacialKeypoints](#FacialKeypoints) DataSource. 
+
+The [FacialKeypointFeedback](../feedback/facialkeypointfeedback.lua) 
+is initialized with the `baseline` (optional) and the precision (size) 
+of the keypoint vectors (in our case, 98). Notice again how we 
+initialize a Tensor for each intermediate operation we require. This 
+allows us to reuse the same Tensor as opposed to reallocating memory 
+for each batch: 
+```lua
+local FacialKeypointFeedback, parent = torch.class("dp.FacialKeypointFeedback", "dp.Feedback")
+FacialKeypointFeedback.isFacialKeypointFeedback = true
+
+function FacialKeypointFeedback:__init(config)
+   config = config or {}
+   assert(torch.type(config) == 'table' and not config[1], 
+      "Constructor requires key-value arguments")
+   local args, precision, baseline, name = xlua.unpack(
+      {config},
+      'FacialKeypointFeedback', 
+      'Uses mean square error to measure error w.r.t targets.'..
+      'Optionaly compares this to constant (mean) value baseline',
+      {arg='precision', type='number', req=true,
+       help='precision (an integer) of the keypoint coordinates'},
+      {arg='baseline', type='torch.Tensor', default=false,
+       help='Constant baseline used for comparison'},
+      {arg='name', type='string', default='facialkeypoint',
+       help='name identifying Feedback in reports'}
+   )
+   config.name = name
+   if baseline then
+      assert(baseline:dim() == 1, "expecting 1D constant-value baseline")
+      self._baseline = baseline
+      self._baselineSum = torch.Tensor():zero()
+   end
+   self._precision = precision
+   parent.__init(self, config)
+   self._pixels = torch.range(0,precision-1):float():view(1,1,precision)
+   self._output = torch.FloatTensor()
+   self._keypoints = torch.FloatTensor()
+   self._targets = torch.FloatTensor()
+   self._sum = torch.Tensor():zero()
+   self._count = torch.Tensor():zero()
+   self._mse = torch.Tensor()
+end
+```
+The `_add` method is very similar to the above in how scalar 
+coordinates are obtained from the `output`. The mean square error (MSE)
+of both the baseline and the predictions w.r.t. targets is accumulated
+using `self._sum` (or `self._baselineSum`) and `self._count`:
+```lua
+function FacialKeypointFeedback:_add(batch, output, carry, report)
+   local target = batch:targets():forward('bwc')
+   local act = output:forward('bwc', 'torch.FloatTensor')
+   if not self._isSetup then
+      self._sum:resize(act:size(2)):zero()
+      self._count:resize(act:size(2)):zero()
+      if self._baseline then
+         self._baselineSum:resize(act:size(2)):zero()
+      end
+      self._isSetup = true
+   end
+   local pixels = self._pixels:expandAs(act)
+   self._output:cmul(act, pixels)
+   self._keypoints:sum(self._output, 3)
+   self._output:cmul(target, pixels)
+   self._targets:sum(self._output, 3)
+   for i=1,self._keypoints:size(1) do
+      local keypoint = self._keypoints[i]:select(2,1)
+      local target = self._targets[i]:select(2,1)
+      for j=1,self._keypoints:size(2) do
+         local t = target[j]
+         if t > 0.00001 then
+            local err = keypoint[j] - t
+            self._sum[j] = self._sum[j] + (err*err) --sum square error
+            self._count[j] = self._count[j] + 1
+            if (not self._baselineMse) and self._baseline then
+               local err = self._baseline[j] - t
+               self._baselineSum[j] = self._baselineSum[j] + (err*err)
+            end
+         end
+      end
+   end
+end
+```
+After each pass over train, valid and test sets (or epoch), a `doneEpoch` 
+notificaiton is sent to Subscribers, including this Feedback:
+```lua
+function FacialKeypointFeedback:setup(config)
+   parent.setup(self, config)
+   self._mediator:subscribe("doneEpoch", self, "doneEpoch")
+end
+```
+The `doneEpoch` method is the registered callback. It prints a message 
+comparing the MSE of the model predictions to that of the baseline:
+```lua
+function FacialKeypointFeedback:doneEpoch(report)
+   if self._n_sample > 0 then
+      local msg = self._id:toString().." MSE = "..self:meanSquareError()
+      if self._baselineMse then
+         msg = msg.." vs "..self._baselineMse
+      end
+      print(msg)
+   end
+end
+
+function FacialKeypointFeedback:meanSquareError()
+   if (not self._baselineMse) and self._baseline then
+      self._baselineMse = torch.cdiv(self._baselineSum, self._count):mean()
+   end
+   return self._mse:cdiv(self._sum, self._count):mean()
+end
+```
+Every epoch, the MSE statistics are also reset:
+```lua
+function FacialKeypointFeedback:_reset()
+   self._sum:zero()
+   self._count:zero()
+end
+```
+Finally, a report is prepared every epoch. It includes field `mse`, which
+contains the MSE of predictions. This will be useful later when we 
+will need to early-stop on minima found on the validation set:
+```
+function FacialKeypointFeedback:report()
+   return { 
+      [self:name()] = {
+         mse = self._n_sample > 0 and self:meanSquareError() or 0
+      },
+      n_sample = self._n_sample
+   }
+end
+```
+
+### MultiSoftMax ###
+
 
 ### facialkeypointsdetector.lua ###
 launch script with cmd-line options for specifying Model assembly and Experiment hyper-parameters

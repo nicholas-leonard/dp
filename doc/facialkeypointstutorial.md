@@ -53,11 +53,11 @@ preparing Kaggle submissions when new minima on the valid set are found
 ## Building Components ##
 From the above analysis, we can begin to draw a roadmap of components to 
 build :
- 1. FacialKeypoints : wrapper for the DataSource;
- 2. facialkeypointsdetector.lua : launch script with cmd-line options for specifying Model assembly and Experiment hyper-parameters; 
- 3. FKDKaggle : a Feedback for creating a Kaggle submission out of predictions;
- 4. FacialKeypoints : a Feedback for monitoring performance (and comparing to baseline);
- 5. nn.MultiSoftMax : a nn.Module that will allow us to apply a softmax for each keypoint.
+ 1. [FacialKeypoints](#facialkeypoints) : wrapper for the DataSource;
+ 2. FKDKaggle : a Feedback for creating a Kaggle submission out of predictions;
+ 3. FacialKeypoints : a Feedback for monitoring performance (and comparing to baseline);
+ 4. nn.MultiSoftMax : a nn.Module that will allow us to apply a softmax for each keypoint.
+ 5. facialkeypointsdetector.lua : main launch script; 
 
 ### FacialKeypoints ###
 The first task of any machine learning endeavor is to prepare the 
@@ -157,7 +157,12 @@ function FacialKeypoints:__init(config)
    })
 end
 ```
-
+All three methods `load[Train,Valid,Test]()` are used to 
+respectively load the train, valid and test DataSets. The train and valid 
+sets are treated differently than the test set as the former are shuffled
+by default and the latter doesn't have any targets per se, as these 
+are hidden on Kaggle for the purpose of allowing objective scoring.
+All methods are similar, but we will focus on `loadTrain`:
 ```lua
 function FacialKeypoints:loadTrain()
    --Data will contain a tensor where each row is an example, and where
@@ -169,38 +174,28 @@ function FacialKeypoints:loadTrain()
    self:setTrainSet(self:createTrainSet(train_data, 'train'))
    return self:trainSet()
 end
-
-function FacialKeypoints:loadValid()
-   local data = self:loadData(self._train_file, self._download_url)
-   if self._valid_ratio == 0 then
-      print"Warning : No Valid Set due to valid_ratio == 0"
-      return
-   end
-   local start = math.ceil(data:size(1)*(1-self._valid_ratio))
-   local size = data:size(1)-start
-   local valid_data = data:narrow(1, start, size)
-   self:setValidSet(self:createTrainSet(valid_data, 'valid'))
-   return self:validSet()
+```
+All three methods use the `loadData` method internally, which requires 
+a `file_name` and `download_url`. They use the `DataSource.getDataPath` 
+function to `torch.load` serialized data, as do most of the DataSource 
+subclasses. If the file `data_dir/name/FacialKeypoints.zip` cannot be located, 
+it is dowloaded from `download_url` and decompressed.:
+```lua
+function FacialKeypoints:loadData(file_name, download_url)
+   local path = DataSource.getDataPath{
+      name=self._name, url=download_url, 
+      decompress_file=file_name, 
+      data_dir=self._data_path
+   }
+   return torch.load(path)
 end
-
-function FacialKeypoints:loadTest()
-   local data = self:loadData(self._test_file, self._download_url)
-   
-   local inputs = data:narrow(2, 2, 96*96):clone():view(data:size(1),1,96,96)
-   local targets = data:select(2, 1):int()
-   self._image_ids = data:select(2, 1):clone()
-   if self._scale then
-      DataSource.rescale(inputs, self._scale[1], self._scale[2])
-   end
-   
-   local input_v, target_v = dp.ImageView(), dp.ClassView()
-   input_v:forward(self._image_axes, inputs)
-   target_v:forward('b', targets)
-   self:setTestSet(dp.DataSet{inputs=input_v,targets=target_v,which_set=which_set})
-   return self:testSet()
-end
-
---Creates an Mnist Dataset out of data and which_set
+```
+The `loadTrain` and `loadValid` methods then narrow the returned 
+data using the constructor-specified `valid_ratio`. They then pass their 
+chunk of data to the `createTrainSet` method which wraps the inputs 
+in an `ImageView` and the targets in a `SequenceView`. Both of these 
+are then wrapped in a `DataSet`:
+```lua
 function FacialKeypoints:createTrainSet(data, which_set)
    if self._shuffle then
       data = data:index(1, torch.randperm(data:size(1)):long())
@@ -219,7 +214,13 @@ function FacialKeypoints:createTrainSet(data, which_set)
    -- construct dataset
    return dp.DataSet{inputs=input_v,targets=target_v,which_set=which_set}
 end
-
+```
+It uses a `makeTargets` method to transform a scalar keypoint 
+coordinate (for one axis) into a vector of size 98 with a gaussian 
+blur centered around the original scalar value. So a Tensor of size 
+`(batchSize, nKeypoints*2)` is transformed into another of size 
+`(bathcSize, nKeypoints*2, 98)`: 
+```lua
 function FacialKeypoints:makeTargets(y)
    -- y : (batch_size, num_keypoints*2)
    -- Y : (batch_size, num_keypoints*2, 98)
@@ -247,16 +248,12 @@ function FacialKeypoints:makeTargets(y)
    end
    return Y
 end
-
-function FacialKeypoints:loadData(file_name, download_url)
-   local path = DataSource.getDataPath{
-      name=self._name, url=download_url, 
-      decompress_file=file_name, 
-      data_dir=self._data_path
-   }
-   return torch.load(path)
-end
-
+```
+Finally, we include a method for loading the `submissionFileFormat.csv` 
+which is used to prepare kaggle submissions, and another for loading 
+a constant value `baseline.th7`, which contains the mean keypoints from 
+the training set:
+```lua
 function FacialKeypoints:loadSubmission(path)
    path = path or DataSource.getDataPath{
       name=self._name, url=self._download_url, 
@@ -283,3 +280,17 @@ function FacialKeypoints:loadBaseline(path)
    return torch.load(path)
 end
 ``` 
+
+It is good practice to make all data accessible from such DataSource
+classes. Even if some of the data is required to initialize 
+other objects. This is the case for example of the FKDKaggle and 
+FacialKeypoints Feedbacks, which are initialized with the output of 
+`loadSubmission` and `loadBaseline`.
+
+### FKDKaggle ###
+The FKDKaggle is a Feedback class used to prepare Kaggle submission and 
+persist them to disk in CSV-format each time a new minima is found on 
+the validation set.  
+
+### facialkeypointsdetector.lua ###
+launch script with cmd-line options for specifying Model assembly and Experiment hyper-parameters

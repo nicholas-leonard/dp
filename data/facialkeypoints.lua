@@ -110,7 +110,6 @@ function FacialKeypoints:loadTest()
    return self:testSet()
 end
 
---Creates an Mnist Dataset out of data and which_set
 function FacialKeypoints:createTrainSet(data, which_set)
    if self._shuffle then
       data = data:index(1, torch.randperm(data:size(1)):long())

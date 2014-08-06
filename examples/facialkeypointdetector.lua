@@ -34,7 +34,8 @@ cmd:option('--submissionFile', '', 'Kaggle submission will be saved to a file wi
 cmd:option('--progress', false, 'print progress bar')
 cmd:option('--normalInit', false, 'initialize inputs using a normal distribution (as opposed to sparse initialization)')
 cmd:option('--validRatio', 1/10, 'proportion of dataset used for cross-validation')
-cmd:option('--neuralSize', -1, 'Size of first neural layer. A positive value results in the use of an non-convolution neural network.')
+cmd:option('--neuralSize', 1000, 'Size of first neural layer in 3 Neural Layer MLP.')
+cmd:option('--mlp', true, 'use multi-layer perceptron, as opposed to convolution neural network')
 cmd:text()
 opt = cmd:parse(arg or {})
 print(opt)
@@ -69,31 +70,51 @@ end
 --[[Model]]--
 
 cnn = dp.Sequential()
-inputSize = datasource:imageSize('c')
-outputSize = {datasource:imageSize('h'), datasource:imageSize('w')}
-for i=1,#opt.channelSize do
-   local conv = dp.Convolution2D{
-      input_size = inputSize, 
-      kernel_size = {opt.kernelSize[i], opt.kernelSize[i]},
-      kernel_stride = {opt.kernelStride[i], opt.kernelStride[i]},
-      pool_size = {opt.poolSize[i], opt.poolSize[i]},
-      pool_stride = {opt.poolStride[i], opt.poolStride[i]},
-      output_size = opt.channelSize[i], 
-      transfer = nn[opt.activation](),
-      dropout = opt.dropout and nn.Dropout(opt.dropoutProb[i]),
-      acc_update = opt.accUpdate,
-      sparse_init = not opt.normalInit
-   }
-   cnn:add(conv)
-   inputSize = opt.channelSize[i]
-   outputSize[1] = conv:nOutputFrame(outputSize[1], 1)
-   outputSize[2] = conv:nOutputFrame(outputSize[2], 2)
+
+local inputSize
+if not opt.mlp then
+   inputSize = datasource:imageSize('c')
+   outputSize = {datasource:imageSize('h'), datasource:imageSize('w')}
+   for i=1,#opt.channelSize do
+      local conv = dp.Convolution2D{
+         input_size = inputSize, 
+         kernel_size = {opt.kernelSize[i], opt.kernelSize[i]},
+         kernel_stride = {opt.kernelStride[i], opt.kernelStride[i]},
+         pool_size = {opt.poolSize[i], opt.poolSize[i]},
+         pool_stride = {opt.poolStride[i], opt.poolStride[i]},
+         output_size = opt.channelSize[i], 
+         transfer = nn[opt.activation](),
+         dropout = opt.dropout and nn.Dropout(opt.dropoutProb[i]),
+         acc_update = opt.accUpdate,
+         sparse_init = not opt.normalInit
+      }
+      cnn:add(conv)
+      inputSize = opt.channelSize[i]
+      outputSize[1] = conv:nOutputFrame(outputSize[1], 1)
+      outputSize[2] = conv:nOutputFrame(outputSize[2], 2)
+   end
+   inputSize = inputSize*outputSize[1]*outputSize[2]
+   print("input to first Neural layer has:", inputSize, "neurons")
+else
+   inputSize = datasource:featureSize()
+   if opt.neuralSize > 0 then
+      cnn:add(
+         dp.Neural{
+            input_size = inputSize, 
+            output_size = opt.neuralSize,
+            transfer = nn[opt.activation](),
+            dropout = opt.dropout and nn.Dropout(opt.dropoutProb[#opt.channelSize]),
+            acc_update = opt.accUpdate,
+            sparse_init = not opt.normalInit
+         }
+      )
+      inputSize = opt.neuralSize
+   end
 end
-print("input to first Neural layer has:", inputSize*outputSize[1]*outputSize[2], "neurons")
 
 cnn:add(
    dp.Neural{
-      input_size = inputSize*outputSize[1]*outputSize[2], 
+      input_size = inputSize, 
       output_size = opt.hiddenSize,
       transfer = nn[opt.activation](),
       dropout = opt.dropout and nn.Dropout(opt.dropoutProb[#opt.channelSize]),

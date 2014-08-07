@@ -16,7 +16,7 @@ require 'lfs'
 ------------------------------------------------------------------------
 
 dp = {}
-dp.TORCH_DIR = os.getenv('TORCH_DATA_PATH')
+dp.TORCH_DIR = os.getenv('TORCH_DATA_PATH') or os.getenv('HOME')
 
 dp.DATA_DIR = os.getenv('DEEP_DATA_PATH') 
    or paths.concat(dp.TORCH_DIR, 'data')

@@ -96,5 +96,6 @@ function Convolution2D:nOutputFrame(nInputFrame, idx)
    assert(torch.type(nInputFrame) == 'number', "Expecting number")
    assert(torch.type(idx) == 'number', "Expecting number")
    local nFrame = (nInputFrame - self._kernel_size[idx]) / self._kernel_stride[idx] + 1
-   return (nFrame - self._pool_size[idx]) / self._pool_stride[idx] + 1
+   nFrame = (nFrame - self._pool_size[idx]) / self._pool_stride[idx] + 1
+   return math.floor(nFrame)
 end

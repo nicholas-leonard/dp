@@ -15,7 +15,8 @@ function Perplexity:__init(config)
       {config},
       'Perplexity', 
       'Computes perplexity for language models',
-      {arg='name', type='string', default='perplexity'}
+      {arg='name', type='string', default='perplexity', 
+       help='name identifying Feedback in reports'}
    )
    config.name = name
    parent.__init(self, config)

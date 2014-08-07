@@ -63,6 +63,7 @@ torch.include('dp', 'data/sampler.lua')
 torch.include('dp', 'data/cifar10.lua')
 torch.include('dp', 'data/cifar100.lua')
 torch.include('dp', 'data/notmnist.lua')
+torch.include('dp', 'data/facialkeypoints.lua')
 torch.include('dp', 'data/billionwords.lua')
 
 --[[ preprocess ]]--
@@ -86,6 +87,8 @@ torch.include('dp', 'feedback/feedback.lua')
 torch.include('dp', 'feedback/compositefeedback.lua')
 torch.include('dp', 'feedback/confusion.lua')
 torch.include('dp', 'feedback/perplexity.lua')
+torch.include('dp', 'feedback/fkdkaggle.lua')
+torch.include('dp', 'feedback/facialkeypointfeedback.lua')
 --torch.include('dp', 'feedback/criteria.lua')
 
 --[[ visitor ]]--
@@ -107,6 +110,7 @@ torch.include('dp', 'observer/filelogger.lua')
 
 --[[ nn ]]--
 torch.include('dp', 'nn/Print.lua')
+torch.include('dp', 'nn/PrintSize.lua')
 torch.include('dp', 'nn/FairLookupTable.lua')
 
 --[[ model ]]--
@@ -127,7 +131,9 @@ torch.include('dp', 'model/convolution2D.lua')
 --[[ loss ]]--
 torch.include('dp', 'loss/loss.lua')
 torch.include('dp', 'loss/nll.lua')
+torch.include('dp', 'loss/kldivergence.lua')
 torch.include('dp', 'loss/treenll.lua')
+torch.include('dp', 'loss/null.lua')
 
 --[[ hyper ]]--
 torch.include('dp', 'hyper/hyperoptimizer.lua')

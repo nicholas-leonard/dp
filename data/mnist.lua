@@ -122,7 +122,7 @@ function Mnist:createDataSet(data, which_set)
 end
 
 
--- Get the raw, unprocessed DataSet.
+-- Get the raw, unprocessed data.
 -- Returns a 60,000 x 785 tensor, where each image is 28*28 = 784 values in the
 -- range [0-255], and the 785th element is the class ID.
 function Mnist:loadData(file_name, download_url)

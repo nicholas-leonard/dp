@@ -109,6 +109,7 @@ function EarlyStopper:compareError(current_error, ...)
          self._minima_epoch = self._epoch
          self._save_strategy:save(self._subject, current_error)
          found_minima = true
+         self._mediator:publish("foundMinima")
       end
    end
    if self._max_epochs < (self._epoch - self._minima_epoch) then

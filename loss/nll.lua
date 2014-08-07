@@ -16,18 +16,6 @@ function NLL:__init(config)
    parent.__init(self, config)
 end
 
-function NLL:_forward(carry)
-   local input, target = self:inputAct(), self:targetAct()
-   self.loss = self._criterion:forward(input, target)
-   return carry
-end
-
-function NLL:_backward(carry)
-   local input, target = self:inputAct(), self:targetAct()
-   self:inputGrad(self._criterion:backward(input, target))
-   return carry
-end
-
 function NLL:_type(type)
    if type == 'torch.FloatTensor' or type == 'torch.DoubleTensor' then
       self._input_type = type

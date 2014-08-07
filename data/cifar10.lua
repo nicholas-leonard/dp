@@ -12,7 +12,7 @@ Cifar10.isCifar10 = true
 Cifar10._name = 'cifar10'
 Cifar10._image_size = {3, 32, 32}
 Cifar10._feature_size = 3*32*32
-Cifar10._image_axes = 'bcwh'
+Cifar10._image_axes = 'bchw'
 Cifar10._classes = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 
 function Cifar10:__init(config)
@@ -164,7 +164,7 @@ function Cifar10:loadData(download_url, which_set)
        
 end
 
-function cifar10test(num_images)
+local function cifar10test(num_images)
    local c = dp.Cifar10()
    require 'image'
    local dt = c:trainSet():inputs(1)

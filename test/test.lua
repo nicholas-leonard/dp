@@ -719,6 +719,25 @@ function dptest.nll()
    mytester:asserteq(c_err, err, 0.000001)
    mytester:assertTensorEq(c_grad, input:backward('bf'):float(), 0.00001)
 end
+function dptest.kldivergence()
+   local input_tensor = torch.randn(5,10)
+   local target_tensor = torch.randn(5,10)
+   -- dp
+   local input = dp.DataView('bf', input_tensor)
+   local target = dp.DataView('bf', target_tensor)
+   local loss = dp.KLDivergence()
+   -- test conversion
+   loss:float()
+   local err, carry = loss:forward(input, target, {nSample=5})
+   input = loss:backward(input, target, carry)
+   -- nn
+   local criterion = nn.DistKLDivCriterion():float()
+   local c_err = criterion:forward(input_tensor:float(), target_tensor:float())
+   local c_grad = criterion:backward(input_tensor:float(), target_tensor:float())
+   -- compare nn and dp
+   mytester:asserteq(c_err, err, 0.000001)
+   mytester:assertTensorEq(c_grad, input:backward('bf'):float(), 0.00001)
+end
 function dptest.treenll()
    local input_tensor = torch.randn(5,10):add(100) -- add for log nans
    local target_tensor = torch.ones(5) --all targets are 1
@@ -737,7 +756,6 @@ function dptest.treenll()
    mytester:asserteq(c_err, err, 0.00001)
    mytester:assertTensorEq(c_grad:narrow(2,1,1), input:backward('bf'), 0.00001)
 end
-
 
 function dp.test(tests)
    math.randomseed(os.time())

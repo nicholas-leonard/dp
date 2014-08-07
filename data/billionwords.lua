@@ -39,7 +39,7 @@ function BillionWords:__init(config)
       {arg='data_path', type='string', default=dp.DATA_DIR,
        help='path to data repository'},
       {arg='download_url', type='string',
-       default='http://data.neuflow.org/data/billionwords.tar.gz',
+       default='http://lisaweb.iro.umontreal.ca/transfert/lisa/users/leonardn/billionwords.tar.gz',
        help='URL from which to download dataset if not found on disk.'},
       {arg='load_all', type='boolean', 
        help='Load all datasets : train, valid, test.', default=true}

@@ -19,12 +19,14 @@ a PostgreSQL database backend which facilitates distributing experiments over di
 ## Tutorials and Examples ##
 In order to help you get up and running we provide a quick [neural network tutorial](doc/neuralnetworktutorial.md) which explains step-by-step the contents of this [example script](examples/neuralnetwork_tutorial.lua). For a more flexible option that allows input from the command-line specifying different datasources and preprocesses, using dropout, running the code on a GPU/CPU, please consult this [script](examples/neuralnetwork.lua).
 
+A [Facial Keypoints tutorial](doc/facialkeypointstutorial.md) involving the case study of a Kaggle Challenge is also available. It provides an overview of the steps required for extending and using  __dp__ in the context of the challenge. And even provides the script so that you can generate your own Kaggle submissions.
+
 <a name="dp.packages"/>
 ## dp Packages ##
 	
   * Data Library
     * [View](doc/view.md) : Tensor containers like [DataView](doc/view.md#dp.DataView), [ImageView](doc/view.md#dp.ImageView) and [ClassView](doc/view.md#dp.ClassView);
-    * [Data](doc/data.md) : View containers like like [Batch](doc/data.md#dp.Batch) and [DataSet](doc/data.md#dp.DataSet), and [DataSources](doc/data.md#dp.DataSource) like [Mnist](doc/data.md#dp.Mnist) and [BillionWords](doc/data.md#dp.BillionWords);
+    * [Data](doc/data.md) : View containers like like [Batch](doc/data.md#dp.Batch), and [DataSources](doc/data.md#dp.DataSource) like [Mnist](doc/data.md#dp.Mnist) and [BillionWords](doc/data.md#dp.BillionWords);
     * [Preprocess](doc/preprocess.md) : data preprocessing like [ZCA](doc/preprocess.md#dp.ZCA) and [Standardize](doc/preprocess.md#dp.Standardize);
   * Node Library
     * [Node](doc/node.md) : abstract class that defines Model and Loss commonalities;

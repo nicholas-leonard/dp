@@ -136,7 +136,8 @@ cnn:add(
       dropout = opt.dropout and nn.Dropout(opt.dropoutProb[#opt.channelSize]),
       acc_update = opt.accUpdate,
       sparse_init = not opt.normalInit,
-      output_view = 'bwc' -- because of the multisoftmax
+      output_view = 'bwc', -- because of the multisoftmax,
+      output = dp.SequenceView() --same
    }
 )
 

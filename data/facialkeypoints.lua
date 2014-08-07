@@ -36,7 +36,7 @@ function FacialKeypoints:__init(config)
       {arg='data_path', type='string', default=dp.DATA_DIR,
        help='path to data repository'},
       {arg='download_url', type='string',
-       default='http://stife076.files.wordpress.com/2014/08/FacialKeypoints.zip',
+       default='https://stife076.files.wordpress.com/2014/08/facialkeypoints1.zip',
        help='URL from which to download dataset if not found on disk.'},
       {arg='stdv', type='number', default=0.8, 
        help='standard deviation of the gaussian blur used for targets'},

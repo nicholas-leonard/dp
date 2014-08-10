@@ -29,7 +29,7 @@ function Propagator:__init(config)
        help='observer that is informed when an event occurs.'},
       {arg='feedback', type='dp.Feedback',
        help='takes predictions, targets, model and visitor as input '..
-       'and provides feedback through report(), setState, or mediator'}
+       'and provides feedback through report(), setState, or mediator'},
       {arg='progress', type='boolean', default=false, 
        help='display progress bar'},
       {arg='stats', type='boolean', default=false,

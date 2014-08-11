@@ -1,11 +1,9 @@
 ------------------------------------------------------------------------
 --[[ Experiment ]]--
--- Acts as a kind of Facade (Design Pattern) which inner objects can
--- use to access inner objects, i.e. objects used within the experiment.
 -- An experiment propagates DataSets through Models. The specifics 
 -- such propagations are handled by Propagators. The propagation of 
 -- a DataSet is called an epoch. At the end of each epoch, a monitoring
--- step is performed where.
+-- step is performed where the a report is generated for all observers.
 
 -- We keep datasource/datasets, and mediator in outer scope to allow for 
 -- experiment serialization. Serialization of an object requires 
@@ -13,11 +11,10 @@
 -- which have references to functions (excluding those in their 
 -- metatables) cannot currently be serialized. This also implies that 
 -- the mediator cannot currently be serialized since it holds references
--- to callback functions. The latter could be swapped for objects and 
--- string function names to allow for mediator serialization. The data*
--- are kept out of scope in order to reduce the size of serializations.
--- Data* should therefore be reportless, i.e. restorable from 
--- its constructor.
+-- to callback functions. 
+-- The data is kept out of scope in order to reduce the size of 
+-- serializations. Data objects should therefore be reportless, 
+-- i.e. restorable from its constructor.
 
 -- The experiment keeps a log of the report of the experiment after 
 -- every epoch. This is done by calling the report() method of 
@@ -36,28 +33,37 @@ function Experiment:__init(config)
          observer, random_seed, epoch, mediator, overwrite, max_epoch
       = xlua.unpack(
       {config},
-      'Experiment', nil,
+      'Experiment', 
+      'An Experiment to be performed using a Model, Propagators '..
+      'and a DataSource',
       {arg='id', type='dp.ObjectID',
        help='uniquely identifies the experiment. '..
        'Defaults to using dp.uniqueID() to initialize a dp.ObjectID'},
-      {arg='description', type='string'},
-      {arg='model', type='dp.Model', req=true},
-      {arg='optimizer', type='dp.Optimizer'},
-      {arg='validator', type='dp.Evaluator'},
-      {arg='tester', type='dp.Evaluator'},
-      {arg='observer', type='dp.Observer'},
-      {arg='random_seed', type='number', default=7},
+      {arg='model', type='dp.Model', req=true,
+       help='Model instance shared by all Propagators.'},
+      {arg='optimizer', type='dp.Optimizer',
+       help='Optimizer instance used for propagating the train set'},
+      {arg='validator', type='dp.Evaluator', 
+       help='Evaluator instance used for propagating the valid set'},
+      {arg='tester', type='dp.Evaluator',
+       help='Evaluator instance used for propagating the test set'},
+      {arg='observer', type='dp.Observer', 
+       help='Observer instance used for extending the Experiment'},
+      {arg='random_seed', type='number', default=7,
+       help='number used to initialize the random number generator'},
       {arg='epoch', type='number', default=0,
        help='Epoch at which to start the experiment.'},
       {arg='mediator', type='dp.Mediator', 
-       help='defaults to dp.Mediator()'},
+       help='used for inter-object communication. defaults to dp.Mediator()'},
       {arg='overwrite', type='boolean', default=false,
        help='Overwrite existing values. For example, if a ' ..
        'datasource is provided, and optimizer is already ' ..
        'initialized with a dataset, and overwrite is true, ' ..
        'then optimizer would be setup with datasource:trainSet()'},
       {arg='max_epoch', type='number', default=1000, 
-       help='Maximum number of epochs allocated to the experiment'}
+       help='Maximum number of epochs allocated to the experiment'},
+      {arg='description', type='string', default='',
+       help='A short description of the experiment'}
    )
    self:setRandomSeed(random_seed)
    self._is_done_experiment = false
@@ -70,6 +76,7 @@ function Experiment:__init(config)
    self._validator = validator
    self._tester = tester
    self._mediator = mediator or dp.Mediator()
+   self._description = description
    self:setMaxEpoch(max_epoch)
 end
 
@@ -118,7 +125,9 @@ function Experiment:run(datasource)
    local test_set = datasource:testSet()
    repeat
       self._epoch = self._epoch + 1
-      self._optimizer:propagateEpoch(train_set, report)
+      if self._optimizer then
+         self._optimizer:propagateEpoch(train_set, report)
+      end
       if self._validator then
          self._validator:propagateEpoch(valid_set, report)
       end
@@ -166,14 +175,14 @@ end
 
 function Experiment:report()
    local report = {
-      optimizer = self:optimizer():report(),
+      optimizer = self:optimizer() and self:optimizer():report(),
       validator = self:validator() and self:validator():report(),
       tester = self:tester() and self:tester():report(),
       epoch = self:epoch(),
       random_seed = self:randomSeed(),
       model = self._model:report(),
       id = self._id:toString(),
-      description = description
+      description = self._description
    }
    return report
 end

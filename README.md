@@ -31,11 +31,15 @@ A [Facial Keypoints tutorial](doc/facialkeypointstutorial.md) involving the case
   * Node Library
     * [Node](doc/node.md) : abstract class that defines Model and Loss commonalities;
     * [Model](doc/model.md) : parameterized Nodes like [Neural](doc/model.md#dp.Neural) and [Convolution2D](doc/model.md#dp.Convolution2D) that adapt [Modules](https://github.com/torch/nn/blob/master/doc/module.md#module) to [Model](doc/model.md#dp.Model);
-    * [Loss](doc/loss.md) : non-parameterized Nodes like [NLL](doc/loss.md#dp.NLL) that adapt [Criterion](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.Criterion) to [Loss](doc/loss.md#dp.Loss);
+    * [Loss](doc/loss.md) : non-parameterized Nodes like [NLL](doc/loss.md#dp.NLL) that adapt [Criterion](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.Criterion);
   * Experiment Library
-    * Experiment : trains a Model using a DataSource and a Loss;
-    * Propagator : [Propagators](propagator/propagator.lua) that forward DataSets and backpropagates a Loss through a Model;
-    * Visitor : visits Models after a backward pass to update parameters, statistics or gradients;
+    * [Experiment](doc/experiment.md) : trains a Model using a DataSource and a Loss;
+    * [Propagator](doc/propagator.md) : [Propagators](propagator/propagator.lua) that forward DataSets and backpropagates a Loss through a Model;
+    * [Visitor](doc/visitor.md) : visits Models after a backward pass to update parameters, statistics or gradients;
+  * Extension Library
+    * [Feedback](doc/feedback.md) : provides I/O feedback given the Model output, input and targets;
+    * [Observer](doc/observer.md) : plugins that can be appended to objects as extensions;
+    * [Mediator](doc/mediator.md) : singleton to which objects can publish and subscribe Channels;
   * Hyperparameter Library
     * Hyperoptimizer : explores different experiment configurations;
     * DatasourceFactory : builds a datasource;

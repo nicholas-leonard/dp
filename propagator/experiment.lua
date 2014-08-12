@@ -29,8 +29,8 @@ Experiment.isExperiment = true
 
 function Experiment:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, id, description, model, optimizer, validator, tester, 
-         observer, random_seed, epoch, mediator, overwrite, max_epoch
+   local args, id, model, optimizer, validator, tester, 
+         observer, random_seed, epoch, mediator, overwrite, max_epoch, description
       = xlua.unpack(
       {config},
       'Experiment', 

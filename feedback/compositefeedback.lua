@@ -23,7 +23,7 @@ end
 function CompositeFeedback:setup(config)
    parent.setup(self, config)
    for k, v in pairs(self._feedbacks) do
-      v:setup(self._mediator)
+      v:setup(config)
    end
 end
 
@@ -39,7 +39,7 @@ function CompositeFeedback:report()
    -- merge reports
    local report = {}
    for k, feedback in pairs(self._feedbacks) do
-      merge(report, feedback:report())
+      table.merge(report, feedback:report())
    end
    return report
 end

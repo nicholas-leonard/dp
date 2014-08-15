@@ -26,7 +26,7 @@ arguments, those specified in [Node](node.md#dp.Node.__init) also apply.
  * `mvstate` is a table holding the Model-Visitor state. Can be used to specify arguments to Visitors that will adapt these to the Model.
 
 <a name="dp.Model.forward"/>
-### [output] forward(input, carry) ###
+### [output, carry] forward(input, carry) ###
 Forward propagates an `input` [View](view.md#dp.View) to fill and return an `output` View.
  * `input` is a [View](view.md#dp.View) that should have been previously filled by a [forwardPut](view.md#dp.View.forwardPut). The Model will call one or many [forwardGets](view.md#dp.View.forwardGet) to retrieve a Tensor in a suitable format for forward propagation through the Model's internal [Modules](https://github.com/torch/nn/blob/master/doc/module.md#module).
  * `carry` is a table that is carried throughout the graph. A Node can modify it, but should avoid deleting attributes. This is useful when you want to forward/backward information to a later/previous Node in the graph seperated by an unknown number of [Nodes](node.md#dp.Node).
@@ -34,14 +34,14 @@ Forward propagates an `input` [View](view.md#dp.View) to fill and return an `out
 The returned `output` is a View filled using a forwardPut.
 
 <a name="dp.Model.evaluate"/>
-### [output] evaluate(input, carry) ###
-This method is ike forward, but for evaluation purposes (valid/test).
+### [output, carry] evaluate(input, carry) ###
+This method is like [forward](#dp.Model.forward), but for evaluation purposes (valid/test).
 This is useful for stochastic Modules like Dropout, which have 
 different behavior for training than for evaluation. The default is to set 
 `carry.evaluate = true` and to call [forward](#dp.Model.forward).
 
 <a name="dp.Model.backward"/>
-### [input] backward(output, carry) ###
+### [input, carry] backward(output, carry) ###
 Backward propagates an `output` [View](view.md#dp.View) to fill and `input` View with a gradient and return said `input`.
  * `output` is a [View](view.md#dp.View) that should have been previously filled by a [forwardPut](view.md#dp.View.forwardPut) in this Model's [forward](#dp.Model.forward) method and subsequently filled with a [backwardPut](view.md#dp.View.backwardPut) from the next [Node](node.md#dp.Node) in the digraph. The Model will call [backwardGet](view.md#dp.View.forwardGet) on the `output` to retrieve a gradient Tensor in a suitable format for forward propagation through the Model's internal [Modules](https://github.com/torch/nn/blob/master/doc/module.md#module).
  * `carry` is a table that is carried throughout the graph. A Node can modify it, but should avoid deleting attributes. This is useful when you want to forward/backward information to a later/previous Node in the graph seperated by an unknown number of Nodes.
@@ -86,12 +86,12 @@ the recommended initialization for [ReLU](https://github.com/torch/nn/blob/maste
 <a name='dp.Layer.inputAct'/>
 ### [act] inputAct() ###
 Returns the result of a [forwardGet](view.md#dp.View.forwardGet) on the Layer's `input` 
-using its `input_view` and `input_type`.
+using its `input_view` and `input_type` attributes.
 
 <a name='dp.Layer.outputGrad'/>
 ### [grad] outputGrad() ###
 Return the result of a [backwardGet](view.md#dp.View.backwardGet) on the Layer's `output` 
-using its `output_view` and `output_type`.
+using its `output_view` and `output_type` attributes.
 
 <a name='dp.Layer.inputGrad'/>
 ### inputGrad(input_grad) ###
@@ -159,7 +159,7 @@ Other then the following arguments, those specified in [Layer](#dp.Layer.__init)
  * `pool_size` is a table-pair specifying the size `{width,height}` of the spatial max pooling.
  * `pool_stride` is a table-pair specifying the stride `{width,height}` of the spatial max pooling.
  * `transfer` is a transfer Module like [Tanh](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Tanh),
-[Sigmoid](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Sigmoid), [ReLU]([ReLU](https://github.com/torch/nn/blob/master/doc/transfer.md#relu), etc.
+[Sigmoid](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Sigmoid), [ReLU](https://github.com/torch/nn/blob/master/doc/transfer.md#relu), etc.
 
 <a name='dp.Container'/>
 ## Container ##

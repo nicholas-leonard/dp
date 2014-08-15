@@ -1,7 +1,6 @@
 ------------------------------------------------------------------------
 --[[ NarrowDictionary ]]-- 
 -- Adapts a nn.NarrowLookupTable
--- Works on a WordTensor:context() view.
 ------------------------------------------------------------------------
 local NarrowDictionary, parent = torch.class("dp.NarrowDictionary", "dp.Dictionary")
 NarrowDictionary.isNarrowDictionary = true

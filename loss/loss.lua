@@ -9,8 +9,8 @@ Loss.isLoss = true
 function Loss:__init(config)
    assert(torch.type(config) == 'table' and not config[1], 
       "Constructor requires key-value arguments")
-   local args, input_view, target_view, target_type, input_module
-      = xlua.unpack(
+   local args, input_view, target_view, target_type, input_module,
+      size_average = xlua.unpack(
       {config},
       'Loss', 
       'Adapter of nn.Criterion.',
@@ -22,8 +22,11 @@ function Loss:__init(config)
        default=torch.getdefaulttensortype(),
        'type of target tensors'},
       {arg='input_module', type='nn.Module',
-       help='nn.Module to use on the inputs (e.g. nn.Log())'}
+       help='nn.Module to use on the inputs (e.g. nn.Log())'},
+      {arg='size_average', type='boolean', default=true,
+       help='set to true if the loss of a batch is averaged by size'}
    )
+   self._size_average = size_average
    self._input_module = input_module
    self:inputView(input_view)
    self:outputView(target_view)
@@ -70,6 +73,9 @@ function Loss:_forward(carry)
       input = self._input_module:forward(input)
    end
    self.loss = self._criterion:forward(input, target)
+   if self._size_average then
+      self.loss = self.loss * target:size(1)
+   end
    return carry
 end
 

@@ -1,9 +1,9 @@
 # Losses #
-Losses adapt [Criterions](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.Criterion). Like [Model](model.md#model), a Loss is a [Node](node.md#node-1). It is very easy to build a Loss, as it often only involves wrapping a [nn](https://github.com/torch/nn/blob/master/README.md) Criterion. The dp package currently supports the following Losses:
- * [Loss](#dp.Loss) : abstract class for adapting Criterions;
+Losses adapt [Criterions](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.Criterion). It is very easy to build a Loss, as it often only involves wrapping a [nn](https://github.com/torch/nn/blob/master/README.md) Criterion by defining a new Loss constructor. The dp package currently supports the following Losses:
+ * [Loss](#dp.Loss) : abstract class for measuring loss and computing gradient w.r.t. loss;
  * [NLL](#dp.NLL) : adapts the [ClassNLLCriterion](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.ClassNLLCriterion);
  * [TreeNLL](#dp.TreeNLL) : used with the SoftMaxTree Model.
- * [KLDivergence](#dp.KLDivergence) : adapts [DistKLDivCriterion](https://github.com/torch/nn/blob/master/doc/criterion.md#distkldivcriterion)
+ * [KLDivergence](#dp.KLDivergence) : adapts [DistKLDivCriterion](https://github.com/torch/nn/blob/master/doc/criterion.md#distkldivcriterion).
 
 <a name="dp.Loss"/>
 ## Loss ##
@@ -53,7 +53,7 @@ Sets the Loss's `input` gradient by calling its [backwardPut](view.md#dp.View.ba
 and the provided `input_grad` Tensor.
 
 <a name='dp.Loss.targetAct'/>
-### targettAct(output_act) ###
+### targetAct(output_act) ###
 Returns the result of a [forwardGet](view.md#dp.View.forwardGet) on the Loss's `target` 
 using its `target_view` and `target_type` attributes.
 

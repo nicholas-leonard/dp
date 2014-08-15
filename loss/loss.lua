@@ -24,7 +24,8 @@ function Loss:__init(config)
       {arg='input_module', type='nn.Module',
        help='nn.Module to use on the inputs (e.g. nn.Log())'},
       {arg='size_average', type='boolean', default=true,
-       help='set to true if the loss of a batch is averaged by size'}
+       help='set to true if the loss (e.g. output of criterion:forward) '..
+       'of a batch is averaged by size (e.g. criterion.sizeAverage=true)'}
    )
    self._size_average = size_average
    self._input_module = input_module
@@ -40,6 +41,9 @@ function Loss:forward(input, target, carry)
    self.input = input
    self.target = target
    carry = self:_forward(carry) or carry
+   if self._size_average then
+      self.loss = self.loss * target:nSample()
+   end
    self:updateStatistics(carry)
    self.forwarded = true
    return self.loss, carry
@@ -51,6 +55,9 @@ function Loss:evaluate(input, target, carry)
    self.input = input
    self.target = target
    carry = self:_evaluate(carry) or carry
+   if self._size_average then
+      self.loss = self.loss * target:nSample()
+   end
    self:updateStatistics(carry)
    self.evaluated = true
    self.forwarded = true
@@ -73,9 +80,6 @@ function Loss:_forward(carry)
       input = self._input_module:forward(input)
    end
    self.loss = self._criterion:forward(input, target)
-   if self._size_average then
-      self.loss = self.loss * target:size(1)
-   end
    return carry
 end
 

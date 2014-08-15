@@ -317,7 +317,7 @@ function dptest.nll()
    -- dp
    local input = dp.DataView('bf', input_tensor)
    local target = dp.ClassView('b', target_tensor)
-   local loss = dp.NLL()
+   local loss = dp.NLL{size_average=false} -- else loss isn't avg
    -- this shouldn't change anything since nn.ClassNLLCriterion doesn't work with cuda
    loss:cuda()
    local err, carry = loss:forward(input, target, {nSample=5})
@@ -337,7 +337,7 @@ function dptest.treenll()
    -- dp
    local input = dp.DataView('b', input_tensor:select(2,1))
    local target = dp.ClassView('b', target_tensor)
-   local loss = dp.TreeNLL()
+   local loss = dp.TreeNLL{size_average=false} -- else loss isn't avg
    loss:cuda()
    -- the targets are actually ignored (SoftmaxTree uses them before TreeNLL)
    local err, carry = loss:forward(input, target, {nSample=5})

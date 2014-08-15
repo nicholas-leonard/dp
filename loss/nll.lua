@@ -2,7 +2,7 @@
 --[[ NLL ]]--
 -- Loss subclass
 -- Adapter of nn.ClassNLLCriterion
--- Negative Log Likelihood 
+-- Negative Log Likelihood
 ------------------------------------------------------------------------
 local NLL, parent = torch.class("dp.NLL", "dp.Loss")
 NLL.isNLL = true

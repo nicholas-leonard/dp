@@ -32,8 +32,8 @@ function Neural:__init(config)
    self._module:add(self._transfer)
    config.typename = typename
    config.output = dp.DataView()
-   config.input_view = 'bf'
-   config.output_view = 'bf'
+   config.input_view = config.input_view or 'bf'
+   config.output_view = config.output_view or 'bf'
    parent.__init(self, config)
 end
 

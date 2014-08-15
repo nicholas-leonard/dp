@@ -4,7 +4,7 @@
 -- Composite of Preprocesses
 -- Used for preprocessing ListViews
 ------------------------------------------------------------------------
-local ParallelPreprocess = torch.class("ParallelPreprocess", "dp.Preprocess")
+local ParallelPreprocess = torch.class("dp.ParallelPreprocess", "dp.Preprocess")
 ParallelPreprocess.isParallelPreprocess = true
 
 function ParallelPreprocess:__init(items)

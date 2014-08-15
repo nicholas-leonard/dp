@@ -39,18 +39,10 @@ function BillionWords:__init(config)
       {arg='data_path', type='string', default=dp.DATA_DIR,
        help='path to data repository'},
       {arg='download_url', type='string',
-       default='http://data.neuflow.org/data/billionwords.tar.gz',
+       default='http://lisaweb.iro.umontreal.ca/transfert/lisa/users/leonardn/billionwords.tar.gz',
        help='URL from which to download dataset if not found on disk.'},
       {arg='load_all', type='boolean', 
-       help='Load all datasets : train, valid, test.', default=true},
-      {arg='input_preprocess', type='table | dp.Preprocess',
-       help='to be performed on set inputs, measuring statistics ' ..
-       '(fitting) on the train_set only, and reusing these to ' ..
-       'preprocess the valid_set and test_set.'},
-      {arg='target_preprocess', type='table | dp.Preprocess',
-       help='to be performed on set targets, measuring statistics ' ..
-       '(fitting) on the train_set only, and reusing these to ' ..
-       'preprocess the valid_set and test_set.'}  
+       help='Load all datasets : train, valid, test.', default=true}
    )
    if load_all then
       self:loadTrain()

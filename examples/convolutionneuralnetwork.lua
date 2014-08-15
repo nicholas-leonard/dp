@@ -18,6 +18,7 @@ cmd:option('--poolSize', '{2,2}', 'size of the max pooling of each convolution l
 cmd:option('--poolStride', '{2,2}', 'stride of the max pooling of each convolution layer. Height = Width')
 cmd:option('--batchSize', 128, 'number of examples per batch')
 cmd:option('--cuda', false, 'use CUDA')
+cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
 cmd:option('--maxEpoch', 100, 'maximum number of epochs to run')
 cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better local minima for early-stopping')
 cmd:option('--dropout', false, 'apply dropout on hidden neurons, requires "nnx" luarock')
@@ -28,6 +29,7 @@ cmd:option('--activation', 'Tanh', 'transfer function like ReLU, Tanh, Sigmoid')
 cmd:option('--dropout', false, 'use dropout')
 cmd:option('--dropoutProb', '{0.2,0.5,0.5}', 'dropout probabilities')
 cmd:option('--accUpdate', false, 'accumulate gradients inplace')
+cmd:option('--progress', false, 'print progress bar')
 cmd:text()
 opt = cmd:parse(arg or {})
 print(opt)
@@ -100,6 +102,7 @@ cnn:add(
 if opt.cuda then
    require 'cutorch'
    require 'cunn'
+   cutorch.setDevice(opt.useDevice)
    cnn:cuda()
 end
 
@@ -122,7 +125,7 @@ train = dp.Optimizer{
    visitor = visitor,
    feedback = dp.Confusion(),
    sampler = dp.ShuffleSampler{batch_size = opt.batchSize},
-   progress = true
+   progress = opt.progress
 }
 valid = dp.Evaluator{
    loss = dp.NLL(),

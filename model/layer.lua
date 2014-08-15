@@ -115,7 +115,7 @@ function Layer:checkParams()
    local params = self:parameters()
    for k,param in pairs(params) do
       if _.isNaN(param:sum()) then
-         error("NaN Error for param at index" ..k)
+         error(self:name().." NaN Error for param at index" ..k)
       end
    end
 end
@@ -142,7 +142,11 @@ end
 
 -- do not use this to change the type of parameters.
 function Layer:parameters()
-   return self._module:parameters()
+   local param, gradParam = self._module:parameters()
+   if param == nil then
+      return {},{}
+   end
+   return param, gradParam
 end
 
 -- Only affects 2D parameters.

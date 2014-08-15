@@ -15,7 +15,8 @@ function Confusion:__init(config)
       {config},
       'Confusion', 
       'Adapter for optim.ConfusionMatrix',
-      {arg='name', type='string', default='confusion'}
+      {arg='name', type='string', default='confusion',
+       help='name identifying Feedback in reports'}
    )
    config.name = name
    parent.__init(self, config)

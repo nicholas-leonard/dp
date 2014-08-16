@@ -20,7 +20,7 @@ The problem has each 96x96 black-and-white images associated to
 15 keypoints, each identifies by an (x,y) coordinate. The problem is 
 thus a regression where the target is a vector of 15x2=30 values 
 bounded between 0 and 96, the size of the image. If you think like me, 
-your initial reflex might be to use a simple multi-layer perception 
+your initial reflex might be to use a simple multi-layer perceptron 
 (or neural network) with a Linear output and a Mean Square Error 
 Criterion. Or maybe we can bound the output by using a Sigmoid 
 (which bound it between 0 and 1), and then scale the output by a 

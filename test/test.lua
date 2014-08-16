@@ -738,7 +738,7 @@ function dptest.nll()
    -- dp
    local input = dp.DataView('bf', input_tensor)
    local target = dp.ClassView('b', target_tensor)
-   local loss = dp.NLL()
+   local loss = dp.NLL{size_average=false} -- else loss isn't avg
    -- test conversion
    loss:float()
    local err, carry = loss:forward(input, target, {nSample=5})
@@ -757,7 +757,7 @@ function dptest.kldivergence()
    -- dp
    local input = dp.DataView('bf', input_tensor)
    local target = dp.DataView('bf', target_tensor)
-   local loss = dp.KLDivergence()
+   local loss = dp.KLDivergence{size_average=false} -- else loss isn't avg
    -- test conversion
    loss:float()
    local err, carry = loss:forward(input, target, {nSample=5})
@@ -776,7 +776,7 @@ function dptest.treenll()
    -- dp
    local input = dp.DataView('bf', input_tensor:narrow(2,1,1))
    local target = dp.ClassView('b', target_tensor)
-   local loss = dp.TreeNLL()
+   local loss = dp.TreeNLL{size_average=false} -- else loss isn't avg
    -- the targets are actually ignored (SoftmaxTree uses them before TreeNLL)
    local err, carry = loss:forward(input, target, {nSample=5})
    input = loss:backward(input, target, carry)

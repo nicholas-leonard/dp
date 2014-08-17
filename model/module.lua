@@ -16,6 +16,7 @@ local Module, parent = torch.class("dp.Module", "dp.Layer")
 Module.isModule = true
 
 function Module:__init(config)
+   config = config or {}
    local args, module, input_view = xlua.unpack(
       {config},
       'Module', 

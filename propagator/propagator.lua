@@ -18,7 +18,7 @@ function Propagator:__init(config)
       'Propagates Batches sampled from a DataSet using a Sampler '..
       'through a Model in order to evaluate a Loss, provide Feedback '.. 
       'or train the model',
-      {arg='loss', type='dp.Loss', req=true,
+      {arg='loss', type='dp.Loss | nn.Criterion', req=true,
        help='a neural network Loss to evaluate or minimize'},
       {arg='visitor', type='dp.Visitor',
        help='visits models at the end of each batch propagation to '.. 
@@ -245,6 +245,14 @@ function Propagator:feedback()
 end
 
 function Propagator:setLoss(loss)
+   if not loss.isLoss then
+      print("Propagator:setLoss Warning : "
+         "'loss' argumetn isn't an instance of dp.Loss."..
+         "Assuming it's a nn.Criterion instance."..
+         "Wrapping it in dp.Criterion (this doesn't always work as-is)"
+      )
+      loss = dp.Criterion{criterion=loss}
+   end
    self._loss = loss
 end
 

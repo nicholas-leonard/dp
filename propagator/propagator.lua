@@ -246,7 +246,7 @@ end
 
 function Propagator:setLoss(loss)
    if not loss.isLoss then
-      print("Propagator:setLoss Warning : "
+      print("Propagator:setLoss Warning : "..
          "'loss' argumetn isn't an instance of dp.Loss."..
          "Assuming it's a nn.Criterion instance."..
          "Wrapping it in dp.Criterion (this doesn't always work as-is)"

@@ -215,7 +215,7 @@ end
 
 function Experiment:setModel(model)
    if not model.isModel then
-      print("Experiment:setModel Warning : "
+      print("Experiment:setModel Warning : "..
          "'model' argument isn't an instance of dp.Model."..
          "Assuming it's a nn.Module instance."..
          "Wrapping it in dp.Module (this doesn't always work as-is)"

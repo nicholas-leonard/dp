@@ -39,7 +39,7 @@ function Experiment:__init(config)
       {arg='id', type='dp.ObjectID',
        help='uniquely identifies the experiment. '..
        'Defaults to using dp.uniqueID() to initialize a dp.ObjectID'},
-      {arg='model', type='dp.Model', req=true,
+      {arg='model', type='dp.Model | nn.Module', req=true,
        help='Model instance shared by all Propagators.'},
       {arg='optimizer', type='dp.Optimizer',
        help='Optimizer instance used for propagating the train set'},
@@ -69,7 +69,7 @@ function Experiment:__init(config)
    self._is_done_experiment = false
    self._id = id or dp.ObjectID(dp.uniqueID())
    assert(self._id.isObjectID)
-   self._model = model
+   self:setModel(model)
    self._epoch = epoch
    self:setObserver(observer)
    self._optimizer = optimizer
@@ -211,4 +211,16 @@ function Experiment:setRandomSeed(random_seed)
    torch.manualSeed(random_seed)
    math.randomseed(random_seed)
    self._random_seed = random_seed
+end
+
+function Experiment:setModel(model)
+   if not model.isModel then
+      print("Experiment:setModel Warning : "
+         "'model' argument isn't an instance of dp.Model."..
+         "Assuming it's a nn.Module instance."..
+         "Wrapping it in dp.Module (this doesn't always work as-is)"
+      )
+      model = dp.Module{module=model}
+   end
+   self._model = model
 end

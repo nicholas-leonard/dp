@@ -112,15 +112,16 @@ Only affects 2D [parameters](#dp.Model.parameters) like the usual `weight` matri
 
 <a name="dp.Module"/>
 ## Module ##
-A generic [nn.Module](https://github.com/torch/nn/blob/master/doc/module.md#module) adapter. Not to be confused with nn.Module. Use this to quickly wrap a nn.Module into a [Model](#dp.Model). 
-A [Layer](#dp.Layer) subclass. For all intents in purposes, this Module should do a great 
+A generic [nn.Module](https://github.com/torch/nn/blob/master/doc/module.md#module) adapter. 
+Not to be confused with nn.Module. Use this to quickly wrap a nn.Module into a [Model](#dp.Model). 
+For all intents and purposes, it should do a great 
 job of integrating your existing Modules into dp. Just wrap them using this Model. 
 However, some dp.Visitors expect each param/gradParam to be identified by a 
 unique key that stays the same from batch to batch.
 This wont be true for modules like nnx.SoftMaxTree or nnx.LookupTable (so be weary).
 
 <a name="dp.Module.__init"/>
-### dp.Module{module, input_view} ###
+### dp.Module{module[, input_view]} ###
 Module constructor. Other then the following 
 arguments, those specified in [Layer](#dp.Layer.__init) also apply:
  * `module` is a nn.Module instance.

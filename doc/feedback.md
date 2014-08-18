@@ -1,4 +1,4 @@
-# Give me Feedback  #
+# Give me some Feedback  #
 Feedback objects are used to provide I/O feedback to other objects or users. This inclues performance measures and 
 statistics which can be used for early-stopping (cross-validation) or used to guide training. Currently, the following Feeback classes are supported:
  * [Feedback](#dp.Model) : abstract class;

@@ -1,9 +1,10 @@
-# Losses #
+# Cut your Losses #
 Losses adapt [Criterions](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.Criterion). It is very easy to build a Loss, as it often only involves wrapping a [nn](https://github.com/torch/nn/blob/master/README.md) Criterion by defining a new Loss constructor. The dp package currently supports the following Losses:
  * [Loss](#dp.Loss) : abstract class for measuring loss and computing gradient w.r.t. loss;
- * [NLL](#dp.NLL) : adapts the [ClassNLLCriterion](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.ClassNLLCriterion);
- * [TreeNLL](#dp.TreeNLL) : used with the SoftMaxTree Model.
- * [KLDivergence](#dp.KLDivergence) : adapts [DistKLDivCriterion](https://github.com/torch/nn/blob/master/doc/criterion.md#distkldivcriterion).
+   * [Criterion](#dp.Criterion) : generic nn.Criterion adapter;
+   * [NLL](#dp.NLL) : adapts the [ClassNLLCriterion](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.ClassNLLCriterion);
+   * [TreeNLL](#dp.TreeNLL) : used with the SoftMaxTree Model.
+   * [KLDivergence](#dp.KLDivergence) : adapts [DistKLDivCriterion](https://github.com/torch/nn/blob/master/doc/criterion.md#distkldivcriterion).
 
 <a name="dp.Loss"/>
 ## Loss ##
@@ -61,6 +62,20 @@ using its `target_view` and `target_type` attributes.
 ### [error] Loss:avgError() ###
 Returns the average error (or loss) over all examples seen since the last call to [zeroStatistics](node.md#dp.Node.zeroStatistics) (or [doneEpoch](node.md#dp.Node.zeroStatistics) for that matter).
 The value returned also depends on the `size_average` [constructor](#dp.Loss.__init) argument having been set right (for most cases, the default is fine).
+
+<a name="dp.Criterion"/>
+## Criterion ##
+A generic [nn.Criterion](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.Criterion) adapter. Not to be confused with nn.Criterion. Use this to quickly wrap a nn.Criterion into a [Loss](#dp.Loss). 
+For all intents and purposes, it should do a great 
+job of integrating your existing Criterions into dp. Just wrap them using this Loss. 
+
+<a name="dp.Criterion.__init"/>
+### dp.Criterion{criterion[, input_view, target_view]} ###
+Criterion constructor. Other then the following 
+arguments, those specified in [Loss](#dp.Loss.__init) also apply:
+ * `criteiron` is a nn.Criterion instance.
+ * `input_view` is a string specifying the `view` of the `input` [View](view.md#dp.View) like _bf_, _bhwc_, etc. Defaults to `default` axis view.
+ * `target_view` is a string specifying the `view` of the `target` [View](view.md#dp.View) like _bt_, _b_, etc. Defaults to `default` axis view.
 
 <a name="dp.NLL"/>
 ## NLL ##

@@ -1,5 +1,5 @@
 <a name="Preprocessing"/>
-# Preprocessing #
+# Preprocess the Ground #
 Preprocessing is used to analyse and optimize the statistical properties of datasets such that they are easier to push through neural networks.
 
   * [Preprocess](#dp.Preprocess)

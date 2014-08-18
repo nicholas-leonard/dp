@@ -2,6 +2,7 @@
 
  * [Model](#dp.Model) : abstract class inherited by Layer and Container;
  * [Layer](#dp.Layer) : abstract class inherited by component Models ;
+   * [Module](#dp.Module) : generic nn.Module adapter ;
    * [Neural](#dp.Neural) : Linear followed by a Transfer Module;
    * [Convolution1D](#dp.Convolution1D) : TemporalConvolution followed by a Transfer Module and TemporalMaxPooling;
    * [Convolution2D](#dp.Convolution2D) : SpatialConvolution followed by a Transfer Module and SpatialMaxPooling;
@@ -108,6 +109,23 @@ A method called by the [MaxNorm](visitor.md#dp.MaxNorm) Visitor. Imposes a hard 
 Has a regularization effect analogous to WeightDecay, but with easier to optimize hyper-parameters. 
 Quite useful with unbounded Transfer Modules like ReLU. 
 Only affects 2D [parameters](#dp.Model.parameters) like the usual `weight` matrix. Assumes that 2D parameters are arranged : `output_dim x input_dim`.
+
+<a name="dp.Module"/>
+## Module ##
+A generic [nn.Module](https://github.com/torch/nn/blob/master/doc/module.md#module) adapter. 
+Not to be confused with nn.Module. Use this to quickly wrap a nn.Module into a [Model](#dp.Model). 
+For all intents and purposes, it should do a great 
+job of integrating your existing Modules into dp. Just wrap them using this Model. 
+However, some dp.Visitors expect each param/gradParam to be identified by a 
+unique key that stays the same from batch to batch.
+This wont be true for modules like nnx.SoftMaxTree or nnx.LookupTable (so be weary).
+
+<a name="dp.Module.__init"/>
+### dp.Module{module[, input_view]} ###
+Module constructor. Other then the following 
+arguments, those specified in [Layer](#dp.Layer.__init) also apply:
+ * `module` is a nn.Module instance.
+ * `input_view` is a string specifying the `view` of the `input` [View](view.md#dp.View) like _bf_, _bhwc_, etc. Defaults to `default` axis view.
 
 <a name='dp.Neural'/>
 ## Neural ##

@@ -1,4 +1,4 @@
-# Node #
+# Know the Node #
 The Abstract class [Node](#dp.Node) attempts to factor-out the commonalities of 
 Losses and Models.
 

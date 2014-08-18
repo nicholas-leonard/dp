@@ -1,17 +1,17 @@
 # Elementary, Dear Data #
-
-  * [BaseSet](#dp.BaseSet)
-     * [DataSet](#dp.DataSet) :
-      * [SentenceSet](#dp.SentenceSet)
-     * [Batch](#dp.Batch)
-  * [DataSource](#dp.DataSource) :
-    * [Mnist](#dp.Mnist)
-    * [NotMnist](#dp.NotMnist)
-    * [Cifar10](#dp.Cifar10)
-    * [Cifar100](#dp.Cifar100)
-    * [BillionWords](#dp.BillionWords)
-  * [Sampler](#dp.Sampler) :
-    * [ShuffleSampler](#dp.ShuffleSampler) 
+One of the most important aspects of any machine learning problem is the data. The _dp_ library provides the following data-related facilities:
+  * [BaseSet](#dp.BaseSet) : abstract class;
+     * [DataSet](#dp.DataSet) : a dataset for input and target [Views](view.md#dp.View);
+      * [SentenceSet](#dp.SentenceSet) : container of sentences (used for language modeling);
+     * [Batch](#dp.Batch) : a mini-batch of inputs and targets;
+  * [DataSource](#dp.DataSource) : a container of train, valid and test DataSets;
+    * [Mnist](#dp.Mnist) : the ubiquitous MNIST dataset;
+    * [NotMnist](#dp.NotMnist) : the lesser known NotMNIST dataset;
+    * [Cifar10](#dp.Cifar10) : the CIFAR-10 dataset;
+    * [Cifar100](#dp.Cifar100) : the very difficult to generalize CIFAR-100 dataset;
+    * [BillionWords](#dp.BillionWords) : the Google 1-Billion Words language model dataset;
+  * [Sampler](#dp.Sampler) : dataset iterator;
+    * [ShuffleSampler](#dp.ShuffleSampler) : shuffled dataset iterator;
 
 <a name="dp.BaseSet"/>
 ## BaseSet ##
@@ -52,7 +52,7 @@ Returns targets [View](view.md#dp.View).
 
 <a name="dp.DataSet"/>
 ## DataSet ##
-A subclass of [BaseSet](#dp.BaseSet). 
+A subclass of [BaseSet](#dp.BaseSet). Contains input and optional target [Views](view.md#dp.View) used for training or evaluating [Models](model.md#dp.Model).
 
 <a name='dp.DataSet.batch'/>
 ### batch(batch_size) ###
@@ -70,6 +70,22 @@ intent is to modify the original DataSet.
 
 <a name='dp.DataSet.index'/>
 ### index([batch,] indices) ###
+
+<a name="dp.SentenceSet"/>
+## SentenceSet ##
+A subclass of [DataSet](#dp.DataSet) used for language modeling. 
+Takes a sequence of words stored as a tensor of word IDs and a [Tensor](https://github.com/torch/torch7/blob/master/doc/tensor.md#tensor) 
+holding the start index of the sentence of its commensurate word id (the one at the same index).
+Unlike DataSets, for memory efficiency reasons, this class does not store its data in [Views](view.md#dp.View).
+However, the outputs of factory methods [batch](#dp.DataSet.batch), [sub](#dp.DataSet.sub), and
+[index](#dp.DataSet.index) are [Batches](#dp.Batch) containing input and target [ClassViews](view.md#dp.ClassView).
+The returned batch:inputs() are filled according to [Google 1-Billion Words guidelines](https://code.google.com/p/1-billion-word-language-modeling-benchmark/source/browse/trunk/README.perplexity_and_such).
+
+<a name="dp.Batch"/>
+## Batch ##
+A subclass of [BaseSet](#dp.BaseSet). A mini-batch of input and target [Views](view.md#dp.View) 
+to be fed into a [Model](model.md#dp.Model) and [Loss](loss.md#dp.Loss). The batch of examples is usually sampled 
+from a [DataSet](#dp.DataSet) via a [Sampler](#dp.Sampler) iterator by calling the DataSet's different factory methods : [batch](#dp.DataSet.batch), [sub](#dp.DataSet.sub), and [index](#dp.DataSet.index). A batch is also the original generator of the `carry` table passed through the computation graph using a propagation.
 
 <a name="dp.DataSource"/>
 ## DataSource ##
@@ -104,3 +120,44 @@ Returns the `path` to the resulting data file.
  * `data_dir` is a string specifying the path to the directory containing directory `name`, which is expected to contain the data, or where it will be downloaded.
  * `decompress_file` is a string that when non-nil, decompresses the downloaded data if `data_dir/name/decompress_file` is not found. In which case, returns `data_dir/name/decompress_file`.
  
+<a name="dp.Mnist"/>
+## Mnist ##
+A [DataSource](#dp.DataSource) subclass wrapping the simple but widely used handwritten digits 
+classification problem (see [MNIST](http://yann.lecun.com/exdb/mnist/)). The images are of size `28x28x1`. The classes are : 0, 1, 2, 3, 4, 5, 6, 7, 8, 9.
+
+<a name="dp.NotMnist"/>
+## NotMnist ##
+A [DataSource](#dp.DataSource) subclass wrapping the much larger alternative to MNIST: [NotMNIST](http://yaroslavvb.blogspot.ca/2011/09/notmnist-dataset.html). 
+If not found on the local machine, the object downloads the dataset from the 
+[original source](http://yaroslavvb.com/upload/notMNIST/). 
+It contains 500k+ examples of 10 charaters using unicode fonts: *A*,*B*,*C*,*D*,*E*,*F*,*G*,*H*,*I*,*J*. Like [Mnist](#dp.Mnist), the images are of size `28x28x1`.
+
+<a name="dp.Cifar10"/>
+## Cifar10 ##
+A [DataSource](#dp.DataSource) subclass wrapping the [CIFAR-10](http://www.cs.toronto.edu/~kriz/cifar.html) dataset. 
+It is a `3x32x32` color-image set of 10 different objects. Small dataset size makes it hard to generalize from train to test set (Regime : overfitting).
+
+<a name="dp.Cifar100"/>
+## Cifar100 ##
+A [DataSource](#dp.DataSource) subclass wrapping the [CIFAR-100](http://www.cs.toronto.edu/~kriz/cifar.html) 
+dataset. It is a `3x32x32` color-image set of 100 different objects. Small dataset (even less images 
+per class than [Cifar-10](#dp.Cifar10)) size makes it hard to generalize from train to test set (Regime : overfitting). 
+
+<a name="dp.BillionWords"/>
+## BillionWords ##
+A [DataSource](#dp.DataSource) subclass wrapping the corpus derived from the 
+training-monolingual.tokenized/news.20??.en.shuffled.tokenized data distributed for [WMT11](http://statmt.org/wmt11/translation-task.html). The preprocessing suggested by 
+the Google 1-Billion Words language modeling benchamrk](https://code.google.com/p/1-billion-word-language-modeling-benchmark) was used to prepare the data. 
+The task consists in predicting the next word given the `n` previous ones, where `n` is the context size (it can be set in the constructor).
+The data consists in approximately 30 million sentences of an average length of about 25 words.
+In, there are about 800 thousand (unique) words in the vocabulary, which makes it a very memory intensive problem.
+The DataSource inclues data for building hierarchical softmaxes to accelerate training.
+
+<a name="dp.Sampler"/>
+## Sampler ##
+A [DataSet](#dp.DataSet) iterator which qequentially samples [Batches](#dp.Batch) from a DataSet for a [Propagator](propagator.md#dp.Propagator).
+
+<a name="dp.ShuffleSampler"/>
+## ShuffleSampler ##
+A subclass of [Sampler](#dp.Sampler) which iterates over [Batches](#dp.Batch) in a dataset 
+by shuffling the example indices before each epoch.

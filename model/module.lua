@@ -6,11 +6,11 @@
 
 -- For all intents in purposes, this Module should do a great job 
 -- of integrating your existing Modules into dp. Just wrap them using 
--- thie Model. However, some dp.Visitors expect 
+-- this Model. However, some dp.Visitors expect 
 -- each param/gradParam to be identified by a 
 -- unique key that stays the same from batch to batch.
 -- This wont be true for modules like nnx.SoftMaxTree or nnx.LookupTable
--- so be careful.
+-- so be weary.
 ------------------------------------------------------------------------
 local Module, parent = torch.class("dp.Module", "dp.Layer")
 Module.isModule = true

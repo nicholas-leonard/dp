@@ -224,3 +224,38 @@ function Experiment:setModel(model)
    end
    self._model = model
 end
+
+function Experiment:type(new_type)
+   if self._model then
+      self._model:type(new_type)
+   end
+   if self._optimizer then
+      self._optimizer:type(new_type)
+   end
+   if self._validator then
+      self._validator:type(new_type)
+   end
+   if self._tester then
+      self._tester:type(new_type)
+   end
+end
+
+function Experiment:float()
+   return self:type('torch.FloatTensor')
+end
+
+function Experiment:double()
+   return self:type('torch.DoubleTensor')
+end
+
+function Experiment:cuda()
+   return self:type('torch.CudaTensor')
+end
+
+function Experiment:int()
+   return self:type('torch.IntTensor')
+end
+
+function Experiment:long()
+   return self:type('torch.LongTensor')
+end

@@ -259,3 +259,29 @@ end
 function Propagator:loss()
    return self._loss
 end
+
+function Propagator:type(new_type)
+   if self._loss then
+      self._loss:type(new_type)
+   end
+end
+
+function Propagator:float()
+   return self:type('torch.FloatTensor')
+end
+
+function Propagator:double()
+   return self:type('torch.DoubleTensor')
+end
+
+function Propagator:cuda()
+   return self:type('torch.CudaTensor')
+end
+
+function Propagator:int()
+   return self:type('torch.IntTensor')
+end
+
+function Propagator:long()
+   return self:type('torch.LongTensor')
+end

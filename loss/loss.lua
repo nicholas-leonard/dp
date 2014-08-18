@@ -136,5 +136,10 @@ end
 function Loss:_type(type)
    self:inputType(type)
    self:outputType(type)
-   self._criterion:type(type)
+   if self._criterion then
+      self._criterion:type(type)
+   end
+   if self._input_module then
+      self._input_module:type(type)
+   end
 end

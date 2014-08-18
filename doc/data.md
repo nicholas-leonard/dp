@@ -146,8 +146,8 @@ per class than [Cifar-10](#dp.Cifar10)) size makes it hard to generalize from tr
 <a name="dp.BillionWords"/>
 ## BillionWords ##
 A [DataSource](#dp.DataSource) subclass wrapping the corpus derived from the 
-training-monolingual.tokenized/news.20??.en.shuffled.tokenized data distributed for [WMT11](http://statmt.org/wmt11/translation-task.html). The preprocessing suggested by 
-the Google 1-Billion Words language modeling benchamrk](https://code.google.com/p/1-billion-word-language-modeling-benchmark) was used to prepare the data. 
+`training-monolingual.tokenized/news.20??.en.shuffled.tokenized` data distributed for [WMT11](http://statmt.org/wmt11/translation-task.html). The preprocessing suggested by 
+the [Google 1-Billion Words language modeling benchmark](https://code.google.com/p/1-billion-word-language-modeling-benchmark) was used to prepare the data. 
 The task consists in predicting the next word given the `n` previous ones, where `n` is the context size (it can be set in the constructor).
 The data consists in approximately 30 million sentences of an average length of about 25 words.
 In, there are about 800 thousand (unique) words in the vocabulary, which makes it a very memory intensive problem.

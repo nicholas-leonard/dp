@@ -1,4 +1,4 @@
-# Losses #
+# Cut your Losses #
 Losses adapt [Criterions](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.Criterion). It is very easy to build a Loss, as it often only involves wrapping a [nn](https://github.com/torch/nn/blob/master/README.md) Criterion by defining a new Loss constructor. The dp package currently supports the following Losses:
  * [Loss](#dp.Loss) : abstract class for measuring loss and computing gradient w.r.t. loss;
    * [Criterion](#dp.Criterion) : generic nn.Criterion adapter;

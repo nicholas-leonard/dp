@@ -1,4 +1,4 @@
-# Views #
+# Nice View #
 Views encapsulate an `input` Tensor and one or many `gradOutput` Tensor. 
 These can be forward and backward accessed (put/get) by specifying a `view` and an optional `tensor_type`: 
   * [View](#dp.View) : Abstract class inherited by all Views.

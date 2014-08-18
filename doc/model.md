@@ -4,8 +4,10 @@
  * [Layer](#dp.Layer) : abstract class inherited by component Models ;
    * [Module](#dp.Module) : generic nn.Module adapter ;
    * [Neural](#dp.Neural) : Linear followed by a Transfer Module;
+   * [Dictionary](#dp.Dictionary) : a LookupTable wrapper using for word embeddings;
    * [Convolution1D](#dp.Convolution1D) : TemporalConvolution followed by a Transfer Module and TemporalMaxPooling;
    * [Convolution2D](#dp.Convolution2D) : SpatialConvolution followed by a Transfer Module and SpatialMaxPooling;
+   * [SoftmaxTree](#dp.SoftmaxTree) : a hierarchy of parameterized softmaxes;
  * [Container](#dp.Container) : abstract class inherited by composite Models;
    * [Sequential](#dp.Sequential) : a sequence of Models.
 
@@ -141,6 +143,10 @@ arguments, those specified in [Layer](#dp.Layer.__init) also apply.
  * `transfer` is a [Transfer](https://github.com/torch/nn/blob/master/doc/transfer.md) Module instance like [Tanh](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Tanh), [Sigmoid](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Sigmoid), 
 [ReLU]([ReLU](https://github.com/torch/nn/blob/master/doc/transfer.md#relu), etc. If the intent is to use Neural as a linear affine transform (without a non-linearity), one can use an [Identity](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Identity) Module instance.
 
+<a name='dp.Dictionary'/>
+## Dictionary ##
+Adapts a [LookupTable](https://github.com/torch/nn/blob/master/doc/convolution.md#nn.LookupTable). Used primarily for learning word embeddings.
+
 <a name='dp.Convolution1D'/>
 ## Convolution1D ##
 [TemporalConvolution](https://github.com/torch/nn/blob/master/doc/convolution.md#temporalconvolution) (a 1D convolution) followed by a [Transfer](https://github.com/torch/nn/blob/master/doc/transfer.md) Module and a 
@@ -178,6 +184,12 @@ Other then the following arguments, those specified in [Layer](#dp.Layer.__init)
  * `pool_stride` is a table-pair specifying the stride `{width,height}` of the spatial max pooling.
  * `transfer` is a transfer Module like [Tanh](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Tanh),
 [Sigmoid](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Sigmoid), [ReLU](https://github.com/torch/nn/blob/master/doc/transfer.md#relu), etc.
+
+<a name='dp.SoftmaxTree'/>
+## SoftmaxTree ##
+A hierarchy of parameterized softmaxes. Used for computing the likelihood of a leaf class. Use with [TreeNLL](loss.md#dp.TreeNLL) Loss. Requires a tensor mapping one `parent_id` to many `child_id`. 
+Greatly accelerates learning and testing for language models with large vocabularies. 
+A vocabulary hierarchy is provided via the [BillionWords](data.md#dp.BillionWords) DataSource.
 
 <a name='dp.Container'/>
 ## Container ##

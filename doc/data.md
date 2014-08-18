@@ -79,7 +79,7 @@ holding the start index of the sentence of its commensurate word id (the one at 
 Unlike DataSets, for memory efficiency reasons, this class does not store its data in [Views](view.md#dp.View).
 However, the outputs of factory methods [batch](#dp.DataSet.batch), [sub](#dp.DataSet.sub), and
 [index](#dp.DataSet.index) are [Batches](#dp.Batch) containing input and target [ClassViews](view.md#dp.ClassView).
-The returned batch:inputs() are filled according to [Google 1-Billion Words guidelines](https://code.google.com/p/1-billion-word-language-modeling-benchmark/source/browse/trunk/README.perplexity_and_such).
+The returned [batch:inputs()](#dp.BaseSet.inputs) are filled according to [Google 1-Billion Words guidelines](https://code.google.com/p/1-billion-word-language-modeling-benchmark/source/browse/trunk/README.perplexity_and_such).
 
 <a name="dp.Batch"/>
 ## Batch ##

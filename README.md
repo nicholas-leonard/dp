@@ -36,7 +36,7 @@ A [Facial Keypoints tutorial](doc/facialkeypointstutorial.md) involving the case
     * [Loss](doc/loss.md) : non-parameterized Nodes like [NLL](doc/loss.md#dp.NLL) that adapt [Criterions](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.Criterion);
   * Experiment Library
     * [Experiment](doc/experiment.md) : trains a Model using a DataSource and a Loss;
-    * [Propagator](doc/propagator.md) : [Propagators](propagator/propagator.lua) that forward DataSets and backpropagates a Loss through a Model;
+    * [Propagator](doc/propagator.md) : propagates a DataSet through a Model and Loss;
     * [Visitor](doc/visitor.md) : visits Models after a backward pass to update parameters, statistics or gradients;
   * Extension Library
     * [Feedback](doc/feedback.md) : provides I/O feedback given the Model output, input and targets;
@@ -50,7 +50,15 @@ A [Facial Keypoints tutorial](doc/facialkeypointstutorial.md) involving the case
 
 <a name="dp.install"/>
 ## Install ##
-To use this library, clone and make it:
+To use this library, install it globally via luarocks:
+```shell
+$> sudo luarocks install dp
+```
+or install it locally:
+```shell
+$> luarocks install dp --local
+```
+or clone and make it:
 ```shell
 $> git clone git@github.com:nicholas-leonard/dp.git
 $> cd dp

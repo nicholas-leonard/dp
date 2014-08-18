@@ -1,4 +1,4 @@
-# Data #
+# Elementary, Dear Data #
 
   * [BaseSet](#dp.BaseSet)
      * [DataSet](#dp.DataSet) :

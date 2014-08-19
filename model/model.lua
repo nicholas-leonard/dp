@@ -33,8 +33,10 @@ function Model:setup(config)
    assert(type(config) == 'table', "Setup requires key-value arguments")
    local args, container = xlua.unpack(
       {config},
-      'Model:setup', nil,
-      {arg='container', type='dp.Container'}
+      'Model:setup', 
+      'Model post-initialization method',
+      {arg='container', type='dp.Container',
+       help='Parent container (composite Model) of this Model, if any'}
    )
    -- context
    self._container = container

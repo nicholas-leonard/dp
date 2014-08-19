@@ -10,9 +10,10 @@ function WeightDecay:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, wd_factor, name = xlua.unpack(
       {config},
-      'WeightDecay', nil,
-      {arg='wd_factor', type='number', req='true', 
-         help='Weight decay factor'},
+      'WeightDecay', 
+      'Decays the weight of the visited parameterized models.',
+      {arg='wd_factor', type='number', req=true, 
+       help='Weight decay factor'},
       {arg='name', type='string', default='weightdecay',
        help='identifies visitor in reports.'}
    )

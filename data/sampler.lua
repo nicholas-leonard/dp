@@ -115,8 +115,8 @@ end
 
 ------------------------------------------------------------------------
 --[[ ShuffleSampler ]]--
--- Samples from a multinomial distribution where each examples has a 
--- probability of being samples.
+-- Iterates over examples in a dataset by shuffling the example 
+-- indices before each epoch.
 ------------------------------------------------------------------------
 local ShuffleSampler, parent = torch.class("dp.ShuffleSampler", "dp.Sampler")
 

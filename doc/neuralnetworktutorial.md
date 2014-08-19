@@ -23,18 +23,18 @@ opt = {
 ```
 ## DataSource and Preprocess ##
 We intend to build and train a neural network so we need some data, 
-which we encapsulate in a [DataSource](../data/datasource.lua)
+which we encapsulate in a [DataSource](data.md#dp.DataSource)
 object. __dp__ provides the option of training on different datasets, 
-notably [MNIST](../data/mnist.lua), [NotMNIST](../data/notmnist.lua), 
-[CIFAR-10](../data/cifar10) or [CIFAR-100](../data/cifar100.lua), but for this
+notably [MNIST](data.md#dp.Mnist), [NotMNIST](data.md#dp.NotMnist), 
+[CIFAR-10](data.md#dp.Cifar10) or [CIFAR-100](data.md#dp.Cifar100), but for this
 tutorial we will be using the archtypical MNIST (don't leave home without it):
 ```lua
 --[[data]]--
 datasource = dp.Mnist{input_preprocess = dp.Standardize()}
 ```
-A DataSource contains up to three [Datasets](../data/dataset.lua): 
+A DataSource contains up to three [DataSets](data.md#dp.DataSet): 
 `train`, `valid` and `test`. The first if for training the model. 
-The second is used for [early-stopping](observer/earlystopper.lua).
+The second is used for [early-stopping](observer/earlystopper.lua) and cross-validation.
 The third is used for publishing papers and comparing different models.
   
 Although not really necessary, we [Standardize](../preprocess/standardize.lua) 
@@ -83,23 +83,26 @@ with LogSoftMax (or with SoftMax + [Log](https://github.com/torch/nn/blob/master
 Both models initialize parameters using the default sparse initialization 
 (see [Martens 2010](http://machinelearning.wustl.edu/mlpapers/paper_files/icml2010_Martens10.pdf)). 
 If you construct it with argument `sparse_init=false`, it will delegate parameter initialization to 
-[Linear](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Linear), which is what Neural uses internally for its parameters.
+[Linear](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Linear), 
+which is what Neural uses internally for its parameters.
 
 These two Neural [Models](model.md#dp.Model) are combined to form an MLP using the [Sequential](model.md#dp.Sequential), 
 which is not to be confused with (yet very similar to) the 
 [Sequential](https://github.com/torch/nn/blob/master/containers.md#nn.Sequential) Module. It differs in that
 it can be constructed from a list of [Models](../model/model.lua) instead of 
 [Modules](https://github.com/torch/nn/blob/master/module.md#modules). Models have extra 
-methods, allowing them to [accept](model.md#dp.Model.accept) [Visitors](visitor/visitor.lua), to communicate with 
-other components through a [Mediator](../mediator.lua), or [setup](node.md#dp.Node.setup) with variables after initialization.
+methods, allowing them to [accept](model.md#dp.Model.accept) 
+[Visitors](visitor.md#dp.Visitor), to communicate with 
+other components through a [Mediator](../mediator.lua), 
+or [setup](node.md#dp.Node.setup) with variables after initialization.
 Model instances also differ from Modules in their ability to [forward](model.md#dp.Model.forward) 
 and [backward](model.md#dp.Model.backward) using [Views](view.md#dp.View).  
 
 ## Propagator ##
-Next we initialize some [Propagators](../propagator/propagator.lua). 
+Next we initialize some [Propagators](propagator.md#dp.Propagator). 
 Each such Propagator will propagate examples from a different [DataSet](data.md#dp.DataSet).
-[Samplers](../data/sampler.lua) iterate over DataSets to 
-generate batches of examples (inputs and targets) to propagated through the `model`:
+[Samplers](data.md#dp.Sampler) iterate over DataSets to 
+generate [Batches](data.md#dp.Batch) of examples (inputs and targets) to propagate through the `model`:
 ```lua
 --[[Propagators]]--
 train = dp.Optimizer{
@@ -131,23 +134,24 @@ and another for testing.
 ### Sampler ###
 The Evaluators use a simple Sampler which 
 iterates sequentially through the DataSet. On the other hand, the Optimizer 
-uses a [ShuffleSampler](../data/sampler.lua) to iterate through the DataSet. This Sampler
-shuffles the DataSet before each epoch (an epoch is usually defined as an iteration 
+uses a [ShuffleSampler](data.md#dp.SuffleSampler) to iterate through the DataSet. This Sampler
+shuffles the (indices of a) DataSet before each epoch (an epoch is usually defined as an iteration 
 over a DataSet). This shuffling is useful for training since the model 
 must learn from varying sequences of batches at each epoch, which makes the
 training algorithm more stochastic.
 
 ### Loss ###
 Each Propagator must also specify a [Loss](loss.md#dp.Loss) for training or evaluation.
-If you have previously used the [nn](https://github.com/torch/nn/blob/master/README.md) package, there is nothing new here, 
-a [Loss](loss/loss.lua) is simply an adapter of [Criterions](https://github.com/torch/nn/blob/master/criterion.md#nn.Criterion). 
+If you have previously used the [nn](https://github.com/torch/nn/blob/master/README.md) package, 
+there is nothing new here, a [Loss](loss/loss.lua) is simply an adapter of
+[Criterions](https://github.com/torch/nn/blob/master/criterion.md#nn.Criterion). 
 Each example has a single target class and our Model output is LogSoftMax so 
 we use a [NLL](loss.md#dp.NLL), which wraps a 
 [ClassNLLCriterion](https://github.com/torch/nn/blob/master/criterion.md#nn.ClassNLLCriterion).
 
 ### Feedback ###
-The `feedback` parameter is used to provide us with, you guessed it, feedback, like performance measures and
-statistics after each epoch. We use [Confusion](../feedback/confusion.lua), which is a wrapper 
+The `feedback` parameter is used to provide us with, you guessed it, feedback; like performance measures and
+statistics after each epoch. We use [Confusion](feedback.md#dp.Confusion), which is a wrapper 
 for the [optim](https://github.com/torch/optim/blob/master/README.md) package's 
 [ConfusionMatrix](https://github.com/torch/optim/blob/master/ConfusionMatrix.lua).
 While our Loss measures the Negative Log-Likelihood (NLL) of the Model 
@@ -155,18 +159,19 @@ on different DataSets, our Feedback measures classification accuracy (which is w
 we will use for early-stopping and comparing our model to the state of the art).
 
 ### Visitor ###
-Since the Optimizer is used to train the Model on a DataSet, we all need to specify some 
-Visitors to update its [parameters](model.md#dp.Model.parameters). We want to update the Model by sequentially appling 
-three visitors: 
+Since the [Optimizer](propagator.md#dp.Optimizer) is used to train the Model on a DataSet, 
+we need to specify some Visitors to update its [parameters](model.md#dp.Model.parameters). 
+We want to update the Model by sequentially appling three visitors: 
  1. [Momentum](../visitor/momentum.lua) : updates parameter gradients using a factored mixture of current and previous gradients.
  2. [Learn](../visitor/learn.lua) : updates the parameters using the gradients and a learning rate.
  3. [MaxNorm](../visitor/maxnorm.lua) : updates output or input neuron weights (in this case, output) so that they have a norm less or equal to a specified value.
 
-The only mandatory Visitor is the second one (Learn), which does the actual parameter updates (learning). The first is the well known 
-momentum. The last is the lesser known hard constraint on the norm of output or input neuron weights 
+The only mandatory Visitor is the second one (Learn), which does the actual parameter updates (learning). 
+The first is the well known momentum. 
+The last is the lesser known hard constraint on the norm of output or input neuron weights 
 (see [Hinton 2012](http://arxiv.org/pdf/1207.0580v1.pdf)), which acts as a regularizer. You could also
 replace it with a more classic regularizer like [WeightDecay](../visitor/weightdecay.lua), in which case you 
-would have to put it before the Learn visitor.
+would have to put it *before* the Learn visitor.
 
 Finally, we have the Optimizer switch on its `progress` bar so we 
 can monitor its progress during training. 
@@ -224,7 +229,7 @@ Once we have initialized the experiment, we need only run it on the `datasource`
 ```lua
 xp:run(datasource)
 ```
-We don't initilize the Experiment with the DataSource so that we may easily 
+We don't initialize the Experiment with the DataSource so that we may easily 
 save it onto disk, thereby keeping this snapshot separate from its data 
 (which shouldn't be modified by the experiment).
 

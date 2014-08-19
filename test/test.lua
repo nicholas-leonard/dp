@@ -695,10 +695,42 @@ function dptest.dictionary()
    layer:accept(visitor)
    layer:doneBatch()
    -- forward backward
-   output, carry2 = layer:forward(input, {nSample=5})
+   output, carry2 = layer:forward(input, {nSample=8})
    output:backward('bwc', grad_tensor)
    input, carry2 = layer:backward(output, carry2)
    mytester:assertTensorNe(act_ten, output:forward('bwc'), 0.00001)
+end
+function dptest.narrowdictionary()
+   local size = {8,5}
+   local output_size = {8,120}
+   local data = torch.randperm(80):resize(unpack(size))
+   local grad_tensor = torch.randn(unpack(output_size))
+   -- dp
+   local input = dp.ClassView('bt', data)
+   local layer = dp.NarrowDictionary{dict_size=100, output_size=32, delta_size=4}
+   local output, carry = layer:forward(input, {nSample=8})
+   mytester:assertTableEq(output:forward('bf'):size():totable(), output_size, 0.00001)
+   output:backward('bf', grad_tensor)
+   input = layer:backward(output, carry)
+   -- should be able to get input gradients
+   local function f() 
+      input:backward('bt') 
+   end 
+   mytester:assert(not pcall(f))
+   -- nn
+   local mlp = nn.NarrowLookupTable(4,100,32,true)
+   mlp:share(layer._module, 'weight')
+   local mlp_act = mlp:forward(input:forward('bt'))
+   -- compare nn and dp
+   mytester:assertTensorEq(mlp_act, output:forward('bf'), 0.00001)
+   -- update
+   local act_ten = output:forward('bf'):clone()
+   layer:updateParameters(0.1)
+   -- forward backward
+   output, carry2 = layer:forward(input, {nSample=8})
+   output:backward('bf', grad_tensor)
+   input, carry2 = layer:backward(output, carry2)
+   mytester:assertTensorNe(act_ten, output:forward('bf'), 0.00001)
 end
 function dptest.nll()
    local input_tensor = torch.randn(5,10)

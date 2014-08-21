@@ -17,10 +17,10 @@ function EarlyStopper:__init(config)
       'EarlyStopper', 
       'Saves a model at each new minima of error. ' ..
       'Error can be obtained from experiment report or mediator ' ..
-      'channel. If obtained from experiment report via error_func, ' ..
-      'subscribes to onDoneEpoch channel.',
+      'channel. If obtained from experiment report via error_report, ' ..
+      'subscribes to doneEpoch channel.',
       {arg='start_epoch', type='number', default=5,
-       help='when to start saving models.'},
+       help='when to start saving experiments to disk.'},
       {arg='error_report', type='table', 
        help='a sequence of keys to access error from report. ' ..
        'Default is {"validator", "loss", "avgError"}, unless ' ..

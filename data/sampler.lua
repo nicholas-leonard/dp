@@ -178,7 +178,7 @@ function ShuffleSampler:sampleEpoch(dataset)
    -- build iterator
    local epochSamples = 
       function(batch)
-         if nSampled > epochSize then
+         if nSampled >= epochSize then
             return
          end
          batch = batch or dataset:batch(self._batch_size)

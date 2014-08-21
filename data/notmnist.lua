@@ -63,7 +63,6 @@ function NotMnist:__init(config)
                             target_preprocess=target_preprocess})
 end
 
-
 function NotMnist:loadTrainValid()
    local bad_png = { --these wont load as PNGs, ignore them
       ['A'] = {

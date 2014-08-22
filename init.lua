@@ -16,7 +16,7 @@ require 'lfs'
 ------------------------------------------------------------------------
 
 dp = {}
-dp.TORCH_DIR = os.getenv('TORCH_DATA_PATH')
+dp.TORCH_DIR = os.getenv('TORCH_DATA_PATH') or os.getenv('HOME')
 
 dp.DATA_DIR = os.getenv('DEEP_DATA_PATH') 
    or paths.concat(dp.TORCH_DIR, 'data')
@@ -63,6 +63,7 @@ torch.include('dp', 'data/sampler.lua')
 torch.include('dp', 'data/cifar10.lua')
 torch.include('dp', 'data/cifar100.lua')
 torch.include('dp', 'data/notmnist.lua')
+torch.include('dp', 'data/facialkeypoints.lua')
 torch.include('dp', 'data/billionwords.lua')
 
 --[[ preprocess ]]--
@@ -86,6 +87,8 @@ torch.include('dp', 'feedback/feedback.lua')
 torch.include('dp', 'feedback/compositefeedback.lua')
 torch.include('dp', 'feedback/confusion.lua')
 torch.include('dp', 'feedback/perplexity.lua')
+torch.include('dp', 'feedback/fkdkaggle.lua')
+torch.include('dp', 'feedback/facialkeypointfeedback.lua')
 --torch.include('dp', 'feedback/criteria.lua')
 
 --[[ visitor ]]--
@@ -107,6 +110,7 @@ torch.include('dp', 'observer/filelogger.lua')
 
 --[[ nn ]]--
 torch.include('dp', 'nn/Print.lua')
+torch.include('dp', 'nn/PrintSize.lua')
 torch.include('dp', 'nn/FairLookupTable.lua')
 
 --[[ model ]]--
@@ -117,7 +121,10 @@ torch.include('dp', 'model/layer.lua')
 torch.include('dp', 'model/neural.lua')
 torch.include('dp', 'model/module.lua')
 torch.include('dp', 'model/dictionary.lua')
+torch.include('dp', 'model/narrowdictionary.lua')
 torch.include('dp', 'model/softmaxtree.lua')
+torch.include('dp', 'model/softmaxforest.lua')
+torch.include('dp', 'model/mixtureofexperts.lua')
 torch.include('dp', 'model/blocksparse.lua')
 torch.include('dp', 'model/convolution1D.lua')
 torch.include('dp', 'model/convolution2D.lua')
@@ -125,7 +132,10 @@ torch.include('dp', 'model/convolution2D.lua')
 --[[ loss ]]--
 torch.include('dp', 'loss/loss.lua')
 torch.include('dp', 'loss/nll.lua')
+torch.include('dp', 'loss/kldivergence.lua')
 torch.include('dp', 'loss/treenll.lua')
+torch.include('dp', 'loss/null.lua')
+torch.include('dp', 'loss/criterion.lua')
 
 --[[ hyper ]]--
 torch.include('dp', 'hyper/hyperoptimizer.lua')
@@ -135,6 +145,8 @@ torch.include('dp', 'hyper/experimentfactory.lua')
 torch.include('dp', 'hyper/priorsampler.lua')
 torch.include('dp', 'hyper/imageclassfactory.lua')
 torch.include('dp', 'hyper/mlpfactory.lua')
+torch.include('dp', 'hyper/contextwordfactory.lua')
+torch.include('dp', 'hyper/lmfactory.lua')
 
 --[[ postgres ]]--
 torch.include('dp', 'postgres/postgres.lua')
@@ -144,6 +156,7 @@ torch.include('dp', 'postgres/savetofile.lua')
 torch.include('dp', 'postgres/earlystopper.lua')
 torch.include('dp', 'postgres/done.lua')
 torch.include('dp', 'postgres/mlpfactory.lua')
+torch.include('dp', 'postgres/lmfactory.lua')
 torch.include('dp', 'postgres/hyperoptimizer.lua')
 
 --[[ test ]]--

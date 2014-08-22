@@ -41,7 +41,7 @@ function WeightedChoose:__init(distribution)
 end
 
 function WeightedChoose:sample()
-   local index = torch.multinomial(self._probs)[1]
+   local index = torch.multinomial(self._probs, 1)[1]
    return self._options[index]
 end
 

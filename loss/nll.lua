@@ -2,7 +2,7 @@
 --[[ NLL ]]--
 -- Loss subclass
 -- Adapter of nn.ClassNLLCriterion
--- Negative Log Likelihood 
+-- Negative Log Likelihood
 ------------------------------------------------------------------------
 local NLL, parent = torch.class("dp.NLL", "dp.Loss")
 NLL.isNLL = true
@@ -14,18 +14,6 @@ function NLL:__init(config)
    config.target_view = 'b'
    config.input_view = 'bf'
    parent.__init(self, config)
-end
-
-function NLL:_forward(carry)
-   local input, target = self:inputAct(), self:targetAct()
-   self.loss = self._criterion:forward(input, target)
-   return carry
-end
-
-function NLL:_backward(carry)
-   local input, target = self:inputAct(), self:targetAct()
-   self:inputGrad(self._criterion:backward(input, target))
-   return carry
 end
 
 function NLL:_type(type)

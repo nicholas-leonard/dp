@@ -63,7 +63,6 @@ function NotMnist:__init(config)
                             target_preprocess=target_preprocess})
 end
 
-
 function NotMnist:loadTrainValid()
    local bad_png = { --these wont load as PNGs, ignore them
       ['A'] = {
@@ -112,7 +111,7 @@ function NotMnist:loadTest()
    return self:testSet()
 end
 
---Creates an Mnist Dataset out of data and which_set
+--Creates an NotMnist Dataset out of data and which_set
 function NotMnist:createDataSet(inputs, targets, which_set)
    if self._binarize then
       DataSource.binarize(inputs, 128)
@@ -129,10 +128,6 @@ function NotMnist:createDataSet(inputs, targets, which_set)
    return dp.DataSet{inputs=input_v,targets=target_v,which_set=which_set}
 end
 
-
--- Get the raw, unprocessed DataSet.
--- Returns a 60,000 x 785 tensor, where each image is 28*28 = 784 values in the
--- range [0-255], and the 785th element is the class ID.
 function NotMnist:loadData(file_name, download_url, bad_png)
    local doc_path = DataSource.getDataPath{
       name=self._name, url=download_url..file_name..'.tar.gz', 
@@ -141,7 +136,6 @@ function NotMnist:loadData(file_name, download_url, bad_png)
    
    local n_example = 0
    local classes = self._classes
-   local n_example = 0
    for classidx, class in ipairs(classes) do
       local classpath = paths.concat(doc_path, class)
       for file in lfs.dir(classpath) do 

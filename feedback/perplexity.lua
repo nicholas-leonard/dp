@@ -6,20 +6,21 @@
 ------------------------------------------------------------------------
 local Perplexity, parent = torch.class("dp.Perplexity", "dp.Feedback")
 Perplexity.isPerplexity = true
-   
+
 function Perplexity:__init(config)
    config = config or {}
-   assert(torch.type(config) == 'table' and not config[1], 
+   assert(torch.type(config) == 'table' and not config[1],
       "Constructor requires key-value arguments")
    local args, name = xlua.unpack(
       {config},
-      'Perplexity', 
+      'Perplexity',
       'Computes perplexity for language models',
-      {arg='name', type='string', default='perplexity'}
+      {arg='name', type='string', default='perplexity',
+       help='name identifying Feedback in reports'}
    )
    config.name = name
    parent.__init(self, config)
-   self._perplexity = 0
+   self._nll = 0
 end
 
 function Perplexity:setup(config)
@@ -29,7 +30,7 @@ end
 
 function Perplexity:perplexity()
    -- exponential of the mean NLL
-   return 10^(self._perplexity / (self._n_sample*math.log(10)))
+   return math.exp(self._nll / self._n_sample)
 end
 
 function Perplexity:doneEpoch(report)
@@ -50,7 +51,8 @@ function Perplexity:_add(batch, output, carry, report)
       for i=1,targets:size(1) do
          sum = sum + act[i][targets[i]]
       end
-      self._perplexity = self._perplexity - sum
+
+      self._nll = self._nll - sum
    else
       -- assume output originates from SoftMaxTree
       local act = output:forward('b')
@@ -58,20 +60,19 @@ function Perplexity:_add(batch, output, carry, report)
          act = output:forward('b', 'torch.FloatTensor')
       end
       -- accumulate the sum of negative log likelihoods
-      self._perplexity = self._perplexity - act:sum()
+      self._nll = self._nll - act:sum()
    end
 end
 
 function Perplexity:_reset()
-   self._perplexity = 0
+   self._nll = 0
 end
 
 function Perplexity:report()
-   return { 
+   return {
       [self:name()] = {
          perplexity = self._n_sample > 0 and self:perplexity() or 0
       },
       n_sample = self._n_sample
    }
 end
-

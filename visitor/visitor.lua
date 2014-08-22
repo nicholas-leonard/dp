@@ -1,12 +1,12 @@
 ------------------------------------------------------------------------
 --[[ Visitor ]]--
 -- Visits a composite struture of Models and modifies their states.
+-- Visitors should try to access a model method assigned to 
+-- each visitor (if itexists). This would allow models to implement
+-- visitor specifics. (already started with dp.MaxNorm model)
 
 -- TODO: 
--- Visitors should try to access a model method assigned to 
--- each visitor (if exists). This would allow models to implement
--- visitor specifics. (already started with dp.MaxNorm model)
--- Visitors accumulate statistics for reporting purposes
+-- Visitors accumulate stats for reporting purposes (including evaluation)
 ------------------------------------------------------------------------
 local Visitor = torch.class("dp.Visitor")
 Visitor.isVisitor = true
@@ -15,7 +15,8 @@ function Visitor:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, name, include, exclude, observer = xlua.unpack(
       {config},
-      'Visitor', nil,
+      'Visitor', 
+      'Visits a composite struture of Models and modifies their states.',
       {arg='name', type='string', req=true,
        help='identifies visitor in reports.'},
       {arg='include', type='table',
@@ -24,15 +25,15 @@ function Visitor:__init(config)
        'in the exclude table, in this case it is not visited. ' ..
        'If include is empty, all models are included, unless ' ..
        'specified in the exclude list'},
-      {arg='exclude', type='table', default={},
+      {arg='exclude', type='table', default='',
        help='models having a member named in this table are not ' ..
-       'visited, even if the member is in the include table, i.e. ' ..
-       'exclude has priority over include'},
+       'visited, even if the member is in the include table, ' ..
+       'i.e. exclude has precedence over include. Defaults to {}'},
       {arg='observer', type='dp.Observer', 
-       help='observer that is informed when an event occurs.'}
+       help='observer that is notified when an event occurs.'}
    )
    self._name = name
-   self._exclude = exclude
+   self._exclude = (exclude == '') and {} or exclude
    self._include = include
    self:setObserver(observer)
 end
@@ -41,10 +42,14 @@ function Visitor:setup(config)
    assert(type(config) == 'table', "Setup requires key-value arguments")
    local args, mediator, model, propagator, id = xlua.unpack(
       {config},
-      'Visitor:setup', nil,
-      {arg='mediator', type='dp.Mediator'},
-      {arg='model', type='dp.Model'},
-      {arg='propagator', type='dp.Propagator'},
+      'Visitor:setup', 
+      'Visitor post-initialization method',
+      {arg='mediator', type='dp.Mediator',
+       help='used for inter-object communication.'},
+      {arg='model', type='dp.Model',
+       help='model that will be visited'},
+      {arg='propagator', type='dp.Propagator',
+       help='the propagator which makes use of this visitor'},
       {arg='id', type='dp.ObjectID',
        help='Set automatically by propagator. Use only for unit tests'}
    )

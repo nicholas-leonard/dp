@@ -70,12 +70,24 @@ function table.eq(t1,t2)
   return true  
 end
 
+-- recursively traverse a table:
+function table.recurse(t1, t2, f)
+   for k, v in pairs(t2) do
+      if (torch.type(v) == "table") then
+         t1[k] = table.recurse(t1[k] or {}, t2[k], f)
+      else
+         f(t1, k, v)
+      end
+   end
+   return t1
+end
+
 -- From http://stackoverflow.com/questions/1283388/lua-merge-tables
 -- values in table 1 have precedence
 function table.merge(t1, t2)
     for k, v in pairs(t2) do
         if (torch.type(v) == "table") and (torch.type(t1[k] or false) == "table") then
-            merge(t1[k], t2[k])
+            table.merge(t1[k], t2[k])
         else
             t1[k] = v
         end

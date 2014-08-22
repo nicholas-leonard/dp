@@ -1,8 +1,7 @@
 ------------------------------------------------------------------------
 --[[ Propagator ]]--
 -- Abstract Class for propagating a sampling distribution (Sampler) 
--- through a model in order to evaluate its criteria, train the model,
--- etc.
+-- through a model in order to evaluate its Loss, train the model, etc.
 -- To make your own training algorithm, you can build your own 
 -- propagator. If you can reduce it to reusable components, you could 
 -- then refactor these into visitors, observers, etc.
@@ -12,32 +11,31 @@ Propagator.isPropagator = true
 
 function Propagator:__init(config)   
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, loss, visitor, sampler, observer, feedback, 
-         mem_type, progress, stats
+   local args, loss, visitor, sampler, observer, feedback, progress, stats
       = xlua.unpack(
       {config},
-      'Propagator', nil,
-      {arg='loss', type='dp.Loss', req=true,
-       help='a neural network criterion to evaluate or minimize'},
+      'Propagator', 
+      'Propagates Batches sampled from a DataSet using a Sampler '..
+      'through a Model in order to evaluate a Loss, provide Feedback '.. 
+      'or train the model',
+      {arg='loss', type='dp.Loss | nn.Criterion', req=true,
+       help='a neural network Loss to evaluate or minimize'},
       {arg='visitor', type='dp.Visitor',
        help='visits models at the end of each batch propagation to '.. 
        'perform parameter updates and/or gather statistics, etc.'},
       {arg='sampler', type='dp.Sampler', 
-       help='Iterates through the train set. [Default=dp.Sampler()]'},
+       help='Iterates through a DataSet. [Default=dp.Sampler()]'},
       {arg='observer', type='dp.Observer', 
        help='observer that is informed when an event occurs.'},
       {arg='feedback', type='dp.Feedback',
        help='takes predictions, targets, model and visitor as input '..
        'and provides feedback through report(), setState, or mediator'},
-      {arg='mem_type', type='string', default='float',
-       help='double | float | cuda'},
       {arg='progress', type='boolean', default=false, 
        help='display progress bar'},
       {arg='stats', type='boolean', default=false,
        help='display statistics'}
    )
    self:setSampler(sampler or dp.Sampler())
-   self:setMemType(mem_type)
    self:setLoss(loss)
    self:setObserver(observer)
    self:setFeedback(feedback)
@@ -52,29 +50,24 @@ function Propagator:setup(config)
    local args, id, model, mediator, mem_type, dataset, overwrite
       = xlua.unpack(
       {config},
-      'Propagator:setup', nil,
-      {arg='id', type='dp.ObjectID'},
+      'Propagator:setup', 
+      'Post-initialization setup of the Propagator',
+      {arg='id', type='dp.ObjectID', req=true,
+       help='uniquely identifies the propagator.'},
       {arg='model', type='nn.Module',
        help='the model that is to be trained or tested',},
-      {arg='mediator', type='dp.Mediator', req=true},
-      {arg='mem_type', type='string', default='float',
-       help='double | float | cuda'},
+      {arg='mediator', type='dp.Mediator', req=true,
+       help='used for inter-object communication.'},
       {arg='dataset', type='dp.DataSet', 
        help='This might be useful to determine the type of targets. ' ..
        'Propagator should not hold a reference to a dataset due to ' ..
-       "the propagator's possible serialization."},
-      {arg='overwrite', type='boolean', default=false,
-       help='Overwrite existing values. For example, if a ' ..
-       'dataset is provided, and sampler is already ' ..
-       'initialized with a dataset, and overwrite is true, ' ..
-       'then sampler would be setup with dataset'}
+       'the propagator\'s possible serialization.'}
    )
    assert(id.isObjectID)
    self._id = id
    assert(mediator.isMediator)
    self._mediator = mediator
    self:setModel(model)
-   self:setMemType(mem_type, overwrite)
    self._sampler:setup{mediator=mediator, model=model}
    self._loss:setup{mediator=mediator, id=id:create("loss")}
    if self._observer then self._observer:setup{
@@ -252,6 +245,14 @@ function Propagator:feedback()
 end
 
 function Propagator:setLoss(loss)
+   if not loss.isLoss then
+      print("Propagator:setLoss Warning : "..
+         "'loss' argumetn isn't an instance of dp.Loss."..
+         "Assuming it's a nn.Criterion instance."..
+         "Wrapping it in dp.Criterion (this doesn't always work as-is)"
+      )
+      loss = dp.Criterion{criterion=loss}
+   end
    self._loss = loss
 end
 
@@ -259,12 +260,28 @@ function Propagator:loss()
    return self._loss
 end
 
-function Propagator:setMemType(mem_type, overwrite)
-   if (overwrite or not self._mem_type) and mem_type then
-      self._mem_type = mem_type
+function Propagator:type(new_type)
+   if self._loss then
+      self._loss:type(new_type)
    end
 end
 
-function Propagator:memType()
-   return self._mem_type
+function Propagator:float()
+   return self:type('torch.FloatTensor')
+end
+
+function Propagator:double()
+   return self:type('torch.DoubleTensor')
+end
+
+function Propagator:cuda()
+   return self:type('torch.CudaTensor')
+end
+
+function Propagator:int()
+   return self:type('torch.IntTensor')
+end
+
+function Propagator:long()
+   return self:type('torch.LongTensor')
 end

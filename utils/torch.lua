@@ -19,15 +19,6 @@ end
 typepattern = torch.typepattern
 -- END
 
-function torch.type(obj)
-   local class = torch.typename(obj)
-   if not class then
-      class = type(obj)
-   end
-   return class
-end
-
-
 -- TODO : PR to torch for added isTensor = true to userdata metatable
 function torch.isTensor(obj)
    return torch.typepattern(obj, "^torch[.]%a*Tensor$")

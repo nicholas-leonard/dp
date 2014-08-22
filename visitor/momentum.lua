@@ -1,6 +1,6 @@
 ------------------------------------------------------------------------
 --[[ Momentum ]]--
--- ModelVisitor
+-- Visitor
 -- Applies momentum to parameters
 ------------------------------------------------------------------------
 local Momentum, parent = torch.class("dp.Momentum", "dp.Visitor")

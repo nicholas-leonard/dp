@@ -15,7 +15,8 @@ function Confusion:__init(config)
       {config},
       'Confusion', 
       'Adapter for optim.ConfusionMatrix',
-      {arg='name', type='string', default='confusion'}
+      {arg='name', type='string', default='confusion',
+       help='name identifying Feedback in reports'}
    )
    config.name = name
    parent.__init(self, config)
@@ -38,7 +39,8 @@ function Confusion:_add(batch, output, carry, report)
       self._cm = optim.ConfusionMatrix(batch:targets():classes())
    end
    local act = output:forward('bf')
-   if act ~= 'torch.DoubleTensor' and act ~= 'torch.FloatTensor' then
+   local act_type = torch.type(act)
+   if act_type ~= 'torch.DoubleTensor' and act_type ~= 'torch.FloatTensor' then
       act = output:forward('bf', 'torch.FloatTensor')
    end
    self._cm:batchAdd(act, batch:targets():forward('b'))

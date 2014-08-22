@@ -1,4 +1,4 @@
-# Node #
+# Know the Node #
 The Abstract class [Node](#dp.Node) attempts to factor-out the commonalities of 
 Losses and Models.
 
@@ -12,26 +12,16 @@ we can think of Nodes as, you guessed it, nodes, and Views as sets of outgoing a
 <a name="dp.Node.__init"/>
 ### dp.Node{[input_type, output_type, module_type]} ###
 Node constructor. Arguments should be specified as key-value pairs. 
-
-`input_type` is a string identifying the type of input activation and gradient Tensors. It defaults to 
-`torch.getdefaulttensortype()` which is usually _torch.DoubleTensor_.
-
-`output_type` is a string identifying the type of output activation and gradient Tensors. In the case of 
-Loss, it identifies the type of the targets. It also defaults to `torch.getdefaulttensortype()`.
-
-`module_type` is a string identifying the type of [Modules](https://github.com/torch/nn/blob/master/doc/module.md#module) 
-or [Criterions](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.Criterion) used within the Node. It also defaults to 
-`torch.getdefaulttensortype()`.
+ * `input_type` is a string identifying the type of input activation and gradient Tensors. It defaults to `torch.getdefaulttensortype()` which is usually _torch.DoubleTensor_.
+ * `output_type` is a string identifying the type of output activation and gradient Tensors. In the case of Loss, it identifies the type of the targets. It also defaults to `torch.getdefaulttensortype()`.
+ * `module_type` is a string identifying the type of [Modules](https://github.com/torch/nn/blob/master/doc/module.md#module) or [Criterions](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.Criterion) used within the Node. It also defaults to `torch.getdefaulttensortype()`.
 
 <a name="dp.Node.setup"/>
 ### setup{mediator, id} ###
 Post-initialization setup method usually initiated (indirectly called) by Experiment. 
 Arguments should be specified as key-value pairs. 
-
-`mediator` is a Mediator which allows Nodes to signal other object of events.
-
-`id` is an ObjectID that uniquely identifies the Node. This is useful for identifying 
-Nodes in reports, and uniquely identifying objects between experiments.
+ * `mediator` is a Mediator which allows Nodes to signal other object of events.
+ * `id` is an ObjectID that uniquely identifies the Node. This is useful for identifying Nodes in reports, and uniquely identifying objects between experiments.
 
 <a name="dp.Node.report"/>
 ### [report] report() ###

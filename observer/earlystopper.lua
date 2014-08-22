@@ -17,10 +17,10 @@ function EarlyStopper:__init(config)
       'EarlyStopper', 
       'Saves a model at each new minima of error. ' ..
       'Error can be obtained from experiment report or mediator ' ..
-      'channel. If obtained from experiment report via error_func, ' ..
-      'subscribes to onDoneEpoch channel.',
+      'channel. If obtained from experiment report via error_report, ' ..
+      'subscribes to doneEpoch channel.',
       {arg='start_epoch', type='number', default=5,
-       help='when to start saving models.'},
+       help='when to start saving experiments to disk.'},
       {arg='error_report', type='table', 
        help='a sequence of keys to access error from report. ' ..
        'Default is {"validator", "loss", "avgError"}, unless ' ..
@@ -98,7 +98,8 @@ function EarlyStopper:compareError(current_error, ...)
    local found_minima = false
    current_error = current_error * self._sign
    if self._epoch >= self._min_epoch then
-      if current_error > self._max_error then
+      if (self._max_error ~= 0) and current_error > self._max_error then
+         print"EarlyStopper ending experiment. Error too high" 
          self._mediator:publish("doneExperiment")
       end
    end
@@ -108,6 +109,7 @@ function EarlyStopper:compareError(current_error, ...)
          self._minima_epoch = self._epoch
          self._save_strategy:save(self._subject, current_error)
          found_minima = true
+         self._mediator:publish("foundMinima")
       end
    end
    if self._max_epochs < (self._epoch - self._minima_epoch) then

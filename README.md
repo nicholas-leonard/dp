@@ -1,11 +1,13 @@
 # dp Package Reference Manual#
 
 __dp__ is a <b>d</b>ee<b>p</b> learning library designed for streamlining 
-research and development using the [Torch7](http://torch.ch) distribution, with an emphasis on flexibility through the elegant use of object-oriented [design patterns](http://en.wikipedia.org/wiki/Design_Patterns).
+research and development using the [Torch7](http://torch.ch) distribution. 
+It emphasizes flexibility through the elegant use of object-oriented 
+[design patterns](http://en.wikipedia.org/wiki/Design_Patterns).
 
 Inspired by pylearn2/Theano, it provides common datasets like MNIST, CIFAR-10 and CIFAR-100, 
 preprocessing like Zero-Component Analysis whitening, Global Contrast Normalization, 
-Lecunn's Local Contrast Normalization  and facilities for interfacing your own. 
+Lecun's Local Contrast Normalization  and facilities for interfacing your own. 
 Additionally, it provides a high-level framework that abstracts away common usage patterns of the [nn](https://github.com/torch/nn/blob/master/README.md) 
 and [torch7](https://github.com/torch/torch7/blob/master/README.md) package such as 
 loading datasets and [early stopping](http://en.wikipedia.org/wiki/Early_stopping). 
@@ -19,21 +21,27 @@ a PostgreSQL database backend which facilitates distributing experiments over di
 ## Tutorials and Examples ##
 In order to help you get up and running we provide a quick [neural network tutorial](doc/neuralnetworktutorial.md) which explains step-by-step the contents of this [example script](examples/neuralnetwork_tutorial.lua). For a more flexible option that allows input from the command-line specifying different datasources and preprocesses, using dropout, running the code on a GPU/CPU, please consult this [script](examples/neuralnetwork.lua).
 
+A [Facial Keypoints tutorial](doc/facialkeypointstutorial.md) involving the case study of a Kaggle Challenge is also available. It provides an overview of the steps required for extending and using  __dp__ in the context of the challenge. And even provides the script so that you can generate your own Kaggle submissions.
+
 <a name="dp.packages"/>
 ## dp Packages ##
 	
   * Data Library
     * [View](doc/view.md) : Tensor containers like [DataView](doc/view.md#dp.DataView), [ImageView](doc/view.md#dp.ImageView) and [ClassView](doc/view.md#dp.ClassView);
-    * [Data](doc/data.md) : View containers like like [Batch](doc/data.md#dp.Batch) and [DataSet](doc/data.md#dp.DataSet), and [DataSources](doc/data.md#dp.DataSource) like [Mnist](doc/data.md#dp.Mnist) and [BillionWords](doc/data.md#dp.BillionWords);
+    * [Data](doc/data.md) : View containers like like [Batch](doc/data.md#dp.Batch), and [DataSources](doc/data.md#dp.DataSource) like [Mnist](doc/data.md#dp.Mnist) and [BillionWords](doc/data.md#dp.BillionWords);
     * [Preprocess](doc/preprocess.md) : data preprocessing like [ZCA](doc/preprocess.md#dp.ZCA) and [Standardize](doc/preprocess.md#dp.Standardize);
   * Node Library
     * [Node](doc/node.md) : abstract class that defines Model and Loss commonalities;
-    * [Model](doc/model.md) : parameterized Nodes like [Neural](doc/model.md#dp.Neural) and [Convolution2D](doc/model.md#dp.Convolution2d) that adapt [Modules](https://github.com/torch/nn/blob/master/doc/module.md#module) to [Model](doc/model.md#dp.Model);
-    * [Loss](doc/loss.md) : non-parameterized Nodes like [NLL](doc/loss.md#dp.NLL) that adapt [Criterion](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.Criterion) to [Loss](doc/loss.md#dp.Loss);
+    * [Model](doc/model.md) : parameterized Nodes like [Neural](doc/model.md#dp.Neural) and [Convolution2D](doc/model.md#dp.Convolution2D) that adapt [Modules](https://github.com/torch/nn/blob/master/doc/module.md#module) to [Model](doc/model.md#dp.Model);
+    * [Loss](doc/loss.md) : non-parameterized Nodes like [NLL](doc/loss.md#dp.NLL) that adapt [Criterions](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.Criterion);
   * Experiment Library
-    * Experiment : trains a Model using a DataSource and a Loss;
-    * Propagator : [Propagators](propagator/propagator.lua) that forward DataSets and backpropagates a Loss through a Model;
-    * Visitor : visits Models after a backward pass to update parameters, statistics or gradients;
+    * [Experiment](doc/experiment.md) : trains a Model using a DataSource and a Loss;
+    * [Propagator](doc/propagator.md) : propagates a DataSet through a Model and Loss;
+    * [Visitor](doc/visitor.md) : visits Models after a backward pass to update parameters, statistics or gradients;
+  * Extension Library
+    * [Feedback](doc/feedback.md) : provides I/O feedback given the Model output, input and targets;
+    * [Observer](doc/observer.md) : plugins that can be appended to objects as extensions;
+    * [Mediator](doc/mediator.md) : singleton to which objects can publish and subscribe Channels;
   * Hyperparameter Library
     * Hyperoptimizer : explores different experiment configurations;
     * DatasourceFactory : builds a datasource;
@@ -42,13 +50,27 @@ In order to help you get up and running we provide a quick [neural network tutor
 
 <a name="dp.install"/>
 ## Install ##
-To use this library, we will require some lua rocks:
+To use this library, install it globally via luarocks:
 ```shell
-$> sudo luarocks install fs
-$> sudo luarocks install moses
-$> sudo luarocks install nnx
+$> sudo luarocks install dp
 ```
-Optional:
+or install it locally:
+```shell
+$> luarocks install dp --local
+```
+or clone and make it:
+```shell
+$> git clone git@github.com:nicholas-leonard/dp.git
+$> cd dp
+$> sudo luarocks make dp-scm-1.rockspec 
+```
+
+### Optional Dependencies ###
+For CUDA:
+```shell
+$> sudo luarocks install cunnx
+```
+For PostgresSQL
 ```shell
 $> sudo apt-get install libpq-dev
 $> sudo luarocks install luasql-postgres PGSQL_INCDIR=/usr/include/postgresql

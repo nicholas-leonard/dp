@@ -13,7 +13,7 @@ function Convolution1D:__init(config)
       = xlua.unpack(
       {config},
       'Convolution1D', 
-      '[dropout] + TemporalConvolution + TemporalMaxPooling + transfer function',
+      '[dropout] + TemporalConvolution + transfer function + TemporalMaxPooling',
       {arg='input_size', type='number', req=true,
        help='Number of input channels (the size of the word embedding)'},
       {arg='output_size', type='number', req=true,

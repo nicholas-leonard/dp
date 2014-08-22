@@ -32,7 +32,7 @@ end
 -- How can we handle a JoinTable on inputs from multiple clients?
 -- Option 1. Inputs would have to be accumulated before being able to 
 -- send back a reply to each client. 
--- Option 2. ParallelProxies sends and receives the replises before 
+-- Option 2. ParallelProxies sends and receives the replies before 
 -- forwarding them to a JoinTable.
 -- Since option 2 requires the least amount of work and is the simplest
 -- to use from a user perspective, we chose it. Option 1 would require 

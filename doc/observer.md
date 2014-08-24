@@ -1,6 +1,6 @@
 # You can Observe a lot by just watching #
 The following Observers are available:
- * [Observer](#dp.Observer)
+ * [Observer](#dp.Observer) : abstract class;
   * [EarlyStopper](#dp.EarlyStopper)
    * [PGEarlyStopper](#dp.PGEarlyStopper)
   * [LearningRateSchedule](#dp.LearningRateSchedule)

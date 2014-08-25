@@ -1,13 +1,13 @@
 # You can Observe a lot by just watching #
 The following Observers are available:
  * [Observer](#dp.Observer) : abstract class;
-  * [EarlyStopper](#dp.EarlyStopper)
-   * [PGEarlyStopper](#dp.PGEarlyStopper)
-  * [LearningRateSchedule](#dp.LearningRateSchedule)
-  * [Logger](#dp.Logger)
-   * [FileLogger](#dp.FileLogger)
-   * [PGLogger](#dp.PGLogger)
-  * [CompositeObserver](#dp.CompositeObserver) 
+  * [EarlyStopper](#dp.EarlyStopper) : upon reaching minima, saves [Experiment](experiment.md#dp.Experiment) and notifies [Subscribers](mediator.md#dp.Subscriber);
+   * [PGEarlyStopper](#dp.PGEarlyStopper) : the PostgreSQL version of the EarlyStopper;
+  * [LearningRateSchedule](#dp.LearningRateSchedule) : modifies learning rate using a schedule;
+  * [Logger](#dp.Logger) : abastract logging class (prints reports to cmdline);
+   * [FileLogger](#dp.FileLogger) : basic file-based report logging;
+   * [PGLogger](#dp.PGLogger) : a PostgreSQL logger which saves hyper-parameters, reports and minima;
+  * [CompositeObserver](#dp.CompositeObserver) : a composite of observers;
 
 <a name="dp.Observer"/>
 ## Observer ##

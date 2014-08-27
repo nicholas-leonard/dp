@@ -4,7 +4,7 @@ The following Observers are available:
   * [EarlyStopper](#dp.EarlyStopper) : upon reaching minima, saves [Experiment](experiment.md#dp.Experiment) and notifies [Subscribers](mediator.md#dp.Subscriber);
    * [PGEarlyStopper](#dp.PGEarlyStopper) : the PostgreSQL version of the EarlyStopper;
   * [LearningRateSchedule](#dp.LearningRateSchedule) : modifies learning rate using a schedule;
-  * [Logger](#dp.Logger) : abastract logging class (prints reports to cmdline);
+  * [Logger](#dp.Logger) : abstract logging class (prints reports to cmdline);
    * [FileLogger](#dp.FileLogger) : basic file-based report logging;
    * [PGLogger](#dp.PGLogger) : a PostgreSQL logger which saves hyper-parameters, reports and minima;
   * [CompositeObserver](#dp.CompositeObserver) : a composite of observers;

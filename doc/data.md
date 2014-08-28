@@ -10,6 +10,7 @@ One of the most important aspects of any machine learning problem is the data. T
     * [Cifar10](#dp.Cifar10) : the CIFAR-10 dataset;
     * [Cifar100](#dp.Cifar100) : the very difficult to generalize CIFAR-100 dataset;
     * [BillionWords](#dp.BillionWords) : the Google 1-Billion Words language model dataset;
+    * [SVHN](#dp.SVHN) : the Google Street View House Numbers dataset;
   * [Sampler](#dp.Sampler) : dataset iterator;
     * [ShuffleSampler](#dp.ShuffleSampler) : shuffled dataset iterator;
 
@@ -152,6 +153,10 @@ The task consists in predicting the next word given the `n` previous ones, where
 The data consists in approximately 30 million sentences of an average length of about 25 words.
 In, there are about 800 thousand (unique) words in the vocabulary, which makes it a very memory intensive problem.
 The DataSource inclues data for building hierarchical softmaxes to accelerate training.
+
+<a name="dp.SVHN"/>
+## SVHN ##
+The Google Street View House Numbers dataset.
 
 <a name="dp.Sampler"/>
 ## Sampler ##

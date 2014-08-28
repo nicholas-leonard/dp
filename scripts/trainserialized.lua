@@ -17,6 +17,7 @@ cmd:option('--learningRate', -1, 'new learning rate of model')
 cmd:option('--newSchedule', false, 'setup new learning rate decay schedule')
 cmd:option('--decayPoints', '{20,100,125}', 'epochs at which learning rate is decayed')
 cmd:option('--learningRates', '{0.2,0.1,0.01}', 'learning rate at decay points')
+cmd:option('--batchSize', -1, 'new batchSize of training set')
 
 cmd:option('--contextSize', 5, 'number of words preceding the target word used to predict the target work')
 cmd:option('--small', false, 'use a small (1/30th) subset of the training set')
@@ -53,6 +54,10 @@ opt.learningRates = table.fromString(opt.learningRates)
    end
    print("schedule:", schedule)
    xp:optimizer():visitor()._visitors[1]._observer._schedule = schedule
+end
+
+if opt.batchSize > 0 then
+   xp:optimizer():sampler():setBatchSize(opt.batchSize)
 end
 
 xp:run(datasource)

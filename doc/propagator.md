@@ -2,9 +2,9 @@
 These propagate Batches sampled from a DataSet using a Sampler through a 
 [Model](model.md#dp.Model) in order to evaluate a Loss, provide Feedback or
 train the model :
- * [Propagator](#dp.Propagator) :
-   * [Optimizer](#dp.Optimizer)
-   * [Evaluator](#dp.Evaluator)
+ * [Propagator](#dp.Propagator) : abstract class;
+   * [Optimizer](#dp.Optimizer) : optimizes a [Model](model.md#dp.Model) on a `train` [DataSet](data.md#dp.DataSet);
+   * [Evaluator](#dp.Evaluator) : evaluates a Model on a `valid` or `test` DataSet.
 
 <a name="dp.Propagator"/>
 ## Propagator ##

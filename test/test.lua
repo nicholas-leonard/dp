@@ -396,9 +396,9 @@ function dptest.recurrent()
 
    cont = dp.Recurrent{
       models = {
-         layer1,
          layer2,
          layer3,
+         layer1,
       },
       connections = {
          {source=name1, target=name2, isRecurrent=true},

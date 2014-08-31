@@ -9,12 +9,12 @@ Node.isNode = true
 
 function Node:__init(config)
    config = config or {}
-   assert(torch.type(config) == 'table' and not config[1], 
+   assert(torch.type(config) == 'table' and not config[1],
       "Constructor requires key-value arguments")
    local default_type = torch.getdefaulttensortype()
    local args, input_type, output_type, module_type = xlua.unpack(
       {config},
-      'Node', 
+      'Node',
       'Forward and backward propagates representations.',
       {arg='input_type', type='string', default=default_type,
        help='type of input activation and gradient tensors'},
@@ -28,17 +28,23 @@ function Node:__init(config)
    self:moduleType(module_type)
    self:zeroStatistics()
    self:doneBatch()
+
+   -- TODO: I do not know why id is setup during config time. I set it up here
+   -- too because named connections require named modules every time.
+   if config.id then
+      self._id = config.id
+   end
 end
 
 function Node:setup(config)
    assert(type(config) == 'table', "Setup requires key-value arguments")
    local args, mediator, id = xlua.unpack(
       {config},
-      'Node:setup', 
+      'Node:setup',
       'post-initialization setup method',
-      {arg='mediator', type='dp.Mediator', 
+      {arg='mediator', type='dp.Mediator',
        help='allows Nodes to signal other object of events.'},
-      {arg='id', type='dp.ObjectID', 
+      {arg='id', type='dp.ObjectID',
        help='Uniquely identifies node.'}
    )
    self._mediator = mediator
@@ -158,7 +164,7 @@ function Node:type(new_type)
    return self
 end
 
--- this should only change the input, output, module or criteria 
+-- this should only change the input, output, module or criteria
 -- types if the internal module or criteria permits it.
 -- for example, NLL only changes the input type to float or double.
 function Node:_type(new_type)

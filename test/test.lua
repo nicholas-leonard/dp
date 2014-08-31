@@ -1,5 +1,5 @@
-local mytester 
-local dptest = {}
+local mytester
+dptest = {}
 local mediator = dp.Mediator()
 
 function dptest.uid()
@@ -163,12 +163,12 @@ function dptest.listview()
    local data_v = dp.DataView()
    -- composite tensor
    local list_v = dp.ListView({image_v,data_v})
-   list_v:forward({'bhwc', 'bf'}, {image_data, data}) 
+   list_v:forward({'bhwc', 'bf'}, {image_data, data})
    local t = list_v:forward('bf', 'torch.FloatTensor')
    local size = {8,(32*32*3)+4}
    mytester:assertTableEq(t:size():totable(), size, 0.0001)
    local c = torch.concat({
-      image_v:forward('bf', 'torch.FloatTensor'), 
+      image_v:forward('bf', 'torch.FloatTensor'),
       data_v:forward('bf', 'torch.FloatTensor')
    }, 2)
    mytester:assertTensorEq(t, c, 0.00001)
@@ -230,7 +230,7 @@ function dptest.sentenceset()
    ds:sub(batch3, 1, 3)
    mytester:assertTensorEq(batch3:inputs():forward('bt'), batch:inputs():forward('bt'), 0.00001)
    mytester:assertTensorEq(batch3:targets():forward('b'), batch:targets():forward('b'), 0.00001)
-end 
+end
 function dptest.gcn()
    --[[ zero_vector ]]--
    -- Global Contrast Normalization
@@ -240,7 +240,7 @@ function dptest.gcn()
    dv:forward('bf', torch.zeros(1,1))
    local dataset = dp.DataSet{which_set='train', inputs=dv}
 
-   --std_bias = 0.0 is the only value for which there 
+   --std_bias = 0.0 is the only value for which there
    --should be a risk of failure occurring
    local preprocess = dp.GCN{sqrt_bias=0.0, use_std=true}
    dataset:preprocess{input_preprocess=preprocess}
@@ -255,7 +255,7 @@ function dptest.gcn()
    -- results in vectors having unit norm
    local dv = dp.DataView('bf', torch.rand(3,9))
    local dataset = dp.DataSet{which_set='train', inputs=dv}
-   
+
    local preprocess = dp.GCN{std_bias=0.0, use_std=false}
    dataset:preprocess{input_preprocess=preprocess}
    local result = dataset:inputs():input()
@@ -368,13 +368,72 @@ function dptest.sequential()
    mytester:assertTensorEq(mlp_act, output:forward('bf'), 0.00001)
    mytester:assertTensorEq(mlp_grad, input:backward('bf'), 0.00001)
 end
+
+function dptest.recurrent()
+
+   local name1 = dp.ObjectID:create("layer1")
+   local name2 = dp.ObjectID:create("layer2")
+   local name3 = dp.ObjectID:create("layer3")
+
+   local layer1 = dp.Neural{
+      input_size = 10,
+      output_size = 100,
+      transfer = nn.Tanh(),
+      id = name1
+   }
+   local layer2 = dp.Neural{
+      input_size = 100,
+      output_size = 50,
+      transfer = nn.Tanh(),
+      id = name2
+   }
+   local layer3 = dp.Neural{
+      input_size = 50,
+      output_size = 2,
+      transfer = nn.Tanh(),
+      id = name3
+   }
+
+   cont = dp.Recurrent{
+      models = {
+         layer1,
+         layer2,
+         layer3,
+      },
+      connections = {
+         {source=name1, target=name2, isRecurrent=true},
+         {source=name1, target=name3, isRecurrent=false},
+         {source=name2, target=name3, isRecurrent=true}
+      }
+   }
+
+   -- TODO: this model must fail. Not sure how to assert that.
+   --[[ cont2 = dp.Recurrent{
+      models = {
+         layer1,
+         layer2,
+         layer3,
+      },
+      connections = {
+         {source=name1, target=name2, isRecurrent=true},
+         {source=name1, target=name3, isRecurrent=false},
+         {source=name2, target=name1},
+         {source=name2, target=name3, isRecurrent=true}
+      }
+   }
+   --]]
+
+   return cont
+
+end
+
 function dptest.softmaxtree()
    local input_tensor = torch.randn(5,10)
    local target_tensor = torch.IntTensor{20,24,27,10,12}
    local grad_tensor = torch.randn(5)
    local root_id = 29
    local hierarchy={
-      [29]=torch.IntTensor{30,1,2}, [1]=torch.IntTensor{3,4,5}, 
+      [29]=torch.IntTensor{30,1,2}, [1]=torch.IntTensor{3,4,5},
       [2]=torch.IntTensor{6,7,8}, [3]=torch.IntTensor{9,10,11},
       [4]=torch.IntTensor{12,13,14}, [5]=torch.IntTensor{15,16,17},
       [6]=torch.IntTensor{18,19,20}, [7]=torch.IntTensor{21,22,23},
@@ -407,7 +466,7 @@ function dptest.softmaxtree()
    mytester:assertTensorEq(mlp_act, output:forward('bf'), 0.00001)
    mytester:assertTensorEq(mlp_grad, input:backward('bf'), 0.00001)
    -- share
-   local model2 = model:sharedClone()   
+   local model2 = model:sharedClone()
    -- update
    local weight = model._module.weight:clone()
    local act_ten = output:forward('bf'):clone()
@@ -460,7 +519,7 @@ function dptest.softmaxforest()
    local grad_tensor = torch.randn(5)
    local root_id = 29
    local hierarchy={
-      [29]=torch.IntTensor{30,1,2}, [1]=torch.IntTensor{3,4,5}, 
+      [29]=torch.IntTensor{30,1,2}, [1]=torch.IntTensor{3,4,5},
       [2]=torch.IntTensor{6,7,8}, [3]=torch.IntTensor{9,10,11},
       [4]=torch.IntTensor{12,13,14}, [5]=torch.IntTensor{15,16,17},
       [6]=torch.IntTensor{18,19,20}, [7]=torch.IntTensor{21,22,23},
@@ -472,7 +531,7 @@ function dptest.softmaxforest()
    local target = dp.ClassView()
    target:forward('b', target_tensor)
    local model = dp.SoftmaxForest{
-      input_size=10, hierarchy={hierarchy,hierarchy,hierarchy}, 
+      input_size=10, hierarchy={hierarchy,hierarchy,hierarchy},
       root_id={root_id,root_id,root_id}
    }
    for i=1,3 do
@@ -557,7 +616,7 @@ function dptest.mixtureofexperts()
    local input = dp.DataView()
    input:forward('bf', input_tensor)
    local model = dp.MixtureOfExperts{
-      input_size=10, n_expert=3, expert_size={7}, 
+      input_size=10, n_expert=3, expert_size={7},
       gater_size={8}, output_size=6
    }
    -- forward backward
@@ -584,7 +643,7 @@ function dptest.convolution1D()
    -- dp
    local input = dp.SequenceView('bwc', data)
    local layer = dp.Convolution1D{
-      input_size=50, output_size=100, kernel_size=2, 
+      input_size=50, output_size=100, kernel_size=2,
       kernel_stride=1, pool_size=2, pool_stride=2,
       transfer=nn.Tanh()
    }
@@ -628,7 +687,7 @@ function dptest.convolution2D()
    -- dp
    local input = dp.ImageView('bhwc', data)
    local layer = dp.Convolution2D{
-      input_size=3, output_size=20, kernel_size={3,3}, 
+      input_size=3, output_size=20, kernel_size={3,3},
       kernel_stride={1,1}, pool_size={2,2}, pool_stride={2,2},
       transfer=nn.Tanh()
    }
@@ -678,9 +737,9 @@ function dptest.dictionary()
    output:backward('bwc', grad_tensor)
    input = layer:backward(output, carry)
    -- should be able to get input gradients
-   local function f() 
-      input:backward('bt') 
-   end 
+   local function f()
+      input:backward('bt')
+   end
    mytester:assert(not pcall(f))
    -- nn
    local mlp = nn.LookupTable(100,50)
@@ -713,9 +772,9 @@ function dptest.narrowdictionary()
    output:backward('bf', grad_tensor)
    input = layer:backward(output, carry)
    -- should be able to get input gradients
-   local function f() 
-      input:backward('bt') 
-   end 
+   local function f()
+      input:backward('bt')
+   end
    mytester:assert(not pcall(f))
    -- nn
    local mlp = nn.NarrowLookupTable(4,100,32,true)
@@ -814,7 +873,6 @@ function dp.test(tests)
    math.randomseed(os.time())
    mytester = torch.Tester()
    mytester:add(dptest)
-   mytester:run(tests)   
+   mytester:run(tests)
    return mytester
 end
-

@@ -18,22 +18,22 @@ require 'lfs'
 dp = {}
 dp.TORCH_DIR = os.getenv('TORCH_DATA_PATH') or os.getenv('HOME')
 
-dp.DATA_DIR = os.getenv('DEEP_DATA_PATH') 
+dp.DATA_DIR = os.getenv('DEEP_DATA_PATH')
    or paths.concat(dp.TORCH_DIR, 'data')
 
-dp.SAVE_DIR = os.getenv('DEEP_SAVE_PATH') 
+dp.SAVE_DIR = os.getenv('DEEP_SAVE_PATH')
    or paths.concat(dp.TORCH_DIR, 'save')
-   
-dp.LOG_DIR = os.getenv('DEEP_LOG_PATH') 
+
+dp.LOG_DIR = os.getenv('DEEP_LOG_PATH')
    or paths.concat(dp.TORCH_DIR, 'log')
-   
+
 --[[ utils ]]--
 torch.include('dp', 'utils/utils.lua')
 torch.include('dp', 'utils/underscore.lua')
 torch.include('dp', 'utils/os.lua')
 torch.include('dp', 'utils/table.lua')
 torch.include('dp', 'utils/torch.lua')
-   
+
 --[[ misc ]]--
 torch.include('dp', 'choose.lua')
 torch.include('dp', 'xplog.lua')
@@ -129,6 +129,7 @@ torch.include('dp', 'model/mixtureofexperts.lua')
 torch.include('dp', 'model/blocksparse.lua')
 torch.include('dp', 'model/convolution1D.lua')
 torch.include('dp', 'model/convolution2D.lua')
+torch.include('dp', 'model/recurrent.lua')
 
 --[[ loss ]]--
 torch.include('dp', 'loss/loss.lua')

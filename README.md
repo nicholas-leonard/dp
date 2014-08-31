@@ -5,17 +5,15 @@ research and development using the [Torch7](http://torch.ch) distribution.
 It emphasizes flexibility through the elegant use of object-oriented 
 [design patterns](http://en.wikipedia.org/wiki/Design_Patterns).
 
-Inspired by pylearn2/Theano, it provides common datasets like MNIST, CIFAR-10 and CIFAR-100, 
-preprocessing like Zero-Component Analysis whitening, Global Contrast Normalization, 
-Lecun's Local Contrast Normalization  and facilities for interfacing your own. 
-Additionally, it provides a high-level framework that abstracts away common usage patterns of the [nn](https://github.com/torch/nn/blob/master/README.md) 
-and [torch7](https://github.com/torch/torch7/blob/master/README.md) package such as 
-loading datasets and [early stopping](http://en.wikipedia.org/wiki/Early_stopping). 
-The library includes hyperparameter optimization facilities for sampling and running 
-experiments from the command-line or prior hyper-parameter distributions.
+As an apprentice of Yoshua Bengio and Aaron Courville from the LISA Lab,
+I was inspired by pylearn2 and Theano to build a framework better suited to 
+my needs and style.
 
-Finally, we optionally provide facilites for storing and analysing hyperpameters and results using
-a PostgreSQL database backend which facilitates distributing experiments over different machines. 
+This package includes, among other things : 
+ * common datasets like MNIST, CIFAR-10 and CIFAR-100, reprocessing like Zero-Component Analysis whitening, Global Contrast Normalization, Lecun's Local Contrast Normalization, and facilities for interfacing your own.
+ * a high-level framework that abstracts away common usage patterns of the [nn](https://github.com/torch/nn/blob/master/README.md) and [torch7](https://github.com/torch/torch7/blob/master/README.md) package such as loading datasets and [early stopping](http://en.wikipedia.org/wiki/Early_stopping). 
+ * hyperparameter optimization facilities for sampling and running experiments from the command-line or prior hyper-parameter distributions.
+ * facilites for storing and analysing hyperpameters and results using a PostgreSQL database backend which facilitates distributing experiments over different machines.
 
 <a name="dp.tutorials"/>
 ## Tutorials and Examples ##
@@ -76,3 +74,7 @@ $> sudo apt-get install libpq-dev
 $> sudo luarocks install luasql-postgres PGSQL_INCDIR=/usr/include/postgresql
 $> sudo apt-get install liblapack-dev
 ```
+
+## Contributions ##
+
+We appreciate [issues](https://github.com/nicholas-leonard/dp/issues) and [pull requests](https://github.com/nicholas-leonard/dp/pulls?q=is%3Apr+is%3Aclosed) of all kind.

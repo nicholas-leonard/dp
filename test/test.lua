@@ -406,6 +406,8 @@ function dptest.recurrent()
          {source=name2, target=name3, isRecurrent=true}
       }
    }
+   assert(#cont:connections() == 3)
+   assert(#cont:nodes() == 3)
 
    -- TODO: this model must fail. Not sure how to assert that.
    --[[ cont2 = dp.Recurrent{

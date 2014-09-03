@@ -5,11 +5,11 @@ research and development using the [Torch7](http://torch.ch) distribution.
 It emphasizes flexibility through the elegant use of object-oriented 
 [design patterns](http://en.wikipedia.org/wiki/Design_Patterns).
 
-As an apprentice of Yoshua Bengio and Aaron Courville from the LISA Lab,
+During my time in the LISA Lab as an apprentice of Yoshua Bengio and Aaron Courville,
 I was inspired by pylearn2 and Theano to build a framework better suited to 
 my needs and style.
 
-This package includes, among other things : 
+Among other things, this package includes : 
  * common datasets like MNIST, CIFAR-10 and CIFAR-100, reprocessing like Zero-Component Analysis whitening, Global Contrast Normalization, Lecun's Local Contrast Normalization, and facilities for interfacing your own.
  * a high-level framework that abstracts away common usage patterns of the [nn](https://github.com/torch/nn/blob/master/README.md) and [torch7](https://github.com/torch/torch7/blob/master/README.md) package such as loading datasets and [early stopping](http://en.wikipedia.org/wiki/Early_stopping). 
  * hyperparameter optimization facilities for sampling and running experiments from the command-line or prior hyper-parameter distributions.

@@ -156,7 +156,13 @@ The DataSource inclues data for building hierarchical softmaxes to accelerate tr
 
 <a name="dp.SVHN"/>
 ## SVHN ##
-The Google Street View House Numbers dataset.
+The Google Street View House Numbers (SVHN) DataSource wraps 
+the [originalsource](http://ufldl.stanford.edu/housenumbers/). 
+If not found on the local machine, 
+the object downloads the dataset from the [neuflow.org](http://data.neuflow.org/data/housenumbers/). 
+It contains 73257 digits for training, 26032 digits for testing, and 531131 additional, 
+somewhat less difficult samples, to use as extra training data. 
+Like [CIFAR](#dp.Cifar10), the images are of size `3x32x32`.
 
 <a name="dp.Sampler"/>
 ## Sampler ##

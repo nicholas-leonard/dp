@@ -27,6 +27,9 @@ A Propagator constructor which takes key-value arguments:
 
 <a name="dp.Optimizer"/>
 ## Optimizer ##
+Optimizes a [Model](model.md#dp.Model) on a `train` [DataSet](data.md#dp.DataSet).
+
 
 <a name="dp.Evaluator"/>
 ## Evaluator ##
+Evaluates a Model on a `valid` or `test` DataSet.

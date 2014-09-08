@@ -56,7 +56,7 @@ build :
  1. [FacialKeypoints](#facialkeypoints) : wrapper for the DataSource;
  2. [FKDKaggle](#fkdkaggle) : a Feedback for creating a Kaggle submission out of predictions;
  3. [FacialKeypointFeedback](#facialkeypointfeedback) : a Feedback for monitoring performance (and comparing to baseline);
- 4. [MultiSoftMax](#multisoftmax) : a nn.Module that will allow us to apply a softmax for each keypoint.
+ 4. [MultiSoftMax](#multisoftmax) : a nn.Module that will allow us to apply a softmax for each keypoint;
  5. [facialkeypointsdetector.lua](#facialkeypointsdetector.lua) : main launch script; 
 
 ### FacialKeypoints ###

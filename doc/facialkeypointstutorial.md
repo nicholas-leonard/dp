@@ -56,7 +56,7 @@ build :
  1. [FacialKeypoints](#facialkeypoints) : wrapper for the DataSource;
  2. [FKDKaggle](#fkdkaggle) : a Feedback for creating a Kaggle submission out of predictions;
  3. [FacialKeypointFeedback](#facialkeypointfeedback) : a Feedback for monitoring performance (and comparing to baseline);
- 4. [MultiSoftMax](#multisoftmax) : a nn.Module that will allow us to apply a softmax for each keypoint.
+ 4. [MultiSoftMax](#multisoftmax) : a nn.Module that will allow us to apply a softmax for each keypoint;
  5. [facialkeypointsdetector.lua](#facialkeypointsdetector.lua) : main launch script; 
 
 ### FacialKeypoints ###
@@ -219,7 +219,7 @@ It uses a `makeTargets` method to transform a scalar keypoint
 coordinate (for one axis) into a vector of size 98 with a gaussian 
 blur centered around the original scalar value. So a Tensor of size 
 `(batchSize, nKeypoints*2)` is transformed into another of size 
-`(bathcSize, nKeypoints*2, 98)`: 
+`(batchSize, nKeypoints*2, 98)`: 
 ```lua
 function FacialKeypoints:makeTargets(y)
    -- y : (batch_size, num_keypoints*2)
@@ -285,10 +285,10 @@ It is good practice to make all data accessible from such DataSource
 classes. Even if some of the data is required to initialize 
 other objects. This is the case for example of the FKDKaggle and 
 FacialKeypoints Feedbacks, which are initialized with the output of 
-`loadSubmission` and `loadBaseline`.
+this DataSource's `loadSubmission` and `loadBaseline` methods.
 
 ### FKDKaggle ###
-Feedbacks are a little tricky to get the hand off,
+Feedbacks are a little tricky to get the hang of,
 but are very useful for extending an experiment with task-tailored 
 I/O functionality. 
 The [FKDKaggle](../feedback/fkdkaggle.lua) is a Feedback class 

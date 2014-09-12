@@ -197,6 +197,7 @@ function ShuffleSampler:sampleEpoch(dataset)
          self._start = self._start + self._batch_size
          if self._start >= nSample then
             self._start = 1
+            dataset_indices = torch.randperm(nSample):long()
          end
          collectgarbage() 
          return batch, math.min(nSampled, epochSize), epochSize

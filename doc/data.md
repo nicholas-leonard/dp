@@ -104,7 +104,7 @@ DataSource constructor. Arguments should be specified as key-value pairs.
  * `input_preprocess` is a [Preprocess](preprocess.md#dp.Preprocess) that will be applied to the inputs. Statistics are measured (fitted) on the `train_set` only, and then reused to preprocess all provided sets. This argument may also be provided as a list (table) of Preprocesses, in which case, they will be wrapped in the composite [Pipeline](preprocess.md#dp.Pipeline) Preprocess.
  * `target_preprocess` is like `input_preprocess`, but for preprocessing the targets.
 
-At least one of the 3 `set` arguments should be specified.
+Note that at least one of the 3 `set` arguments should be specified. If you need guidance to build your own DataSource, the [Facial Keypoint Tutorial](facialkeypointstutorial.md#facial-keypoints-tutorial) also includes a [section](facialkeypointstutorial.md#facialkeypoints) demonstrating how a DataSource can be built to wrap facial keypoint detection data.
 
 ### preprocess() ###
 If they exist, applies the `input_preprocess` and `target_preprocess` [Preprocess](preprocess.md#dp.Preprocess) 

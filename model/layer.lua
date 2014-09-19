@@ -205,6 +205,19 @@ function Layer:_type(type)
    self._module:type(type)
 end
 
+-- returns its contained Modules and input View(s) as a Module
+-- each input View may be queried by other Models...
+-- each Model is responsible for its output View
+function Layer:toModule()
+   -- get the Module encapsulating the output View and its forwardGet Models
+   local fwd_module = self._output:moduleGet(self._output_view, self._output_type)
+   local mlp = nn.Sequential()
+   mlp:add(self._module)
+   mlp:add(fwd_module)
+   -- put this module in the input View so that the preceding Module can moduleGet it
+   self._input:modulePut(mlp, self._input_view, self._input_type)
+end
+
 -- static method for initializing weights matrices
 -- first dim is for outputs, second is for inputs
 function Layer._sparseReset(W, stdev)

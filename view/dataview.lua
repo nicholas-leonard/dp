@@ -11,6 +11,7 @@ function DataView:__init(view, input)
    if view and input then
       self:forward(view, input)
    end
+   self._module_graph = {}
 end
 
 ---------------------- FORWARD -----------------------
@@ -48,15 +49,46 @@ function DataView:forwardGet(view, tensor_type)
    if not viewTable then
       -- no viewTable: get tensor from module
       return self:tensorFromModule(view, tensor_type)
-   else
-      local tensor = viewTable[tensor_type]
-      if not tensor then
-         return self:tensorFromModule(view, tensor_type)
-      end
-      return tensor
    end
+   local tensor = viewTable[tensor_type]
+   if not tensor then
+      return self:tensorFromModule(view, tensor_type)
+   end
+   if destination then
+      error"not handled"
+   end
+   return tensor
 end
 
+-- accumulates all forward modules into a table
+function DataView:modulePut(fwd_module, view, tensor_type)
+   local viewTable = self._module_graph[view]
+   if not viewTable then
+      viewTable = {[tensor_type] = {fwd_module}}
+      return
+   end
+   local moduleList = viewTable[tensor_type]
+   if not moduleList then
+      viewTable[tensor_type] = {fwd_module}
+      return
+   end
+   table.insert(moduleList, fwd_module)
+end
+
+-- composes all forward modules into a single composite Module :
+-- sequence(
+--    concatTable(sequence(reshape -> transpose)) -> 
+--       parallelTable(
+--          concatTables(
+--             sequence(copy -> fwd_module)
+--       )
+--    )
+-- )
+function DataView:moduleGet(view, tensor_type)
+   
+end
+
+-- returns a tensor of shape view and type tensor_type
 function DataView:tensorFromModule(view, tensor_type)
    local viewTable = self._tensors[view] or {}
    local input_type = torch.typename(self._input)

@@ -112,6 +112,10 @@ function View:cuda()
    return self:type('torch.CudaTensor')
 end
 
+function View:toModule()
+   error"Not Implemented"
+end
+
 ---- static methods ----
 --returns true if all indices in obj_table are instances of View
 --else return false and index of first non-element

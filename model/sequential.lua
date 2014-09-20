@@ -77,6 +77,12 @@ function Sequential:__tostring__()
    return str
 end
 
+function Sequential:_toModule()
+   for i=#self._models,1,-1 do
+      self._models[i]:_toModule()
+   end
+end
+
 --[[
 -- experimental
 function Sequential:flux(state)

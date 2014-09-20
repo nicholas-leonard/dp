@@ -232,10 +232,15 @@ function DataView:modulePut(fwd_module, view, tensor_type)
 end
 
 -- composes all forward modules into a single composite Module :
-function DataView:moduleGet()
-   if (not self._got) and self._put then
-      error"Model:toModule() should be preceded by a call to Model:forward()"
+function DataView:moduleGet(bwd_module)
+   if not self._got then
+      if self._put or (not self._modules) then
+         error"Model:toModule() should be preceded by a call to Model:forward()"
+      end
+      -- assume self is the output layer's output View
+      return bwd_module
    end
+   
    -- how many output Model use this?
    local nOut = 0
    local view, tensor_type, fwd_module
@@ -249,6 +254,10 @@ function DataView:moduleGet()
    end
    
    local mlp = nn.Sequential()
+   if bwd_module then -- the input View of the network has none
+      -- the backward (previous) module comes first
+      mlp:add(bwd_module) 
+   end
    if nOut == 1 then
       -- only 1 output Model: simple build
       local moduleTable = self._modules[view]
@@ -260,15 +269,13 @@ function DataView:moduleGet()
          local typeModule = moduleTable[2][tensor_type]
          mlp:add(typeModule)
       end
-      if mlp:size() == 0 then
-         return fwd_module
-      end
       mlp:add(fwd_module)
       return mlp
    end
    
    -- else: multiple outputs : complicated build (output is a table)
    -- nn.Sequential(
+   --    bwd_module,
    --    nn.ConcatTable( --concatView
    --       nn.Sequential(
    --          viewTable1, 
@@ -310,7 +317,7 @@ function DataView:moduleGet()
       concatView:add(seqView)
    end
    mlp:add(concatView)
-   mlp:add(nn.FlattenTable()
+   mlp:add(nn.FlattenTable())
 end
 
 

@@ -130,3 +130,6 @@ function SoftmaxTree:pushDropout(dropout)
    self._module = mlp
 end
 
+function SoftmaxTree:_toModule()
+   error"Not Implemented : TODO implement using Push/PullTable... (open a ticket to motivate us to do it)"
+end

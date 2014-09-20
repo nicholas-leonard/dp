@@ -96,5 +96,9 @@ function Container:reset(stdv)
 end
 
 function Container:parameters()
-   error"NotImplementedError"
+   error"Not Implemented"
+end
+
+function Container:_toModule()
+   error"Not Implemented"
 end

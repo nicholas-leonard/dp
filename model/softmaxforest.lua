@@ -124,3 +124,4 @@ function SoftmaxForest:pushDropout(dropout)
    --TODO add dropout to hidden layers of gater
    self._module:insert(para, 1)
 end
+

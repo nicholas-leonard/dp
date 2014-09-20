@@ -205,6 +205,16 @@ function Layer:_type(type)
    self._module:type(type)
 end
 
+-- takes the forward (next) modules from the output View
+-- and passes them backward to the input View
+-- most of the magic happens in DataView:moduleGet/Put()
+function Layer:_toModule()
+   -- get the Module encapsulating the output View and its forwardGet Models
+   local fwd_module = self.output:moduleGet(self._module)
+   -- put this module in the input View so that the preceding Module can moduleGet it
+   self.input:modulePut(fwd_module, self._input_view, self._input_type)
+end
+
 -- static method for initializing weights matrices
 -- first dim is for outputs, second is for inputs
 function Layer._sparseReset(W, stdev)

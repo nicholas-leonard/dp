@@ -128,3 +128,19 @@ end
 function Model:reset()
    error"Not Implemented"
 end
+
+-- returns its contained Modules and input View(s) as a Module
+-- requires a previous call to Model:forward() which is done 
+-- automatically a dp.Batch instance is provided.
+function Model:toModule(batch, verbose)
+   if batch then
+      local input, carry = batch:inputs(), batch:carry()
+      self:forward(input, carry)
+   end
+   self:_toModule()
+   local modelModule = self.input:moduleGet()
+   if verbose then
+      print(modelModule)
+   end
+   return modelModule
+end

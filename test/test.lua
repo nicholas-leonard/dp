@@ -809,6 +809,20 @@ function dptest.criterion()
    mytester:asserteq(c_err, err, 0.000001)
    mytester:assertTensorEq(c_grad, input:backward('bf'):float(), 0.00001)
 end
+function dptest.tomodule()
+   local datasource = dp.Mnist()
+   local batch = datasource:trainSet():sub(1,32)
+   local model = dp.Sequential{
+      models = {
+         dp.Neural{input_size=datasource:featureSize(), output_size=100, transfer=nn.Tanh()},
+         dp.Neural{input_size=100, output_size=#(datasource:classes()),transfer=nn.LogSoftMax()}
+      }
+   }
+   local mlp = model:toModule(batch)
+   local outputView = model:forward(batch:inputs(), batch:carry())
+   local output = mlp:forward(batch:inputs():forward('default'))
+   mytester:assertTensorEq(outputView:forward('default'), output, 0.00001)
+end
 
 function dp.test(tests)
    math.randomseed(os.time())

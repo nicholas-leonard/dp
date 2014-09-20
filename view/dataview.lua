@@ -54,38 +54,8 @@ function DataView:forwardGet(view, tensor_type)
    if not tensor then
       return self:tensorFromModule(view, tensor_type)
    end
-   if destination then
-      error"not handled"
-   end
+   self._got = true
    return tensor
-end
-
--- accumulates all forward modules into a table
-function DataView:modulePut(fwd_module, view, tensor_type)
-   local viewTable = self._module_graph[view]
-   if not viewTable then
-      viewTable = {[tensor_type] = {fwd_module}}
-      return
-   end
-   local moduleList = viewTable[tensor_type]
-   if not moduleList then
-      viewTable[tensor_type] = {fwd_module}
-      return
-   end
-   table.insert(moduleList, fwd_module)
-end
-
--- composes all forward modules into a single composite Module :
--- sequence(
---    concatTable(sequence(reshape -> transpose)) -> 
---       parallelTable(
---          concatTables(
---             sequence(copy -> fwd_module)
---       )
---    )
--- )
-function DataView:moduleGet(view, tensor_type)
-   
 end
 
 -- returns a tensor of shape view and type tensor_type
@@ -243,6 +213,107 @@ function DataView:default()
    return nn.Identity()
 end
 
+---------------- Module:toModule -----------------------
+
+-- accumulates all forward modules into a table
+function DataView:modulePut(fwd_module, view, tensor_type)
+   local viewTable = self._module_graph[view]
+   if not viewTable then
+      viewTable = {[tensor_type] = {fwd_module}}
+      return
+   end
+   local moduleList = viewTable[tensor_type]
+   if not moduleList then
+      viewTable[tensor_type] = {fwd_module}
+      return
+   end
+   table.insert(moduleList, fwd_module)
+   self._put = true
+end
+
+-- composes all forward modules into a single composite Module :
+function DataView:moduleGet()
+   if (not self._got) and self._put then
+      error"Model:toModule() should be preceded by a call to Model:forward()"
+   end
+   -- how many output Model use this?
+   local nOut = 0
+   local view, tensor_type, fwd_module
+   for view_, viewTable in pairs(self._module_graph) do
+      view = view_
+      for tensorType, moduleList in pairs(viewTable) do
+         nOut = nOut + #moduleList
+         tensor_type = tensorType
+         fwd_module = moduleList[1]
+      end
+   end
+   
+   local mlp = nn.Sequential()
+   if nOut == 1 then
+      -- only 1 output Model: simple build
+      local moduleTable = self._modules[view]
+      local viewModule = moduleTable[1]
+      if torch.type(viewModule) ~= 'nn.Identity' then
+         mlp:add(viewModule)
+      end
+      if tensor_type ~= self._type then
+         local typeModule = moduleTable[2][tensor_type]
+         mlp:add(typeModule)
+      end
+      if mlp:size() == 0 then
+         return fwd_module
+      end
+      mlp:add(fwd_module)
+      return mlp
+   end
+   
+   -- else: multiple outputs : complicated build (output is a table)
+   -- nn.Sequential(
+   --    nn.ConcatTable( --concatView
+   --       nn.Sequential(
+   --          viewTable1, 
+   --          nn.ConcatTable( --concatType
+   --             nn.Sequential(
+   --                typeTable1,
+   --                nn.ConcatTable( --concatFwd
+   --                   fwd_module1,
+   --                   ... multi fwd
+   --                )
+   --             )
+   --             ... multi type
+   --          )
+   --       )
+   --       ... multi view
+   --    ),
+   --    nn.FlattenTable()
+   -- )
+   -- TODO : prune simpler graphs (single view, type or module branches)
+   local concatView = nn.ConcatTable()
+   for view, viewTable in pairs(self._module_graph) do
+      local moduleTable = self._modules[view]
+      local viewModule = moduleTable[1]
+      local concatType = nn.ConcatTable()
+      local seqView = nn.Sequential()
+      seqView:add(viewModule)
+      for tensor_type, moduleList in pairs(viewTable) do
+         local typeModule = moduleTable[2][tensor_type]
+         local seqType = nn.Sequential()
+         seqType:add(typeModule)
+         local concatFwd = nn.ConcatTable()
+         for i, fwd_module in ipairs(moduleList) do
+            concatFwd:add(fwd_module)
+         end
+         seqType:add(concatFwd)
+         concatType:add(seqType)
+      end
+      seqView:add(concatType)
+      concatView:add(seqView)
+   end
+   mlp:add(concatView)
+   mlp:add(nn.FlattenTable()
+end
+
+
 ---------------------- MISC ----------------------------
 
 -- number of features in each sample
@@ -285,6 +356,9 @@ end
 function DataView:flush()
    self._tensors = {}
    self._modules = nil
+   self._module_graph = {}
+   self._got = false
+   self._put = false
 end
 
 -- When v is provided, reuse its data (a torch.Tensor).

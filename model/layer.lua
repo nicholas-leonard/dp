@@ -210,9 +210,9 @@ end
 -- most of the magic happens in DataView:moduleGet/Put()
 function Layer:_toModule()
    -- get the Module encapsulating the output View and its forwardGet Models
-   local fwd_module = self._output:moduleGet(self._module)
+   local fwd_module = self.output:moduleGet(self._module)
    -- put this module in the input View so that the preceding Module can moduleGet it
-   self._input:modulePut(fwd_module, self._input_view, self._input_type)
+   self.input:modulePut(fwd_module, self._input_view, self._input_type)
 end
 
 -- static method for initializing weights matrices

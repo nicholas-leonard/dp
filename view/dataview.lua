@@ -43,6 +43,7 @@ end
    
 -- This method could be called from multiple output Models
 function DataView:forwardGet(view, tensor_type)
+   self._got = true
    tensor_type = tensor_type or self._type
    -- retrieve a viewTable
    local viewTable = self._tensors[view]
@@ -54,7 +55,6 @@ function DataView:forwardGet(view, tensor_type)
    if not tensor then
       return self:tensorFromModule(view, tensor_type)
    end
-   self._got = true
    return tensor
 end
 
@@ -217,9 +217,11 @@ end
 
 -- accumulates all forward modules into a table
 function DataView:modulePut(fwd_module, view, tensor_type)
+   self._put = true
    local viewTable = self._module_graph[view]
    if not viewTable then
       viewTable = {[tensor_type] = {fwd_module}}
+      self._module_graph[view] = viewTable
       return
    end
    local moduleList = viewTable[tensor_type]
@@ -228,7 +230,6 @@ function DataView:modulePut(fwd_module, view, tensor_type)
       return
    end
    table.insert(moduleList, fwd_module)
-   self._put = true
 end
 
 -- composes all forward modules into a single composite Module :
@@ -240,8 +241,7 @@ function DataView:moduleGet(bwd_module)
       -- assume self is the output layer's output View
       return bwd_module
    end
-   
-   -- how many output Model use this?
+   -- how many output Models use this?
    local nOut = 0
    local view, tensor_type, fwd_module
    for view_, viewTable in pairs(self._module_graph) do
@@ -252,9 +252,8 @@ function DataView:moduleGet(bwd_module)
          fwd_module = moduleList[1]
       end
    end
-   
    local mlp = nn.Sequential()
-   if bwd_module then -- the input View of the network has none
+   if bwd_module then -- the input View of the network has no bwd_module
       -- the backward (previous) module comes first
       mlp:add(bwd_module) 
    end
@@ -273,6 +272,7 @@ function DataView:moduleGet(bwd_module)
       return mlp
    end
    
+   print"DataView:moduleGet warning: untested multi-output code follows"
    -- else: multiple outputs : complicated build (output is a table)
    -- nn.Sequential(
    --    bwd_module,

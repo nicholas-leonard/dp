@@ -11,7 +11,9 @@ statistics which can be used for early-stopping (cross-validation) or used to gu
 ## Feedback ##
 Abstract class. Strategy (design pattern) for processing predictions and targets. 
 Unlike [Observers](observer.md), Feedback objects generate reports. 
-Like Observers they may also publish/subscribe to mediator channels.
+Like Observers they may also publish/subscribe to mediator channels. 
+The [Facial Keypoints Tutorial](facialkeypointstutorial.md#facial-keypoints-tutorial) 
+includes examples for implementation your own concrete Feedback classes.
 
 ### dp.Feedback{name} ###
 Feedback constructor. Only accepts key-value arguments:

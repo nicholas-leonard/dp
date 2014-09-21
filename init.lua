@@ -129,6 +129,7 @@ torch.include('dp', 'model/mixtureofexperts.lua')
 torch.include('dp', 'model/blocksparse.lua')
 torch.include('dp', 'model/convolution1D.lua')
 torch.include('dp', 'model/convolution2D.lua')
+torch.include('dp', 'model/inception.lua')
 
 --[[ loss ]]--
 torch.include('dp', 'loss/loss.lua')

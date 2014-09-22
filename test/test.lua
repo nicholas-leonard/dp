@@ -665,6 +665,23 @@ function dptest.convolution2D()
    mytester:assertTensorNe(act_ten, output:forward('bhwc'), 0.00001)
    mytester:assertTensorNe(grad_ten, input:backward('bhwc'), 0.00001)
 end
+function dptest.inception()
+   local size = {8,32,32,3} --bhwc
+   local output_size = {8,16+24+8+12,32,32} --bchw
+   local data = torch.rand(unpack(size))
+   local grad_tensor = torch.randn(unpack(output_size))
+   -- dp
+   local input = dp.ImageView('bhwc', data)
+   local layer = dp.Inception{
+      input_size=3, output_size={16,24}, reduce_size={14,16,8,12}, kernel_size={5,3}, 
+      pool_size=3, pool_stride=1, transfer=nn.Tanh()
+   }
+   local output, carry = layer:forward(input, {nSample=8})
+   mytester:assertTableEq(output:forward('bchw'):size():totable(), output_size, 0.00001)
+   output:backward('bchw', grad_tensor)
+   input = layer:backward(output, carry)
+   mytester:assertTableEq(input:backward('bhwc'):size():totable(), size, 0.00001)
+end
 function dptest.dictionary()
    local size = {8,10}
    local output_size = {8,10,50}

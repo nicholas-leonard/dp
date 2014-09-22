@@ -20,17 +20,17 @@ function Inception:__init(config)
       'Uses n+2 parallel "columns". The original paper uses 2+2 where'..
       'the first two are (but there could be more than two): \n'..
       '1x1 conv (reduce) -> relu -> 5x5 conv -> relu \n'..
-      '1x1 conv (reduce) -> relu -> 3x3 conv -> relu \n'..,
-      'and where the other two are : \n'
-      '3x3 maxpool -> 1x1 conv (reduce/project) -> relu \n'..,
-      '1x1 conv (reduce) -> relu. \n'
+      '1x1 conv (reduce) -> relu -> 3x3 conv -> relu \n'..
+      'and where the other two are : \n'..
+      '3x3 maxpool -> 1x1 conv (reduce/project) -> relu \n'..
+      '1x1 conv (reduce) -> relu. \n'..
       'This Model allows the first group of columns to be of any '..
       'number while the last group consist of exactly two columns.'..
       'The 1x1 conv are used to reduce the number of input channels '..
       ' (or filters) such that the capacity of the network doesnt '..
       'explode. We refer to these here has "reduce". Since each '..
       'column seems to have one and only one reduce, their initial '..
-      'configuration options are specified in lists of n+2 elements.'
+      'configuration options are specified in lists of n+2 elements.',
       {arg='input_size', type='number', req=true,
        help='Number of input channels or colors'},
       {arg='output_size', type='table', req=true,
@@ -82,7 +82,7 @@ function Inception:__init(config)
    self._pool_stride = pool_stride
    self._transfer = transfer
    self._output_pool = output_pool
-   self._depth_concat = nn.DepthConcat()
+   self._depth_concat = nn.DepthConcat(2) -- concat on 'c' dimension
    self._reduce_modules = {}
    self._conv_modules = {}
    
@@ -93,14 +93,17 @@ function Inception:__init(config)
       local mlp = nn.Sequential()
       -- 1x1 conv
       local reduce = nn.SpatialConvolutionMM(
-         input_size, reduce_size[i], 1, 1, reduce_stride[i], reduce_stride[i]
+         input_size, reduce_size[i], 1, 1, 
+         self._reduce_stride[i] or 1, self._reduce_stride[i] or 1
       )
       table.insert(self._reduce_modules, reduce)
       mlp:add(reduce)
       mlp:add(transfer:clone())
       -- nxn conv
       local conv = nn.SpatialConvolutionMM(
-         reduce_size[i], kernel_size, kernel_size, kernel_stride[i], kernel_stride[i]
+         reduce_size[i], output_size[i], 
+         self._kernel_size[i], self._kernel_size[i], 
+         self._kernel_stride[i], self._kernel_stride[i]
       )
       mlp:add(conv)
       table.insert(self._conv_modules, reduce)
@@ -115,7 +118,8 @@ function Inception:__init(config)
    -- not sure if transfer should go here? mlp:add(transfer:clone())
    local i = #(self._kernel_size) + 1
    local reduce = nn.SpatialConvolutionMM(
-      input_size, reduce_size[i], 1, 1, reduce_stride[i], reduce_stride[i]
+      input_size, reduce_size[i], 1, 1, 
+      self._reduce_stride[i] or 1, self._reduce_stride[i] or 1
    )
    table.insert(self._reduce_modules, reduce)
    mlp:add(reduce)
@@ -126,7 +130,8 @@ function Inception:__init(config)
    local mlp = nn.Sequential()
    i = i + 1
    local reduce = nn.SpatialConvolutionMM(
-      input_size, reduce_size[i], 1, 1, reduce_stride[i], reduce_stride[i]
+      input_size, reduce_size[i], 1, 1, 
+      self._reduce_stride[i] or 1, self._reduce_stride[i] or 1
    )
    table.insert(self._reduce_modules, reduce)
    mlp:add(reduce)

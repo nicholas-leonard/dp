@@ -82,7 +82,9 @@ function Inception:__init(config)
    self._pool_stride = pool_stride
    self._transfer = transfer
    self._output_pool = output_pool
-   self._depth_concat = nn.ConcatTable()
+   self._depth_concat = nn.DepthConcat()
+   self._reduce_modules = {}
+   self._conv_modules = {}
    
    -- 1x1 conv (reduce) -> 3x3 conv
    -- 1x1 conv (reduce) -> 5x5 conv
@@ -93,6 +95,7 @@ function Inception:__init(config)
       local reduce = nn.SpatialConvolutionMM(
          input_size, reduce_size[i], 1, 1, reduce_stride[i], reduce_stride[i]
       )
+      table.insert(self._reduce_modules, reduce)
       mlp:add(reduce)
       mlp:add(transfer:clone())
       -- nxn conv
@@ -100,6 +103,7 @@ function Inception:__init(config)
          reduce_size[i], kernel_size, kernel_size, kernel_stride[i], kernel_stride[i]
       )
       mlp:add(conv)
+      table.insert(self._conv_modules, reduce)
       mlp:add(transfer:clone())
       self._depth_concat:add(mlp)
    end
@@ -113,6 +117,7 @@ function Inception:__init(config)
    local reduce = nn.SpatialConvolutionMM(
       input_size, reduce_size[i], 1, 1, reduce_stride[i], reduce_stride[i]
    )
+   table.insert(self._reduce_modules, reduce)
    mlp:add(reduce)
    mlp:add(transfer:clone())
    self._depth_concat:add(mlp)
@@ -123,6 +128,7 @@ function Inception:__init(config)
    local reduce = nn.SpatialConvolutionMM(
       input_size, reduce_size[i], 1, 1, reduce_stride[i], reduce_stride[i]
    )
+   table.insert(self._reduce_modules, reduce)
    mlp:add(reduce)
    mlp:add(transfer:clone())
    self._depth_concat:add(mlp)
@@ -136,9 +142,7 @@ function Inception:__init(config)
       self._module = mlp
    end
    
-   self._module:add(self._conv)
-   self._module:add(self._transfer)
-   self._module:add(self._pool)
+   self._param_modules = _.append(self._conv_modules, self._reduce_modules)
    config.typename = typename
    config.input_view = 'bchw'
    config.output_view = 'bchw'
@@ -146,3 +150,44 @@ function Inception:__init(config)
    parent.__init(self, config)
 end
 
+function Inception:reset()
+   self._module:reset()
+   if self._sparse_init then
+      for i, conv in ipairs(self._param_modules) do
+         local W = conv.weight
+         self._sparseReset(W:view(W:size(1), -1))
+      end
+   end
+end
+
+function Inception:maxNorm(max_out_norm, max_in_norm)
+   assert(self.backwarded, "Should call maxNorm after a backward pass")
+   max_out_norm = self.mvstate.max_out_norm or max_out_norm
+   max_in_norm = self.mvstate.max_in_norm or max_in_norm
+   for i, conv in ipairs(self._param_modules) do
+      local W = conv.weight
+      W = W:view(W:size(1), -1)
+      if max_out_norm then
+         W:renorm(1, 2, max_out_norm)
+      end
+      if max_in_norm then
+         W:renorm(2, 2, max_in_norm)
+      end
+   end
+end
+
+function Inception:share(inception, ...)
+   assert(inception.isInception)
+   return parent.share(self, inception, ...)
+end
+
+-- number of output frames (height or width) of the inception layer
+function Inception:nOutputFrame(nInputFrame, idx)
+   assert(torch.type(nInputFrame) == 'number', "Expecting number")
+   assert(torch.type(idx) == 'number', "Expecting number")
+   -- bchw
+   local input = torch.Tensor(2, self._input_size, nInputFrame, nInputFrame):type(self._input_type)
+   -- just propagate this dummy input through to know the output size
+   local output = self._module:forward(input)
+   return output:size(idx+1)
+end

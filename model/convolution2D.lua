@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------
 --[[ Convolution2D ]]--
 -- Spatial Convolution Layer
--- [dropout] + convolution + max pooling + transfer function
+-- [reduce] + convolution + max pooling + transfer function
 ------------------------------------------------------------------------
 local Convolution2D, parent = torch.class("dp.Convolution2D", "dp.Layer")
 Convolution2D.isConvolution2D = true
@@ -13,45 +13,47 @@ function Convolution2D:__init(config)
       = xlua.unpack(
       {config},
       'Convolution2D', 
-      '[dropout] + SpartialConvolution + SpatialMaxPooling + transfer function',
+      '[reduce] + SpartialConvolution + SpatialMaxPooling + transfer function',
       {arg='input_size', type='number', req=true,
        help='Number of input channels or colors'},
       {arg='output_size', type='number', req=true,
-       help='Number of output channels. For cuda, this should be a multiple of 8'},
-      {arg='kernel_size', type='number tuple', req=true,
-       help='The size (height, width) of the convolution kernel.'},
-      {arg='kernel_stride', type='number tuple',
-       help='The stride (height, width) of the convolution. '..
+       help='Number of output channels (number of filters). '..
+       'For cuda, this should be a multiple of 8'},
+      {arg='kernel_size', type='number', default=5,
+       help='The size (height=width) of the convolution kernel.'},
+      {arg='kernel_stride', type='number', default=1,
+       help='The stride (height=width) of the convolution. '..
        'Note that depending of the size of your kernel, several (of '..
        'the last) columns or rows of the input image might be lost. '..
-       'It is up to the user to add proper padding in images.'..
-       'Defaults to {1,1}.'},
-      {arg='pool_size', type='number tuple', req=true,
-       help='The size (height, width) of the spatial max pooling.'},
-      {arg='pool_stride', type='number tuple', req=true,
-       help='The stride (height, width) of the spatial max pooling. '..
-       'Must be a square (height == width).'},
-      {arg='transfer', type='nn.Module', req=true,
+       'It is up to the user to add proper padding in images.'},
+      {arg='pool_size', type='number', default=2,
+       help='The size (height=width) of the spatial max pooling.'},
+      {arg='pool_stride', type='number', default=2,
+       help='The stride (height=width) of the spatial max pooling.'},
+      {arg='transfer', type='nn.Module',
        help='a transfer function like nn.Tanh, nn.Sigmoid, '..
-       'nn.ReLU, nn.Identity, etc.'},
+       'nn.ReLU, nn.Identity, etc. Defaults to nn.ReLU'},
       {arg='typename', type='string', default='convolution2d', 
        help='identifies Model type in reports.'}
    )
+   local function toPair(v)
+      return torch.type(v) == table and v or {v,v}
+   end
    self._input_size = input_size
    self._output_size = output_size
-   self._kernel_size = kernel_size
-   self._kernel_stride = kernel_stride or {1,1}
-   self._pool_size = pool_size
-   self._pool_stride = pool_stride
-   self._transfer = transfer
+   self._kernel_size = toPair(kernel_size)
+   self._kernel_stride = toPair(kernel_stride)
+   self._pool_size = toPair(pool_size)
+   self._pool_stride = toPair(pool_stride)
+   self._transfer = transfer or nn.ReLU()
    self._conv = nn.SpatialConvolutionMM(
       input_size, output_size, 
-      kernel_size[1], kernel_size[2], 
-      kernel_stride[1], kernel_stride[2]
+      self._kernel_size[1], self._kernel_size[2], 
+      self._kernel_stride[1], self._kernel_stride[2]
    )
    self._pool = nn.SpatialMaxPooling(
-      pool_size[1], pool_size[2],
-      pool_stride[1], pool_stride[2]
+      self._pool_size[1], self._pool_size[2],
+      self._pool_stride[1], self._pool_stride[2]
    )
    self._module = nn.Sequential()
    self._module:add(self._conv)

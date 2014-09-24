@@ -86,7 +86,7 @@ if opt.convolution then
       dropout = opt.dropout and nn.Dropout() or nil,
       acc_update = opt.accUpdate
    }
-   local nOutputFrame = hiddenModel:nOutputFrame(opt.contextSize)
+   local nOutputFrame = hiddenModel:outputSize(opt.contextSize, 'bwc')
    print("Convolution has "..nOutputFrame.." output Frames")
    inputSize = nOutputFrame*opt.convOutputSize
 else

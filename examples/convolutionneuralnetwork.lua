@@ -68,7 +68,7 @@ end
 
 cnn = dp.Sequential()
 inputSize = datasource:imageSize('c')
-outputSize = {datasource:imageSize('h'), datasource:imageSize('w')}
+height, width = datasource:imageSize('h'), datasource:imageSize('w')
 for i=1,#opt.channelSize do
    local conv = dp.Convolution2D{
       input_size = inputSize, 
@@ -79,13 +79,14 @@ for i=1,#opt.channelSize do
       output_size = opt.channelSize[i], 
       transfer = nn[opt.activation](),
       dropout = opt.dropout and nn.Dropout(opt.dropoutProb[i]),
-      acc_update = opt.accUpdate
+      acc_update = opt.accUpdate,
+      sparse_init = not opt.normalInit
    }
    cnn:add(conv)
-   inputSize = opt.channelSize[i]
-   outputSize[1] = conv:nOutputFrame(outputSize[1], 1)
-   outputSize[2] = conv:nOutputFrame(outputSize[2], 2)
+   inputSize, height, width = conv:outputSize(height, width, 'bchw')
 end
+inputSize = inputSize*height*width
+print("input to first Neural layer has: "..inputSize.." neurons")
 
 inputSize = inputSize
 cnn:add(

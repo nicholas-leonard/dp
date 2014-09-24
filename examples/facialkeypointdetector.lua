@@ -75,7 +75,7 @@ cnn = dp.Sequential()
 local inputSize
 if not opt.mlp then
    inputSize = datasource:imageSize('c')
-   outputSize = {datasource:imageSize('h'), datasource:imageSize('w')}
+   height, width = datasource:imageSize('h'), datasource:imageSize('w')
    for i=1,#opt.channelSize do
       local conv = dp.Convolution2D{
          input_size = inputSize, 
@@ -90,11 +90,9 @@ if not opt.mlp then
          sparse_init = not opt.normalInit
       }
       cnn:add(conv)
-      inputSize = opt.channelSize[i]
-      outputSize[1] = conv:nOutputFrame(outputSize[1], 1)
-      outputSize[2] = conv:nOutputFrame(outputSize[2], 2)
+      inputSize, height, width = conv:outputSize(height, width, 'bchw')
    end
-   inputSize = inputSize*outputSize[1]*outputSize[2]
+   inputSize = inputSize*height*width
    print("input to first Neural layer has: "..inputSize.." neurons")
 else
    inputSize = datasource:featureSize()

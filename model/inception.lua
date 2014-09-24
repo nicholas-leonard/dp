@@ -186,13 +186,12 @@ function Inception:share(inception, ...)
    return parent.share(self, inception, ...)
 end
 
--- number of output frames (height or width) of the inception layer
-function Inception:nOutputFrame(nInputFrame, idx)
-   assert(torch.type(nInputFrame) == 'number', "Expecting number")
-   assert(torch.type(idx) == 'number', "Expecting number")
-   -- bchw
-   local input = torch.Tensor(2, self._input_size, nInputFrame, nInputFrame):type(self._input_type)
+-- output size of the model (excluding batch dim)
+function Inception:outputSize(inputHeight, inputWidth, view)
+   local input = torch.Tensor(2, self._input_size, inputHeight, inputWidth)
+   local inputView = dp.ImageView('bchw', input)
    -- just propagate this dummy input through to know the output size
-   local output = self._module:forward(input)
-   return output:size(idx+1)
+   local output = self:forward(inputView, {nSample=2}):forward(view or 'bchw')
+   self:zeroStatistics()
+   return output:size(2), output:size(3), output:size(4)
 end

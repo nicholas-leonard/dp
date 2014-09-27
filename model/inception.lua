@@ -13,7 +13,7 @@ function Inception:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, input_size, output_size, reduce_size, reduce_stride, 
          kernel_size, kernel_stride, pool_size, pool_stride, 
-         transfer, output_pool, typename
+         transfer, input_pool, output_pool, typename
       = xlua.unpack(
       {config},
       'Inception', 
@@ -64,10 +64,15 @@ function Inception:__init(config)
        help='a transfer function like nn.Tanh, nn.Sigmoid, '..
        'nn.ReLU, nn.Identity, etc. It is used after each reduction '..
        '(1x1 convolution) and convolution'},
+      {arg='input_pool', type='nn.Module',
+       help='an optional nn.Module used at the input of the Model. '..
+       'In the original paper, some Inception models have an '..
+       'additional max-pooling layer at the input. This is were '..
+       'it could be specified'},
       {arg='output_pool', type='nn.Module',
        help='an optional nn.Module used at the output of the Model. '..
        'In the original paper, some Inception models have an '..
-       'additional max-pooling layer at the output. This is were '..
+       'additional avg-pooling layer at the output. This is were '..
        'it could be specified'},
       {arg='typename', type='string', default='inception', 
        help='identifies Model type in reports.'}
@@ -81,6 +86,7 @@ function Inception:__init(config)
    self._pool_size = pool_size
    self._pool_stride = pool_stride
    self._transfer = transfer
+   self._input_pool = input_pool
    self._output_pool = output_pool
    self._depth_concat = nn.DepthConcat(2) -- concat on 'c' dimension
    self._reduce_modules = {}
@@ -138,12 +144,17 @@ function Inception:__init(config)
    mlp:add(transfer:clone())
    self._depth_concat:add(mlp)
    
-   -- optional output max-pooling
+   -- optional input/output pooling
    self._module = self._depth_concat
-   if self._output_pool then
+   if self._output_pool or self.input_pool then
       local mlp = nn.Sequential()
+      if self._input_pool then
+         mlp:add(self._input_pool)
+      end
       mlp:add(self._depth_concat)
-      mlp:add(self._output_pool)
+      if self._output_pool then
+         mlp:add(self._output_pool)
+      end
       self._module = mlp
    end
    

@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------
 --[[ Convolution2D ]]--
 -- Spatial Convolution Layer
--- [reduce] + convolution + max pooling + transfer function
+-- [reduce] + convolution + [max pooling] + transfer function
 ------------------------------------------------------------------------
 local Convolution2D, parent = torch.class("dp.Convolution2D", "dp.Layer")
 Convolution2D.isConvolution2D = true
@@ -13,7 +13,7 @@ function Convolution2D:__init(config)
          transfer, typename = xlua.unpack(
       {config},
       'Convolution2D', 
-      '[reduce] + SpartialConvolution + SpatialMaxPooling + transfer function',
+      '[reduce] + SpartialConvolution + [SpatialMaxPooling] + transfer function',
       {arg='input_size', type='number', req=true,
        help='Number of input channels or colors'},
       {arg='output_size', type='number', req=true,
@@ -27,7 +27,8 @@ function Convolution2D:__init(config)
        'the last) columns or rows of the input image might be lost. '..
        'It is up to the user to add proper padding in images.'},
       {arg='pool_size', type='number | table', default=2,
-       help='The size (height=width) of the spatial max pooling.'},
+       help='The size (height=width) of the spatial max pooling. '..
+       'A pool_size < 2 disables pooling'},
       {arg='pool_stride', type='number | table', default=2,
        help='The stride (height=width) of the spatial max pooling.'},
       {arg='reduce_size', type='number',
@@ -55,10 +56,6 @@ function Convolution2D:__init(config)
    self._param_modules = {}
    self._module = nn.Sequential()
    self._transfer = transfer or nn.ReLU()
-   self._pool = nn.SpatialMaxPooling(
-      self._pool_size[1], self._pool_size[2],
-      self._pool_stride[1], self._pool_stride[2]
-   )
    
    if reduce_size then
       -- optional 1x1 reduction/projection module
@@ -83,7 +80,15 @@ function Convolution2D:__init(config)
    
    self._module:add(self._conv)
    self._module:add(self._transfer)
-   self._module:add(self._pool)
+   
+   if self._pool_size[1] >= 1.5 then
+      self._pool = nn.SpatialMaxPooling(
+         self._pool_size[1], self._pool_size[2],
+         self._pool_stride[1], self._pool_stride[2]
+      )
+      self._module:add(self._pool)
+   end
+   
    config.typename = typename
    config.input_view = 'bchw'
    config.output_view = 'bchw'

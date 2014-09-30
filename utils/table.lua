@@ -130,4 +130,3 @@ function table.fromString(str,splitter, f)
    splitter = splitter or '[,]'
    return _.map(_.split(str:sub(2,-2),splitter), f)
 end
-

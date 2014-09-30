@@ -40,6 +40,7 @@ opt.kernelStride = table.fromString(opt.kernelStride)
 opt.poolSize = table.fromString(opt.poolSize)
 opt.poolStride = table.fromString(opt.poolStride)
 opt.dropoutProb = table.fromString(opt.dropoutProb)
+opt.hiddenSize = table.fromString(opt.hiddenSize)
 
 --[[preprocessing]]--
 local input_preprocess = {}
@@ -69,6 +70,7 @@ end
 cnn = dp.Sequential()
 inputSize = datasource:imageSize('c')
 height, width = datasource:imageSize('h'), datasource:imageSize('w')
+depth = 1
 for i=1,#opt.channelSize do
    local conv = dp.Convolution2D{
       input_size = inputSize, 
@@ -84,17 +86,30 @@ for i=1,#opt.channelSize do
    }
    cnn:add(conv)
    inputSize, height, width = conv:outputSize(height, width, 'bchw')
+   depth = depth + 1
 end
 inputSize = inputSize*height*width
 print("input to first Neural layer has: "..inputSize.." neurons")
 
-inputSize = inputSize
+for i,hiddenSize in ipairs(opt.hiddenSize) do
+   dp.Neural{
+      input_size = inputSize, 
+      output_size = hiddenSize,
+      transfer = nn[opt.activation](),
+      dropout = opt.dropout and nn.Dropout(opt.dropoutProb[depth]),
+      acc_update = opt.accUpdate,
+      sparse_init = not opt.normalInit
+   }
+   inputSize = hiddenSize
+   depth = depth + 1
+end
+
 cnn:add(
    dp.Neural{
-      input_size = inputSize*outputSize[1]*outputSize[2], 
+      input_size = inputSize, 
       output_size = #(datasource:classes()),
       transfer = nn.LogSoftMax(),
-      dropout = opt.dropout and nn.Dropout(opt.dropoutProb[#opt.channelSize]),
+      dropout = opt.dropout and nn.Dropout(opt.dropoutProb[depth]),
       acc_update = opt.accUpdate
    }
 )

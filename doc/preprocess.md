@@ -116,7 +116,7 @@ The subtractive normalization operation for a given site `x[i][j][k]` computes
 `v[i][j][k] = x[i][j][k] − ( w[p][q]x[1][1+p][1+q] + ... + w[p][q]x[i][j+p][k+q]) + ...`, where `w[p][q]`
 is a Gaussian weighting window (of default size `9 x 9`) normalized so that `w[1][1] + ... + w[pq] + ... = 1`.
 
-The divisive normalization computes `y[i][j][k] = v[i][j][k]/max(c, σ[j][k]) 
+The divisive normalization computes `y[i][j][k] = v[i][j][k]/max(c, σ[j][k])`
 where `σ[j][k] = pow(w[1][1] + ... + w[p][q]pow(v[i][j+p][k+q],2), 2)`.
 For each sample, the constant `c` is set to the `mean(σ[j][k])` in the experiments
 The denominator is the weighted standard deviation of all features 

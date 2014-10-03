@@ -99,7 +99,7 @@ function Propagator:propagateEpoch(dataset, report)
    while true do
       -- reuse the batch object
       batch, i, n = sampler(batch)
-      if not batch then 
+      if (not batch) and self._progress then 
          -- for aesthetics :
          xlua.progress(last_n, last_n)
          break 

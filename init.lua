@@ -50,8 +50,6 @@ torch.include('dp', 'view/sequenceview.lua')
 torch.include('dp', 'view/listview.lua')
 
 --[[ data ]]--
-torch.include('dp', 'data/conv2d.lua')
-
 torch.include('dp', 'data/baseset.lua')
 torch.include('dp', 'data/dataset.lua')
 torch.include('dp', 'data/sentenceset.lua')

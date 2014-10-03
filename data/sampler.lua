@@ -66,10 +66,13 @@ end
 
 --static function. Checks dataset type or gets dataset from datasource
 function Sampler.toDataset(dataset)
-   if dataset.isDataSource and not self._warning then
-      print"Sampler Warning: assuming dataset is DataSource:trainSet()"
+   if dataset.isDataSource then
+      -- assumes dataset is the DataSource's training set
       dataset = dataset:trainSet()
       self._warning = true
+   elseif dataset.isView then
+      -- assumes dataset is a set of inputs in training set
+      dataset = dp.DataSet{which_set='train', inputs=dataset}
    end
    assert(dataset.isDataSet, "Error : unsupported dataset type.")
    return dataset

@@ -123,8 +123,11 @@ The denominator is the weighted standard deviation of all features
 over a spatial neighborhood. 
 
 As an example, here is Lenna before :
+
 ![LeCunLCN preprocessed Lenna](../test/Lenna.png) 
+
 and after LeCunLCN preprocessing:
+
 ![LeCunLCN preprocessed Lenna](image/lecunlcn.png).
 
 ### dp.LeCunLCN{[]} ###

@@ -280,6 +280,33 @@ function dptest.zca()
    mytester:assert(not is_identity(preprocess._P))
    mytester:assert(is_identity(preprocess._P*preprocess._inv_P))
 end
+function dptest.lecunlcn()
+   -- Test on a random image to confirm that it loads without error
+   -- and it doesn't result in any NaN or Inf values
+   local input_tensor = torch.randn(16, 3, 32, 32)
+   local input = dp.ImageView('bchw', input_tensor:clone())
+   local pp = dp.LeCunLCN{batch_size=5,progress=false}
+   pp:apply(input)
+   mytester:assert(_.isFinite(input:forward('default'):sum()), "LeCunLCN isn't finite")
+
+   -- Test on zero-value image if cause any division by zero
+   input:forward('bchw', input_tensor:clone():zero()) 
+   pp:apply(input)
+   mytester:assert(_.isFinite(input:forward('default'):sum()), "LeCunLCN isn't finite (div by zero)")
+
+   -- Test if it works fine with different number of channel as argument
+   pp = dp.LeCunLCN{batch_size=5,channels={1, 2},progress=false}
+   pp:apply(input)
+   mytester:assert(_.isFinite(input:forward('default'):sum()), "LeCunLCN isn't finite (less channels)")
+   
+   -- Save a test image
+   input_tensor = mytester.lenna:clone()
+   input_tensor = input_tensor:view(1,3,512,512)
+   input:forward("bchw", input_tensor)
+   pp = dp.LeCunLCN{batch_size=1,progress=false}
+   pp:apply(input)
+   image.savePNG(paths.concat(dp.UNIT_DIR, 'lecunlcn.png'), input:forward('default')[1]) 
+end
 function dptest.neural()
    local tensor = torch.randn(5,10)
    local grad_tensor = torch.randn(5, 2)
@@ -827,6 +854,7 @@ end
 function dp.test(tests)
    math.randomseed(os.time())
    mytester = torch.Tester()
+   mytester.lenna = image.loadPNG("test/Lenna.png")
    mytester:add(dptest)
    mytester:run(tests)   
    return mytester

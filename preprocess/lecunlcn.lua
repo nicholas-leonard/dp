@@ -6,19 +6,39 @@
 local LeCunLCN = torch.class("dp.LeCunLCN", "dp.Preprocess")
 LeCunLCN.isLeCunLCN = true
 
-function LeCunLCN:__init(...)
+function LeCunLCN:__init(config)
    local args
-   args, self._kernel_size, self._threshold = xlua.unpack(
-      {... or {}},
-      'LeCunLCN', 'LeCunLCN constructor',
-      {arg='kernel_size', type='number', 
-       help=[[local contrast kernel size]], default=9},
-      {arg='threshold', type='number',
-       help=[[threshold for denominator]], default=1e-4}
-   )     
+   args, self._kernel_size, self._threshold, self._batch_size, self._channels,
+      self._progress = xlua.unpack(
+      {config},
+      'LeCunLCN', 
+      'LeCunLCN constructor',
+      {arg='kernel_size', type='number', default=9, 
+       help='local contrast kernel size'},
+      {arg='threshold', type='number', default=1e-4,
+       help='threshold for denominator'},
+      {arg='batch_size', type='number', default=256,
+       help='batch_size used for performing the preprocessing'},
+      {arg='channels', type='table',
+       help='List of channels to normalize. Defaults to {1,2,3}'},
+      {arg='progress', type='boolean', default=true, 
+       help='display progress bar'}
+   )
+   self._sampler = dp.Sampler{batch_size = batch_size}
+   self._channels = self._channels or {1,2,3}
+   self._filter = self.gaussianFilter(self._kernel_size)
+   -- buffers
+   self._convout = torch.Tensor()
+   self._center = torch.Tensor()
+   self._square = torch.Tensor()
+   self._mean = torch.Tensor()
+   self._divisor = torch.Tensor()
+   self._result = torch.Tensor()
+   self._denom = torch.Tensor()
 end
 
-function LeCunLCN:_gaussian_filter(kernel_size)
+-- static method
+function LeCunLCN.gaussianFilter(kernel_size)
    local x = torch.zeros(kernel_size, kernel_size)
    local _gauss = function(x, y, sigma)
       sigma = sigma or 2.0
@@ -36,30 +56,79 @@ function LeCunLCN:_gaussian_filter(kernel_size)
    return x / x:sum()
 end
 
-function LeCunLCN:apply(dv, can_fit)
-   print ('Start LeCunLCN Preprocessing ... ')
-   local data = dv:forward('bhwc')
-          
-   local filters = self:_gaussian_filter(self._kernel_size)
-   print('start convolving data')
-   local convout = dp.conv2d(data, filters, {'b','h','w','c'}, {'h', 'w'})
-   print('1/3 finished convolving data, start convolving centered_X ...')
+function LeCunLCN:apply(dv, can_fit)   
+   for stop, view in dv:ipairsSub(self._batch_size, true, true) do
+      -- transform and replace original tensor
+      view:replace("bhwc", 
+         self:transform(
+            view:forward("bhwc")
+         ), true
+      )
+      
+      if self._progress then
+         -- display progress
+         xlua.progress(stop, dv:nSample())
+      end
+   end
+   
+   -- for aesthetics :
+   if self._progress then
+      xlua.progress(dv:nSample(), dv:nSample())
+   end
+end
+
+-- expects x to have view 'bhwc'
+function LeCunLCN:transform(x)
+   if torch.type(x) ~= torch.type(self._filter) then
+      self._filter = self._filter:type(torch.type(x))
+      self._convout = self._convout:type(torch.type(x))
+      self._center = self._center:type(torch.type(x))
+      self._square = self._square:type(torch.type(x))
+      self._mean = self._mean:type(torch.type(x))
+      self._divisor = self._divisor:type(torch.type(x))
+      self._denom = self._denom:type(torch.type(x))
+      self._result = self._result:type(torch.type(x))
+   end
+   
+   self._result:resizeAs(x):copy(x)
+   for i,channelIdx in ipairs(self._channels) do
+      assert(torch.type(channelIdx) == 'number') 
+      assert(channelIdx >= 0 and channelIdx <= x:size(4))
+
+      self._result:select(4,channelIdx):copy(self:normalize(x:select(4,channelIdx)))
+   end
+   return self._result
+end
+
+-- expects input to have view 'bhw'
+function LeCunLCN:normalize(input)   
+   local filter, convout = self._filter, self._convout
+   local center, square = self._center, self._square
+   local mean, divisor, denom = self._mean, self._divisor, self._denom
+   filter = filter:view(1, filter:size(1), filter:size(2))
+   filter = filter:expand(input:size(1), filter:size(2), filter:size(3))
+   convout:conv2(input, filter, "F")
+   
+
+   -- For each pixel, remove mean of kW x kH neighborhood
    local mid = math.ceil(self._kernel_size / 2)
-   local centered_X = data - convout[{{1, -1},{mid, -mid},{mid, -mid},{1, -1}}]
-   local sum_sqr_XX = dp.conv2d(torch.pow(centered_X,2), filters, 
-                                {'b', 'h', 'w', 'c'}, {'h', 'w'})
-   print('2/3 finished convolving centered_X, start finding divisor ...')
-   local denom = torch.sqrt(sum_sqr_XX[{{1,-1},{mid, -mid},{mid, -mid},{1, -1}}])
-   local resized = denom:resize(denom:size(1), denom:size(2) * denom:size(3), denom:size(4))
-   local per_img_mean = torch.mean(resized, 2)
-   per_img_mean:resize(per_img_mean:size(1), 1, 1, per_img_mean:size(3))
-   local expanded = per_img_mean:expandAs(data)
-   denom:resize(data:size(_.indexOf(axes, 'b')), data:size(_.indexOf(axes, 'h')),
-                data:size(_.indexOf(axes, 'w')), data:size(_.indexOf(axes, 'c')))
-   local divisor = denom:map(expanded, function(d, e) return d>e and d or e end)
-   print('3/3 finished finding divisor, finishing preprocessing ..')
-   divisor = divisor:apply(function(x) return x>self._threshold and x or self._threshold end)
-   print ('LeCunLCN Preprocessing completed')
-   local new_X = centered_X:cdiv(divisor)
-   dv:replace('bhwc', new_X)
+   center:resizeAs(input):copy(input)
+   center:add(-1, convout[{{},{mid, -mid},{mid, -mid}}])
+
+   -- Scale down norm of kW x kH patch if norm is bigger than 1
+   square:pow(center, 2)
+   convout:conv2(square, filter, 'F')
+   
+   denom:resizeAs(input)
+   denom:copy(convout[{{},{mid, -mid},{mid, -mid}}]) -- makes it contiguous
+   denom:sqrt()
+   -- per image mean : batchSize x 1
+   mean:mean(denom:view(denom:size(1),-1), 2)
+   divisor:gt(mean:view(mean:size(1),1,1):expandAs(denom), denom)
+   divisor:apply(function(x) 
+         return x>self._threshold and x or self._threshold 
+      end)
+   center:cdiv(divisor)
+   
+   return center
 end

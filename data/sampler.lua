@@ -66,10 +66,13 @@ end
 
 --static function. Checks dataset type or gets dataset from datasource
 function Sampler.toDataset(dataset)
-   if dataset.isDataSource and not self._warning then
-      print"Sampler Warning: assuming dataset is DataSource:trainSet()"
+   if dataset.isDataSource then
+      -- assumes dataset is the DataSource's training set
       dataset = dataset:trainSet()
       self._warning = true
+   elseif dataset.isView then
+      -- assumes dataset is a set of inputs in training set
+      dataset = dp.DataSet{which_set='train', inputs=dataset}
    end
    assert(dataset.isDataSet, "Error : unsupported dataset type.")
    return dataset
@@ -85,32 +88,30 @@ function Sampler:sampleEpoch(dataset)
    local nSampled = 0
    local stop
    -- build iterator
-   local epochSamples = 
-      function(batch)
-         if nSampled >= epochSize then
-            return
-         end
-         batch = batch or dataset:batch(self._batch_size)
-         stop = math.min(self._start+self._batch_size-1,nSample)
-         -- inputs and targets
-         dataset:sub(batch, self._start, stop)
-         local indices = batch:indices() or torch.Tensor()
-         -- metadata
-         batch:setup{
-            batch_iter=stop, batch_size=self._batch_size,
-            n_sample=stop-self._start+1, 
-            indices=indices:range(self._start,stop)
-         }
-         nSampled = nSampled + stop - self._start + 1
-         self._start = self._start + self._batch_size
-         if self._start >= nSample then
-            self._start = 1
-         end
-         --http://bitsquid.blogspot.ca/2011/08/fixing-memory-issues-in-lua.html
-         collectgarbage() 
-         return batch, math.min(nSampled, epochSize), epochSize
+   return function(batch)
+      if nSampled >= epochSize then
+         return
       end
-   return epochSamples
+      batch = batch or dataset:batch(self._batch_size)
+      stop = math.min(self._start+self._batch_size-1,nSample)
+      -- inputs and targets
+      dataset:sub(batch, self._start, stop)
+      local indices = batch:indices() or torch.Tensor()
+      -- metadata
+      batch:setup{
+         batch_iter=stop, batch_size=self._batch_size,
+         n_sample=stop-self._start+1, 
+         indices=indices:range(self._start,stop)
+      }
+      nSampled = nSampled + stop - self._start + 1
+      self._start = self._start + self._batch_size
+      if self._start >= nSample then
+         self._start = 1
+      end
+      --http://bitsquid.blogspot.ca/2011/08/fixing-memory-issues-in-lua.html
+      collectgarbage() 
+      return batch, math.min(nSampled, epochSize), epochSize
+   end
 end
 
 ------------------------------------------------------------------------
@@ -176,31 +177,29 @@ function ShuffleSampler:sampleEpoch(dataset)
    -- shuffle before each epoch
    local dataset_indices = torch.randperm(nSample):long()
    -- build iterator
-   local epochSamples = 
-      function(batch)
-         if nSampled >= epochSize then
-            return
-         end
-         batch = batch or dataset:batch(self._batch_size)
-         stop = math.min(self._start+self._batch_size-1,nSample)
-         local batch_indices = dataset_indices:sub(self._start,stop)
-         -- inputs and targets
-         dataset:index(batch, batch_indices)
-         local indices = batch:indices() or torch.Tensor()
-         -- metadata
-         batch:setup{
-            batch_iter=stop, batch_size=self._batch_size,
-            n_sample=stop-self._start+1, 
-            indices=indices:range(self._start,stop)
-         }
-         nSampled = nSampled + stop - self._start + 1
-         self._start = self._start + self._batch_size
-         if self._start >= nSample then
-            self._start = 1
-            dataset_indices = torch.randperm(nSample):long()
-         end
-         collectgarbage() 
-         return batch, math.min(nSampled, epochSize), epochSize
+   return function(batch)
+      if nSampled >= epochSize then
+         return
       end
-   return epochSamples
+      batch = batch or dataset:batch(self._batch_size)
+      stop = math.min(self._start+self._batch_size-1,nSample)
+      local batch_indices = dataset_indices:sub(self._start,stop)
+      -- inputs and targets
+      dataset:index(batch, batch_indices)
+      local indices = batch:indices() or torch.Tensor()
+      -- metadata
+      batch:setup{
+         batch_iter=stop, batch_size=self._batch_size,
+         n_sample=stop-self._start+1, 
+         indices=indices:range(self._start,stop)
+      }
+      nSampled = nSampled + stop - self._start + 1
+      self._start = self._start + self._batch_size
+      if self._start >= nSample then
+         self._start = 1
+         dataset_indices = torch.randperm(nSample):long()
+      end
+      collectgarbage() 
+      return batch, math.min(nSampled, epochSize), epochSize
+   end
 end

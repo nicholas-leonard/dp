@@ -352,10 +352,14 @@ end
 
 -- Used by dp.Preprocess instances to replace the input
 -- see dp.ZCA:apply() for an example
-function DataView:replace(view, output)
+function DataView:replace(view, output, inplace)
    self:backward(view, output)
    output = self:backward()
-   self:input(output)
+   if inplace then
+      self._input:copy(output)
+   else
+      self:input(output)
+   end
    self:flush()
 end
 
@@ -389,8 +393,9 @@ function DataView:index(v, indices)
    return v
 end
 
---Returns a sub-view narrowed on the batch dimension
-function DataView:sub(v, start, stop)
+-- Returns a sub-view narrowed on the batch dimension
+-- inplace returns a narrow window into self._input instead of a copy
+function DataView:sub(v, start, stop, inplace)
    local b_pos = self:findAxis('b')
    local data
    if v and stop then
@@ -401,20 +406,50 @@ function DataView:sub(v, start, stop)
       if v._view and self._view ~= v._view then
          error("Expecting arg 1 to have same view")
       end
-      data = v:input()
+      data = v:input() or self:input().new()
    else
       if v then
+         inplace = stop
          stop = start
          start = v
       end
       v = torch.protoClone(self)
-      data = torch.protoClone(self:input())
+      data = self:input().new()
    end
    local input = self._input:narrow(b_pos, start, stop-start+1)
-   data:resizeAs(input)
-   data:copy(input)
+   if inplace then
+      -- user beware: this doesn't interact well with :index()
+      data:set(input) 
+   else
+      data:resizeAs(input)
+      data:copy(input)
+   end
    v:forward(self._view, data)
    return v
+end
+
+-- optional : do sub inplace (no mem-copy), reuse returned dataview
+function DataView:ipairsSub(batchSize, inplace, reuse)
+   local nSample = self:nSample()
+   local start = 1
+   local nSampled = 0
+   local stop
+   local dv = reuse and torch.protoClone(self) or false
+   -- build iterator
+   return function()
+      if nSampled >= nSample then
+         return
+      end
+      dv = dv or torch.protoClone(self)
+      stop = math.min(start+batchSize-1, nSample)
+      -- inputs and targets
+      self:sub(dv, start, stop, inplace)
+      
+      nSampled = nSampled + stop - start + 1
+      start = start + batchSize
+      collectgarbage() 
+      return stop, dv
+   end
 end
 
 function DataView:type(type)

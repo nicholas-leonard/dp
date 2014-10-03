@@ -17,15 +17,6 @@ require 'lfs'
 
 dp = {}
 dp.TORCH_DIR = os.getenv('TORCH_DATA_PATH') or os.getenv('HOME')
-
-dp.DATA_DIR = os.getenv('DEEP_DATA_PATH') 
-   or paths.concat(dp.TORCH_DIR, 'data')
-
-dp.SAVE_DIR = os.getenv('DEEP_SAVE_PATH') 
-   or paths.concat(dp.TORCH_DIR, 'save')
-   
-dp.LOG_DIR = os.getenv('DEEP_LOG_PATH') 
-   or paths.concat(dp.TORCH_DIR, 'log')
    
 --[[ utils ]]--
 torch.include('dp', 'utils/utils.lua')
@@ -33,6 +24,23 @@ torch.include('dp', 'utils/underscore.lua')
 torch.include('dp', 'utils/os.lua')
 torch.include('dp', 'utils/table.lua')
 torch.include('dp', 'utils/torch.lua')
+
+--[[ directory structure ]]--
+dp.DATA_DIR = os.getenv('DEEP_DATA_PATH') 
+   or paths.concat(dp.TORCH_DIR, 'data')
+dp.check_and_mkdir(dp.DATA_DIR)
+
+dp.SAVE_DIR = os.getenv('DEEP_SAVE_PATH') 
+   or paths.concat(dp.TORCH_DIR, 'save')
+dp.check_and_mkdir(dp.SAVE_DIR)
+
+dp.LOG_DIR = os.getenv('DEEP_LOG_PATH') 
+   or paths.concat(dp.TORCH_DIR, 'log')
+dp.check_and_mkdir(dp.LOG_DIR)
+
+dp.UNIT_DIR = os.getenv('DEEP_UNIT_PATH') 
+   or paths.concat(dp.TORCH_DIR, 'unit')
+dp.check_and_mkdir(dp.UNIT_DIR)
    
 --[[ misc ]]--
 torch.include('dp', 'choose.lua')
@@ -50,8 +58,6 @@ torch.include('dp', 'view/sequenceview.lua')
 torch.include('dp', 'view/listview.lua')
 
 --[[ data ]]--
-torch.include('dp', 'data/conv2d.lua')
-
 torch.include('dp', 'data/baseset.lua')
 torch.include('dp', 'data/dataset.lua')
 torch.include('dp', 'data/sentenceset.lua')

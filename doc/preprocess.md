@@ -63,7 +63,7 @@ ds = Mnist{input_preprocess=dp.Standardize()}
 A [Preprocess](#dp.Preprocess) that subtracts the mean and divides by the standard deviation. Uses the _bf_ `view`.
 
 <a name="dp.Standardize.__init"/>
-### dp.Standardize{[global_mean, global_std, std_eps]} ###
+### dp.Standardize{[...]} ###
 Constructs a Standardize Preprocess. Arguments should be specified as key-value pairs.
  * `global_mean` is a boolean with a default value of `false`. When true, subtracts the (scalar) mean over every element in the datset. Otherwise, subtract the mean from each column (feature) separately. 
  * `global_std` is a boolean with a default value of `false`. When true, after centering, divides by the (scalar) standard deviation of every element in the design matrix. Otherwise, divide by the column-wise (per-feature) standard deviation.
@@ -77,7 +77,7 @@ the vector norm or the standard deviation (across features, for
 each example).
 
 <a name="dp.GCN.__init"/>
-### dp.GCN{[substract_mean, scale, sqrt_bias, use_std, min_divisor, batch_size]} ###
+### dp.GCN{[...]} ###
 Constructs a GCN Preprocess. Arguments should be specified as key-value pairs:
  * `substract_mean` is a boolean with a default value of true. Remove the mean across features/pixels before normalizing. Note that this is the per-example mean across pixels, not the per-pixel mean across examples.
  * `scale` is a number with a default value of 1.0. Multiply features by this constant.
@@ -98,7 +98,7 @@ Commonly used for images, yet uses the _bf_ `view`.
 For a comprehensize explanation of ZCA Whitening please consult the [Standford Whitening article](http://ufldl.stanford.edu/wiki/index.php/Whitening)
 
 <a name="dp.ZCA.__init"/>
-### dp.ZCA{[n_component, n_drop_component, filter_bias]} ###
+### dp.ZCA{[...]} ###
 Constructs a ZCA Preprocess. Arguments should be specified as key-value pairs.
  * `n_component` measures the number of most important eigen components to use for ZCA. The default is to use all of components.
  * `n_drop_component` is the number of least important eigen components to drop. The default value is 0.
@@ -130,7 +130,7 @@ and after LeCunLCN preprocessing:
 
 ![LeCunLCN preprocessed Lenna](image/lecunlcn.png).
 
-### dp.LeCunLCN{[]} ###
+### dp.LeCunLCN{[...]} ###
 Constructs a LeCunLCN Preprocess. Arguments should be specified as key-value pairs.
  * `kernel_size` is the local contrast kernel size. Default is 9.
  * `threshold` is the minimum threshold for using values as denomitators. Default is 0.0001.

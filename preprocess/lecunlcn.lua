@@ -17,7 +17,7 @@ function LeCunLCN:__init(config)
        help='local contrast kernel size'},
       {arg='threshold', type='number', default=1e-4,
        help='threshold for denominator'},
-      {arg='batch_size', type='number', default=1024,
+      {arg='batch_size', type='number', default=256,
        help='batch_size used for performing the preprocessing'},
       {arg='channels', type='table',
        help='List of channels to normalize. Defaults to {1,2,3}'},

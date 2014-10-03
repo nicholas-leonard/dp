@@ -6,6 +6,7 @@ Preprocessing is used to analyse and optimize the statistical properties of data
     * [Standardize](#dp.Standardize)
     * [GCN](#dp.GCN)
     * [ZCA](#dp.ZCA)
+    * [LeCunLCN](#dp.LeCunLCN)
 
 <a name="dp.Preprocess"/>
 ## Preprocess ##
@@ -121,3 +122,7 @@ Constructs a ZCA Preprocess. Arguments should be specified as key-value pairs.
 `n_drop_component` is the number of least important eigen components to drop. The default value is 0.
 
 `filter_bias` is a number with a default value of 0.1. Filters are scaled by `1/sqrt(filter_bias + variance)`.
+
+<a name="dp.LeCunLCN"/>
+## LeCunLCN ##
+[!]

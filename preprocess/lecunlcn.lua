@@ -7,8 +7,8 @@ local LeCunLCN = torch.class("dp.LeCunLCN", "dp.Preprocess")
 LeCunLCN.isLeCunLCN = true
 
 function LeCunLCN:__init(config)
-   local args, batch_size
-   args, self._kernel_size, self._threshold, batch_size, self._channels,
+   local args
+   args, self._kernel_size, self._threshold, self._batch_size, self._channels,
       self._progress = xlua.unpack(
       {config},
       'LeCunLCN', 
@@ -26,7 +26,7 @@ function LeCunLCN:__init(config)
    )
    self._sampler = dp.Sampler{batch_size = batch_size}
    self._channels = self._channels or {1,2,3}
-   self._filter = self:_gaussian_filer(self._kernel_size)
+   self._filter = self.gaussianFilter(self._kernel_size)
    -- buffers
    self._convout = torch.Tensor()
    self._center = torch.Tensor()
@@ -34,9 +34,11 @@ function LeCunLCN:__init(config)
    self._mean = torch.Tensor()
    self._divisor = torch.Tensor()
    self._result = torch.Tensor()
+   self._denom = torch.Tensor()
 end
 
-function LeCunLCN:_gaussian_filter(kernel_size)
+-- static method
+function LeCunLCN.gaussianFilter(kernel_size)
    local x = torch.zeros(kernel_size, kernel_size)
    local _gauss = function(x, y, sigma)
       sigma = sigma or 2.0
@@ -54,37 +56,57 @@ function LeCunLCN:_gaussian_filter(kernel_size)
    return x / x:sum()
 end
 
-function LeCunLCN:apply(dv, can_fit)
-   print('Start LeCunLCN Preprocessing ... ')
-   
-   local batch, i, n, last_n
-   local n_batch = 1
-   local sampler = self._sampler:sampleEpoch(dv)
-   while true do
-      -- reuse the batch object
-      batch, i, n = sampler(batch)
-      if (not batch) and self._progress then 
-         -- for aesthetics :
-         xlua.progress(last_n, last_n)
-         break 
-      end
-      self:_transform(batch:inputs())
+function LeCunLCN:apply(dv, can_fit)   
+   for stop, view in dv:ipairsSub(self._batch_size, true, true) do
+      -- transform and replace original tensor
+      view:replace("bhwc", 
+         self:transform(
+            view:forward("bhwc")
+         ), true
+      )
+      
       if self._progress then
-         -- disp progress
-         xlua.progress(i, n)
+         -- display progress
+         xlua.progress(stop, dv:nSample())
       end
-      last_n = n
-      n_batch = n_batch + 1
    end
-
+   
+   -- for aesthetics :
+   if self._progress then
+      xlua.progress(dv:nSample(), dv:nSample())
+   end
 end
 
--- expects 'bhw' input
+-- expects x to have view 'bhwc'
+function LeCunLCN:transform(x)
+   if torch.type(x) ~= torch.type(self._filter) then
+      self._filter = self._filter:type(torch.type(x))
+      self._convout = self._convout:type(torch.type(x))
+      self._center = self._center:type(torch.type(x))
+      self._square = self._square:type(torch.type(x))
+      self._mean = self._mean:type(torch.type(x))
+      self._divisor = self._divisor:type(torch.type(x))
+      self._denom = self._denom:type(torch.type(x))
+      self._result = self._result:type(torch.type(x))
+   end
+   
+   self._result:resizeAs(x):copy(x)
+   for i,channelIdx in ipairs(self._channels) do
+      assert(torch.type(channelIdx) == 'number') 
+      assert(channelIdx >= 0 and channelIdx <= x:size(4))
+
+      self._result:select(4,channelIdx):copy(self:normalize(x:select(4,channelIdx)))
+   end
+   return self._result
+end
+
+-- expects input to have view 'bhw'
 function LeCunLCN:normalize(input)   
    local filter, convout = self._filter, self._convout
    local center, square = self._center, self._square
-   local mean, divisor = self._mean = self._divisor
-   filter = filter:view(1,filter:size(1),filter:size(2)):expandAs(input)
+   local mean, divisor, denom = self._mean, self._divisor, self._denom
+   filter = filter:view(1, filter:size(1), filter:size(2))
+   filter = filter:expand(input:size(1), filter:size(2), filter:size(3))
    convout:conv2(input, filter, "F")
    
 
@@ -97,10 +119,11 @@ function LeCunLCN:normalize(input)
    square:pow(center, 2)
    convout:conv2(square, filter, 'F')
    
-   denom = convout[{{},{mid, -mid},{mid, -mid}}]
+   denom:resizeAs(input)
+   denom:copy(convout[{{},{mid, -mid},{mid, -mid}}]) -- makes it contiguous
    denom:sqrt()
    -- per image mean : batchSize x 1
-   mean:mean(denom:view(denom:size(1),-1), 2) 
+   mean:mean(denom:view(denom:size(1),-1), 2)
    divisor:gt(mean:view(mean:size(1),1,1):expandAs(denom), denom)
    divisor:apply(function(x) 
          return x>self._threshold and x or self._threshold 
@@ -108,56 +131,4 @@ function LeCunLCN:normalize(input)
    center:cdiv(divisor)
    
    return center
-end
-
--- expects x to have view 'bhwc'
-function LeCunLCN:transform(x)
-   if torch.type(x) ~= torch.type(self._filter) then
-      self._filter = self._filter:type(torch.type(x))
-      self._convout = self._convout:type(torch.type(x))
-      self._center = self._center:type(torch.type(x))
-      self._square = self._square:type(torch.type(x))
-      self._mean = self._mean:type(torch.type(x))
-      self._divisor = self._divisor:type(torch.type(x))
-      self._result = self._result:type(torch.type(x))
-   end
-   
-   self._result:resizeAs(x):copy(x)
-   for i,channelIdx in ipairs(self._channels) do
-      assert(torch.type(channelIdx) == 'number') 
-      assert(channelIdx >= 0 and channelIdx <= x:size(4))
-
-      self._result:select(4,channelIdx) = self:normalize(x:select(4,channelIdx))
-   end
-   return self._result
-end
-
-function LeCunLCN:apply(dv, can_fit)
-   local batch, i, n, last_n
-   local n_batch = 1
-   local sampler = self._sampler:sampleEpoch(dv)
-   
-   while true do
-      -- reuse the batch object
-      batch, i, n = sampler(batch)
-      if (not batch) and self._progress then 
-         -- for aesthetics :
-         xlua.progress(last_n, last_n)
-         break 
-      end
-      
-      local view = batch:inputs()
-      view:replace("bhwc", 
-         self:transform(
-            view:forward("bhwc")
-         )
-      )
-      
-      if self._progress then
-         -- disp progress
-         xlua.progress(i, n)
-      end
-      last_n = n
-      n_batch = n_batch + 1
-   end
 end

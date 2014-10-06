@@ -19,10 +19,11 @@ function GCN:__init(config)
    assert(not config[1], "Constructor requires key-value arguments")
    local args
    args, self._substract_mean, self._scale, self._sqrt_bias, 
-   self._use_std, self._min_divisor, self._batch_size
+   self._use_std, self._min_divisor, self._batch_size, self._progress
       = xlua.unpack(
       {config},
-      'GCN', nil,
+      'GCN', 
+      'Global Contrast Normalization',
       {arg='substract_mean', type='boolean', default=true,
        help='Remove the mean across features/pixels before '..
        'normalizing. Note that this is the per-example mean across '..
@@ -38,46 +39,64 @@ function GCN:__init(config)
       {arg='min_divisor', type='number', default=1e-8,
        help='If the divisor for an example is less than this value, '..
        'do not apply it.'},
-      {arg='batch_size', type='number', default=0, 
-       help='The size of a batch.'}
+      {arg='batch_size', type='number', default=256, 
+       help='The size of a batch.'},
+      {arg='progress', type='boolean', default=true, 
+       help='display progress bar'}
    )
+   -- buffers
+   self._square = torch.Tensor()
+   self._buffer = torch.Tensor()
+   self._result = torch.Tensor()
 end
     
-function GCN:apply(dv, can_fit)
-   local data = dv:forward('bf')
-   print('begin GCN preprocessing...')
-   if self._batch_size == 0 then
-      self:_transform(data)
-   else
-      local data_size = data:size(1)
-      local last = math.floor(data_size / self._batch_size) * self._batch_size
-
-      for i = 0, data_size, self._batch_size do
-         if i >= last then
-            stop = i + math.mod(data_size, self._batch_size)
-         else
-            stop = i + self._batch_size
-         end
-         self:_transform(data:sub(i,stop))
+function GCN:apply(dv, can_fit)   
+   if self._progress then
+      print"applying GCN preprocessing"
+   end
+   for stop, view in dv:ipairsSub(self._batch_size, true, true) do
+      -- transform and replace original tensor
+      view:replace("bf", 
+         self:transform(
+            view:forward("bf")
+         ), true
+      )
+      
+      if self._progress then
+         -- display progress
+         xlua.progress(stop, dv:nSample())
       end
    end
-   dv:replace('bf', data)
-   print('GCN preprocessing completed')
+   
+   -- for aesthetics :
+   if self._progress then
+      xlua.progress(dv:nSample(), dv:nSample())
+   end
 end
 
-function GCN:_transform(data)
-   local mean = data:mean(2)
-   if self._substract_mean then
-      data:add(mean:mul(-1):resize(mean:size(1),1):expandAs(data))
+function GCN:transform(x)
+   if torch.type(x) ~= torch.type(self._buffer) then
+      self._buffer = self._buffer:type(torch.type(x))
+      self._square = self._square:type(torch.type(x))
+      self._result = self._result:type(torch.type(x))
    end
-	local scale
-	if self._use_std then
-		scale = torch.sqrt(torch.pow(data,2):mean(2):add(self._sqrt_bias))
-	else
-      scale = torch.sqrt(torch.pow(data,2):sum(2):add(self._sqrt_bias))
-	end
-	local eps = 1e-8
-	scale[torch.lt(scale, eps)] = 1
-	data:cdiv(scale:expandAs(data)):mul(self._scale)
+
+   self._buffer:mean(x,2)
+   self._result:resizeAs(x):copy(x)
+   if self._substract_mean then
+      self._result:add(self._buffer:mul(-1):view(self._buffer:size(1),1):expandAs(x))
+   end
+
+   self._square:pow(self._result,2)
+   if self._use_std then
+      self._buffer:mean(self._square,2):add(self._sqrt_bias):sqrt()
+   else
+      self._buffer:sum(self._square,2):add(self._sqrt_bias):sqrt()
+   end
+
+   self._buffer[torch.lt(self._buffer, 1e-8)] = 1
+   self._result:cdiv(self._buffer:expandAs(x))
+   self._result:mul(self._scale)
+   return self._result
 end
 

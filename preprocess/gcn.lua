@@ -89,10 +89,11 @@ function GCN:transform(x)
 
    self._square:pow(self._result,2)
    if self._use_std then
-      self._buffer:mean(self._square,2):add(self._sqrt_bias):sqrt()
+      self._buffer:mean(self._square,2)
    else
-      self._buffer:sum(self._square,2):add(self._sqrt_bias):sqrt()
+      self._buffer:sum(self._square,2)
    end
+   self._buffer:add(self._sqrt_bias):sqrt()
 
    self._buffer[torch.lt(self._buffer, 1e-8)] = 1
    self._result:cdiv(self._buffer:expandAs(x))

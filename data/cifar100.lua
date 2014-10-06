@@ -36,7 +36,7 @@ function Cifar100:__init(config)
    {arg='data_path', type='string', default=dp.DATA_DIR,
     help='path to data repository'},
    {arg='scale', type='table', 
-    help='bounds to scale the values between', default={0,1}},
+    help='bounds to scale the values between'},
    {arg='download_url', type='string',
     default='http://www.cs.toronto.edu/~kriz/cifar-100-binary.tar.gz',
     help='URL from which to download dataset if not found on disk.'},
@@ -51,7 +51,9 @@ function Cifar100:__init(config)
     '(fitting) on the train_set only, and reusing these to ' ..
     'preprocess the valid_set and test_set.'} 
    )
-
+   if (self._scale == nil) then
+      self._scale = {0,1}
+   end
    self._coarse_classes = self:loadClasses(
       'cifar-100-binary/coarse_label_names.txt'
    )

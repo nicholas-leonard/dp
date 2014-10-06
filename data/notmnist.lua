@@ -52,6 +52,9 @@ function NotMnist:__init(config)
        '(fitting) on the train_set only, and reusing these to ' ..
        'preprocess the valid_set and test_set.'}  
    )
+   if (self._scale == nil) then
+      self._scale = {0,1}
+   end
    if load_all then
       self:loadTrainValid()
       self:loadTest()

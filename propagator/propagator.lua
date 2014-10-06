@@ -101,7 +101,9 @@ function Propagator:propagateEpoch(dataset, report)
       batch, i, n = sampler(batch)
       if not batch then 
          -- for aesthetics :
-         xlua.progress(last_n, last_n)
+         if self._progress then
+            xlua.progress(last_n, last_n)
+         end
          break 
       end
       self:propagateBatch(batch, report)

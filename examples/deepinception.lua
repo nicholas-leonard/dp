@@ -5,7 +5,7 @@ cmd = torch.CmdLine()
 cmd:text()
 cmd:text('Image Classification using Inception Models Training/Optimization')
 cmd:text('Example:')
-cmd:text('$> th deepinception.lua --batchSize 128 --momentum 0.5')
+cmd:text('$> th deepinception.lua --lecunlcn --batchSize 128 --accUpdate --cuda')
 cmd:text('Options:')
 -- fundamentals 
 cmd:option('--learningRate', 0.1, 'learning rate at t=0')
@@ -14,13 +14,14 @@ cmd:option('--activation', 'ReLU', 'transfer function like ReLU, Tanh, Sigmoid')
 cmd:option('--batchSize', 32, 'number of examples per batch')
 -- regularization (and dropout)
 cmd:option('--maxOutNorm', 1, 'max norm each layers output neuron weights')
-cmd:option('--maxNormPeriod', 2, 'Applies MaxNorm Visitor every maxNormPeriod batches')
+cmd:option('--maxNormPeriod', 1, 'Applies MaxNorm Visitor every maxNormPeriod batches')
 cmd:option('--dropout', false, 'use dropout')
 cmd:option('--dropoutProb', '{0.2,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5}', 'dropout probabilities')
 -- data and preprocessing
 cmd:option('--dataset', 'Svhn', 'which dataset to use : Svhn | Mnist | NotMnist | Cifar10 | Cifar100')
 cmd:option('--standardize', false, 'apply Standardize preprocessing')
 cmd:option('--zca', false, 'apply Zero-Component Analysis whitening')
+cmd:option('--lecunlcn', false, 'apply Yann LeCun Local Contrast Normalization (recommended)')
 -- convolution layers
 cmd:option('--convChannelSize', '{64,128}', 'Number of output channels (number of filters) for each convolution layer.')
 cmd:option('--convKernelSize', '{5,5}', 'kernel size of each convolution layer. Height = Width')
@@ -76,6 +77,9 @@ if opt.standardize then
 end
 if opt.zca then
    table.insert(input_preprocess, dp.ZCA())
+end
+if opt.lecunlcn then
+   table.insert(input_preprocess, dp.LeCunLCN{progress=true})
 end
 
 --[[data]]--

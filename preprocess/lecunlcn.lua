@@ -7,6 +7,7 @@ local LeCunLCN = torch.class("dp.LeCunLCN", "dp.Preprocess")
 LeCunLCN.isLeCunLCN = true
 
 function LeCunLCN:__init(config)
+   config = config or {}
    local args
    args, self._kernel_size, self._threshold, self._batch_size, self._channels,
       self._progress = xlua.unpack(
@@ -57,6 +58,9 @@ function LeCunLCN.gaussianFilter(kernel_size)
 end
 
 function LeCunLCN:apply(dv, can_fit)   
+   if self._progress then
+      print"applying LeCunLCN preprocessing"
+   end
    for stop, view in dv:ipairsSub(self._batch_size, true, true) do
       -- transform and replace original tensor
       view:replace("bhwc", 

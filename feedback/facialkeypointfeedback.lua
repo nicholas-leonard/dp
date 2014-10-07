@@ -74,7 +74,7 @@ function FacialKeypointFeedback:_add(batch, output, carry, report)
       local maxtarget = self._max[i]:select(2,1)
       for j=1,self._keypoints:size(2) do
          local t = target[j]
-         if maxtarget > 0.01 then
+         if maxtarget[j] > 0.1 then
             local err = keypoint[j] - t
             self._sum[j] = self._sum[j] + (err*err) --sum square error
             self._count[j] = self._count[j] + 1

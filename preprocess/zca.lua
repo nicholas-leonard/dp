@@ -1,7 +1,7 @@
 -----------------------------------------------------------------------
 --[[ ZCA ]]--
 -- Performs Zero Component Analysis Whitening.
--- Commonly used for images.
+-- Commonly used for images, but can be applied to anything.
 -- http://ufldl.stanford.edu/wiki/index.php/Whitening
 -----------------------------------------------------------------------
 local ZCA = torch.class("dp.ZCA", "dp.Preprocess")
@@ -12,15 +12,18 @@ function ZCA:__init(config)
    assert(not config[1], "Constructor requires key-value arguments")
    local args
    args, self._n_component, self._n_drop_component, self._filter_bias
-      = xlua.unpack(
-      {config or {}},
-      'ZCA', 'ZCA whitening constructor',
+      self._progess = xlua.unpack(
+      {config},
+      'ZCA', 
+      'ZCA whitening constructor',
       {arg='n_component', type='number',
        help='number of most important eigen components to use for ZCA'},
       {arg='n_drop_component', type='number', 
        help='number of least important eigen components to drop.'},
       {arg='filter_bias', type='number', default=0.1,
-       help='Filters are scaled by 1/sqrt(filter_bias + variance)'}
+       help='Filters are scaled by 1/sqrt(filter_bias + variance)'},
+      {arg='progress', type='boolean', default=true, 
+       help='display progress bar'}
    )
 end
 
@@ -32,7 +35,9 @@ function ZCA:fit(X)
    self._mean = X:mean(1)
    X:add(torch.mul(self._mean, -1):expandAs(X))
 
-   print'computing ZCA'
+   if self._progress then
+      print'computing ZCA'
+   end
    local matrix = torch.mm(X:t(), X) / X:size(1)
    matrix:add(torch.eye(matrix:size(1)):mul(self._filter_bias)) 
    -- returns a eigen components 
@@ -41,7 +46,10 @@ function ZCA:fit(X)
    local eig_idx
    eig_val, eig_idx = torch.sort(eig_val:select(2,1),1,true)
    eig_vec = eig_vec:index(2, eig_idx)
-   print'done computing eigen values and vectors'
+   
+   if self._progress then
+      print'done computing eigen values and vectors'
+   end
    assert(eig_val:min() > 0)
    if self._n_component then
      eig_val = eig_val:sub(1, self._n_component)
@@ -66,6 +74,7 @@ function ZCA:fit(X)
       eig_vec:t()
    )
    
+   self._mean:mul(-1)
    assert(not _.isNaN(self._P:sum()))
 end
 
@@ -77,7 +86,15 @@ function ZCA:apply(dv, can_fit)
       self:fit(X)
       new_X = torch.mm(X, self._P)
    else
-      new_X = torch.mm(torch.add(X, -self._mean:expandAs(X)), self._P)
+      new_X = torch.mm(torch.add(X, self._mean:expandAs(X)), self._P)
    end
    dv:replace('bf', new_X)
+end
+
+function ZCA:undo(dv)
+   assert(dv.isDataView, "Expecting DataView")
+   local new_X = dv:forward('bf')
+   local X = new_X.new()
+   X:mm(new_X, self._inv_P)
+   X:add(-1, self._mean:expandAs(X))
 end

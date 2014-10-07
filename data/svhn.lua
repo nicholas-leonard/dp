@@ -36,7 +36,7 @@ function Svhn:__init(config)
       {arg='shuffle', type='boolean',
         help='shuffle different sets', default=false},
       {arg='scale', type='table',
-        help='bounds to scale the values between', default={0,1}},
+        help='bounds to scale the values between'},
       {arg='download_url', type='string',
         default='https://stife076.files.wordpress.com/2014/09/svhn.zip',
         help='URL from which to download dataset if not found on disk.'},
@@ -51,7 +51,9 @@ function Svhn:__init(config)
         '(fitting) on the train_set only, and reusing these to ' ..
         'preprocess the valid_set and test_set.'}
    )
-
+   if (self._scale == nil) then
+      self._scale = {0,1}
+   end
    if load_all then
       self:loadTrainValid()
       self:loadTest()

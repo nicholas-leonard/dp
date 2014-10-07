@@ -23,7 +23,7 @@ function FacialKeypoints:__init(config)
    local args, load_all
    args, self._valid_ratio, self._train_file, self._test_file, 
       self._data_path, self._download_url, self._stdv, self._scale, 
-      self._shuffle, load_all = xlua.unpack(
+      self._shuffle, load_all, input_pp, target_pp = xlua.unpack(
       {config},
       'FacialKeypoints', 
       'https://www.kaggle.com/c/facial-keypoints-detection/data',
@@ -55,7 +55,9 @@ function FacialKeypoints:__init(config)
        '(fitting) on the train_set only, and reusing these to ' ..
        'preprocess the valid_set and test_set.'}  
    )
-   self._scale = self._scale or {0,1}
+   if (self._scale == nil) then
+      self._scale = {0,1}
+   end
    self._pixels = torch.range(0,97):float()
    if load_all then
       self:loadTrain()
@@ -65,7 +67,8 @@ function FacialKeypoints:__init(config)
    DataSource.__init(self, {
       train_set=self:trainSet(), 
       valid_set=self:validSet(),
-      test_set=self:testSet()
+      test_set=self:testSet(),
+      input_preprocess=input_pp, target_preprocess=target_pp
    })
 end
 

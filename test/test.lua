@@ -242,7 +242,7 @@ function dptest.gcn()
 
    --std_bias = 0.0 is the only value for which there 
    --should be a risk of failure occurring
-   local preprocess = dp.GCN{sqrt_bias=0.0, use_std=true}
+   local preprocess = dp.GCN{sqrt_bias=0.0, use_std=true, progress=false}
    dataset:preprocess{input_preprocess=preprocess}
    local result = dataset:inputs():input():sum()
 
@@ -256,7 +256,7 @@ function dptest.gcn()
    local dv = dp.DataView('bf', torch.rand(3,9))
    local dataset = dp.DataSet{which_set='train', inputs=dv}
    
-   local preprocess = dp.GCN{std_bias=0.0, use_std=false}
+   local preprocess = dp.GCN{std_bias=0.0, use_std=false, progress=false}
    dataset:preprocess{input_preprocess=preprocess}
    local result = dataset:inputs():input()
    local norms = torch.pow(result, 2):sum(2):sqrt()

@@ -94,7 +94,7 @@ inputSize = inputSize*height*width
 print("input to first Neural layer has: "..inputSize.." neurons")
 
 for i,hiddenSize in ipairs(opt.hiddenSize) do
-   dp.Neural{
+   local dense = dp.Neural{
       input_size = inputSize, 
       output_size = hiddenSize,
       transfer = nn[opt.activation](),
@@ -102,6 +102,7 @@ for i,hiddenSize in ipairs(opt.hiddenSize) do
       acc_update = opt.accUpdate,
       sparse_init = not opt.normalInit
    }
+   cnn:add(dense)
    inputSize = hiddenSize
    depth = depth + 1
 end

@@ -61,6 +61,8 @@ elseif opt.dataset == 'Cifar10' then
    datasource = dp.Cifar10{input_preprocess = input_preprocess}
 elseif opt.dataset == 'Cifar100' then
    datasource = dp.Cifar100{input_preprocess = input_preprocess}
+elseif opt.dataset == 'Svhn' then
+   datasource = dp.Svhn{input_preprocess = input_preprocess}
 else
     error("Unknown Dataset")
 end

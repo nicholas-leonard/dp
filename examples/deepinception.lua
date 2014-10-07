@@ -79,6 +79,7 @@ if opt.zca then
    table.insert(input_preprocess, dp.ZCA())
 end
 if opt.lecunlcn then
+   table.insert(input_preprocess, dp.GCN())
    table.insert(input_preprocess, dp.LeCunLCN{progress=true})
 end
 

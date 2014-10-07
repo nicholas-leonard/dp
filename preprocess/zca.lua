@@ -11,7 +11,7 @@ function ZCA:__init(config)
    config = config or {}
    assert(not config[1], "Constructor requires key-value arguments")
    local args
-   args, self._n_component, self._n_drop_component, self._filter_bias
+   args, self._n_component, self._n_drop_component, self._filter_bias,
       self._progess = xlua.unpack(
       {config},
       'ZCA', 

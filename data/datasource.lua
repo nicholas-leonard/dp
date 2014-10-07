@@ -211,10 +211,10 @@ function DataSource.getDataPath(config)
    return data_path
 end
 
-function DataSource.rescale(data, min, max)
+function DataSource.rescale(data, min, max, dmin, dmax)
    local range = max - min
-   local dmin = data:min()
-   local dmax = data:max()
+   local dmin = dmin or data:min()
+   local dmax = dmax or data:max()
    local drange = dmax - dmin
 
    data:add(-dmin)

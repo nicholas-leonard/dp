@@ -12,7 +12,8 @@ function LeCunLCN:__init(config)
    config = config or {}
    local args
    args, self._kernel_size, self._kernel_std, self._threshold, 
-      self._batch_size, self._channels, self._progress = xlua.unpack(
+      self._divide_by_std, self._batch_size, self._channels, 
+      self._progress = xlua.unpack(
       {config},
       'LeCunLCN', 
       'LeCunLCN constructor',
@@ -24,6 +25,8 @@ function LeCunLCN:__init(config)
        'i.e. a value of infinity will have no effect.'},
       {arg='threshold', type='number', default=1e-4,
        help='threshold for denominator'},
+      {arg='divide_by_std', type='boolean', default=false,
+       help='instead of divisive normalization, divide by std'},
       {arg='batch_size', type='number', default=256,
        help='batch_size used for performing the preprocessing'},
       {arg='channels', type='table',
@@ -133,6 +136,13 @@ function LeCunLCN:normalize(input)
    center:add(-1, convout[{{},{mid, -mid},{mid, -mid}}])
 
    --[[ divisive normalization ]]--
+   if self._divide_by_std then
+      -- divide by standard deviation of each image
+      denom:std(center:view(center:size(1), -1), 2):add(self._threshold)
+      center:cdiv(denom:view(denom:size(1), 1, 1):expandAs(center))
+      return center
+   end
+   
    -- Scale down norm of kW x kH patch if norm is bigger than 1
    square:pow(center, 2)
    convout:conv2(square, filter, 'F')

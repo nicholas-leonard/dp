@@ -292,13 +292,28 @@ function dptest.lecunlcn()
    -- Test on zero-value image if cause any division by zero
    input:forward('bchw', input_tensor:clone():zero()) 
    pp:apply(input)
-   mytester:assert(_.isFinite(input:forward('default'):sum()), "LeCunLCN isn't finite (div by zero)")
+   local output1 = input:forward('default')
+   mytester:assert(_.isFinite(output1:sum()), "LeCunLCN isn't finite (div by zero)")
 
    -- Test if it works fine with different number of channel as argument
    pp = dp.LeCunLCN{batch_size=5,channels={1, 2},progress=false}
+   input:forward('bchw', input_tensor:clone())
    pp:apply(input)
    mytester:assert(_.isFinite(input:forward('default'):sum()), "LeCunLCN isn't finite (less channels)")
    
+   -- Divide by standard deviation
+   local pp = dp.LeCunLCN{batch_size=5,progress=false,divide_by_std=true}
+   input:forward('bchw', input_tensor:clone())
+   pp:apply(input)
+   local output2 = input:forward('default')
+   mytester:assert(_.isFinite(output2:sum()), "LeCunLCN isn't finite")
+   mytester:assertTensorNe(output1, output2, 0.000001, "LeCunLCN is not dividing by std")
+
+   -- Test on zero-value image if cause any division by zero
+   input:forward('bchw', input_tensor:clone():zero())
+   pp:apply(input)
+   mytester:assert(_.isFinite(input:forward('default'):sum()), "LeCunLCN isn't finite (div by zero)")
+
    -- Save a test image
    input_tensor = mytester.lenna:clone()
    input_tensor = input_tensor:view(1,3,512,512)

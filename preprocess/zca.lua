@@ -12,7 +12,7 @@ function ZCA:__init(config)
    assert(not config[1], "Constructor requires key-value arguments")
    local args
    args, self._n_component, self._n_drop_component, self._filter_bias,
-      self._progess = xlua.unpack(
+      self._progess, self._compute_undo = xlua.unpack(
       {config},
       'ZCA', 
       'ZCA whitening constructor',
@@ -23,7 +23,9 @@ function ZCA:__init(config)
       {arg='filter_bias', type='number', default=0.1,
        help='Filters are scaled by 1/sqrt(filter_bias + variance)'},
       {arg='progress', type='boolean', default=true, 
-       help='display progress bar'}
+       help='display progress bar'},
+      {arg='compute_undo', type='boolean', default=false,
+       help='computes inverse ZCA (for method undo())'}
    )
 end
 
@@ -61,8 +63,7 @@ function ZCA:fit(X)
       eig_vec = eig_vec:narrow(2, self._n_drop_component, size)
    end
    
-   if self._unit_test then
-      -- used by unit test only
+   if self._compute_undo then
       self._inv_P = torch.mm(
          torch.cmul(eig_vec, torch.pow(eig_val, 0.5):resize(1, eig_val:size(1)):expandAs(eig_vec)),
          eig_vec:clone():t()
@@ -94,7 +95,8 @@ end
 function ZCA:undo(dv)
    assert(dv.isDataView, "Expecting DataView")
    local new_X = dv:forward('bf')
-   local X = new_X.new()
+   local X = new_X.new():resizeAs(new_X)
    X:mm(new_X, self._inv_P)
    X:add(-1, self._mean:expandAs(X))
+   return X
 end

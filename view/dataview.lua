@@ -361,6 +361,8 @@ function DataView:replace(view, output, inplace)
       self:input(output)
    end
    self:flush()
+   -- forwardPut it back in
+   self:forward(self._view, self._input)
 end
 
 -- flush module and tensor cache

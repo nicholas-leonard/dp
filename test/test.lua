@@ -267,8 +267,7 @@ function dptest.zca()
    -- Confirm that ZCA.inv_P_ is the correct inverse of ZCA._P.
    local dv = dp.DataView('bf', torch.randn(15,10))
    local dataset = dp.DataSet{which_set='train', inputs=dv}
-   local preprocess = dp.ZCA()
-   preprocess._unit_test = true
+   local preprocess = dp.ZCA{compute_undo=true,progress=false}
    dataset:preprocess{input_preprocess=preprocess}
    local function is_identity(matrix)
       local identity = torch.eye(matrix:size(1))

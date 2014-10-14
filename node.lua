@@ -72,7 +72,7 @@ end
 
 -- should only be called by forward or evaluate (once per batch)
 function Node:updateStatistics(carry)
-   self._stats.nSample = self._stats.nSample + carry.nSample
+   self._stats.nSample = self._stats.nSample + carry:getObj('nSample')
    self:_updateStatistics(carry)
 end
 

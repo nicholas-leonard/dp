@@ -39,15 +39,16 @@ end
 
 -- requires targets be in carry
 function SoftmaxTree:_forward(carry)
-   if carry.evaluate then 
+   if carry:getObj('evaluate') then 
       self._module:evaluate()
    else
       self._module:training()
    end
-   if not (carry.targets and carry.targets.isClassView) then
-      error"carry.targets should refer to a ClassView of targets"
+   local targetView = carry:getObj('targets')
+   if not (targetView and targetView.isClassView) then
+      error"expecting a ClassView of targets"
    end
-   self._targets = carry.targets:forward('b', self._target_type)
+   self._targets = targetView:forward('b', self._target_type)
    -- outputs a column vector of likelihoods of targets
    self:outputAct(self._module:forward{self:inputAct(), self._targets})
    return carry

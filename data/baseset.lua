@@ -7,7 +7,7 @@ BaseSet.isBaseSet = true
 
 function BaseSet:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, which_set, inputs, targets
+   local args, which_set, inputs, targets, carry
       = xlua.unpack(
       {config},
       'BaseSet', 
@@ -22,11 +22,15 @@ function BaseSet:__init(config)
        help='Sample targets to a model. These can be Views or '..
        'a table of Views (in which case these are converted '..
        'to a ListView. The indices of examples must be '..
-       'in both inputs and targets must be aligned.'}
+       'in both inputs and targets must be aligned.'},
+      {arg='carry', type='dp.Carry',
+       help='An object store that is carried (passed) around the '..
+       'network during a propagation.'} 
    )
    self:setWhichSet(which_set)
    if inputs then self:setInputs(inputs) end
    if targets then self:setTargets(targets) end
+   self._carry = carry or dp.Carry()
 end
 
 function BaseSet:setWhichSet(which_set)
@@ -63,7 +67,17 @@ end
 
 -- Returns the number of samples in the BaseSet.
 function BaseSet:nSample()
-   return self._inputs:nSample()
+   if self._inputs then
+      return self._inputs:nSample()
+   elseif self._targets then
+      return self._targets:nSample()
+   else
+      return 0
+   end
+end
+
+function BaseSet:carry()
+   return self._carry
 end
 
 --Returns input dp.View

@@ -30,20 +30,52 @@ function Carry:getView(key, val)
    return self._view_store[key]
 end
 
-function Carry:sub(...)
-   local obj_store = table.merge({}, self._obj_store)
-   local view_store = {}
+function Carry:sub(carry, start, stop, inplace)
+   local obj_store, view_store
+   if carry and stop then
+      if torch.type(carry) ~= torch.type(self) then
+         error("Expecting "..torch.type(self).." at arg 1 "..
+               "got "..torch.type(carry).." instead")
+      end
+      carry:flushObjStore()
+   else
+      if carry then
+         inplace = stop
+         stop = start
+         start = carry
+      end
+      carry = torch.protoClone(self)
+   end
+   
+   obj_store, view_store = carry._obj_store, carry._view_store
+   -- copy object table (deep copy of tables, except for torch.classes)
+   table.merge(obj_store, self._obj_store)
+   -- use dp.View:sub() when possible to reuse memory
    for k,view in pairs(self._view_store) do
-      view_store[k] = view:sub(...)
+      view_store[k] = view:sub(view_store[k], start, stop, inplace)
    end
    return dp.Carry(obj_store, view_store)
 end
 
-function Carry:index(...)
-   local obj_store = table.merge({}, self._obj_store)
-   local view_store = {}
+function Carry:index(carry, indices)
+   local obj_store, view_store
+   if indices and carry then
+      if torch.type(carry) ~= torch.type(self) then
+         error("Expecting "..torch.type(self).." at arg 1 "..
+               "got "..torch.type(carry).." instead")
+      end
+      carry:flushObjStore()
+   else
+      indices = indices or carry
+      carry = dp.Carry()
+   end
+   
+   obj_store, view_store = carry._obj_store, carry._view_store
+   -- copy object table (deep copy of tables, except for torch.classes)
+   table.merge(obj_store, self._obj_store)
+   -- use dp.View:index() when possible to reuse memory
    for k,view in pairs(self._view_store) do
-      view_store[k] = view:index(...)
+      view_store[k] = view:index(view_store[k], indices)
    end
    return dp.Carry(obj_store, view_store)
 end
@@ -52,4 +84,8 @@ function Carry:clone()
    local obj_store = table.merge({}, self._obj_store)
    local view_store = table.copy(self._view_store)
    return dp.Carry(obj_store, view_store)
+end
+
+function Carry:flushObjStore()
+   self._obj_store = {}
 end

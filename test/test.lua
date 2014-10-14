@@ -173,6 +173,36 @@ function dptest.listview()
    }, 2)
    mytester:assertTensorEq(t, c, 0.00001)
 end
+function dptest.carry()
+   local data = torch.rand(3,4)
+   local sizes = {3, 4}
+   local v = dp.DataView('bf', data)
+   local c = dp.Carry()
+   c:putView('data', v)
+   -- indexing
+   local indices = torch.LongTensor{2,3}
+   local c2 = c:index(indices)
+   local v2 = c2:getView('data')
+   mytester:assertTensorEq(v2:forward('bf', 'torch.DoubleTensor'), data:index(1, indices), 0.000001)
+   local c3 = dp.Carry()
+   c3:putView('data', dp.DataView('bf', torch.zeros(8,4)))
+   c:index(c3, indices)
+   local v3 = c3:getView('data')
+   mytester:assertTensorEq(v2:forward('bf', 'torch.DoubleTensor'), v3:forward('bf', 'torch.DoubleTensor'), 0.0000001)
+   mytester:assertTensorEq(v3._input, v2:forward('bf', 'torch.DoubleTensor'), 0.0000001)
+   local c4 = c:index(nil, indices)
+   local v4 = c4:getView('data')
+   mytester:assertTensorEq(v4:forward('bf', 'torch.DoubleTensor'), v2:forward('bf', 'torch.DoubleTensor'), 0.0000001)
+   -- sub
+   local c5 = c:sub(2,3)
+   local v5 = c5:getView('data')
+   mytester:assertTensorEq(v2:forward('bf', 'torch.DoubleTensor'), v5:forward('bf', 'torch.DoubleTensor'), 0.000001)
+   local c6 = c:sub(nil, 2,3)
+   local v6 = c6:getView('data')
+   mytester:assertTensorEq(v2:forward('bf', 'torch.DoubleTensor'), v6:forward('bf', 'torch.DoubleTensor'), 0.000001)
+   c:sub(c6, 1, 2)
+   mytester:assertTensorEq(v6:forward('bf', 'torch.DoubleTensor'), data:sub(1,2), 0.000001)
+end
 function dptest.dataset()
    -- class tensor
    local class_data = torch.randperm(8)
@@ -533,7 +563,7 @@ function dptest.softmaxforest()
    mytester:assertTableEq(input:backward('bf'):size():totable(), {5,10}, 0.000001, "Wrong grad size")
    local params2, gradParams2 = model:parameters()
    table.recurse(gradParams, gradParams2, function(t,k,v)
-      mytester:assertTensorNe(t[k], v, 0.00001)
+      mytester:assertTensorNe(t[k], v, 0.0001)
    end)
    -- nn
    -- experts

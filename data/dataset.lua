@@ -20,13 +20,6 @@
 local DataSet, parent = torch.class("dp.DataSet", "dp.BaseSet")
 DataSet.isDataSet = true
 
---TODO : allow for examples with different weights (probabilities)
---Returns set of probabilities torch.Tensor
-function DataSet:probabilities()
-   error"NotImplementedError"
-   return self._probabilities
-end
-
 -- builds a batch (factory method)
 -- reuses the inputs and targets (so don't modify them)
 function DataSet:batch(batch_size)

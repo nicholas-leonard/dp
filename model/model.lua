@@ -66,7 +66,7 @@ end
 function Model:evaluate(input, carry)
    assert(input.isView, "Expecting dp.View instance")
    self.input = input
-   carry.evaluate = true
+   carry:putObj('evaluate', true)
    carry = self:_evaluate(carry) or carry
    self:updateStatistics(carry)
    self.evaluated = true
@@ -77,7 +77,7 @@ end
 function Model:backward(output, carry)
    assert(output.isView, "Expecting dp.View output")
    self.output = output
-   local scale = carry.scale or 1
+   local scale = carry:getObj('scale') or 1
    self._acc_scale = scale
    self._report.scale = scale
    carry = self:_backward(carry) or carry

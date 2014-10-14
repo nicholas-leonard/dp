@@ -83,7 +83,7 @@ end
 function Layer:_forward(carry)
    -- some modules like dropout have a different behavior during 
    -- evaluation vs training :
-   if carry.evaluate then 
+   if carry:getObj('evaluate') then 
       self._module:evaluate()
    else
       self._module:training()

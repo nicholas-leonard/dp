@@ -157,6 +157,10 @@ function Experiment:name()
    return self._id:name()
 end
 
+function Experiment:model()
+   return self._model
+end
+
 function Experiment:optimizer()
    return self._optimizer
 end

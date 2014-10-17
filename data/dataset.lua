@@ -20,13 +20,6 @@
 local DataSet, parent = torch.class("dp.DataSet", "dp.BaseSet")
 DataSet.isDataSet = true
 
---TODO : allow for examples with different weights (probabilities)
---Returns set of probabilities torch.Tensor
-function DataSet:probabilities()
-   error"NotImplementedError"
-   return self._probabilities
-end
-
 -- builds a batch (factory method)
 -- reuses the inputs and targets (so don't modify them)
 function DataSet:batch(batch_size)
@@ -42,7 +35,8 @@ function DataSet:sub(batch, start, stop)
       return dp.Batch{
          which_set=self:whichSet(), epoch_size=self:nSample(),
          inputs=self:inputs():sub(start, stop),
-         targets=self:targets() and self:targets():sub(start, stop)
+         targets=self:targets() and self:targets():sub(start, stop),
+         carry=self:carry() and self:carry():sub(start, stop)
       }    
    end
    assert(batch.isBatch, "Expecting dp.Batch at arg 1")
@@ -50,6 +44,7 @@ function DataSet:sub(batch, start, stop)
    if self:targets() then
       self:targets():sub(batch:targets(), start, stop)
    end
+   self:carry():sub(batch:carry(), start, stop)
    return batch  
 end
 
@@ -59,7 +54,8 @@ function DataSet:index(batch, indices)
       return dp.Batch{
          which_set=self:whichSet(), epoch_size=self:nSample(),
          inputs=self:inputs():index(indices),
-         targets=self:targets() and self:targets():index(indices)
+         targets=self:targets() and self:targets():index(indices),
+         carry=self:carry() and self:carry():index(indices)
       }
    end
    assert(batch.isBatch, "Expecting dp.Batch at arg 1")
@@ -67,5 +63,6 @@ function DataSet:index(batch, indices)
    if self:targets() then
       self:targets():index(batch:targets(), indices)
    end
+   self:carry():index(batch:carry(), indices)
    return batch
 end

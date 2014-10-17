@@ -173,6 +173,36 @@ function dptest.listview()
    }, 2)
    mytester:assertTensorEq(t, c, 0.00001)
 end
+function dptest.carry()
+   local data = torch.rand(3,4)
+   local sizes = {3, 4}
+   local v = dp.DataView('bf', data)
+   local c = dp.Carry()
+   c:putView('data', v)
+   -- indexing
+   local indices = torch.LongTensor{2,3}
+   local c2 = c:index(indices)
+   local v2 = c2:getView('data')
+   mytester:assertTensorEq(v2:forward('bf', 'torch.DoubleTensor'), data:index(1, indices), 0.000001)
+   local c3 = dp.Carry()
+   c3:putView('data', dp.DataView('bf', torch.zeros(8,4)))
+   c:index(c3, indices)
+   local v3 = c3:getView('data')
+   mytester:assertTensorEq(v2:forward('bf', 'torch.DoubleTensor'), v3:forward('bf', 'torch.DoubleTensor'), 0.0000001)
+   mytester:assertTensorEq(v3._input, v2:forward('bf', 'torch.DoubleTensor'), 0.0000001)
+   local c4 = c:index(nil, indices)
+   local v4 = c4:getView('data')
+   mytester:assertTensorEq(v4:forward('bf', 'torch.DoubleTensor'), v2:forward('bf', 'torch.DoubleTensor'), 0.0000001)
+   -- sub
+   local c5 = c:sub(2,3)
+   local v5 = c5:getView('data')
+   mytester:assertTensorEq(v2:forward('bf', 'torch.DoubleTensor'), v5:forward('bf', 'torch.DoubleTensor'), 0.000001)
+   local c6 = c:sub(nil, 2,3)
+   local v6 = c6:getView('data')
+   mytester:assertTensorEq(v2:forward('bf', 'torch.DoubleTensor'), v6:forward('bf', 'torch.DoubleTensor'), 0.000001)
+   c:sub(c6, 1, 2)
+   mytester:assertTensorEq(v6:forward('bf', 'torch.DoubleTensor'), data:sub(1,2), 0.000001)
+end
 function dptest.dataset()
    -- class tensor
    local class_data = torch.randperm(8)
@@ -267,8 +297,7 @@ function dptest.zca()
    -- Confirm that ZCA.inv_P_ is the correct inverse of ZCA._P.
    local dv = dp.DataView('bf', torch.randn(15,10))
    local dataset = dp.DataSet{which_set='train', inputs=dv}
-   local preprocess = dp.ZCA()
-   preprocess._unit_test = true
+   local preprocess = dp.ZCA{compute_undo=true,progress=false}
    dataset:preprocess{input_preprocess=preprocess}
    local function is_identity(matrix)
       local identity = torch.eye(matrix:size(1))
@@ -292,13 +321,28 @@ function dptest.lecunlcn()
    -- Test on zero-value image if cause any division by zero
    input:forward('bchw', input_tensor:clone():zero()) 
    pp:apply(input)
-   mytester:assert(_.isFinite(input:forward('default'):sum()), "LeCunLCN isn't finite (div by zero)")
+   local output1 = input:forward('default')
+   mytester:assert(_.isFinite(output1:sum()), "LeCunLCN isn't finite (div by zero)")
 
    -- Test if it works fine with different number of channel as argument
    pp = dp.LeCunLCN{batch_size=5,channels={1, 2},progress=false}
+   input:forward('bchw', input_tensor:clone())
    pp:apply(input)
    mytester:assert(_.isFinite(input:forward('default'):sum()), "LeCunLCN isn't finite (less channels)")
    
+   -- Divide by standard deviation
+   local pp = dp.LeCunLCN{batch_size=5,progress=false,divide_by_std=true}
+   input:forward('bchw', input_tensor:clone())
+   pp:apply(input)
+   local output2 = input:forward('default')
+   mytester:assert(_.isFinite(output2:sum()), "LeCunLCN isn't finite")
+   mytester:assertTensorNe(output1, output2, 0.000001, "LeCunLCN is not dividing by std")
+
+   -- Test on zero-value image if cause any division by zero
+   input:forward('bchw', input_tensor:clone():zero())
+   pp:apply(input)
+   mytester:assert(_.isFinite(input:forward('default'):sum()), "LeCunLCN isn't finite (div by zero)")
+
    -- Save a test image
    input_tensor = mytester.lenna:clone()
    input_tensor = input_tensor:view(1,3,512,512)
@@ -314,7 +358,7 @@ function dptest.neural()
    local layer = dp.Neural{input_size=10, output_size=2, transfer=nn.Tanh()}
    local input = dp.DataView()
    input:forward('bf', tensor)
-   local output, carry = layer:forward(input, {nSample=5})
+   local output, carry = layer:forward(input, dp.Carry{nSample=5})
    output:backward('bf', grad_tensor)
    input = layer:backward(output, carry)
    -- nn
@@ -336,7 +380,7 @@ function dptest.neural()
    layer:accept(visitor)
    layer:doneBatch()
    -- forward backward
-   output, carry2 = layer:forward(input, {nSample=5})
+   output, carry2 = layer:forward(input, dp.Carry{nSample=5})
    output:backward('bf', grad_tensor)
    input, carry2 = layer:backward(output, carry2)
    mytester:assertTensorNe(act_ten, output:forward('bf'), 0.00001)
@@ -350,8 +394,8 @@ function dptest.neural()
    local input2 = dp.DataView()
    input2:forward('bf', tensor)
    input:forward('bf', tensor)
-   local output2, carry2 = layer2:forward(input2, {nSample=5})
-   local output, carry = layer:forward(input, {nSample=5})
+   local output2, carry2 = layer2:forward(input2, dp.Carry{nSample=5})
+   local output, carry = layer:forward(input, dp.Carry{nSample=5})
    output2:backward('bf', grad_tensor)
    output:backward('bf', grad_tensor)
    input2 = layer2:backward(output2, carry)
@@ -377,10 +421,10 @@ function dptest.sequential()
          dp.Neural{input_size=4, output_size=2, transfer=nn.LogSoftMax()}
       }
    }
-   local output, carry = model:forward(input, {nSample=5})
+   local output, carry = model:forward(input, dp.Carry{nSample=5})
    output:backward('bf', grad_tensor)
    input, carry = model:backward(output, carry)
-   mytester:assert(carry.nSample == 5, "Carry lost an attribute")
+   mytester:assert(carry:getObj('nSample') == 5, "Carry lost an attribute")
    -- nn
    local mlp = nn.Sequential()
    mlp:add(nn.Linear(10,4))
@@ -419,7 +463,7 @@ function dptest.softmaxtree()
    mlp.bias = model._module.bias:clone()
    -- forward backward
    --- dp
-   local output, carry = model:forward(input, {nSample=5, targets=target})
+   local output, carry = model:forward(input, dp.Carry{nSample=5, targets=target})
    local gradWeight = model._module.gradWeight:clone()
    output:backward('b', grad_tensor)
    input, carry = model:backward(output, carry)
@@ -446,12 +490,12 @@ function dptest.softmaxtree()
    mytester:assertTensorNe(weight, weight2, 0.00001)
    model:doneBatch()
    -- forward backward
-   local output2, carry2 = model2:forward(input:clone(), {nSample=5, targets=target})
+   local output2, carry2 = model2:forward(input:clone(), dp.Carry{nSample=5, targets=target})
    output2:backward('b', grad_tensor)
    local input2, carry2 = model2:backward(output2, carry2)
    mytester:assertTensorNe(act_ten, output2:forward('bf'), 0.00001)
    mytester:assertTensorNe(grad_ten, input2:backward('bf'), 0.00001)
-   local output, carry = model:forward(input2:clone(), {nSample=5, targets=target})
+   local output, carry = model:forward(input2:clone(), dp.Carry{nSample=5, targets=target})
    output:backward('b', grad_tensor)
    local input, carry = model:backward(output, carry)
    mytester:assertTensorEq(output:forward('bf'), output2:forward('bf'), 0.00001)
@@ -466,8 +510,8 @@ function dptest.softmaxtree()
    local input2 = dp.DataView()
    input2:forward('bf', input_tensor)
    input:forward('bf', input_tensor)
-   local output2, carry2 = layer2:forward(input2, {nSample=5, targets=target})
-   local output, carry = layer:forward(input, {nSample=5, targets=target})
+   local output2, carry2 = layer2:forward(input2, dp.Carry{nSample=5, targets=target})
+   local output, carry = layer:forward(input, dp.Carry{nSample=5, targets=target})
    output2:backward('b', grad_tensor)
    output:backward('b', grad_tensor)
    input = layer:backward(output, carry)
@@ -508,7 +552,7 @@ function dptest.softmaxforest()
          mytester:assert(math.abs(v:sum()) < 0.0001)
       end
    end
-   local output, carry = model:forward(input, {nSample=5, targets=target})
+   local output, carry = model:forward(input, dp.Carry{nSample=5, targets=target})
    local params, gradParams = model:parameters()
    local gradParams = table.recurse({}, gradParams, function(t,k,v)
       t[k] = v:clone()
@@ -519,7 +563,7 @@ function dptest.softmaxforest()
    mytester:assertTableEq(input:backward('bf'):size():totable(), {5,10}, 0.000001, "Wrong grad size")
    local params2, gradParams2 = model:parameters()
    table.recurse(gradParams, gradParams2, function(t,k,v)
-      mytester:assertTensorNe(t[k], v, 0.00001)
+      mytester:assertTensorNe(t[k], v, 0.0001)
    end)
    -- nn
    -- experts
@@ -589,7 +633,7 @@ function dptest.mixtureofexperts()
    }
    -- forward backward
    --- dp
-   local output, carry = model:forward(input, {nSample=5})
+   local output, carry = model:forward(input, dp.Carry{nSample=5})
    local params, gradParams = model:parameters()
    local gradParams = table.recurse({}, gradParams, function(t,k,v)
       t[k] = v:clone()
@@ -615,7 +659,7 @@ function dptest.convolution1D()
       kernel_stride=1, pool_size=2, pool_stride=2,
       transfer=nn.Tanh()
    }
-   local output, carry = layer:forward(input, {nSample=8})
+   local output, carry = layer:forward(input, dp.Carry{nSample=8})
    mytester:assertTableEq(output:forward('bwc'):size():totable(), output_size, 0.00001)
    output:backward('bwc', grad_tensor)
    input = layer:backward(output, carry)
@@ -641,7 +685,7 @@ function dptest.convolution1D()
    layer:accept(visitor)
    layer:doneBatch()
    -- forward backward
-   output, carry2 = layer:forward(input, {nSample=8})
+   output, carry2 = layer:forward(input, dp.Carry{nSample=8})
    output:backward('bwc', grad_tensor)
    input, carry2 = layer:backward(output, carry2)
    mytester:assertTensorNe(act_ten, output:forward('bwc'), 0.00001)
@@ -659,7 +703,7 @@ function dptest.convolution2D()
       kernel_stride={1,1}, pool_size={2,2}, pool_stride={2,2},
       transfer=nn.Tanh()
    }
-   local output, carry = layer:forward(input, {nSample=8})
+   local output, carry = layer:forward(input, dp.Carry{nSample=8})
    mytester:assertTableEq(output:forward('bchw'):size():totable(), output_size, 0.00001)
    output:backward('bchw', grad_tensor)
    input = layer:backward(output, carry)
@@ -686,7 +730,7 @@ function dptest.convolution2D()
    layer:accept(visitor)
    layer:doneBatch()
    -- forward backward
-   output, carry2 = layer:forward(input, {nSample=8})
+   output, carry2 = layer:forward(input, dp.Carry{nSample=8})
    output:backward('bchw', grad_tensor)
    input, carry2 = layer:backward(output, carry2)
    mytester:assertTensorNe(act_ten, output:forward('bhwc'), 0.00001)
@@ -730,7 +774,7 @@ function dptest.dictionary()
    -- dp
    local input = dp.ClassView('bt', data)
    local layer = dp.Dictionary{dict_size=100, output_size=50}
-   local output, carry = layer:forward(input, {nSample=8})
+   local output, carry = layer:forward(input, dp.Carry{nSample=8})
    mytester:assertTableEq(output:forward('bwc'):size():totable(), output_size, 0.00001)
    output:backward('bwc', grad_tensor)
    input = layer:backward(output, carry)
@@ -752,7 +796,7 @@ function dptest.dictionary()
    layer:accept(visitor)
    layer:doneBatch()
    -- forward backward
-   output, carry2 = layer:forward(input, {nSample=8})
+   output, carry2 = layer:forward(input, dp.Carry{nSample=8})
    output:backward('bwc', grad_tensor)
    input, carry2 = layer:backward(output, carry2)
    mytester:assertTensorNe(act_ten, output:forward('bwc'), 0.00001)
@@ -765,7 +809,7 @@ function dptest.narrowdictionary()
    -- dp
    local input = dp.ClassView('bt', data)
    local layer = dp.NarrowDictionary{dict_size=100, output_size=32, delta_size=4}
-   local output, carry = layer:forward(input, {nSample=8})
+   local output, carry = layer:forward(input, dp.Carry{nSample=8})
    mytester:assertTableEq(output:forward('bf'):size():totable(), output_size, 0.00001)
    output:backward('bf', grad_tensor)
    input = layer:backward(output, carry)
@@ -784,7 +828,7 @@ function dptest.narrowdictionary()
    local act_ten = output:forward('bf'):clone()
    layer:updateParameters(0.1)
    -- forward backward
-   output, carry2 = layer:forward(input, {nSample=8})
+   output, carry2 = layer:forward(input, dp.Carry{nSample=8})
    output:backward('bf', grad_tensor)
    input, carry2 = layer:backward(output, carry2)
    mytester:assertTensorNe(act_ten, output:forward('bf'), 0.00001)
@@ -798,7 +842,7 @@ function dptest.nll()
    local loss = dp.NLL{size_average=false} -- else loss isn't avg
    -- test conversion
    loss:float()
-   local err, carry = loss:forward(input, target, {nSample=5})
+   local err, carry = loss:forward(input, target, dp.Carry{nSample=5})
    input = loss:backward(input, target, carry)
    -- nn
    local criterion = nn.ClassNLLCriterion():float()
@@ -817,7 +861,7 @@ function dptest.kldivergence()
    local loss = dp.KLDivergence{size_average=false} -- else loss isn't avg
    -- test conversion
    loss:float()
-   local err, carry = loss:forward(input, target, {nSample=5})
+   local err, carry = loss:forward(input, target, dp.Carry{nSample=5})
    input = loss:backward(input, target, carry)
    -- nn
    local criterion = nn.DistKLDivCriterion():float()
@@ -835,7 +879,7 @@ function dptest.treenll()
    local target = dp.ClassView('b', target_tensor)
    local loss = dp.TreeNLL{size_average=false} -- else loss isn't avg
    -- the targets are actually ignored (SoftmaxTree uses them before TreeNLL)
-   local err, carry = loss:forward(input, target, {nSample=5})
+   local err, carry = loss:forward(input, target, dp.Carry{nSample=5})
    input = loss:backward(input, target, carry)
    -- nn
    local criterion = nn.ClassNLLCriterion()
@@ -856,7 +900,7 @@ function dptest.criterion()
    } -- else loss isn't avg
    -- test conversion
    loss:float()
-   local err, carry = loss:forward(input, target, {nSample=5})
+   local err, carry = loss:forward(input, target, dp.Carry{nSample=5})
    input = loss:backward(input, target, carry)
    -- nn
    local criterion = nn.ClassNLLCriterion():float()

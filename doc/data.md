@@ -4,6 +4,7 @@ One of the most important aspects of any machine learning problem is the data. T
      * [DataSet](#dp.DataSet) : a dataset for input and target [Views](view.md#dp.View);
       * [SentenceSet](#dp.SentenceSet) : container of sentences (used for language modeling);
      * [Batch](#dp.Batch) : a mini-batch of inputs and targets;
+  * [Carry](#dp.Carry) : an object store passed around during propagation;
   * [DataSource](#dp.DataSource) : a container of train, valid and test DataSets;
     * [Mnist](#dp.Mnist) : the ubiquitous MNIST dataset;
     * [NotMnist](#dp.NotMnist) : the lesser known NotMNIST dataset;
@@ -87,6 +88,12 @@ The returned [batch:inputs()](#dp.BaseSet.inputs) are filled according to [Googl
 A subclass of [BaseSet](#dp.BaseSet). A mini-batch of input and target [Views](view.md#dp.View) 
 to be fed into a [Model](model.md#dp.Model) and [Loss](loss.md#dp.Loss). The batch of examples is usually sampled 
 from a [DataSet](#dp.DataSet) via a [Sampler](#dp.Sampler) iterator by calling the DataSet's different factory methods : [batch](#dp.DataSet.batch), [sub](#dp.DataSet.sub), and [index](#dp.DataSet.index). A batch is also the original generator of the `carry` table passed through the computation graph using a propagation.
+
+<a name="dp.Carry"/>
+## Carry ##
+An object store that is carried (passed) around the network during a propagation. 
+Useful for passing information between decoupled objects like 
+[DataSources](#dp.DataSource) and [Feedbacks](#dp.Feedbacks). 
 
 <a name="dp.DataSource"/>
 ## DataSource ##

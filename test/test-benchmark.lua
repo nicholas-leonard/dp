@@ -52,7 +52,7 @@ function dptest.languagemodel()
    for i=1,nloop,512 do
       batch = train:sub(batch, i, i+511)
       local carry = batch:carry()
-      carry.nSample = 512
+      carry:putObj('nSample', 512)
       resdp = model:forward(batch:inputs(), carry)
    end
    tm.dp = a:time().real
@@ -70,7 +70,7 @@ function dptest.languagemodel()
    for i=1,nloop,512 do
       batch = train:sub(batch, i, i+511)
       local carry = batch:carry()
-      carry.nSample = 512
+      carry:putObj('nSample', 512)
       resdpCuda = model:forward(batch:inputs(), carry)
    end
    tm4.dp = a:time().real

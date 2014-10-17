@@ -27,7 +27,7 @@ end
 function Sequential:_forward(carry)
    local input = self.input
    for i=1,#self._models do 
-      if carry.evaluate then
+      if carry:getObj('evaluate') then
          input, carry = self._models[i]:evaluate(input, carry)
       else
          input, carry = self._models[i]:forward(input, carry)

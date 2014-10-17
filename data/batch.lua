@@ -61,12 +61,11 @@ function Batch:indices()
    return self._indices
 end
 
--- generate a carry table to be passed along through forward/backward
+-- generate a carry object to be passed along through forward/backward
 function Batch:carry()
-   return {
-      nSample=self:nSample(), 
-      epochSize=self._epoch_size,
-      batchIter=self._batch_iter, 
-      targets=self:targets() -- this is necessary for SoftmaxTree
-   }
+   self._carry:putObj('nSample', self:nSample())
+   self._carry:putObj('epochSize', self._epoch_size)
+   self._carry:putObj('batchIter', self._batch_iter)
+   self._carry:putObj('targets', self:targets())
+   return self._carry
 end

@@ -126,11 +126,11 @@ end
 -- If a namespace is provided it is concatenated with 
 -- the time of the call, and the next value from a sequence
 -- to get a pseudo-globally-unique name.
--- Otherwise, we concatenate the linux hostname and PID.
+-- Otherwise, we concatenate the linux hostname
 local counter = 1
 function dp.uniqueID(namespace, separator)
    local separator = separator or ':'
-   local namespace = namespace or os.hostname()..separator..os.pid()
+   local namespace = namespace or os.hostname()
    local uid = namespace..separator..os.time()..separator..counter
    counter = counter + 1
    return uid

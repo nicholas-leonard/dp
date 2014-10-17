@@ -12,7 +12,8 @@ function LeCunLCN:__init(config)
    config = config or {}
    local args
    args, self._kernel_size, self._kernel_std, self._threshold, 
-      self._batch_size, self._channels, self._progress = xlua.unpack(
+      self._divide_by_std, self._batch_size, self._channels, 
+      self._progress = xlua.unpack(
       {config},
       'LeCunLCN', 
       'LeCunLCN constructor',
@@ -24,6 +25,8 @@ function LeCunLCN:__init(config)
        'i.e. a value of infinity will have no effect.'},
       {arg='threshold', type='number', default=1e-4,
        help='threshold for denominator'},
+      {arg='divide_by_std', type='boolean', default=false,
+       help='instead of divisive normalization, divide by std'},
       {arg='batch_size', type='number', default=256,
        help='batch_size used for performing the preprocessing'},
       {arg='channels', type='table',
@@ -43,6 +46,8 @@ function LeCunLCN:__init(config)
    self._divisor = torch.Tensor()
    self._result = torch.Tensor()
    self._denom = torch.Tensor()
+   self._largest = torch.Tensor()
+   self._indice = torch.LongTensor()
 end
 
 -- static method
@@ -99,6 +104,8 @@ function LeCunLCN:transform(x)
       self._divisor = self._divisor:type(torch.type(x))
       self._denom = self._denom:type(torch.type(x))
       self._result = self._result:type(torch.type(x))
+      self._indice = self._indice:type(torch.type(x))
+      self._largest = self._largest:type(torch.type(x))
    end
    
    self._result:resizeAs(x):copy(x)
@@ -115,7 +122,8 @@ end
 function LeCunLCN:normalize(input)   
    local filter, convout = self._filter, self._convout
    local center, square = self._center, self._square
-   local mean, divisor, denom = self._mean, self._divisor, self._denom
+   local mean, divisor = self._mean, self._divisor
+   local denom, indice, largest = self._denom, self._indice, self._largest
    
    --[[ subtractive normalization ]]--
    filter = filter:view(1, filter:size(1), filter:size(2))
@@ -128,6 +136,13 @@ function LeCunLCN:normalize(input)
    center:add(-1, convout[{{},{mid, -mid},{mid, -mid}}])
 
    --[[ divisive normalization ]]--
+   if self._divide_by_std then
+      -- divide by standard deviation of each image
+      denom:std(center:view(center:size(1), -1), 2):add(self._threshold)
+      center:cdiv(denom:view(denom:size(1), 1, 1):expandAs(center))
+      return center
+   end
+   
    -- Scale down norm of kW x kH patch if norm is bigger than 1
    square:pow(center, 2)
    convout:conv2(square, filter, 'F')
@@ -137,7 +152,10 @@ function LeCunLCN:normalize(input)
    denom:sqrt()
    -- per image mean : batchSize x 1
    mean:mean(denom:view(denom:size(1),-1), 2)
-   divisor:gt(mean:view(mean:size(1),1,1):expandAs(denom), denom)
+   largest:resize(denom:size(1), denom:size(2), denom:size(3), 2)
+   largest:select(4,1):copy(denom)
+   largest:select(4,2):copy(mean:view(mean:size(1),1,1):expandAs(denom))
+   divisor:max(indice, largest, 4)
    divisor:apply(function(x) 
          return x>self._threshold and x or self._threshold 
       end)

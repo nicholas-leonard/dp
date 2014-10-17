@@ -19,7 +19,7 @@ function Evaluator:evaluate(batch, report)
    --[[ feedforward ]]--
    -- evaluate function for complete mini batch
    local carry = batch:carry()
-   carry.evaluate = true
+   carry:putObj('evaluate', true)
    self.output, carry = self._model:evaluate(batch:inputs(), carry)
    
    -- measure loss and backprop gradients

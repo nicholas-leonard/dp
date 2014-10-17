@@ -32,9 +32,12 @@ function FacialKeypointFeedback:__init(config)
    self._precision = precision
    parent.__init(self, config)
    self._pixels = torch.range(0,precision-1):float():view(1,1,precision)
+   -- buffers
    self._output = torch.FloatTensor()
    self._keypoints = torch.FloatTensor()
    self._targets = torch.FloatTensor()
+   self._max = torch.FloatTensor()
+   self._indice = torch.LongTensor()
    self._sum = torch.Tensor():zero()
    self._count = torch.Tensor():zero()
    self._mse = torch.Tensor()
@@ -46,6 +49,7 @@ function FacialKeypointFeedback:setup(config)
 end
 
 function FacialKeypointFeedback:_add(batch, output, carry, report)
+   -- batchSize x (nKeypoint*2) x precision
    local target = batch:targets():forward('bwc')
    local act = output:forward('bwc', 'torch.FloatTensor')
    if not self._isSetup then
@@ -56,17 +60,21 @@ function FacialKeypointFeedback:_add(batch, output, carry, report)
       end
       self._isSetup = true
    end
+   
    local pixels = self._pixels:expandAs(act)
    self._output:cmul(act, pixels)
    self._keypoints:sum(self._output, 3)
    self._output:cmul(target, pixels)
    self._targets:sum(self._output, 3)
+   self._max:max(self._indice, target, 3)
+   
    for i=1,self._keypoints:size(1) do
       local keypoint = self._keypoints[i]:select(2,1)
       local target = self._targets[i]:select(2,1)
+      local maxtarget = self._max[i]:select(2,1)
       for j=1,self._keypoints:size(2) do
          local t = target[j]
-         if t > 0.00001 then
+         if maxtarget[j] > 0.1 then
             local err = keypoint[j] - t
             self._sum[j] = self._sum[j] + (err*err) --sum square error
             self._count[j] = self._count[j] + 1

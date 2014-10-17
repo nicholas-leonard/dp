@@ -45,6 +45,7 @@ function SentenceSet:__init(config)
    self._start_id = start_id
    self._end_id = end_id
    self._words = words
+   self._carry = dp.Carry()
 end
 function SentenceSet:nSample()
    return self._data:size(1)
@@ -76,7 +77,7 @@ function SentenceSet:batch(batch_size)
 end
 
 function SentenceSet:sub(batch, start, stop)
-   local input_v, inputs, target_v, targets
+   local input_v, inputs, target_v, targets, carry
    if (not batch) or (not stop) then 
       if batch then
          stop = start
@@ -87,11 +88,13 @@ function SentenceSet:sub(batch, start, stop)
       targets = torch.IntTensor()
       input_v = dp.ClassView()
       target_v = dp.ClassView()
+      carry = dp.Carry()
   else
       input_v = batch:inputs()
       inputs = input_v:input()
       target_v = batch:targets()
       targets = target_v:input()
+      carry = batch:carry()
    end  
    local data = self._data:sub(start, stop)
    inputs:resize(data:size(1), self._context_size)
@@ -126,9 +129,12 @@ function SentenceSet:sub(batch, start, stop)
    
    target_v:forward('b', targets)
    target_v:setClasses(self._words)
+   
+   -- carry
+   self:carry():sub(carry, start, stop)
    return batch or dp.Batch{
       which_set=self:whichSet(), epoch_size=self:nSample(),
-      inputs=input_v, targets=target_v
+      inputs=input_v, targets=target_v, carry=carry
    }   
 end
 
@@ -141,6 +147,7 @@ function SentenceSet:index(batch, indices)
       targets = torch.IntTensor(indices:size(1))
       input_v = dp.ClassView()
       target_v = dp.ClassView()
+      carry = dp.Carry()
    else
       input_v = batch:inputs()
       inputs = input_v:input()
@@ -148,6 +155,7 @@ function SentenceSet:index(batch, indices)
       target_v = batch:targets()
       targets = target_v:input()
       targets:resize(indices:size(1))
+      carry = batch:carry()
    end
    -- fill tensor with sentence end tags : <S>
    inputs:fill(self._end_id)
@@ -183,8 +191,11 @@ function SentenceSet:index(batch, indices)
    
    target_v:forward('b', targets)
    target_v:setClasses(self._words)
+   
+   -- carry
+   self:carry():sub(carry, start, stop)
    return batch or dp.Batch{
       which_set=self:whichSet(), epoch_size=self:nSample(),
-      inputs=input_v, targets=target_v
+      inputs=input_v, targets=target_v, carry=carry
    }  
 end

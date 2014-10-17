@@ -1,14 +1,14 @@
 
 --http://stackoverflow.com/questions/132397/get-back-the-output-of-os-execute-in-lua
 function os.capture(cmd, raw)
-  local f = assert(io.popen(cmd, 'r'))
-  local s = assert(f:read('*a'))
-  f:close()
-  if raw then return s end
-  s = string.gsub(s, '^%s+', '')
-  s = string.gsub(s, '%s+$', '')
-  s = string.gsub(s, '[\n\r]+', ' ')
-  return s
+   local f = assert(io.popen(cmd, 'r'))
+   local s = assert(f:read('*a'))
+   f:close()
+   if raw then return s end
+   s = string.gsub(s, '^%s+', '')
+   s = string.gsub(s, '%s+$', '')
+   s = string.gsub(s, '[\n\r]+', ' ')
+   return s
 end
 
 function os.pid()
@@ -16,5 +16,9 @@ function os.pid()
 end
 
 function os.hostname()
-   return os.capture('cat /etc/hostname')
+   local f = io.popen ("/bin/hostname")
+   local hostname = f:read("*a") or ""
+   f:close()
+   hostname =string.gsub(hostname, "\n$", "")
+   return hostname
 end

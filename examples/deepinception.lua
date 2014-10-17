@@ -54,6 +54,7 @@ table.print(opt)
 
 if opt.activation == 'ReLU' then
    print"Warning : using --activation 'ReLU' will most likely result in NaN errors. Use Tanh until this can be solved."
+end
 
 -- convolution layers
 opt.convChannelSize = table.fromString(opt.convChannelSize)
@@ -179,9 +180,6 @@ cnn:add(
    }
 )
 
-print(cnn)
-print(cnn:toModule(datasource:trainSet():sub(1,32)))
-
 local visitor = {}
 -- the ordering here is important:
 if opt.momentum > 0 then
@@ -239,5 +237,8 @@ if opt.cuda then
    cutorch.setDevice(opt.useDevice)
    xp:cuda()
 end
+
+print(cnn)
+print(cnn:toModule(datasource:trainSet():sub(1,32)))
 
 xp:run(datasource)

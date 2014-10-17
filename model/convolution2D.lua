@@ -132,7 +132,7 @@ function Convolution2D:outputSize(inputHeight, inputWidth, view)
    local input = torch.Tensor(2, self._input_size, inputHeight, inputWidth)
    local inputView = dp.ImageView('bchw', input)
    -- just propagate this dummy input through to know the output size
-   local output = self:forward(inputView, {nSample=2}):forward(view or 'bchw')
+   local output = self:forward(inputView, dp.Carry{nSample=2}):forward(view or 'bchw')
    self:zeroStatistics()
    return output:size(2), output:size(3), output:size(4)
 end

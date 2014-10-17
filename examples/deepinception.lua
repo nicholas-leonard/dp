@@ -10,7 +10,7 @@ cmd:text('Options:')
 -- fundamentals 
 cmd:option('--learningRate', 0.1, 'learning rate at t=0')
 cmd:option('--momentum', 0, 'momentum')
-cmd:option('--activation', 'ReLU', 'transfer function like ReLU, Tanh, Sigmoid')
+cmd:option('--activation', 'Tanh', 'transfer function like ReLU, Tanh, Sigmoid')
 cmd:option('--batchSize', 32, 'number of examples per batch')
 -- regularization (and dropout)
 cmd:option('--maxOutNorm', 1, 'max norm each layers output neuron weights')
@@ -51,6 +51,9 @@ cmd:option('--progress', false, 'print progress bar')
 cmd:text()
 opt = cmd:parse(arg or {})
 print(opt)
+
+if opt.activation == 'ReLU' then
+   print"Warning : using --activation 'ReLU' will most likely result in NaN errors. Use Tanh until this can be solved."
 
 -- convolution layers
 opt.convChannelSize = table.fromString(opt.convChannelSize)
@@ -225,8 +228,6 @@ xp = dp.Experiment{
    max_epoch = opt.maxEpoch
 }
 
-xp:run(datasource)
-
 --[[GPU or CPU]]--
 if opt.cuda then
    require 'cutorch'
@@ -234,3 +235,5 @@ if opt.cuda then
    cutorch.setDevice(opt.useDevice)
    xp:cuda()
 end
+
+xp:run(datasource)

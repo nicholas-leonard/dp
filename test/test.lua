@@ -750,7 +750,7 @@ function dptest.inception()
    for i, param in ipairs(layer:parameters()) do
       mytester:assert(_.isFinite(param:sum()), 'inception init error')
    end
-   local output, carry = layer:forward(input, {nSample=8})
+   local output, carry = layer:forward(input, dp.Carry{nSample=8})
    mytester:assertTableEq(output:forward('bchw'):size():totable(), output_size, 0.00001)
    mytester:assert(_.isFinite(output:forward('bchw'):sum()))
    output:backward('bchw', grad_tensor)

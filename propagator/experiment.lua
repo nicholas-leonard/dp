@@ -110,7 +110,7 @@ end
 
 --loops through the propagators until a doneExperiment is received or
 --experiment reaches max_epochs
-function Experiment:run(datasource)
+function Experiment:run(datasource, once)
    if not self._setup then
       self:setup(datasource)
    end
@@ -123,20 +123,22 @@ function Experiment:run(datasource)
    local train_set = datasource:trainSet()
    local valid_set = datasource:validSet()
    local test_set = datasource:testSet()
+   local atleastonce = false
    repeat
       self._epoch = self._epoch + 1
-      if self._optimizer then
+      if self._optimizer and train_set then
          self._optimizer:propagateEpoch(train_set, report)
       end
-      if self._validator then
+      if self._validator and valid_set then
          self._validator:propagateEpoch(valid_set, report)
       end
-      if self._tester then
+      if self._tester and test_set then
          self._tester:propagateEpoch(test_set, report)
       end
       report = self:report()
       self._mediator:publish("doneEpoch", report)
-   until (self:isDoneExperiment() or self._epoch >= self._max_epoch)
+      atleastonce = true
+   until (self:isDoneExperiment() or self._epoch >= self._max_epoch or (once and atleastonce))
    self._mediator:publish("finalizeExperiment")
 end
 
@@ -171,6 +173,10 @@ end
 
 function Experiment:tester()
    return self._tester
+end
+
+function Experiment:mediator()
+   return self._mediator
 end
 
 function Experiment:randomSeed()

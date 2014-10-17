@@ -104,6 +104,10 @@ end
 
 --[[Model]]--
 
+function dropout(depth)
+   return opt.dropout and (opt.dropoutProb[depth] or 0) > 0 and nn.Dropout(opt.dropoutProb[depth])
+end
+
 cnn = dp.Sequential()
 inputSize = datasource:imageSize('c')
 height, width = datasource:imageSize('h'), datasource:imageSize('w')
@@ -117,7 +121,7 @@ for i=1,#opt.convChannelSize do
       pool_stride = {opt.convPoolStride[i], opt.convPoolStride[i]},
       output_size = opt.convChannelSize[i], 
       transfer = nn[opt.activation](),
-      dropout = opt.dropout and nn.Dropout(opt.dropoutProb[i]),
+      dropout = dropout(depth),
       acc_update = opt.accUpdate,
       sparse_init = not opt.normalInit
    }
@@ -138,7 +142,7 @@ for i=1,#opt.incepChannelSize do
       pool_size = opt.incepPoolSize[i],
       pool_stride =  opt.incepPoolStride[i],
       transfer = nn[opt.activation](),
-      dropout = opt.dropout and nn.Dropout(opt.dropoutProb[depth]),
+      dropout = dropout(depth),
       acc_update = opt.accUpdate,
       sparse_init = not opt.normalInit,
       typename = 'inception'..i
@@ -156,7 +160,7 @@ for i,hiddenSize in ipairs(opt.hiddenSize) do
       input_size = inputSize, 
       output_size = hiddenSize,
       transfer = nn[opt.activation](),
-      dropout = opt.dropout and nn.Dropout(opt.dropoutProb[depth]),
+      dropout = dropout(depth),
       acc_update = opt.accUpdate,
       sparse_init = not opt.normalInit
    }
@@ -170,7 +174,7 @@ cnn:add(
       input_size = inputSize, 
       output_size = #(datasource:classes()),
       transfer = nn.LogSoftMax(),
-      dropout = opt.dropout and nn.Dropout(opt.dropoutProb[depth]),
+      dropout = dropout(depth),
       acc_update = opt.accUpdate
    }
 )

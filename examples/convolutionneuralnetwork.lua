@@ -21,7 +21,7 @@ cmd:option('--cuda', false, 'use CUDA')
 cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
 cmd:option('--maxEpoch', 100, 'maximum number of epochs to run')
 cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better local minima for early-stopping')
-cmd:option('--dataset', 'Mnist', 'which dataset to use : Mnist | NotMnist | Cifar10 | Cifar100')
+cmd:option('--dataset', 'Mnist', 'which dataset to use : Mnist | NotMnist | Cifar10 | Cifar100 | Svhn')
 cmd:option('--standardize', false, 'apply Standardize preprocessing')
 cmd:option('--zca', false, 'apply Zero-Component Analysis whitening')
 cmd:option('--activation', 'Tanh', 'transfer function like ReLU, Tanh, Sigmoid')
@@ -67,6 +67,10 @@ else
     error("Unknown Dataset")
 end
 
+function dropout(depth)
+   return opt.dropout and (opt.dropoutProb[depth] or 0) > 0 and nn.Dropout(opt.dropoutProb[depth])
+end
+
 --[[Model]]--
 
 cnn = dp.Sequential()
@@ -82,7 +86,7 @@ for i=1,#opt.channelSize do
       pool_stride = {opt.poolStride[i], opt.poolStride[i]},
       output_size = opt.channelSize[i], 
       transfer = nn[opt.activation](),
-      dropout = opt.dropout and nn.Dropout(opt.dropoutProb[i]),
+      dropout = dropout(depth),
       acc_update = opt.accUpdate,
       sparse_init = not opt.normalInit
    }
@@ -98,7 +102,7 @@ for i,hiddenSize in ipairs(opt.hiddenSize) do
       input_size = inputSize, 
       output_size = hiddenSize,
       transfer = nn[opt.activation](),
-      dropout = opt.dropout and nn.Dropout(opt.dropoutProb[depth]),
+      dropout = dropout(depth),
       acc_update = opt.accUpdate,
       sparse_init = not opt.normalInit
    }
@@ -112,7 +116,7 @@ cnn:add(
       input_size = inputSize, 
       output_size = #(datasource:classes()),
       transfer = nn.LogSoftMax(),
-      dropout = opt.dropout and nn.Dropout(opt.dropoutProb[depth]),
+      dropout = dropout(depth),
       acc_update = opt.accUpdate
    }
 )

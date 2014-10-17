@@ -74,9 +74,13 @@ function Convolution1D:sharedClone()
    return self:share(clone, 'weight', 'bias')
 end
 
--- number of output frames of the convolution1D layer
-function Convolution1D:nOutputFrame(nInputFrame)
-   assert(torch.type(nInputFrame) == 'number', "Expecting number")
-   local nFrame = (nInputFrame - self._kernel_size) / self._kernel_stride + 1
-   return (nFrame - self._pool_size) / self._pool_stride + 1
+-- size of output (channel,width) of the model
+function Convolution1D:outputSize(width, view)
+   -- bchw
+   local input = torch.Tensor(2, width, self._input_size)
+   local inputView = dp.SequenceView('bwc', input)
+   -- just propagate this dummy input through to know the output size
+   local output = self:forward(input,{nSample=2}):forward(view or 'bwc')
+   self:zeroStatistics()
+   return output:size(2), output:size(3)
 end

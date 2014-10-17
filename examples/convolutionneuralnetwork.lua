@@ -21,11 +21,11 @@ cmd:option('--cuda', false, 'use CUDA')
 cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
 cmd:option('--maxEpoch', 100, 'maximum number of epochs to run')
 cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better local minima for early-stopping')
-cmd:option('--dropout', false, 'apply dropout on hidden neurons, requires "nnx" luarock')
 cmd:option('--dataset', 'Mnist', 'which dataset to use : Mnist | NotMnist | Cifar10 | Cifar100')
 cmd:option('--standardize', false, 'apply Standardize preprocessing')
 cmd:option('--zca', false, 'apply Zero-Component Analysis whitening')
 cmd:option('--activation', 'Tanh', 'transfer function like ReLU, Tanh, Sigmoid')
+cmd:option('--hiddenSize', '{}', 'size of the dense hidden layers after the convolution')
 cmd:option('--dropout', false, 'use dropout')
 cmd:option('--dropoutProb', '{0.2,0.5,0.5}', 'dropout probabilities')
 cmd:option('--accUpdate', false, 'accumulate gradients inplace')
@@ -40,6 +40,7 @@ opt.kernelStride = table.fromString(opt.kernelStride)
 opt.poolSize = table.fromString(opt.poolSize)
 opt.poolStride = table.fromString(opt.poolStride)
 opt.dropoutProb = table.fromString(opt.dropoutProb)
+opt.hiddenSize = table.fromString(opt.hiddenSize)
 
 --[[preprocessing]]--
 local input_preprocess = {}
@@ -60,6 +61,8 @@ elseif opt.dataset == 'Cifar10' then
    datasource = dp.Cifar10{input_preprocess = input_preprocess}
 elseif opt.dataset == 'Cifar100' then
    datasource = dp.Cifar100{input_preprocess = input_preprocess}
+elseif opt.dataset == 'Svhn' then
+   datasource = dp.Svhn{input_preprocess = input_preprocess}
 else
     error("Unknown Dataset")
 end
@@ -68,7 +71,8 @@ end
 
 cnn = dp.Sequential()
 inputSize = datasource:imageSize('c')
-outputSize = {datasource:imageSize('h'), datasource:imageSize('w')}
+height, width = datasource:imageSize('h'), datasource:imageSize('w')
+depth = 1
 for i=1,#opt.channelSize do
    local conv = dp.Convolution2D{
       input_size = inputSize, 
@@ -79,21 +83,36 @@ for i=1,#opt.channelSize do
       output_size = opt.channelSize[i], 
       transfer = nn[opt.activation](),
       dropout = opt.dropout and nn.Dropout(opt.dropoutProb[i]),
-      acc_update = opt.accUpdate
+      acc_update = opt.accUpdate,
+      sparse_init = not opt.normalInit
    }
    cnn:add(conv)
-   inputSize = opt.channelSize[i]
-   outputSize[1] = conv:nOutputFrame(outputSize[1], 1)
-   outputSize[2] = conv:nOutputFrame(outputSize[2], 2)
+   inputSize, height, width = conv:outputSize(height, width, 'bchw')
+   depth = depth + 1
+end
+inputSize = inputSize*height*width
+print("input to first Neural layer has: "..inputSize.." neurons")
+
+for i,hiddenSize in ipairs(opt.hiddenSize) do
+   local dense = dp.Neural{
+      input_size = inputSize, 
+      output_size = hiddenSize,
+      transfer = nn[opt.activation](),
+      dropout = opt.dropout and nn.Dropout(opt.dropoutProb[depth]),
+      acc_update = opt.accUpdate,
+      sparse_init = not opt.normalInit
+   }
+   cnn:add(dense)
+   inputSize = hiddenSize
+   depth = depth + 1
 end
 
-inputSize = inputSize
 cnn:add(
    dp.Neural{
-      input_size = inputSize*outputSize[1]*outputSize[2], 
+      input_size = inputSize, 
       output_size = #(datasource:classes()),
       transfer = nn.LogSoftMax(),
-      dropout = opt.dropout and nn.Dropout(opt.dropoutProb[#opt.channelSize]),
+      dropout = opt.dropout and nn.Dropout(opt.dropoutProb[depth]),
       acc_update = opt.accUpdate
    }
 )

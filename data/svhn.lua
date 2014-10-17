@@ -1,34 +1,32 @@
 -------------------------------------------------
---[[ SVHN ]]--
+--[[ Svhn ]]--
 -- http://ufldl.stanford.edu/housenumbers
 -- A color-image set of 10 digits.
 -------------------------------------------------
+local Svhn, DataSource = torch.class("dp.Svhn", "dp.DataSource")
+Svhn.isSvhn = true
 
-local SVHN, DataSource = torch.class("dp.SVHN", "dp.DataSource")
-SVHN.isSVHN = true
+Svhn._name = 'svhn'
+Svhn._image_size = {3, 32, 32}
+Svhn._feature_size = 3*32*32
+Svhn._image_axes = 'bchw'
+Svhn._classes = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 
-SVHN._name = 'svhn'
-SVHN._image_size = {3, 32, 32}
-SVHN._feature_size = 3*32*32
-SVHN._image_axes = 'bchw'
-SVHN._classes = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
-
-function SVHN:__init(config)
+function Svhn:__init(config)
    config = config or {}
    assert(torch.type(config) == 'table' and not config[1],
       "Constructor requires key-value arguments")
    local load_all, input_preprocess, target_preprocess
 
-   self.args, self._valid_ratio, self._data_folder, self._train_file, self._test_file,
-   self._data_path, self._scale, self._shuffle, self._download_url, load_all,
-   input_preprocess, target_preprocess
+   self.args, self._valid_ratio, self._train_file, self._test_file,
+   self._data_path, self._shuffle, self._scale, self._download_url, 
+   load_all, input_preprocess, target_preprocess
       = xlua.unpack(
       {config},
-      'SVHN', nil,
-      {arg='valid_ratio', type='number', default=1/5,
+      'Svhn', 
+      'Street View House Numbers datasource',
+      {arg='valid_ratio', type='number', default=1/6,
         help='proportion of training set to use for cross-validation.'},
-      {arg='data_folder', type='string', default='cifar-10-batches-t7',
-        help='name of test_file'},
       {arg='train_file', type='string', default='train_32x32.t7',
        help='name of train_file'},
       {arg='test_file', type='string', default='test_32x32.t7',
@@ -37,10 +35,10 @@ function SVHN:__init(config)
         help='path to data repository'},
       {arg='shuffle', type='boolean',
         help='shuffle different sets', default=false},
-      {arg='scale', type='table',
+      {arg='scale', type='table', default=false,
         help='bounds to scale the values between'},
       {arg='download_url', type='string',
-        default='http://data.neuflow.org/data/housenumbers/',
+        default='https://stife076.files.wordpress.com/2014/09/svhn.zip',
         help='URL from which to download dataset if not found on disk.'},
       {arg='load_all', type='boolean',
         help='Load all datasets : train, valid, test.', default=true},
@@ -67,11 +65,11 @@ function SVHN:__init(config)
                         target_preprocess=target_preprocess})
 end
 
-function SVHN:loadTrainValid()
+function Svhn:loadTrainValid()
    local inputs, targets = self:loadData(
       self._train_file, self._download_url
    )
-   print('loading train..')
+   
    -- train
    local start = 1
    local size = math.floor(inputs:size(1)*(1-self._valid_ratio))
@@ -82,7 +80,7 @@ function SVHN:loadTrainValid()
          'train'
       )
    )
-   print('loading valid..')
+   
    -- valid
    start = size + 1
    size = inputs:size(1) - start
@@ -97,17 +95,16 @@ function SVHN:loadTrainValid()
    return self:trainSet(), self:validSet()
 end
 
-function SVHN:loadTest()
+function Svhn:loadTest()
    local inputs, targets = self:loadData(
       self._test_file, self._download_url
    )
-   print('loading test..')
    self:setTestSet(self:createDataSet(inputs, targets, 'test'))
    return self:testSet()
 end
 
---Creates an SVHN Dataset out of data and which_set
-function SVHN:createDataSet(inputs, targets, which_set)
+--Creates an Svhn Dataset out of data and which_set
+function Svhn:createDataSet(inputs, targets, which_set)
    if self._shuffle then
       local indices = torch.randperm(inputs:size(1)):long()
       local inputs = inputs:index(1, indices)
@@ -128,12 +125,11 @@ function SVHN:createDataSet(inputs, targets, which_set)
    return dp.DataSet{inputs=input_v,targets=target_v,which_set=which_set}
 end
 
-function SVHN:loadData(file_name, download_url)
+function Svhn:loadData(file_name, download_url)
    local doc_path = DataSource.getDataPath{
-      name=self._name, url=download_url..file_name,
+      name=self._name, url=download_url,
       decompress_file=file_name, data_dir=self._data_path
    }
-   print (doc_path)
    local fin = torch.DiskFile(doc_path)
    local tbl = fin:readObject()
    tbl.y = tbl.y:resize(tbl.y:size(2))

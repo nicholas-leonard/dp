@@ -151,3 +151,9 @@ function math.round(a)
    end
    return math.floor(a)
 end 
+
+-- security risk, but useful for unpacking multi-table strings :
+-- a = dp.returnString("{1,3,{5,7},{3,4}}")
+function dp.returnString(str)
+   return loadstring(" return "..str)()
+end

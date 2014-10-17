@@ -19,8 +19,8 @@ function Svhn:__init(config)
    local load_all, input_preprocess, target_preprocess
 
    self.args, self._valid_ratio, self._train_file, self._test_file,
-   self._data_path, self._scale, self._shuffle, self._download_url, load_all,
-   input_preprocess, target_preprocess
+   self._data_path, self._shuffle, self._scale, self._download_url, 
+   load_all, input_preprocess, target_preprocess
       = xlua.unpack(
       {config},
       'Svhn', 
@@ -35,7 +35,7 @@ function Svhn:__init(config)
         help='path to data repository'},
       {arg='shuffle', type='boolean',
         help='shuffle different sets', default=false},
-      {arg='scale', type='table',
+      {arg='scale', type='table', default=false,
         help='bounds to scale the values between'},
       {arg='download_url', type='string',
         default='https://stife076.files.wordpress.com/2014/09/svhn.zip',

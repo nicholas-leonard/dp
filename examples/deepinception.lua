@@ -175,14 +175,6 @@ cnn:add(
 print(cnn)
 print(cnn:toModule(datasource:trainSet():sub(1,32)))
 
---[[GPU or CPU]]--
-if opt.cuda then
-   require 'cutorch'
-   require 'cunn'
-   cutorch.setDevice(opt.useDevice)
-   cnn:cuda()
-end
-
 local visitor = {}
 -- the ordering here is important:
 if opt.momentum > 0 then
@@ -234,3 +226,11 @@ xp = dp.Experiment{
 }
 
 xp:run(datasource)
+
+--[[GPU or CPU]]--
+if opt.cuda then
+   require 'cutorch'
+   require 'cunn'
+   cutorch.setDevice(opt.useDevice)
+   xp:cuda()
+end

@@ -56,7 +56,7 @@ cmd:option('--progress', false, 'print progress bar')
 
 cmd:text()
 opt = cmd:parse(arg or {})
-print(opt)
+table.print(opt)
 
 opt.decayPoints = table.fromString(opt.decayPoints)
 opt.learningRates = table.fromString(opt.learningRates)

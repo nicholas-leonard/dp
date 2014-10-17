@@ -50,7 +50,7 @@ cmd:option('--accUpdate', false, 'accumulate gradients inplace (much faster, but
 cmd:option('--progress', false, 'print progress bar')
 cmd:text()
 opt = cmd:parse(arg or {})
-print(opt)
+table.print(opt)
 
 if opt.activation == 'ReLU' then
    print"Warning : using --activation 'ReLU' will most likely result in NaN errors. Use Tanh until this can be solved."

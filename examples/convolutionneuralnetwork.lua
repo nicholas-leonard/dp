@@ -32,7 +32,7 @@ cmd:option('--accUpdate', false, 'accumulate gradients inplace')
 cmd:option('--progress', false, 'print progress bar')
 cmd:text()
 opt = cmd:parse(arg or {})
-print(opt)
+table.print(opt)
 
 opt.channelSize = table.fromString(opt.channelSize)
 opt.kernelSize = table.fromString(opt.kernelSize)

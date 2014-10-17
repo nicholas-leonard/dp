@@ -38,7 +38,7 @@ cmd:option('--neuralSize', 1000, 'Size of first neural layer in 3 Neural Layer M
 cmd:option('--mlp', false, 'use multi-layer perceptron, as opposed to convolution neural network')
 cmd:text()
 opt = cmd:parse(arg or {})
-print(opt)
+table.print(opt)
 
 assert(opt.submissionFile ~= '', 'provide filename, e.g.: --submissionFile submission12.csv')
 

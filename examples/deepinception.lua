@@ -238,7 +238,9 @@ if opt.cuda then
    xp:cuda()
 end
 
+print"dp.Models :"
 print(cnn)
+print"nn.Modules :"
 print(cnn:toModule(datasource:trainSet():sub(1,32)))
 
 xp:run(datasource)

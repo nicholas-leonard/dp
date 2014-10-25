@@ -13,6 +13,7 @@ cmd:option('--momentum', 0, 'momentum')
 cmd:option('--nHidden', 200, 'number of hidden units')
 cmd:option('--batchSize', 32, 'number of examples per batch')
 cmd:option('--cuda', false, 'use CUDA')
+cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
 cmd:option('--maxEpoch', 100, 'maximum number of epochs to run')
 cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better local minima for early-stopping')
 cmd:option('--dropout', false, 'apply dropout on hidden neurons, requires "nnx" luarock')
@@ -68,13 +69,6 @@ mlp = dp.Sequential{
    }
 }
 
---[[GPU or CPU]]--
-if opt.cuda then
-   require 'cutorch'
-   require 'cunn'
-   mlp:cuda()
-end
-
 --[[Propagators]]--
 train = dp.Optimizer{
    loss = dp.NLL(),
@@ -120,5 +114,18 @@ xp = dp.Experiment{
    random_seed = os.time(),
    max_epoch = opt.maxEpoch
 }
+
+--[[GPU or CPU]]--
+if opt.cuda then
+   require 'cutorch'
+   require 'cunn'
+   cutorch.setDevice(opt.useDevice)
+   xp:cuda()
+end
+
+print"dp.Models :"
+print(mlp)
+print"nn.Modules :"
+print(mlp:toModule(datasource:trainSet():sub(1,32)))
 
 xp:run(datasource)

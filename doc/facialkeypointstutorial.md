@@ -826,18 +826,8 @@ cnn:add(
    }
 )
 ```
-We also have the usual Visitor and CUDA options:
+We also have the usual Visitor options:
 ```lua
-print(cnn)
-
---[[GPU or CPU]]--
-if opt.cuda then
-   require 'cutorch'
-   require 'cunn'
-   cutorch.setDevice(opt.useDevice)
-   cnn:cuda()
-end
-
 local visitor = {}
 -- the ordering here is important:
 if opt.momentum > 0 then
@@ -883,7 +873,7 @@ test = dp.Evaluator{
 }
 ```
 Finally, all components are assembled in the Experiment. The 
-EarlyStopper uses uses the FacialKeypointFeedback's `mse` report attribute 
+EarlyStopper uses the FacialKeypointFeedback's `mse` report attribute 
 for cross-validation:
 ```lua
 --[[Experiment]]--
@@ -902,12 +892,29 @@ xp = dp.Experiment{
    random_seed = os.time(),
    max_epoch = opt.maxEpoch
 }
+```
+After optionally casting the experiment to CUDA and setting the device,
+the `dp.Model` and `nn.Module` structure is printed to screen and 
+the experiment is run:
+```lua
+--[[GPU or CPU]]--
+if opt.cuda then
+   require 'cutorch'
+   require 'cunn'
+   cutorch.setDevice(opt.useDevice)
+   xp:cuda()
+end
+
+print"dp.Models :"
+print(cnn)
+print"nn.Modules :"
+print(cnn:toModule(datasource:trainSet():sub(1,32)))
 
 xp:run(datasource)
 ```
 ## Running Experiments ##
 The last step is to use the components assembled in the launch script 
-to run some experiments, and maybe even optimize hyper-parameters"
+to run some experiments, and maybe even optimize hyper-parameters:
 ```bash
 th examples/facialkeypointdetector.lua --learningRate 0.1 --maxOutNorm 2 --cuda --useDevice 1 --batchSize 16 --channelSize '{96,96}' --kernelSize '{7,7}' --poolSize '{2,2}' --poolStride '{2,2}' --hiddenSize 3000 --maxEpoch 1000 --maxTries 100 --accUpdate --normalInit --activation ReLU --submissionFile cnn1.csv
 ```

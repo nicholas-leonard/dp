@@ -75,7 +75,6 @@ local datasource = dp.BillionWords{
 }
 
 --[[Model]]--
-cutorch.setDevice(opt.useDevice)
 
 print("Input to first hidden layer has "..
    opt.contextSize*opt.inputEmbeddingSize.." neurons.")
@@ -147,8 +146,6 @@ mlp = dp.Sequential{
    }
 }
 
-mlp:cuda()
-
 local schedule = {}
 for i,decayPoint in ipairs(opt.decayPoints) do
    schedule[decayPoint] = opt.learningRates[i]
@@ -201,5 +198,11 @@ xp = dp.Experiment{
    random_seed = os.time(),
    max_epoch = opt.maxEpoch
 }
+
+cutorch.setDevice(opt.useDevice)
+xp:cuda()
+
+print"dp.Models :"
+print(mlp)
 
 xp:run(datasource)

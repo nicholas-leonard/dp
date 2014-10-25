@@ -121,14 +121,6 @@ cnn:add(
    }
 )
 
---[[GPU or CPU]]--
-if opt.cuda then
-   require 'cutorch'
-   require 'cunn'
-   cutorch.setDevice(opt.useDevice)
-   cnn:cuda()
-end
-
 local visitor = {}
 -- the ordering here is important:
 if opt.momentum > 0 then
@@ -178,5 +170,18 @@ xp = dp.Experiment{
    random_seed = os.time(),
    max_epoch = opt.maxEpoch
 }
+
+--[[GPU or CPU]]--
+if opt.cuda then
+   require 'cutorch'
+   require 'cunn'
+   cutorch.setDevice(opt.useDevice)
+   xp:cuda()
+end
+
+print"dp.Models :"
+print(cnn)
+print"nn.Modules :"
+print(cnn:toModule(datasource:trainSet():sub(1,32)))
 
 xp:run(datasource)

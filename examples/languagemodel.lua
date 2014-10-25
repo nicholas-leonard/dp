@@ -158,18 +158,6 @@ mlp = dp.Sequential{
    }
 }
 
---[[GPU or CPU]]--
-if opt.cuda then
-   print"Using CUDA"
-   require 'cutorch'
-   require 'cunn'
-   if opt.softmaxtree or opt.softmaxforest then
-      require 'cunnx'
-   end
-   cutorch.setDevice(opt.useDevice)
-   mlp:cuda()
-end
-
 --[[Propagators]]--
 train = dp.Optimizer{
    loss = opt.softmaxtree and dp.TreeNLL() or dp.NLL(),
@@ -219,5 +207,19 @@ xp = dp.Experiment{
    random_seed = os.time(),
    max_epoch = opt.maxEpoch
 }
+
+--[[GPU or CPU]]--
+if opt.cuda then
+   require 'cutorch'
+   require 'cunn'
+   if opt.softmaxtree or opt.softmaxforest then
+      require 'cunnx'
+   end
+   cutorch.setDevice(opt.useDevice)
+   xp:cuda()
+end
+
+print"dp.Models :"
+print(mlp)
 
 xp:run(datasource)

@@ -60,8 +60,8 @@ function Dictionary:_type(type)
    return self
 end
 
-function Dictionary:reset()
-   self._module:reset()
+function Dictionary:reset(stdv)
+   self._module:reset(stdv)
 end
 
 function Dictionary:parameters()

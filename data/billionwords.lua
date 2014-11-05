@@ -25,7 +25,8 @@ function BillionWords:__init(config)
          self._download_url, load_all 
       = xlua.unpack(
       {config},
-      'BillionWords', nil,
+      'BillionWords', 
+      'A dataset of one billion words used for language modeling',
       {arg='context_size', type='number', req=true,
        help='number of previous words to be used to predict the next one.'},
       {arg='train_file', type='string', default='train_data.th7',

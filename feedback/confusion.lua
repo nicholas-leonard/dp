@@ -11,14 +11,17 @@ function Confusion:__init(config)
    config = config or {}
    assert(torch.type(config) == 'table' and not config[1], 
       "Constructor requires key-value arguments")
-   local args, name = xlua.unpack(
+   local args, bce, name = xlua.unpack(
       {config},
       'Confusion', 
       'Adapter for optim.ConfusionMatrix',
+      {arg='bce', type='boolean', default=false,
+       help='set true when using Binary Cross-Entropy (BCE)Criterion'},
       {arg='name', type='string', default='confusion',
        help='name identifying Feedback in reports'}
    )
    config.name = name
+   self._bce = bce
    parent.__init(self, config)
 end
 
@@ -38,12 +41,29 @@ function Confusion:_add(batch, output, carry, report)
       require 'optim'
       self._cm = optim.ConfusionMatrix(batch:targets():classes())
    end
-   local act = output:forward('bf')
+   
+   -- binary cross-entropy has one output
+   local view = self._bce and 'b' or 'bf'
+   local act = output:forward(view)
    local act_type = torch.type(act)
    if act_type ~= 'torch.DoubleTensor' and act_type ~= 'torch.FloatTensor' then
-      act = output:forward('bf', 'torch.FloatTensor')
+      act = output:forward(view, 'torch.FloatTensor')
    end
-   self._cm:batchAdd(act, batch:targets():forward('b'))
+   
+   local tgt = batch:targets():forward('b')
+   
+   if self._bce then
+      self._act = self._act or act.new()
+      self._tgt = self._tgt or tgt.new()
+      -- round it to get a class
+      -- add 1 to get indices starting at 1
+      self._act:gt(act, 0.5):add(1) 
+      self._tgt:add(tgt,1)
+      act = self._act
+      tgt = self._tgt
+   end
+
+   self._cm:batchAdd(act, tgt)
 end
 
 function Confusion:_reset()

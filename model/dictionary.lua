@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------
 --[[ Dictionary ]]-- 
--- Adapts a nn.LookupTable
--- Works on a WordTensor:context() view.
+-- Adapts a nn.LookupTable (often used for language modeling)
+-- Outputs a SequenceView
 ------------------------------------------------------------------------
 local Dictionary, parent = torch.class("dp.Dictionary", "dp.Layer")
 Dictionary.isDictionary = true
@@ -28,9 +28,6 @@ function Dictionary:__init(config)
    self._dict_size = dict_size
    self._output_size = output_size
    self._module = nn.LookupTable(dict_size, output_size)
-   if self._acc_update then
-      self._module:accUpdateOnly()
-   end
    config.typename = typename
    config.input_type = 'torch.IntTensor'
    config.tags = config.tags or {}
@@ -38,6 +35,9 @@ function Dictionary:__init(config)
    config.output_view = 'bwc'
    config.output = dp.SequenceView()
    parent.__init(self, config)
+   if self._acc_update then
+      self._module:accUpdateOnly()
+   end
 end
 
 function Dictionary:_backward(carry)

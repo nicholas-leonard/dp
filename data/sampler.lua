@@ -206,63 +206,117 @@ end
 
 ------------------------------------------------------------------------
 --[[ SentenceSampler ]]--
--- Iterates over examples in a dataset by iterating over sampl
+-- Iterates over parallel sentences of equal size one word at a time.
+-- The sentences sizes are iterated through randomly.
+-- Used for Recurrent Neural Network Language Models.
 ------------------------------------------------------------------------
 local SentenceSampler, parent = torch.class("dp.SentenceSampler", "dp.Sampler")
 
-function SentenceSampler:_init(config)
-   config = config or {}
-   assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, batch_size = xlua.unpack(
-      {config},
-      'SentenceSampler', 
-      'Samples batches from a set of examples in dataset. '..
-      'Iteration ends after all examples have been sampled once (for one epoch). '..
-      'Examples are shuffled at the start of the iteration. ',
-      {arg='batch_size', type='number', default='128',
-       help='Number of examples per sampled batches'}
-   )
-   self:setRandomSeed(random_seed)
-   config.batch_size = batch_size
-   parent.__init(self, config)
-end
-   
 function SentenceSampler:sampleEpoch(dataset)
-   dataset = dp.Sampler.toDataset(dataset)
-   assert(dataset.isSentenceSet, "SentenceSampler expects a SentenceSet")
-   local nSample = dataset:nSample()
-   local sentences = dataset:sentences()
-   local offset = math.ceil(nSample / self._batchSize)
-   local epochSize = self._epoch_size or nSample
-   local dataset_indices = torch.LongTensor(self._batch_size)
-   local i = 1
+   self._co = self._co or coroutine.create(function () 
+      self._sampleEpoch(dataset) 
+   end)
+   return function (batch)   -- "iterator"
+      local code, batch, batchIter, epochSize = coroutine.resume(self._co)
+      if batch then
+         return batch, batchIter, epochSize
+      end
+   end
+end
 
-   self._start = self._start or 1
-   local nSampled = 0
-   -- build iterator
-   return function(batch)
-      if nSampled >= epochSize then
-         return
+function SentenceSampler:_sampleEpoch(dataset)
+   while true do
+      dataset = dp.Sampler.toDataset(dataset)
+      local nSample = dataset:nSample()
+      
+      local sentenceStartId = dataset:startId()
+      local sentenceTable_, corpus = dataset:groupBySize()
+      local sentenceSizes = _.shuffle(_.keys(sentenceTable_))
+      local sentenceTable = {}
+      for size, s in pairs(sentenceTable_) do
+         sentenceTable[size] = {indices=s.indices:resize(s.count), sampleIdx=1}
       end
-      batch = batch or dataset:batch(self._batch_size)
-      stop = math.min(self._start+self._batch_size-1,nSample)
-      local batch_indices = dataset_indices:sub(self._start,stop)
-      -- inputs and targets
-      dataset:index(batch, batch_indices)
-      local indices = batch:indices() or torch.Tensor()
-      -- metadata
-      batch:setup{
-         batch_iter=stop, batch_size=self._batch_size,
-         n_sample=stop-self._start+1, 
-         indices=indices:range(self._start,stop)
-      }
-      nSampled = nSampled + stop - self._start + 1
-      self._start = self._start + self._batch_size
-      if self._start >= nSample then
-         self._start = 1
-         dataset_indices = torch.randperm(nSample):long()
+      
+      local text = corpus:select(2,2) -- second column is the text
+      
+      local epochSize = self._epoch_size or nSample
+      local nSampled = 0
+      local batch
+      
+      local function newBatch()
+         return batch or dp.Batch{
+            which_set=dataset:whichSet(), epoch_size=epochSize,
+            inputs=dp.ClassView('b', torch.IntTensor()), 
+            targets=dp.ClassView('b', torch.IntTensor())
+            -- carry?
+         } 
       end
-      collectgarbage() 
-      return batch, math.min(nSampled, epochSize), epochSize
+      
+      while #sentenceSizes > 0 do
+         local toRemove = {}
+         for i,sentenceSize in ipairs(sentenceSizes) do
+            local s = sentenceTable[sentenceSize]
+            local start = s.sampleIdx
+            local stop = math.min(start + self._batch_size, s.indices:size(1))
+            -- batch of word indices, each at same position in different sentence
+            local textIndices = s.indices:narrow(1, start, stop - start + 1)
+            
+            for wordOffset=0,sentenceSize do
+               if nSampled >= epochSize then
+                  batch = coroutine.yield(false) or newBatch()
+                  nSampled = 0
+               end
+               
+               local input_v = batch:inputs()
+               assert(input_v.isClassView)
+               local inputs = input_v:input() or torch.IntTensor()
+               
+               local target_v = batch:targets()
+               assert(target_v.isClassView)
+               local targets = target_v:input() or torch.IntTensor()
+               
+               if wordOffset = 0 then
+                  inputs:resize(textIndices:size(1))
+                  inputs:fill(sentenceStartId)
+               else
+                  inputs:index(text, 1, textIndices)
+               end
+               -- move to next word in each sentence
+               indices:add(1)
+               targets:index(text, 1, textIndices)
+               
+               -- debugging only
+               for j=1,textIndices:size(1) do
+                  local textIndex = textIndices[j]
+                  assert(corpus[textIndex][1] == s.indices[start+j-1])
+               end
+               
+               -- metadata
+               batch:setup{
+                  batch_iter=(nSample + textIndices:size(1) - 1), 
+                  batch_size=self._batch_size,
+                  n_sample=textIndices:size(1)
+               }
+               -- re-encapsulate in dp.Views
+               input_v:forward('b', inputs)
+               input_v:setClasses(dataset:vocabular())
+               
+               target_v:forward('b', targets)
+               target_v:setClasses(dataset:vocabular())
+               
+               nSampled = nSampled + textIndices:size(1)
+               coroutine.yield(batch, math.min(nSampled, epochSize), epochSize) 
+            end
+            
+            s.sampleIdx = start + textIndices:size(1)
+            if s.sampleIdx > s.indices:size(1) then
+               table.insert(toRemove, i)
+            end
+         end
+         for k,v in ipairs(toRemove) do
+            table.remove(sentenceSizes, v)
+         end
+         collectgarbage() 
+      end
    end
 end

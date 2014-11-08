@@ -45,7 +45,7 @@ function RecurrentDictionary:__init(config)
    config.typename = typename
    config.input_type = 'torch.IntTensor'
    config.tags = config.tags or {}
-   config.input_view = 'bt'
+   config.input_view = 'b' -- input is a batch of indices
    config.output_view = 'bf'
    config.output = dp.SequenceView()
    parent.__init(self, config)

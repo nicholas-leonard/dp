@@ -47,6 +47,15 @@ function SentenceSet:__init(config)
    self._words = words
    self._carry = dp.Carry()
 end
+
+function SentenceSet:startId()
+   return self._start_id
+end
+
+function SentenceSet:vocabulary()
+   return self._words
+end
+
 function SentenceSet:nSample()
    return self._data:size(1)
 end
@@ -139,7 +148,7 @@ function SentenceSet:sub(batch, start, stop)
 end
 
 function SentenceSet:index(batch, indices)
-   local inputs, targets, input_v, target_v
+   local inputs, targets, input_v, target_v, carry
    if (not batch) or (not indices) then 
       indices = indices or batch
       batch = nil
@@ -232,9 +241,5 @@ function SentenceSet:groupBySize(bufferSize)
       )
       self._sentences = sentenceCache
    end
-   return self._sentences
-end
-
-function SentenceSet:sub(sentenceSize)
-   
+   return self._sentences, self._data
 end

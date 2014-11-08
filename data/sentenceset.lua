@@ -199,3 +199,38 @@ function SentenceSet:index(batch, indices)
       inputs=input_v, targets=target_v, carry=carry
    }  
 end
+
+-- returns sentence start indices organized by sentence size.
+-- (used by RecurrentSampler)
+function SentenceSet:sentences(bufferSize)
+   bufferSize = bufferSize or 1000
+   if not self._sentences then
+      local sentenceCache = {}
+      local sentenceStartIdx = self._data[1][1]
+      local nTotalWord = self._data:size(1)
+      local nWord = 0
+      self._data:select(2,1):apply(
+         function(startIdx)
+            if startIdx ~= sentenceStartIdx then
+               local s = sentenceCache[nWord]
+               if not s then
+                  s = {indices=torch.LongTensor(bufferSize), count=0}
+                  sentenceCache[nWord] = s
+               end
+               s.count = s.count + 1
+               local nIndex = s.indices:size(1)
+               if s.count > nIndex then
+                  s.indices:resize(nIndex + bufferSize)
+               end
+               s.indices[s.count] = sentenceStartIdx
+               sentenceStartIdx = startIdx
+               nWord = 1
+            else
+               nWord = nWord + 1
+            end
+         end
+      )
+      self._sentences = sentenceCache
+   end
+   return self._sentences
+end

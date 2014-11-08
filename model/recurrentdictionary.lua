@@ -25,6 +25,8 @@ function RecurrentDictionary:__init(config)
        help='identifies Model type in reports.'}
        
    )
+   assert(not config.dropout, 
+      "RecurrentDictionary doesn't work with dropout (maybe later)")
    assert(not config.acc_update, 
       "RecurrentDictionary doesn't work with acc_update (maybe later)")
    assert(not config.sparse_init, 

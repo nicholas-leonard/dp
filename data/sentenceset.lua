@@ -202,7 +202,7 @@ end
 
 -- returns sentence start indices organized by sentence size.
 -- (used by RecurrentSampler)
-function SentenceSet:sentences(bufferSize)
+function SentenceSet:groupBySize(bufferSize)
    bufferSize = bufferSize or 1000
    if not self._sentences then
       local sentenceCache = {}
@@ -233,4 +233,8 @@ function SentenceSet:sentences(bufferSize)
       self._sentences = sentenceCache
    end
    return self._sentences
+end
+
+function SentenceSet:sub(sentenceSize)
+   
 end

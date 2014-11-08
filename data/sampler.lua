@@ -203,3 +203,66 @@ function ShuffleSampler:sampleEpoch(dataset)
       return batch, math.min(nSampled, epochSize), epochSize
    end
 end
+
+------------------------------------------------------------------------
+--[[ SentenceSampler ]]--
+-- Iterates over examples in a dataset by iterating over sampl
+------------------------------------------------------------------------
+local SentenceSampler, parent = torch.class("dp.SentenceSampler", "dp.Sampler")
+
+function SentenceSampler:_init(config)
+   config = config or {}
+   assert(type(config) == 'table', "Constructor requires key-value arguments")
+   local args, batch_size = xlua.unpack(
+      {config},
+      'SentenceSampler', 
+      'Samples batches from a set of examples in dataset. '..
+      'Iteration ends after all examples have been sampled once (for one epoch). '..
+      'Examples are shuffled at the start of the iteration. ',
+      {arg='batch_size', type='number', default='128',
+       help='Number of examples per sampled batches'}
+   )
+   self:setRandomSeed(random_seed)
+   config.batch_size = batch_size
+   parent.__init(self, config)
+end
+   
+function SentenceSampler:sampleEpoch(dataset)
+   dataset = dp.Sampler.toDataset(dataset)
+   assert(dataset.isSentenceSet, "SentenceSampler expects a SentenceSet")
+   local nSample = dataset:nSample()
+   local sentences = dataset:sentences()
+   local offset = math.ceil(nSample / self._batchSize)
+   local epochSize = self._epoch_size or nSample
+   local dataset_indices = torch.LongTensor(self._batch_size)
+   local i = 1
+
+   self._start = self._start or 1
+   local nSampled = 0
+   -- build iterator
+   return function(batch)
+      if nSampled >= epochSize then
+         return
+      end
+      batch = batch or dataset:batch(self._batch_size)
+      stop = math.min(self._start+self._batch_size-1,nSample)
+      local batch_indices = dataset_indices:sub(self._start,stop)
+      -- inputs and targets
+      dataset:index(batch, batch_indices)
+      local indices = batch:indices() or torch.Tensor()
+      -- metadata
+      batch:setup{
+         batch_iter=stop, batch_size=self._batch_size,
+         n_sample=stop-self._start+1, 
+         indices=indices:range(self._start,stop)
+      }
+      nSampled = nSampled + stop - self._start + 1
+      self._start = self._start + self._batch_size
+      if self._start >= nSample then
+         self._start = 1
+         dataset_indices = torch.randperm(nSample):long()
+      end
+      collectgarbage() 
+      return batch, math.min(nSampled, epochSize), epochSize
+   end
+end

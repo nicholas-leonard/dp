@@ -924,6 +924,48 @@ function dptest.tomodule()
    local output = mlp:forward(batch:inputs():forward('default'))
    mytester:assertTensorEq(outputView:forward('default'), output, 0.00001)
 end
+function dptest.sentencesampler()
+   local nIndice = 100
+   local batchSize = 10
+   
+   -- create dummy sentence dataset
+   local data = torch.IntTensor(nIndice, 2):zero()
+   data:select(2,2):copy(torch.range(1,nIndice))
+   local start_id, end_id = nIndice+1, nIndice+2
+   local startIdx = 1
+   for i=1,nIndice do
+      data[i][1] = startIdx
+      if math.random() < 0.1 then
+         data[i][2] = end_id
+         startIdx = i+1
+      end
+   end
+   
+   local epochSize = 100
+   local dataset = dp.SentenceSet{data=data,which_set='train',start_id=start_id,end_id=end_id}
+   local sampler = dp.SentenceSampler{batch_size=batchSize,epoch_size=epochSize}
+   local batchSampler = sampler:sampleEpoch(dataset)
+   local sampled = {}
+   local nSampled = 0
+   while nSampled < epochSize do
+      local batch = batchSampler(batch)
+      mytester:assert(batch.isBatch)
+      local inputs = batch:inputs():input()
+      local targets = batch:targets():input()
+      mytester:assert(inputs:dim() == 1)
+      mytester:assert(targets:dim() == 1)
+      mytester:assert(inputs:size(1) == targets:size(1))
+      for i=1,inputs:size(1) do
+         local wordIdx = inputs[i]
+         if wordIdx ~= start_id and wordIdx ~= end_id then
+            local exists = sampled[wordIdx]
+            mytester:assert(not exists, 'word sampled twice')
+         end
+      end
+      nSampled = nSampled + inputs:size(1)
+   end
+   mytester:assert(not batchSampler(batch), "iterator not stoping")
+end
 
 function dp.test(tests)
    math.randomseed(os.time())

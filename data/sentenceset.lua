@@ -30,7 +30,7 @@ function SentenceSet:__init(config)
        'start indices of sentences. Second col is for storing the '..
        'sequence of words as shuffled sentences. Sentences are '..
        'only seperated by the sentence_end delimiter.', req=true},
-      {arg='context_size', type='number', req=true,
+      {arg='context_size', type='number', default=1,
        help='number of previous words to be used to predict the next.'},
       {arg='end_id', type='number', req=true,
        help='word_id of the sentence end delimiter : "</S>"'},

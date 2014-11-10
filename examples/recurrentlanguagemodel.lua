@@ -58,6 +58,7 @@ print("Input to first hidden layer has "..
 
 print("Input to second hidden layer has size "..inputSize)
 
+-- build the last layer first:
 local softmax
 if opt.softmaxtree then
    softmax = dp.SoftmaxTree{
@@ -102,7 +103,7 @@ train = dp.Optimizer{
       dp.MaxNorm{max_out_norm=opt.maxOutNorm, period=opt.maxNormPeriod}
    },
    feedback = dp.Perplexity(),  
-   sampler = dp.Sampler{ --shuffle sample takes too much mem
+   sampler = dp.SentenceSampler{ 
       epoch_size = opt.trainEpochSize, batch_size = opt.batchSize
    },
    progress = opt.progress
@@ -112,7 +113,7 @@ if not opt.trainOnly then
    valid = dp.Evaluator{
       loss = opt.softmaxtree and dp.TreeNLL() or dp.NLL(),
       feedback = dp.Perplexity(),  
-      sampler = dp.Sampler{
+      sampler = dp.SentenceSampler{
          epoch_size = opt.validEpochSize, 
          batch_size = opt.softmaxtree and 1024 or opt.batchSize
       },
@@ -121,7 +122,7 @@ if not opt.trainOnly then
    tester = dp.Evaluator{
       loss = opt.softmaxtree and dp.TreeNLL() or dp.NLL(),
       feedback = dp.Perplexity(),  
-      sampler = dp.Sampler{batch_size = opt.softmaxtree and 1024 or opt.batchSize}
+      sampler = dp.SentenceSampler{batch_size = opt.softmaxtree and 1024 or opt.batchSize}
    }
 end
 

@@ -315,6 +315,9 @@ function SentenceSampler:_sampleEpoch(dataset)
                textIndices:add(1)
             end
             
+            -- notify subscribers between sentences
+            self._mediator:publish("doneSequence")
+            
             s.sampleIdx = s.sampleIdx + textIndices:size(1)
             if s.sampleIdx > s.indices:size(1) then
                sentenceSizes[i] = nil

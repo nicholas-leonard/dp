@@ -85,8 +85,6 @@ function Dictionary:share(dict, ...)
    return parent.share(self, dict, ...)
 end
 
--- Only affects 2D parameters.
--- Assumes that 2D parameters are arranged (input_dim, output_dim)
 function Dictionary:maxNorm(max_out_norm, max_in_norm)
    assert(self.backwarded, "Should call maxNorm after a backward pass")
    local module = self._module

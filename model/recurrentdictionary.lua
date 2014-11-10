@@ -1,7 +1,9 @@
 ------------------------------------------------------------------------
 --[[ RecurrentDictionary ]]-- 
--- Adapts a nn.LookupTable
--- Works on a WordTensor:context() view.
+-- A Simple Recurrent Neural Network used for Language Modeling
+-- Adapts a nn.Recurrent containing LookupTable (input) and
+-- Linear (feedback) Modules. Should be located at the input of the 
+-- computational flow graph (has no gradInputs).
 ------------------------------------------------------------------------
 local RecurrentDictionary, parent = torch.class("dp.RecurrentDictionary", "dp.Layer")
 RecurrentDictionary.isRecurrentDictionary = true
@@ -12,7 +14,8 @@ function RecurrentDictionary:__init(config)
       = xlua.unpack(
       {config},
       'RecurrentDictionary', 
-      'adapts a nn.LookupTable',
+      'adapts a nn.Recurrent containing LookupTable (input) and '..
+      'Linear (feedback) Modules.',
       {arg='dict_size', type='number', req=true,
        help='Number of entries in the dictionary (e.g. num of words)'},
       {arg='output_size', type='number', req=true,
@@ -37,9 +40,9 @@ function RecurrentDictionary:__init(config)
    self._output_size = output_size
    self._transfer = transfer or nn.Sigmoid()
    self._lookup = nn.LookupTable(dict_size, output_size)
-   self._feedback = nn.Linear(outputSize, outputSize)
+   self._feedback = nn.Linear(output_size, output_size)
    self._recurrent = nn.Recurrent(
-      dict_size, self._lookup, self._feedback, self._transfer
+      output_size, self._lookup, self._feedback, self._transfer
    )
    self._module = self._recurrent
    config.typename = typename
@@ -47,12 +50,21 @@ function RecurrentDictionary:__init(config)
    config.tags = config.tags or {}
    config.input_view = 'b' -- input is a batch of indices
    config.output_view = 'bf'
-   config.output = dp.SequenceView()
+   config.output = dp.DataView()
    parent.__init(self, config)
 end
 
+function RecurrentDictionary:setup(config)
+   parent.setup(self, config)
+   self._mediator:subscribe('doneSequence', self, 'doneSequence')
+end
+
+function RecurrentDictionary:doneSequence()
+   self._recurrent:forget() -- forget the current sequence, start anew
+end
+
 function RecurrentDictionary:_backward(carry)
-   local input_grad = self._module:backward(self:inputAct(), self:outputGrad(), self._acc_scale)
+   self._module:backward(self:inputAct(), self:outputGrad(), self._acc_scale)
    return carry
 end
 
@@ -71,36 +83,54 @@ function RecurrentDictionary:reset(stdv)
 end
 
 function RecurrentDictionary:parameters()
-   error"Not Implemented"
-   local module = self._module
+   local params, gradParams = self._module:parameters()
+   local scales
    if self.forwarded then
-      -- only return the parameters affected by the forward/backward
-      local params, gradParams, scales = {}, {}, {}
-      for k,nBackward in pairs(module.inputs) do
-         local kscale = module:scaleUpdateByKey(k)
-         params[k] = module.weight:select(1, k)
-         gradParams[k] = module.gradWeight:select(1, k)
-         scales[k] = module:scaleUpdateByKey(k)
+      local lookupParams = self._lookup:parameters()
+      for i, param in ipairs(lookupParams) do
+         local idx = _.indexOf(params, param)
+         table.remove(params, idx)
+         table.remove(gradParams, idx)
       end
-      return params, gradParams, scales
+      local offset = #params
+      scales = {}
+      -- only return the parameters affected by the forward/backward
+      for k,nBackward in pairs(self._lookup.inputs) do
+         local kscale = self._lookup:scaleUpdateByKey(k)
+         params[offset+k] = self._lookup.weight:select(1, k)
+         gradParams[offset+k] = self._lookup.gradWeight:select(1, k)
+         scales[offset+k] = self._lookup:scaleUpdateByKey(k)
+      end
    end
-   return module:parameters()
+   return params, gradParams, scales
+end
+
+function RecurrentDictionary:maxNorm(max_out_norm, max_in_norm)
+   assert(self.backwarded, "Should call maxNorm after a backward pass")
+   max_out_norm = self.mvstate.max_out_norm or max_out_norm
+   max_out_norm = self.mvstate.max_in_norm or max_in_norm or max_out_norm
+   
+   for k,nBackward in pairs(self._lookup.inputs) do
+      self._lookup.weight:narrow(1, k, 1):renorm(1, 2, max_out_norm)
+   end
+   
+   local lookupParams = self._lookup:parameters()
+   local params, gradParams = self._module:parameters()
+   for k,param in pairs(params) do
+      if param:dim() == 2 and not _.contains(lookupParams, param) then
+         if max_out_norm then
+            -- rows feed into output neurons 
+            param:renorm(1, 2, max_out_norm)
+         end
+         if max_in_norm then
+            -- cols feed out from input neurons
+            param:renorm(2, 2, max_in_norm)
+         end
+      end
+   end
 end
 
 function RecurrentDictionary:share(rnn, ...)
    assert(rnn.isRecurrentDictionary)
    return parent.share(self, rnn, ...)
-end
-
--- Only affects 2D parameters.
--- Assumes that 2D parameters are arranged (input_dim, output_dim)
-function RecurrentDictionary:maxNorm(max_out_norm, max_in_norm)
-   error"Not Implemented"
-   assert(self.backwarded, "Should call maxNorm after a backward pass")
-   local module = self._module
-   max_out_norm = self.mvstate.max_out_norm or max_out_norm
-   max_out_norm = self.mvstate.max_in_norm or max_in_norm or max_out_norm
-   for k,nBackward in pairs(module.inputs) do
-      module.weight:narrow(1, k, 1):renorm(1, 2, max_out_norm)
-   end
 end

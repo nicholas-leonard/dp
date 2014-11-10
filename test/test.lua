@@ -833,6 +833,50 @@ function dptest.narrowdictionary()
    input, carry2 = layer:backward(output, carry2)
    mytester:assertTensorNe(act_ten, output:forward('bf'), 0.00001)
 end
+function dptest.recurrentdictionary()
+   local batchSize = 8
+   local dictSize = batchSize * 30
+   local hiddenSize = 10
+   local data = torch.randperm(dictSize):view(batchSize, -1)
+   local gradData = torch.randn(dictSize, batchSize, hiddenSize)
+   -- dp
+   local input = dp.ClassView()
+   local layer = dp.RecurrentDictionary{dict_size=dictSize, output_size=hiddenSize}
+   layer:zeroGradParameters()
+   -- nn
+   local rnn = nn.Recurrent(hiddenSize, nn.LookupTable(dictSize, hiddenSize), nn.Linear(hiddenSize, hiddenSize))
+   rnn.feedbackModule.weight = layer._feedback.weight:clone()
+   rnn.feedbackModule.bias = layer._feedback.bias:clone()
+   rnn.inputModule.weight = layer._lookup.weight:clone()
+   rnn.startModule.bias = layer._recurrent.startModule.bias:clone()
+   rnn:zeroGradParameters()
+   -- compare
+   for step=1,10 do
+      -- forward
+      local inputTensor = data:select(2,step)
+      input:forward('b', inputTensor)
+      local output, carry = layer:forward(input, dp.Carry{nSample=batchSize})
+      local outputTensor = rnn:forward(inputTensor)
+      mytester:assertTensorEq(outputTensor, output:forward('bf'), 0.000001)
+      -- backward
+      local gradOutputTensor = gradData[step]
+      output:backward('bf', gradOutputTensor)
+      layer:backward(output, carry)
+      rnn:backward(inputTensor, gradOutputTensor)
+   end
+   -- updateParameters  (and BPTT)
+   layer:updateParameters(0.1)
+   rnn:updateParameters(0.1)
+   local params = layer:parameters()
+   local params2 = rnn:parameters()
+   mytester:assert(table.length(params) ~= #params2, "missing specific case for lookuptable")
+   layer.forwarded = false
+   local params = layer:parameters()
+   mytester:assert(#params == #params2, #params.." should equal "..#params2)
+   for i, param in ipairs(params) do
+      mytester:assertTensorEq(param, params2[i], 0.000001, "error in update "..i)
+   end
+end
 function dptest.nll()
    local input_tensor = torch.randn(5,10)
    local target_tensor = torch.randperm(10):sub(1,5)

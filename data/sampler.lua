@@ -252,7 +252,7 @@ function SentenceSampler:_sampleEpoch(dataset)
          sentenceTable[size] = {indices=s.indices:resize(s.count), sampleIdx=1}
       end
       local sentenceSizes = _.shuffle(_.keys(sentenceTable))
-      local nSizes = table.length(sentenceSizes)
+      local nSizes = #sentenceSizes
    
       while nSizes > 0 do
          
@@ -260,11 +260,11 @@ function SentenceSampler:_sampleEpoch(dataset)
             
             local s = sentenceTable[sentenceSize]
             local start = s.sampleIdx
-            local stop = math.min(start + self._batch_size, s.indices:size(1))
+            local stop = math.min(start + self._batch_size - 1, s.indices:size(1))
             -- batch of word indices, each at same position in different sentence
             local textIndices = s.indices:narrow(1, start, stop - start + 1)
             self._text_indices = self._text_indices or torch.LongTensor()
-            self._text_indices:resize(textIndices:size())
+            self._text_indices:resize(textIndices:size(1))
             self._text_indices:copy(textIndices)
             textIndices = self._text_indices
             
@@ -294,12 +294,6 @@ function SentenceSampler:_sampleEpoch(dataset)
                self._prev_targets = self._prev_targets or targets.new()
                self._prev_targets:resize(targets:size()):copy(targets)
                
-               -- debugging only
-               for j=1,textIndices:size(1) do
-                  local textIdx = textIndices[j]
-                  assert(corpus[textIdx][1] == s.indices[start+j-1])
-               end
-               
                -- metadata
                batch:setup{
                   batch_iter=(nSampled + textIndices:size(1) - 1), 
@@ -321,7 +315,7 @@ function SentenceSampler:_sampleEpoch(dataset)
                textIndices:add(1)
             end
             
-            s.sampleIdx = start + textIndices:size(1)
+            s.sampleIdx = s.sampleIdx + textIndices:size(1)
             if s.sampleIdx > s.indices:size(1) then
                sentenceSizes[i] = nil
                nSizes = nSizes - 1

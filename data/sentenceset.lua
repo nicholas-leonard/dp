@@ -41,6 +41,7 @@ function SentenceSet:__init(config)
    )
    self:setWhichSet(which_set)
    self._data = data
+   assert(data[data:size(1)][2] == end_id ,"data should be terminated with end_id")
    self._context_size = context_size
    self._start_id = start_id
    self._end_id = end_id
@@ -218,9 +219,15 @@ function SentenceSet:groupBySize(bufferSize)
       local sentenceStartIdx = self._data[1][1]
       local nTotalWord = self._data:size(1)
       local nWord = 0
+      local i = 0
       self._data:select(2,1):apply(
          function(startIdx)
-            if startIdx ~= sentenceStartIdx then
+            i = i + 1
+            if startIdx ~= sentenceStartIdx or i == nTotalWord then
+               if i == nTotalWord then
+                  nWord = nWord + 1
+               end
+               assert(nWord > 1, "empty sentence encountered")
                local s = sentenceCache[nWord]
                if not s then
                   s = {indices=torch.LongTensor(bufferSize), count=0}

@@ -925,7 +925,7 @@ function dptest.tomodule()
    mytester:assertTensorEq(outputView:forward('default'), output, 0.00001)
 end
 function dptest.sentencesampler()
-   local nIndice = 100
+   local nIndice = 300
    local batchSize = 10
    
    -- create dummy sentence dataset
@@ -933,16 +933,28 @@ function dptest.sentencesampler()
    data:select(2,2):copy(torch.range(1,nIndice))
    local start_id, end_id = nIndice+1, nIndice+2
    local startIdx = 1
+   local nSentence = 1
+   local count = 0
    for i=1,nIndice do
       data[i][1] = startIdx
-      if math.random() < 0.1 then
+      if i < nIndice - 5 and count > 3 and math.random() < 0.1 then
          data[i][2] = end_id
          startIdx = i+1
+         nSentence = nSentence + 1
+         count = 0
       end
+      count = count + 1
    end
+   data[nIndice][2] = end_id
    
-   local epochSize = 100
+   local epochSize = nIndice / 10
    local dataset = dp.SentenceSet{data=data,which_set='train',start_id=start_id,end_id=end_id}
+   local nWord = 0
+   for sentenceSize,s in pairs(dataset:groupBySize()) do
+      nWord = nWord + (s.count*sentenceSize)
+   end
+   mytester:assert(nWord == nIndice, "error in groupBySize "..nWord..' vs '..nIndice)
+   
    local sampler = dp.SentenceSampler{batch_size=batchSize,epoch_size=epochSize}
    local batchSampler = sampler:sampleEpoch(dataset)
    local sampled = {}
@@ -959,12 +971,70 @@ function dptest.sentencesampler()
          local wordIdx = inputs[i]
          if wordIdx ~= start_id and wordIdx ~= end_id then
             local exists = sampled[wordIdx]
-            mytester:assert(not exists, 'word sampled twice')
+            mytester:assert(not exists, 'word sampled twice '..wordIdx)
+            sampled[wordIdx] = true
          end
       end
       nSampled = nSampled + inputs:size(1)
    end
    mytester:assert(not batchSampler(batch), "iterator not stoping")
+   
+   local epochSize = nIndice
+   local dataset = dp.SentenceSet{data=data,which_set='train',start_id=start_id,end_id=end_id}
+   local sampler = dp.SentenceSampler{batch_size=batchSize,epoch_size=epochSize}
+   local batchSampler = sampler:sampleEpoch(dataset)
+   local sampled = {}
+   local nSampled = 0
+   local sampledTwice = 0
+   while nSampled < epochSize do
+      local batch = batchSampler(batch)
+      mytester:assert(batch.isBatch)
+      local inputs = batch:inputs():input()
+      local targets = batch:targets():input()
+      mytester:assert(inputs:dim() == 1)
+      mytester:assert(targets:dim() == 1)
+      mytester:assert(inputs:size(1) == targets:size(1))
+      for i=1,inputs:size(1) do
+         local wordIdx = inputs[i]
+         if wordIdx ~= start_id and wordIdx ~= end_id then
+            if sampled[wordIdx] then
+               sampledTwice = sampledTwice + 1
+            end
+            sampled[wordIdx] = true
+         end
+      end
+      nSampled = nSampled + inputs:size(1)
+   end
+   
+   mytester:assert(sampledTwice == 0, sampledTwice..' words sampled twice ')
+   mytester:assert(not batchSampler(batch), "iterator not stoping")
+   mytester:assert(table.length(sampled) == nIndice-nSentence, "not all words were sampled")
+   
+   local sampled = {}
+   local nSampled = 0
+   local sampledTwice = 0
+   while nSampled < epochSize do
+      local batch = batchSampler(batch)
+      mytester:assert(batch.isBatch)
+      local inputs = batch:inputs():input()
+      local targets = batch:targets():input()
+      mytester:assert(inputs:dim() == 1)
+      mytester:assert(targets:dim() == 1)
+      mytester:assert(inputs:size(1) == targets:size(1))
+      for i=1,inputs:size(1) do
+         local wordIdx = inputs[i]
+         if wordIdx ~= start_id and wordIdx ~= end_id then
+            if sampled[wordIdx] then
+               sampledTwice = sampledTwice + 1
+            end
+            sampled[wordIdx] = true
+         end
+      end
+      nSampled = nSampled + inputs:size(1)
+   end
+   mytester:assert(sampledTwice == 0, sampledTwice..' words sampled twice ')
+   mytester:assert(not batchSampler(batch), "iterator not stoping")
+   mytester:assert(table.length(sampled) == nIndice-nSentence, "not all words were sampled")
 end
 
 function dp.test(tests)

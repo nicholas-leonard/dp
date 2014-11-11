@@ -7,7 +7,7 @@ cmd:text('Train a Language Model on BillionWords dataset using a Simple Recurren
 cmd:text('Example:')
 cmd:text('$> th recurrentlanguagemodel.lua --small --batchSize 512 ')
 cmd:text('$> th recurrentlanguagemodel.lua --tiny --batchSize 512 ')
-cmd:text('$> th recurrentlanguagemodel.lua --tiny --batchSize 512 --accUpdate --validEpochSize 10000 --trainEpochSize 100000 --softmaxtree')
+cmd:text('$> th recurrentlanguagemodel.lua --tiny --batchSize 512 --rho 10 --validEpochSize 10000 --trainEpochSize 100000 --softmaxtree')
 cmd:text('Options:')
 cmd:option('--learningRate', 0.1, 'learning rate at t=0')
 cmd:option('--decayPoint', 100, 'epoch at which learning rate is decayed')
@@ -48,15 +48,14 @@ elseif opt.tiny then
    train_file = 'train_tiny.th7'
 end
 
-local datasource = dp.BillionWords{
-   context_size = opt.contextSize, train_file = train_file
-}
+local datasource = dp.BillionWords{train_file = train_file, load_all=false}
+datasource:loadTrain()
+if not opt.trainOnly then
+   datasource:loadValid()
+   datasource:loadTest()
+end
 
 --[[Model]]--
-print("Input to first hidden layer has "..
-   opt.contextSize*opt.inputEmbeddingSize.." neurons.")
-
-print("Input to second hidden layer has size "..inputSize)
 
 -- build the last layer first:
 local softmax
@@ -75,7 +74,9 @@ else
       input_size = opt.hiddenSize,
       output_size = table.length(datasource:classes()),
       transfer = nn.LogSoftMax(),
-      dropout = opt.dropout and nn.Dropout() or nil
+      dropout = opt.dropout and nn.Dropout() or nil,
+      -- best we can do for now (yet, end of sentences will be under-represented in output updates)
+      mvstate = {learn_scale = 1/opt.rho} 
    }
 end
 
@@ -119,7 +120,7 @@ if not opt.trainOnly then
       sampler = dp.SentenceSampler{
          evaluate = true,
          epoch_size = opt.validEpochSize, 
-         batch_size = opt.softmaxtree and 1024 or opt.batchSize
+         batch_size = opt.softmaxtree and math.min(opt.validEpochSize, 1024) or opt.batchSize
       },
       progress = opt.progress
    }

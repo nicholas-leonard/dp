@@ -33,7 +33,7 @@ function Optimizer:propagateBatch(batch, report)
    local carry = self:forward(batch)
    carry = self:monitor(batch, report, carry) or carry
    carry = self:backward(batch, carry) or carry
-   if report.epoch % update_interval == 0 then
+   if report.epoch % self._update_interval == 0 then
       self:update()
    end
    self:doneBatch(report, carry)

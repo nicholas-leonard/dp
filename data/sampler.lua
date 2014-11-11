@@ -213,7 +213,7 @@ end
 ------------------------------------------------------------------------
 local SentenceSampler, parent = torch.class("dp.SentenceSampler", "dp.Sampler")
 
-function SentenceSampler:_init(config)
+function SentenceSampler:__init(config)
    config = config or {}
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, evaluate = xlua.unpack(
@@ -229,13 +229,17 @@ function SentenceSampler:_init(config)
        'to forget the previous sequence of inputs. '..
        'In training mode (evaluate=false), published to "doneSequence" '..
        'channel to advise RecurrentVisitorChain to visit the model after '..
-       'the sequence is propagated'},
+       'the sequence is propagated'}
    )
    self._evaluate = evaluate
    parent.__init(self, config)
 end
 
 function SentenceSampler:sampleEpoch(dataset)
+   -- starting new epoch implies starting a new sequence
+   if self._mediator then
+      self._mediator:publish("beginSequence")
+   end
    self._co = self._co or coroutine.create(function (batch) 
       self:_sampleEpoch(dataset, batch) 
    end)
@@ -296,9 +300,13 @@ function SentenceSampler:_sampleEpoch(dataset)
             end
             
             for wordOffset=1,sentenceSize do
-               
+
                if nSampled >= epochSize then
                   batch = coroutine.yield(false) or newBatch()
+                  -- starting new epoch implies starting a new sequence
+                  if self._mediator then
+                     self._mediator:publish("beginSequence")
+                  end
                   nSampled = 0
                end
                

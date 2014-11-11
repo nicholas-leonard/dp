@@ -241,6 +241,7 @@ function dptest.sentenceset()
       -- fill it with start sentence delimiters
       sentence:select(2,1):fill(((i-1)*10)+1)
    end
+   tensor[tensor:size(1)][2] = 2 -- must finish with end_id
    -- 18 words in vocabulary ("<S>" isn't found in tensor since its redundant to "</S>")
    local words = {"</S>", "<UNK>", "the", "it", "is", "to", "view", "huh", "hi", "ho", "oh", "I", "you", "we", "see", "do", "have", "<S>"}
    -- dataset
@@ -563,7 +564,7 @@ function dptest.softmaxforest()
    mytester:assertTableEq(input:backward('bf'):size():totable(), {5,10}, 0.000001, "Wrong grad size")
    local params2, gradParams2 = model:parameters()
    table.recurse(gradParams, gradParams2, function(t,k,v)
-      mytester:assertTensorNe(t[k], v, 0.0001)
+      mytester:assertTensorNe(t[k], v, 0.0000001)
    end)
    -- nn
    -- experts

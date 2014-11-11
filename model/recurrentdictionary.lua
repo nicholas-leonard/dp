@@ -4,6 +4,7 @@
 -- Adapts a nn.Recurrent containing LookupTable (input) and
 -- Linear (feedback) Modules. Should be located at the input of the 
 -- computational flow graph (has no gradInputs).
+-- Updates are accumulated in-place (acc_update = true).
 ------------------------------------------------------------------------
 local RecurrentDictionary, parent = torch.class("dp.RecurrentDictionary", "dp.Layer")
 RecurrentDictionary.isRecurrentDictionary = true
@@ -24,7 +25,7 @@ function RecurrentDictionary:__init(config)
       {arg='transfer', type='nn.Module',
        help='a transfer function like nn.Tanh, nn.Sigmoid, etc.'..
        'Defaults to nn.Sigmoid (recommended for RNNs)'},
-      {arg='typename', type='string', default='dictionary', 
+      {arg='typename', type='string', default='recurrentdictionary', 
        help='identifies Model type in reports.'}
        
    )
@@ -32,7 +33,7 @@ function RecurrentDictionary:__init(config)
       "RecurrentDictionary doesn't work with dropout (maybe later)")
    assert(not config.sparse_init, 
       "RecurrentDictionary doesn't work with sparse_init (maybe later)")
-   config.acc_update = false
+   config.acc_update = true -- so momentum and cie. aren't performed
    config.sparse_init = false
    self._dict_size = dict_size
    self._output_size = output_size

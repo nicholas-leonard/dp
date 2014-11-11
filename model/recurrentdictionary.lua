@@ -30,8 +30,6 @@ function RecurrentDictionary:__init(config)
    )
    assert(not config.dropout, 
       "RecurrentDictionary doesn't work with dropout (maybe later)")
-   assert(not config.acc_update, 
-      "RecurrentDictionary doesn't work with acc_update (maybe later)")
    assert(not config.sparse_init, 
       "RecurrentDictionary doesn't work with sparse_init (maybe later)")
    config.acc_update = false
@@ -40,6 +38,8 @@ function RecurrentDictionary:__init(config)
    self._output_size = output_size
    self._transfer = transfer or nn.Sigmoid()
    self._lookup = nn.LookupTable(dict_size, output_size)
+   -- by default, we backwardUpdateThroughTime, so delete gradWeights :
+   self._lookup:accUpdateOnly()
    self._feedback = nn.Linear(output_size, output_size)
    self._recurrent = nn.Recurrent(
       output_size, self._lookup, self._feedback, self._transfer
@@ -56,10 +56,10 @@ end
 
 function RecurrentDictionary:setup(config)
    parent.setup(self, config)
-   self._mediator:subscribe('doneSequence', self, 'doneSequence')
+   self._mediator:subscribe('beginSequence', self, 'beginSequence')
 end
 
-function RecurrentDictionary:doneSequence()
+function RecurrentDictionary:beginSequence()
    self._recurrent:forget() -- forget the current sequence, start anew
 end
 
@@ -128,6 +128,10 @@ function RecurrentDictionary:maxNorm(max_out_norm, max_in_norm)
          end
       end
    end
+end
+
+function RecurrentDictionary:updateParameters(lr)
+   self._module:updateParameters(lr)
 end
 
 function RecurrentDictionary:share(rnn, ...)

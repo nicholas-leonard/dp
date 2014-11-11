@@ -999,7 +999,7 @@ function dptest.sentencesampler()
    end
    mytester:assert(nWord == nIndice, "error in groupBySize "..nWord..' vs '..nIndice)
    
-   local sampler = dp.SentenceSampler{batch_size=batchSize,epoch_size=epochSize}
+   local sampler = dp.SentenceSampler{batch_size=batchSize,epoch_size=epochSize,evaluate=false}
    local batchSampler = sampler:sampleEpoch(dataset)
    local sampled = {}
    local nSampled = 0
@@ -1025,7 +1025,7 @@ function dptest.sentencesampler()
    
    local epochSize = nIndice
    local dataset = dp.SentenceSet{data=data,which_set='train',start_id=start_id,end_id=end_id}
-   local sampler = dp.SentenceSampler{batch_size=batchSize,epoch_size=epochSize}
+   local sampler = dp.SentenceSampler{batch_size=batchSize,epoch_size=epochSize,evaluate=false}
    local batchSampler = sampler:sampleEpoch(dataset)
    local sampled = {}
    local nSampled = 0

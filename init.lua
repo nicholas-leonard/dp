@@ -102,6 +102,7 @@ torch.include('dp', 'feedback/facialkeypointfeedback.lua')
 --[[ visitor ]]--
 torch.include('dp', 'visitor/visitor.lua')
 torch.include('dp', 'visitor/visitorchain.lua')
+torch.include('dp', 'visitor/recurrentvisitorchain.lua')
 torch.include('dp', 'visitor/maxnorm.lua')
 torch.include('dp', 'visitor/weightdecay.lua')
 torch.include('dp', 'visitor/learn.lua')

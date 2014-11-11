@@ -130,7 +130,7 @@ function ShuffleSampler:_init(config)
       'Samples batches from a shuffled set of examples in dataset. '..
       'Iteration ends after all examples have been sampled once (for one epoch). '..
       'Examples are shuffled at the start of the iteration. ',
-      {arg='batch_size', type='number', default='128',
+      {arg='batch_size', type='number', default=128,
        help='Number of examples per sampled batches'},
       {arg='random_seed', type='number', req=true,
        help='Used to initialize the shuffle generator.' ..
@@ -213,6 +213,28 @@ end
 ------------------------------------------------------------------------
 local SentenceSampler, parent = torch.class("dp.SentenceSampler", "dp.Sampler")
 
+function SentenceSampler:_init(config)
+   config = config or {}
+   assert(type(config) == 'table', "Constructor requires key-value arguments")
+   local args, evaluate = xlua.unpack(
+      {config},
+      'SentenceSampler', 
+      'Iterates over parallel sentences of equal size one word at a time. '..
+      'The sentences sizes are iterated through randomly. '..
+      'Used for Recurrent Neural Network Language Models. '..
+      'Note that it epoch_size is the minimum samples per epoch.',
+      {arg='evaluate', type='boolean', req=true,
+       help='In evaluation mode, publishes to "beginSequence" Mediator '..
+       'channel before each new Sequence. This prompts the Recurrent* Models '..
+       'to forget the previous sequence of inputs. '..
+       'In training mode (evaluate=false), published to "doneSequence" '..
+       'channel to advise RecurrentVisitorChain to visit the model after '..
+       'the sequence is propagated'},
+   )
+   self._evaluate = evaluate
+   parent.__init(self, config)
+end
+
 function SentenceSampler:sampleEpoch(dataset)
    self._co = self._co or coroutine.create(function (batch) 
       self:_sampleEpoch(dataset, batch) 
@@ -268,6 +290,11 @@ function SentenceSampler:_sampleEpoch(dataset)
             self._text_indices:copy(textIndices)
             textIndices = self._text_indices
             
+            if self._mediator and self._evaluate then
+               -- tells recurrent models to forget the past sequence
+               self._mediator:publish("beginSequence")
+            end
+            
             for wordOffset=1,sentenceSize do
                
                if nSampled >= epochSize then
@@ -310,13 +337,17 @@ function SentenceSampler:_sampleEpoch(dataset)
                
                nSampled = nSampled + textIndices:size(1)
                
-               coroutine.yield(batch, math.min(nSampled, epochSize), epochSize) 
+               if self._mediator and (not self._evaluate) 
+                     and (wordOffset == sentenceSize or nSampled >= epochSize) then
+                  -- tells the RecurrentVisitorChain to update the model
+                  -- when next called
+                  self._mediator:publish("doneSequence")
+               end
+               
+               coroutine.yield(batch, math.min(nSampled, epochSize), epochSize)
                -- move to next word in each sentence
                textIndices:add(1)
             end
-            
-            -- notify subscribers between sentences
-            self._mediator:publish("doneSequence")
             
             s.sampleIdx = s.sampleIdx + textIndices:size(1)
             if s.sampleIdx > s.indices:size(1) then

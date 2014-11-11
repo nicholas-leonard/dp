@@ -104,14 +104,17 @@ function LeCunLCN:transform(x)
       self._divisor = self._divisor:type(torch.type(x))
       self._denom = self._denom:type(torch.type(x))
       self._result = self._result:type(torch.type(x))
-      self._indice = self._indice:type(torch.type(x))
       self._largest = self._largest:type(torch.type(x))
    end
    
    self._result:resizeAs(x):copy(x)
    for i,channelIdx in ipairs(self._channels) do
       assert(torch.type(channelIdx) == 'number') 
-      assert(channelIdx >= 0 and channelIdx <= x:size(4))
+      assert(channelIdx >= 0)
+      
+      if channelIdx > x:size(4) then
+        break
+      end
 
       self._result:select(4,channelIdx):copy(self:normalize(x:select(4,channelIdx)))
    end

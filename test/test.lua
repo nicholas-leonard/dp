@@ -241,6 +241,7 @@ function dptest.sentenceset()
       -- fill it with start sentence delimiters
       sentence:select(2,1):fill(((i-1)*10)+1)
    end
+   tensor[tensor:size(1)][2] = 2 -- must finish with end_id
    -- 18 words in vocabulary ("<S>" isn't found in tensor since its redundant to "</S>")
    local words = {"</S>", "<UNK>", "the", "it", "is", "to", "view", "huh", "hi", "ho", "oh", "I", "you", "we", "see", "do", "have", "<S>"}
    -- dataset
@@ -563,7 +564,7 @@ function dptest.softmaxforest()
    mytester:assertTableEq(input:backward('bf'):size():totable(), {5,10}, 0.000001, "Wrong grad size")
    local params2, gradParams2 = model:parameters()
    table.recurse(gradParams, gradParams2, function(t,k,v)
-      mytester:assertTensorNe(t[k], v, 0.0001)
+      mytester:assertTensorNe(t[k], v, 0.0000001)
    end)
    -- nn
    -- experts
@@ -833,6 +834,50 @@ function dptest.narrowdictionary()
    input, carry2 = layer:backward(output, carry2)
    mytester:assertTensorNe(act_ten, output:forward('bf'), 0.00001)
 end
+function dptest.recurrentdictionary()
+   local batchSize = 8
+   local dictSize = batchSize * 30
+   local hiddenSize = 10
+   local data = torch.randperm(dictSize):view(batchSize, -1)
+   local gradData = torch.randn(dictSize, batchSize, hiddenSize)
+   -- dp
+   local input = dp.ClassView()
+   local layer = dp.RecurrentDictionary{dict_size=dictSize, output_size=hiddenSize}
+   layer:zeroGradParameters()
+   -- nn
+   local rnn = nn.Recurrent(hiddenSize, nn.LookupTable(dictSize, hiddenSize), nn.Linear(hiddenSize, hiddenSize))
+   rnn.feedbackModule.weight = layer._feedback.weight:clone()
+   rnn.feedbackModule.bias = layer._feedback.bias:clone()
+   rnn.inputModule.weight = layer._lookup.weight:clone()
+   rnn.startModule.bias = layer._recurrent.startModule.bias:clone()
+   rnn:zeroGradParameters()
+   -- compare
+   for step=1,10 do
+      -- forward
+      local inputTensor = data:select(2,step)
+      input:forward('b', inputTensor)
+      local output, carry = layer:forward(input, dp.Carry{nSample=batchSize})
+      local outputTensor = rnn:forward(inputTensor)
+      mytester:assertTensorEq(outputTensor, output:forward('bf'), 0.000001)
+      -- backward
+      local gradOutputTensor = gradData[step]
+      output:backward('bf', gradOutputTensor)
+      layer:backward(output, carry)
+      rnn:backward(inputTensor, gradOutputTensor)
+   end
+   -- updateParameters  (and BPTT)
+   layer:updateParameters(0.1)
+   rnn:updateParameters(0.1)
+   local params = layer:parameters()
+   local params2 = rnn:parameters()
+   mytester:assert(table.length(params) ~= #params2, "missing specific case for lookuptable")
+   layer.forwarded = false
+   local params = layer:parameters()
+   mytester:assert(#params == #params2, #params.." should equal "..#params2)
+   for i, param in ipairs(params) do
+      mytester:assertTensorEq(param, params2[i], 0.000001, "error in update "..i)
+   end
+end
 function dptest.nll()
    local input_tensor = torch.randn(5,10)
    local target_tensor = torch.randperm(10):sub(1,5)
@@ -923,6 +968,118 @@ function dptest.tomodule()
    local outputView = model:forward(batch:inputs(), batch:carry())
    local output = mlp:forward(batch:inputs():forward('default'))
    mytester:assertTensorEq(outputView:forward('default'), output, 0.00001)
+end
+function dptest.sentencesampler()
+   local nIndice = 300
+   local batchSize = 10
+   
+   -- create dummy sentence dataset
+   local data = torch.IntTensor(nIndice, 2):zero()
+   data:select(2,2):copy(torch.range(1,nIndice))
+   local start_id, end_id = nIndice+1, nIndice+2
+   local startIdx = 1
+   local nSentence = 1
+   local count = 0
+   for i=1,nIndice do
+      data[i][1] = startIdx
+      if i < nIndice - 5 and count > 3 and math.random() < 0.1 then
+         data[i][2] = end_id
+         startIdx = i+1
+         nSentence = nSentence + 1
+         count = 0
+      end
+      count = count + 1
+   end
+   data[nIndice][2] = end_id
+   
+   local epochSize = nIndice / 10
+   local dataset = dp.SentenceSet{data=data,which_set='train',start_id=start_id,end_id=end_id}
+   local nWord = 0
+   for sentenceSize,s in pairs(dataset:groupBySize()) do
+      nWord = nWord + (s.count*sentenceSize)
+   end
+   mytester:assert(nWord == nIndice, "error in groupBySize "..nWord..' vs '..nIndice)
+   
+   local sampler = dp.SentenceSampler{batch_size=batchSize,epoch_size=epochSize,evaluate=false}
+   local batchSampler = sampler:sampleEpoch(dataset)
+   local sampled = {}
+   local nSampled = 0
+   while nSampled < epochSize do
+      local batch = batchSampler(batch)
+      mytester:assert(batch.isBatch)
+      local inputs = batch:inputs():input()
+      local targets = batch:targets():input()
+      mytester:assert(inputs:dim() == 1)
+      mytester:assert(targets:dim() == 1)
+      mytester:assert(inputs:size(1) == targets:size(1))
+      for i=1,inputs:size(1) do
+         local wordIdx = inputs[i]
+         if wordIdx ~= start_id and wordIdx ~= end_id then
+            local exists = sampled[wordIdx]
+            mytester:assert(not exists, 'word sampled twice '..wordIdx)
+            sampled[wordIdx] = true
+         end
+      end
+      nSampled = nSampled + inputs:size(1)
+   end
+   mytester:assert(not batchSampler(batch), "iterator not stoping")
+   
+   local epochSize = nIndice
+   local dataset = dp.SentenceSet{data=data,which_set='train',start_id=start_id,end_id=end_id}
+   local sampler = dp.SentenceSampler{batch_size=batchSize,epoch_size=epochSize,evaluate=false}
+   local batchSampler = sampler:sampleEpoch(dataset)
+   local sampled = {}
+   local nSampled = 0
+   local sampledTwice = 0
+   while nSampled < epochSize do
+      local batch = batchSampler(batch)
+      mytester:assert(batch.isBatch)
+      local inputs = batch:inputs():input()
+      local targets = batch:targets():input()
+      mytester:assert(inputs:dim() == 1)
+      mytester:assert(targets:dim() == 1)
+      mytester:assert(inputs:size(1) == targets:size(1))
+      for i=1,inputs:size(1) do
+         local wordIdx = inputs[i]
+         if wordIdx ~= start_id and wordIdx ~= end_id then
+            if sampled[wordIdx] then
+               sampledTwice = sampledTwice + 1
+            end
+            sampled[wordIdx] = true
+         end
+      end
+      nSampled = nSampled + inputs:size(1)
+   end
+   
+   mytester:assert(sampledTwice == 0, sampledTwice..' words sampled twice ')
+   mytester:assert(not batchSampler(batch), "iterator not stoping")
+   mytester:assert(table.length(sampled) == nIndice-nSentence, "not all words were sampled")
+   
+   local sampled = {}
+   local nSampled = 0
+   local sampledTwice = 0
+   while nSampled < epochSize do
+      local batch = batchSampler(batch)
+      mytester:assert(batch.isBatch)
+      local inputs = batch:inputs():input()
+      local targets = batch:targets():input()
+      mytester:assert(inputs:dim() == 1)
+      mytester:assert(targets:dim() == 1)
+      mytester:assert(inputs:size(1) == targets:size(1))
+      for i=1,inputs:size(1) do
+         local wordIdx = inputs[i]
+         if wordIdx ~= start_id and wordIdx ~= end_id then
+            if sampled[wordIdx] then
+               sampledTwice = sampledTwice + 1
+            end
+            sampled[wordIdx] = true
+         end
+      end
+      nSampled = nSampled + inputs:size(1)
+   end
+   mytester:assert(sampledTwice == 0, sampledTwice..' words sampled twice ')
+   mytester:assert(not batchSampler(batch), "iterator not stoping")
+   mytester:assert(table.length(sampled) == nIndice-nSentence, "not all words were sampled")
 end
 
 function dp.test(tests)

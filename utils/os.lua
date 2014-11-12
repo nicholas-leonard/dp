@@ -17,6 +17,9 @@ end
 
 function os.hostname()
    local f = io.popen ("/bin/hostname")
+   if not f then 
+      return 'localhost'
+   end
    local hostname = f:read("*a") or ""
    f:close()
    hostname =string.gsub(hostname, "\n$", "")

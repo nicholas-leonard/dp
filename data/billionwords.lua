@@ -27,7 +27,7 @@ function BillionWords:__init(config)
       {config},
       'BillionWords', 
       'A dataset of one billion words used for language modeling',
-      {arg='context_size', type='number', req=true,
+      {arg='context_size', type='number', default=1,
        help='number of previous words to be used to predict the next one.'},
       {arg='train_file', type='string', default='train_data.th7',
        help='name of training file'},

@@ -30,7 +30,7 @@ function SentenceSet:__init(config)
        'start indices of sentences. Second col is for storing the '..
        'sequence of words as shuffled sentences. Sentences are '..
        'only seperated by the sentence_end delimiter.', req=true},
-      {arg='context_size', type='number', req=true,
+      {arg='context_size', type='number', default=1,
        help='number of previous words to be used to predict the next.'},
       {arg='end_id', type='number', req=true,
        help='word_id of the sentence end delimiter : "</S>"'},
@@ -41,12 +41,22 @@ function SentenceSet:__init(config)
    )
    self:setWhichSet(which_set)
    self._data = data
+   assert(data[data:size(1)][2] == end_id ,"data should be terminated with end_id")
    self._context_size = context_size
    self._start_id = start_id
    self._end_id = end_id
    self._words = words
    self._carry = dp.Carry()
 end
+
+function SentenceSet:startId()
+   return self._start_id
+end
+
+function SentenceSet:vocabulary()
+   return self._words
+end
+
 function SentenceSet:nSample()
    return self._data:size(1)
 end
@@ -139,7 +149,7 @@ function SentenceSet:sub(batch, start, stop)
 end
 
 function SentenceSet:index(batch, indices)
-   local inputs, targets, input_v, target_v
+   local inputs, targets, input_v, target_v, carry
    if (not batch) or (not indices) then 
       indices = indices or batch
       batch = nil
@@ -198,4 +208,45 @@ function SentenceSet:index(batch, indices)
       which_set=self:whichSet(), epoch_size=self:nSample(),
       inputs=input_v, targets=target_v, carry=carry
    }  
+end
+
+-- returns sentence start indices organized by sentence size.
+-- (used by RecurrentSampler)
+function SentenceSet:groupBySize(bufferSize)
+   bufferSize = bufferSize or 1000
+   if not self._sentences then
+      local sentenceCache = {}
+      local sentenceStartIdx = self._data[1][1]
+      local nTotalWord = self._data:size(1)
+      local nWord = 0
+      local i = 0
+      self._data:select(2,1):apply(
+         function(startIdx)
+            i = i + 1
+            if startIdx ~= sentenceStartIdx or i == nTotalWord then
+               if i == nTotalWord then
+                  nWord = nWord + 1
+               end
+               assert(nWord > 1, "empty sentence encountered")
+               local s = sentenceCache[nWord]
+               if not s then
+                  s = {indices=torch.LongTensor(bufferSize), count=0}
+                  sentenceCache[nWord] = s
+               end
+               s.count = s.count + 1
+               local nIndex = s.indices:size(1)
+               if s.count > nIndex then
+                  s.indices:resize(nIndex + bufferSize)
+               end
+               s.indices[s.count] = sentenceStartIdx
+               sentenceStartIdx = startIdx
+               nWord = 1
+            else
+               nWord = nWord + 1
+            end
+         end
+      )
+      self._sentences = sentenceCache
+   end
+   return self._sentences, self._data
 end

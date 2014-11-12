@@ -105,12 +105,14 @@ end
 -- the different gradInputs must be accumulated (sum grads).
 function DataView:backwardGet(view, tensor_type)
    if view and view ~= self._view then
-      error("backwardGet should be called with same view used for "..
+      error(torch.type(self)..
+         ": backwardGet should be called with same view used for "..
          "last forward (or nil) i.e. ".. self._view .. " not " .. view)
    end
    if tensor_type and self._type ~= tensor_type then
-      error("backwardGet sould be called with the same type as "..
-           "forwarded input")
+      error(torch.type(self)..
+         ": backwardGet sould be called with the same type as "..
+         "forwarded input")
    end
    tensor_type = tensor_type or self._type
    

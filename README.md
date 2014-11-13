@@ -26,8 +26,10 @@ A [Facial Keypoints tutorial](doc/facialkeypointstutorial.md) involving the case
 	
   * Data Library
     * [View](doc/view.md) : Tensor containers like [DataView](doc/view.md#dp.DataView), [ImageView](doc/view.md#dp.ImageView) and [ClassView](doc/view.md#dp.ClassView);
-    * [Data](doc/data.md) : View containers like like [Batch](doc/data.md#dp.Batch), and [DataSources](doc/data.md#dp.DataSource) like [Mnist](doc/data.md#dp.Mnist) and [BillionWords](doc/data.md#dp.BillionWords);
+    * [BaseSet](doc/data.md#dp.BaseSet) : View containers like [Batch](doc/data.md#dp.Batch) and [DataSet](doc/data.md#dp.DataSet);
+    * [DataSource](doc/data.md#dp.DataSource) : BaseSet containers like [Mnist](doc/data.md#dp.Mnist) and [BillionWords](doc/data.md#dp.BillionWords);
     * [Preprocess](doc/preprocess.md) : data preprocessing like [ZCA](doc/preprocess.md#dp.ZCA) and [Standardize](doc/preprocess.md#dp.Standardize);
+    * [Sampler](doc/data.md#dp.Sampler) : DataSet iterators like [ShuffleSampler](doc/data.md#dp.ShuffleSampler) and [SentenceSampler](doc/data.md#dp.SentenceSampler);
   * Node Library
     * [Node](doc/node.md) : abstract class that defines Model and Loss commonalities;
     * [Model](doc/model.md) : parameterized Nodes like [Neural](doc/model.md#dp.Neural) and [Convolution2D](doc/model.md#dp.Convolution2D) that adapt [Modules](https://github.com/torch/nn/blob/master/doc/module.md#module) to [Model](doc/model.md#dp.Model);

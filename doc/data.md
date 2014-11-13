@@ -14,6 +14,7 @@ One of the most important aspects of any machine learning problem is the data. T
     * [Svhn](#dp.Svhn) : the Google Street View House Numbers dataset;
   * [Sampler](#dp.Sampler) : dataset iterator;
     * [ShuffleSampler](#dp.ShuffleSampler) : shuffled dataset iterator;
+    * [SentenceSampler](#dp.SentenceSampler) : samples sentences for recurrent models;
 
 <a name="dp.BaseSet"/>
 ## BaseSet ##
@@ -175,7 +176,35 @@ Like [CIFAR](#dp.Cifar10), the images are of size `3x32x32`.
 ## Sampler ##
 A [DataSet](#dp.DataSet) iterator which qequentially samples [Batches](#dp.Batch) from a DataSet for a [Propagator](propagator.md#dp.Propagator).
 
+<a name="dp.Sampler.__init"/>
+### dp.Sampler{batch_size, epoch_size} ###
+A constructor having the following arguments:
+ * `batch_size` type='number', default='1024',
+help='Number of examples per sampled batches'},
+ * `epoch_size` specifies the number of examples presented per epoch. When `epoch_size` is less than the size of the dataset, the sampler remuses processing the dataset from its ending position the next time `Sampler:sampleEpoch()` is called. When `epoch_size` is greater, it loops through the dataset until enough samples are draw. The default (-1) is to use then entire dataset per epoch.
+
 <a name="dp.ShuffleSampler"/>
 ## ShuffleSampler ##
 A subclass of [Sampler](#dp.Sampler) which iterates over [Batches](#dp.Batch) in a dataset 
 by shuffling the example indices before each epoch.
+
+<a name="dp.ShuffleSample.__init"/>
+### dp.ShuffleSampler{batch_size, random_seed} ###
+A constructor having the following arguments:
+ * `batch_size` specifies the number of examples per sampled batches. The default is 128.
+ * `random_seed` is a number used to initialize the shuffle generator.
+
+<a name="dp.SentenceSampler"/>
+## SentenceSampler ##
+A subclass of [Sampler](#dp.Sampler) which iterates over parallel sentences of equal size one word at a time.
+The sentences sizes are iterated through randomly.
+Used for [Recurrent Neural Network Language Models](https://github.com/nicholas-leonard/dp/blob/master/examples/recurrentlanguagemodel.lua).
+ 
+<a name='dp.SentenceSampler.__init'/>
+### dp.SentenceSampler{evaluate} ###
+In evaluation mode (`evaluate=true`), publishes to the "beginSequence" Mediator 
+channel before each new Sequence. This prompts the Recurrent Models 
+to forget the previous sequence of inputs. 
+In training mode (`evaluate=false`), publishes to "doneSequence" 
+channel to advise RecurrentVisitorChain to visit the model after 
+each sequence is propagated.

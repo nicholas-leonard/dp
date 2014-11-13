@@ -42,6 +42,7 @@ cmd:option('--incepPoolStride', '{}', 'The stride (height=width) of the spatial 
 -- dense layers
 cmd:option('--hiddenSize', '{}', 'size of the dense hidden layers after the convolution')
 -- misc
+cmd:option('--normalInit', false, 'initialize inputs using a normal distribution (as opposed to sparse initialization)')
 cmd:option('--cuda', false, 'use CUDA')
 cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
 cmd:option('--maxEpoch', 1000, 'maximum number of epochs to run')
@@ -52,8 +53,9 @@ cmd:text()
 opt = cmd:parse(arg or {})
 table.print(opt)
 
-if opt.activation == 'ReLU' then
-   print"Warning : using --activation 'ReLU' will most likely result in NaN errors. Use Tanh until this can be solved."
+if opt.activation == 'ReLU' and not opt.normalInit then
+   print("Warning : you should probably use --normalInit with ReLUs for "..
+      "this script if you don't want to get NaN errors")
 end
 
 -- convolution layers
@@ -176,7 +178,8 @@ cnn:add(
       output_size = #(datasource:classes()),
       transfer = nn.LogSoftMax(),
       dropout = dropout(depth),
-      acc_update = opt.accUpdate
+      acc_update = opt.accUpdate,
+      sparse_init = not opt.normalInit
    }
 )
 

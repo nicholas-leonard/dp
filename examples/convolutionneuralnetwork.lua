@@ -24,6 +24,8 @@ cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better l
 cmd:option('--dataset', 'Mnist', 'which dataset to use : Mnist | NotMnist | Cifar10 | Cifar100 | Svhn')
 cmd:option('--standardize', false, 'apply Standardize preprocessing')
 cmd:option('--zca', false, 'apply Zero-Component Analysis whitening')
+cmd:option('--lecunlcn', false, 'apply Yann LeCun Local Contrast Normalization (recommended)')
+cmd:option('--normalInit', false, 'initialize inputs using a normal distribution (as opposed to sparse initialization)')
 cmd:option('--activation', 'Tanh', 'transfer function like ReLU, Tanh, Sigmoid')
 cmd:option('--hiddenSize', '{}', 'size of the dense hidden layers after the convolution')
 cmd:option('--dropout', false, 'use dropout')
@@ -33,6 +35,11 @@ cmd:option('--progress', false, 'print progress bar')
 cmd:text()
 opt = cmd:parse(arg or {})
 table.print(opt)
+
+if opt.activation == 'ReLU' and not opt.normalInit then
+   print("Warning : you should probably use --normalInit with ReLUs for "..
+      "this script if you don't want to get NaN errors")
+end
 
 opt.channelSize = table.fromString(opt.channelSize)
 opt.kernelSize = table.fromString(opt.kernelSize)
@@ -49,6 +56,10 @@ if opt.standardize then
 end
 if opt.zca then
    table.insert(input_preprocess, dp.ZCA())
+end
+if opt.lecunlcn then
+   table.insert(input_preprocess, dp.GCN())
+   table.insert(input_preprocess, dp.LeCunLCN{progress=true})
 end
 
 --[[data]]--
@@ -117,7 +128,8 @@ cnn:add(
       output_size = #(datasource:classes()),
       transfer = nn.LogSoftMax(),
       dropout = dropout(depth),
-      acc_update = opt.accUpdate
+      acc_update = opt.accUpdate,
+      sparse_init = not opt.normalInit
    }
 )
 

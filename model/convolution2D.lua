@@ -96,8 +96,8 @@ function Convolution2D:__init(config)
    parent.__init(self, config)
 end
 
-function Convolution2D:reset()
-   self._module:reset()
+function Convolution2D:reset(stdv)
+   self._module:reset(stdv)
    if self._sparse_init then
       for i, modula in ipairs(self._param_modules) do
          local W = modula.weight

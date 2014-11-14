@@ -9,7 +9,7 @@ Convolution2D.isConvolution2D = true
 function Convolution2D:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, input_size, output_size, kernel_size, kernel_stride, 
-         pool_size, pool_stride, reduce_size, reduce_stride, 
+         pool_size, pool_stride, padding, reduce_size, reduce_stride, 
          transfer, typename = xlua.unpack(
       {config},
       'Convolution2D', 
@@ -31,6 +31,9 @@ function Convolution2D:__init(config)
        'A pool_size < 2 disables pooling'},
       {arg='pool_stride', type='number | table', default=2,
        help='The stride (height=width) of the spatial max pooling.'},
+      {arg='padding', type='number', default=0,
+       help='border padding to add to the input before performing the '..
+       'convolution (allows the height x width of output to be larger)'},
       {arg='reduce_size', type='number',
        help='The number of channels (filters) used in an optional '..
        'reduction module preceding the convolution. '..
@@ -52,6 +55,7 @@ function Convolution2D:__init(config)
    self._kernel_stride = toPair(kernel_stride)
    self._pool_size = toPair(pool_size)
    self._pool_stride = toPair(pool_stride)
+   self._padding = padding
    
    self._param_modules = {}
    self._module = nn.Sequential()
@@ -74,7 +78,8 @@ function Convolution2D:__init(config)
    self._conv = nn.SpatialConvolutionMM(
       input_size, output_size, 
       self._kernel_size[1], self._kernel_size[2], 
-      self._kernel_stride[1], self._kernel_stride[2]
+      self._kernel_stride[1], self._kernel_stride[2],
+      padding
    )
    table.insert(self._param_modules, self._conv)
    

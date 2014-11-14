@@ -192,6 +192,7 @@ Other then the following arguments, those specified in [Layer](#dp.Layer.__init)
  * `kernel_stride` is a table-pair specifying the stride `{width,height}` of the temporal convolution. Note that depending of the size of your kernel, several (of the last) columns or rows of the input image might be lost. It is up to the user to add proper padding in images. Defaults to `{1,1}`
  * `pool_size` is a table-pair specifying the size `{width,height}` of the spatial max pooling.
  * `pool_stride` is a table-pair specifying the stride `{width,height}` of the spatial max pooling.
+ * `padding` specifies the number of zero-padding to add to the input before performing the convolution (allows the `height x width` of output to be larger).
  * `transfer` is a transfer Module like [Tanh](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Tanh),
 [Sigmoid](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Sigmoid), [ReLU](https://github.com/torch/nn/blob/master/doc/transfer.md#relu), etc.
 

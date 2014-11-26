@@ -26,7 +26,7 @@ cmd:option('--lecunlcn', false, 'apply Yann LeCun Local Contrast Normalization (
 cmd:option('--convChannelSize', '{64,128}', 'Number of output channels (number of filters) for each convolution layer.')
 cmd:option('--convKernelSize', '{5,5}', 'kernel size of each convolution layer. Height = Width')
 cmd:option('--convKernelStride', '{1,1}', 'kernel stride of each convolution layer. Height = Width')
-cmd:option('--convPoolSize', '{2,2}', 'size of the max pooling of each convolution layer. Height = Width')
+cmd:option('--convPoolSize', '{2,2}', 'size of the max pooling of each convolution layer. Height = Width. (zero means no pooling)')
 cmd:option('--convPoolStride', '{2,2}', 'stride of the max pooling of each convolution layer. Height = Width')
 -- inception layers
 cmd:option('--incepChannelSize', '{{32,48},{32,64}}', 'A list of tables of the number of filters in the non-1x1-convolution kernel sizes. Creates an Inception model for each sub-table.')

@@ -27,7 +27,6 @@ function RecurrentDictionary:__init(config)
        'Defaults to nn.Sigmoid (recommended for RNNs)'},
       {arg='typename', type='string', default='recurrentdictionary', 
        help='identifies Model type in reports.'}
-       
    )
    assert(not config.dropout, 
       "RecurrentDictionary doesn't work with dropout (maybe later)")
@@ -99,7 +98,9 @@ function RecurrentDictionary:parameters()
       for k,nBackward in pairs(self._lookup.inputs) do
          local kscale = self._lookup:scaleUpdateByKey(k)
          params[offset+k] = self._lookup.weight:select(1, k)
-         gradParams[offset+k] = self._lookup.gradWeight:select(1, k)
+         if not self._acc_update then -- will always be false (for now)
+            gradParams[offset+k] = self._lookup.gradWeight:select(1, k)
+         end
          scales[offset+k] = self._lookup:scaleUpdateByKey(k)
       end
    end
@@ -129,6 +130,10 @@ function RecurrentDictionary:maxNorm(max_out_norm, max_in_norm)
          end
       end
    end
+end
+
+function RecurrentDictionary:zeroGradParameters()
+   self._lookup:zeroGradParameters() -- to reset the inputs table
 end
 
 function RecurrentDictionary:updateParameters(lr)

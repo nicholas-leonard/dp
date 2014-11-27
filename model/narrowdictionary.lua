@@ -29,10 +29,8 @@ function NarrowDictionary:__init(config)
    self._dict_size = dict_size
    self._output_size = output_size
    self._delta_size = delta_size
-   self._module = nn.NarrowLookupTable(delta_size, dict_size, output_size, true)
-   if self._acc_update then
-      self._module:accUpdateOnly()
-   end
+   self._lookup = nn.NarrowLookupTable(delta_size, dict_size, output_size, true)
+   self._module = self._lookup
    config.typename = typename
    config.input_type = 'torch.IntTensor'
    config.tags = config.tags or {}
@@ -40,6 +38,9 @@ function NarrowDictionary:__init(config)
    config.output_view = 'bf'
    config.output = dp.DataView()
    dp.Layer.__init(self, config)
+   if self._acc_update then
+      self._lookup:accUpdateOnly()
+   end
 end
 
 function NarrowDictionary:sharedClone()
@@ -53,8 +54,8 @@ function NarrowDictionary:sharedClone()
    clone._output_size = self._output_size
    clone._delta_size = self._delta_size
    if self._acc_update then
-      clone._module.gradWeight:resizeAs(self._module.gradWeight)
+      clone._lookup.gradWeight:resizeAs(self._lookup.gradWeight)
    end
-   clone._module.batchSize = self._module.batchSize
+   clone._lookup.batchSize = self._lookup.batchSize
    return self:share(clone, 'weight')
 end

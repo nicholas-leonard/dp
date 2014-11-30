@@ -1,6 +1,5 @@
 local mytester 
 local dptest = {}
-local mediator = dp.Mediator()
 
 function dptest.uid()
    local uid1 = dp.uniqueID()
@@ -376,9 +375,7 @@ function dptest.neural()
    -- update
    local act_ten = output:forward('bf'):clone()
    local grad_ten = input:backward('bf'):clone()
-   local visitor = dp.Learn{learning_rate=0.1}
-   visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
-   layer:accept(visitor)
+   layer:updateParameters(0.1)
    layer:doneBatch()
    -- forward backward
    output, carry2 = layer:forward(input, dp.Carry{nSample=5})
@@ -484,9 +481,7 @@ function dptest.softmaxtree()
    local weight = model._module.weight:clone()
    local act_ten = output:forward('bf'):clone()
    local grad_ten = input:backward('bf'):clone()
-   local visitor = dp.Learn{learning_rate=0.1}
-   visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
-   model:accept(visitor)
+   model:updateParameters(0.1)
    local weight2 = model._module.weight
    mytester:assertTensorNe(weight, weight2, 0.00001)
    model:doneBatch()
@@ -681,9 +676,7 @@ function dptest.convolution1D()
    -- update
    local act_ten = output:forward('bwc'):clone()
    local grad_ten = input:backward('bwc'):clone()
-   local visitor = dp.Learn{learning_rate=0.1}
-   visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
-   layer:accept(visitor)
+   layer:updateParameters(0.1)
    layer:doneBatch()
    -- forward backward
    output, carry2 = layer:forward(input, dp.Carry{nSample=8})
@@ -726,9 +719,7 @@ function dptest.convolution2D()
    -- update
    local act_ten = output:forward('bhwc'):clone()
    local grad_ten = input:backward('bhwc'):clone()
-   local visitor = dp.Learn{learning_rate=0.1}
-   visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
-   layer:accept(visitor)
+   layer:updateParameters(0.1)
    layer:doneBatch()
    -- forward backward
    output, carry2 = layer:forward(input, dp.Carry{nSample=8})
@@ -792,9 +783,7 @@ function dptest.dictionary()
    mytester:assertTensorEq(mlp_act, output:forward('bwc'), 0.00001)
    -- update
    local act_ten = output:forward('bwc'):clone()
-   local visitor = dp.Learn{learning_rate=0.1}
-   visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
-   layer:accept(visitor)
+   layer:updateParameters(0.1)
    layer:doneBatch()
    -- forward backward
    output, carry2 = layer:forward(input, dp.Carry{nSample=8})
@@ -970,7 +959,7 @@ function dptest.tomodule()
    mytester:assertTensorEq(outputView:forward('default'), output, 0.00001)
 end
 function dptest.sentencesampler()
-   local nIndice = 300
+   local nIndice = 1000
    local batchSize = 10
    
    -- create dummy sentence dataset
@@ -983,7 +972,7 @@ function dptest.sentencesampler()
    local maxSize = 20
    for i=1,nIndice do
       data[i][1] = startIdx
-      if i < nIndice - 5 and count > 3 and (math.random() < 0.1 or maxSize == 20) then
+      if i < nIndice - 5 and count > 3 and (math.random() < 0.1 or maxSize == count) then
          data[i][2] = end_id
          startIdx = i+1
          nSentence = nSentence + 1
@@ -1027,7 +1016,7 @@ function dptest.sentencesampler()
       end
       nSampled = nSampled + inputs:size(1)
    end 
-   mytester:assert(nSampled < epochSize + maxSize, "iterator not stoping")
+   mytester:assert(nSampled < epochSize + maxSize * batchSize, "iterator not stoping")
    
    local epochSize = nIndice
    local dataset = dp.SentenceSet{data=data,which_set='train',start_id=start_id,end_id=end_id}
@@ -1085,6 +1074,51 @@ function dptest.sentencesampler()
    mytester:assert(sampledTwice == 0, sampledTwice..' words sampled twice ')
    mytester:assert(not batchSampler(batch), "iterator not stoping")
    mytester:assert(table.length(sampled) == nIndice-nSentence, "not all words were sampled")
+end
+
+function dp.minima()
+   local report={validator={loss={avgError=11}},epoch=1}
+   local mediator = dp.Mediator()
+   local m = dp.Minima{start_epoch=5}
+   m:setup{mediator=mediator}
+   local mt = {}
+   local recv_count = 0
+   local minima, minima_epoch
+   mediator:subscribe('foundMinima', mt, 'foundMinima')
+   
+   -- test start_epoch
+   function mt:foundMinima(minima)
+      minima, minima_epoch = minima:minima()
+      recv_count = recv_count + 1
+   end
+   for epoch=1,10 do
+      report.epoch = epoch
+      dp.Minima:doneEpoch(report)
+   end
+   mytester:assert(recv_count == 1, "minima recv_count error")
+   mytester:assert(minima == 11, "minima minima error")
+   mytester:assert(minima_epoch == 5, "minima start_epoch error")
+
+   
+   -- test that minimas is found
+   local recv_count = 0
+   local losses = {10,8,8,9,7}
+   local cme = {11,12,15}
+   local cm = {10,8,7}
+   function mt:foundMinima(minima)
+      minima, minima_epoch = minima:minima()
+      recv_count = recv_count + 1
+      mytester:assert(losses[cme[recv_count]-10] == cm[recv_count], "wrong minima")
+   end
+   for epoch=11,15 do
+      report.epoch = epoch
+      report.loss.avgError = losses[epoch-10]
+      dp.Minima:doneEpoch(report)
+   end
+   mytester:assert(recv_count == 3, "minima recv_count error")
+   mytester:assert(minima == 7, "minima minima error")
+   mytester:assert(minima_epoch == 15, "minima epoch error")
+   
 end
 
 function dp.test(tests)

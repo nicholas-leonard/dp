@@ -11,9 +11,7 @@ Minima.isMinima = true
 function Minima:__init(config) 
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args
-   args, self._start_epoch, self._error_report, self._error_channel, 
-      self._maximize, self._save_strategy, self._max_epochs, 
-      self._max_error, self._min_epoch
+   args, self._start_epoch, self._error_report, self._error_channel, self._maximize
       = xlua.unpack(
       {config},
       'Minima', 
@@ -34,9 +32,7 @@ function Minima:__init(config)
       {arg='maximize', type='boolean', default=false,
        help='when true, the error channel or report is negated. ' ..
        'This is useful when the channel returns an accuracy ' ..
-       'that should be maximized, instead of an error that should not'},
-      {arg='save_strategy', type='object', default=dp.SaveToFile(),
-       help='a serializable object that has a :save(subject) method.'}
+       'that should be maximized, instead of an error that should not'}
    )
    self._minima_epoch = self._start_epoch - 1
    self._sign = self._maximize and -1 or 1
@@ -46,13 +42,6 @@ function Minima:__init(config)
       self._error_report = {'validator','loss','avgError'}
    end
    parent.__init(self, "doneEpoch")
-end
-
-function Minima:setSubject(subject)
-   assert(subject.isModel 
-      or subject.isPropagator 
-      or subject.isExperiment)
-   self._subject = subject
 end
 
 function Minima:setup(config)

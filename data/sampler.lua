@@ -53,6 +53,9 @@ function Sampler:setup(config)
 end
 
 function Sampler:setBatchSize(batch_size)
+   if torch.type(batch_size) ~= 'number' or batch_size < 1 then
+      error("Expecting positive batch_size")
+   end
    self._batch_size = batch_size
 end
 
@@ -222,14 +225,15 @@ function SentenceSampler:__init(config)
       'Iterates over parallel sentences of equal size one word at a time. '..
       'The sentences sizes are iterated through randomly. '..
       'Used for Recurrent Neural Network Language Models. '..
-      'Note that it epoch_size is the minimum samples per epoch.',
+      'Publishes to "beginSequence" Mediator channel before each '..
+      'new Sequence, which prompts the Recurrent* Models '..
+      'to forget the previous sequence of inputs. '..
+      'Note that epoch_size only garantees the minimum number of '..
+      'samples per epoch. More could be sampled.',
       {arg='evaluate', type='boolean', req=true,
-       help='In evaluation mode, publishes to "beginSequence" Mediator '..
-       'channel before each new Sequence. This prompts the Recurrent* Models '..
-       'to forget the previous sequence of inputs. '..
-       'In training mode (evaluate=false), published to "doneSequence" '..
-       'channel to advise RecurrentVisitorChain to visit the model after '..
-       'the sequence is propagated'}
+       help='In training mode (evaluate=false), the object publishes '..
+       'to "doneSequence" channel to advise RecurrentVisitorChain to '..
+       'visit the model after the sequence is propagated'}
    )
    self._evaluate = evaluate
    parent.__init(self, config)
@@ -240,13 +244,23 @@ function SentenceSampler:sampleEpoch(dataset)
    if self._mediator then
       self._mediator:publish("beginSequence")
    end
+   
    self._co = self._co or coroutine.create(function (batch) 
       self:_sampleEpoch(dataset, batch) 
    end)
+   
    return function (batch)   -- "iterator"
+      if batch and not torch.isTypeOf(batch, 'dp.Batch') then
+         error("expecting dp.Batch, got"..torch.type(batch))
+      end
+      
       local code, batch, batchIter, epochSize = coroutine.resume(self._co, batch)
-      if batch then
+      
+      if code and batch then
          return batch, batchIter, epochSize
+      elseif not code then
+         print(batch, dataset:whichSet())
+         error("corountine error")
       end
    end
 end
@@ -279,7 +293,7 @@ function SentenceSampler:_sampleEpoch(dataset)
       end
       local sentenceSizes = _.shuffle(_.keys(sentenceTable))
       local nSizes = #sentenceSizes
-   
+      
       while nSizes > 0 do
          
          for i,sentenceSize in pairs(sentenceSizes) do
@@ -294,21 +308,12 @@ function SentenceSampler:_sampleEpoch(dataset)
             self._text_indices:copy(textIndices)
             textIndices = self._text_indices
             
-            if self._mediator and self._evaluate then
+            if self._mediator then
                -- tells recurrent models to forget the past sequence
                self._mediator:publish("beginSequence")
             end
             
             for wordOffset=1,sentenceSize do
-
-               if nSampled >= epochSize then
-                  batch = coroutine.yield(false) or newBatch()
-                  -- starting new epoch implies starting a new sequence
-                  if self._mediator then
-                     self._mediator:publish("beginSequence")
-                  end
-                  nSampled = 0
-               end
                
                batch = batch or newBatch()
                local input_v = batch:inputs()
@@ -339,22 +344,25 @@ function SentenceSampler:_sampleEpoch(dataset)
                -- re-encapsulate in dp.Views
                input_v:forward('b', inputs)
                input_v:setClasses(dataset:vocabulary())
-               
                target_v:forward('b', targets)
                target_v:setClasses(dataset:vocabulary())
                
                nSampled = nSampled + textIndices:size(1)
                
-               if self._mediator and (not self._evaluate) 
-                     and (wordOffset == sentenceSize or nSampled >= epochSize) then
-                  -- tells the RecurrentVisitorChain to update the model
-                  -- when next called
+               if self._mediator and (not self._evaluate) and wordOffset == sentenceSize then
+                  -- tells the RecurrentVisitorChain to update the model when next called
                   self._mediator:publish("doneSequence")
                end
                
                coroutine.yield(batch, math.min(nSampled, epochSize), epochSize)
+               
                -- move to next word in each sentence
                textIndices:add(1)
+            end
+            
+            if nSampled >= epochSize then
+               batch = coroutine.yield(false)
+               nSampled = 0
             end
             
             s.sampleIdx = s.sampleIdx + textIndices:size(1)

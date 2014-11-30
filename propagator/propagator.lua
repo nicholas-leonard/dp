@@ -98,6 +98,10 @@ function Propagator:propagateEpoch(dataset, report)
    local sampler = self._sampler:sampleEpoch(dataset)
    while true do
       -- reuse the batch object
+      if batch then
+         assert(torch.type(batch) == 'dp.Batch')
+      end
+      
       batch, i, n = sampler(batch)
       if not batch then 
          -- for aesthetics :
@@ -106,9 +110,11 @@ function Propagator:propagateEpoch(dataset, report)
          end
          break 
       end
+      
       self:propagateBatch(batch, report)
+      
       if self._progress then
-         -- disp progress
+         -- display progress
          xlua.progress(i, n)
       end
       last_n = n

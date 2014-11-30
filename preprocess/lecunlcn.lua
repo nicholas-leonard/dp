@@ -35,7 +35,7 @@ function LeCunLCN:__init(config)
        help='display progress bar'}
    )
    assert(self._kernel_size % 2 == 1, "kernel_size should be odd (not even)")
-   self._sampler = dp.Sampler{batch_size = batch_size}
+   self._sampler = dp.Sampler{batch_size=self._batch_size}
    self._channels = self._channels or {1,2,3}
    self._filter = self.gaussianFilter(self._kernel_size, self._kernel_std)
    -- buffers

@@ -980,9 +980,10 @@ function dptest.sentencesampler()
    local startIdx = 1
    local nSentence = 1
    local count = 0
+   local maxSize = 20
    for i=1,nIndice do
       data[i][1] = startIdx
-      if i < nIndice - 5 and count > 3 and math.random() < 0.1 then
+      if i < nIndice - 5 and count > 3 and (math.random() < 0.1 or maxSize == 20) then
          data[i][2] = end_id
          startIdx = i+1
          nSentence = nSentence + 1
@@ -1004,8 +1005,12 @@ function dptest.sentencesampler()
    local batchSampler = sampler:sampleEpoch(dataset)
    local sampled = {}
    local nSampled = 0
-   while nSampled < epochSize do
-      local batch = batchSampler(batch)
+   local batch
+   while true do
+      batch = batchSampler(batch)
+      if not batch then
+         break
+      end
       mytester:assert(batch.isBatch)
       local inputs = batch:inputs():input()
       local targets = batch:targets():input()
@@ -1021,18 +1026,18 @@ function dptest.sentencesampler()
          end
       end
       nSampled = nSampled + inputs:size(1)
-   end
-   mytester:assert(not batchSampler(batch), "iterator not stoping")
+   end 
+   mytester:assert(nSampled < epochSize + maxSize, "iterator not stoping")
    
    local epochSize = nIndice
    local dataset = dp.SentenceSet{data=data,which_set='train',start_id=start_id,end_id=end_id}
-   local sampler = dp.SentenceSampler{batch_size=batchSize,epoch_size=epochSize,evaluate=false}
+   local sampler = dp.SentenceSampler{batch_size=batchSize,epoch_size=-1,evaluate=false}
    local batchSampler = sampler:sampleEpoch(dataset)
    local sampled = {}
    local nSampled = 0
    local sampledTwice = 0
    while nSampled < epochSize do
-      local batch = batchSampler(batch)
+      batch = batchSampler(batch)
       mytester:assert(batch.isBatch)
       local inputs = batch:inputs():input()
       local targets = batch:targets():input()
@@ -1059,7 +1064,7 @@ function dptest.sentencesampler()
    local nSampled = 0
    local sampledTwice = 0
    while nSampled < epochSize do
-      local batch = batchSampler(batch)
+      batch = batchSampler(batch)
       mytester:assert(batch.isBatch)
       local inputs = batch:inputs():input()
       local targets = batch:targets():input()

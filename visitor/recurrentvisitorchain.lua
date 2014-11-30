@@ -12,8 +12,8 @@ function RecurrentVisitorChain:__init(config)
       {config},
       'RecurrentVisitorChain', 
       'A composite chain of visitors used to visit recurrent models. '..
-      'Subscribes to Mediator channel "doneSequence", which when '..
-      'published to, forces a visit. Otherwise, visits models every '..
+      'Subscribes to Mediator channel "doneSequence", which, when '..
+      'notified, forces a visit. Otherwise, visits models every '..
       'visit_interval epochs.',
       {arg='visit_interval', type='number', req=true,
        help='model is visited every visit_interval epochs'}

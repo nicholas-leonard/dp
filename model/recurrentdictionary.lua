@@ -11,7 +11,7 @@ RecurrentDictionary.isRecurrentDictionary = true
 
 function RecurrentDictionary:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, dict_size, output_size, transfer, typename
+   local args, dict_size, output_size, rho, transfer, typename
       = xlua.unpack(
       {config},
       'RecurrentDictionary', 
@@ -22,6 +22,8 @@ function RecurrentDictionary:__init(config)
       {arg='output_size', type='number', req=true,
        help='Number of neurons per entry. Also the size of the '..
        'input and output size of the feedback layer'},
+      {arg='rho', type='number', default=5,
+       help='Number of time-steps to back-propagate through'},
       {arg='transfer', type='nn.Module',
        help='a transfer function like nn.Tanh, nn.Sigmoid, etc.'..
        'Defaults to nn.Sigmoid (recommended for RNNs)'},
@@ -36,13 +38,14 @@ function RecurrentDictionary:__init(config)
    config.sparse_init = false
    self._dict_size = dict_size
    self._output_size = output_size
+   self._rho = rho
    self._transfer = transfer or nn.Sigmoid()
    self._lookup = nn.LookupTable(dict_size, output_size)
    -- by default, we backwardUpdateThroughTime, so delete gradWeights :
    self._lookup:accUpdateOnly()
    self._feedback = nn.Linear(output_size, output_size)
    self._recurrent = nn.Recurrent(
-      output_size, self._lookup, self._feedback, self._transfer
+      output_size, self._lookup, self._feedback, self._transfer, rho
    )
    self._module = self._recurrent
    config.typename = typename

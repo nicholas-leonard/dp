@@ -210,8 +210,8 @@ function Experiment:setMaxEpoch(max_epoch)
 end
 
 function Experiment:setObserver(observer)
-   if not torch.typename(observer) and type(observer) == 'table' then
-      --if list, make composite observer
+   if torch.type(observer) == 'table' then
+      -- if list, make composite observer
       observer = dp.CompositeObserver(observer)
    end
    self._observer = observer

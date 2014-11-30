@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------
 --[[ LearningRateSchedule ]]--
--- Observer
--- Only works on dp.Learn subject
+-- Observer that only works on dp.Learn subject.
+-- Decay learning rate according to a schedule.
 ------------------------------------------------------------------------
 local LearningRateSchedule, parent = torch.class("dp.LearningRateSchedule", "dp.Observer")
 
@@ -9,7 +9,8 @@ function LearningRateSchedule:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, schedule = xlua.unpack(
       {config},
-      'LearningRateSchedule', nil,
+      'LearningRateSchedule', 
+      'Decay learning rate according to a schedule',
       {arg='schedule', type='table | tensor', req=true,
        help='Epochs as keys, and learning rates as values'}
    )

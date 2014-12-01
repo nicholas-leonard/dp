@@ -82,13 +82,13 @@ The latter might seem odd (why not use [SoftMax](https://github.com/torch/nn/blo
 but the [ClassNLLCriterion](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.ClassNLLCriterion) only works 
 with LogSoftMax (or with SoftMax + [Log](https://github.com/torch/nn/blob/master/Log.lua)).
 
-Both models initialize parameters using the default sparse initialization 
+Both models initialize parameters using the sparse initialization 
 (see [Martens 2010](http://machinelearning.wustl.edu/mlpapers/paper_files/icml2010_Martens10.pdf)). 
 If you construct it with argument `sparse_init=false`, it will delegate parameter initialization to 
 [Linear](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Linear), 
 which is what Neural uses internally for its parameters.
 
-These two Neural [Models](model.md#dp.Model) are combined to form an MLP using the [Sequential](model.md#dp.Sequential), 
+These two Neural [Models](model.md#dp.Model) are combined to form an MLP using [Sequential](model.md#dp.Sequential), 
 which is not to be confused with (yet very similar to) the 
 [Sequential](https://github.com/torch/nn/blob/master/containers.md#nn.Sequential) Module. It differs in that
 it can be constructed from a list of [Models](../model/model.lua) instead of 
@@ -98,7 +98,9 @@ methods, allowing them to [accept](model.md#dp.Model.accept)
 other components through a [Mediator](../mediator.lua), 
 or [setup](node.md#dp.Node.setup) with variables after initialization.
 Model instances also differ from Modules in their ability to [forward](model.md#dp.Model.forward) 
-and [backward](model.md#dp.Model.backward) using [Views](view.md#dp.View).  
+and [backward](model.md#dp.Model.backward) using [Views](view.md#dp.View). 
+Nevertheless, all Models encapsulate Modules. __dp__ is not intent on replacing any potential
+nn.Modules with dp.Models.
 
 ## Propagator ##
 Next we initialize some [Propagators](propagator.md#dp.Propagator). 
@@ -137,10 +139,10 @@ and another for testing.
 The Evaluators use a simple Sampler which 
 iterates sequentially through the DataSet. On the other hand, the Optimizer 
 uses a [ShuffleSampler](data.md#dp.SuffleSampler) to iterate through the DataSet. This Sampler
-shuffles the (indices of a) DataSet before each epoch (an epoch is usually defined as an iteration 
-over a DataSet). This shuffling is useful for training since the model 
-must learn from varying sequences of batches at each epoch, which makes the
-training algorithm more stochastic.
+shuffles the (indices of a) DataSet before each pass over all examples in a DataSet. 
+This shuffling is useful for training since the model 
+must learn from varying sequences of batches through the DataSet, 
+which makes the training algorithm more stochastic.
 
 ### Loss ###
 Each Propagator must also specify a [Loss](loss.md#dp.Loss) for training or evaluation.
@@ -157,18 +159,19 @@ statistics after each epoch. We use [Confusion](feedback.md#dp.Confusion), which
 for the [optim](https://github.com/torch/optim/blob/master/README.md) package's 
 [ConfusionMatrix](https://github.com/torch/optim/blob/master/ConfusionMatrix.lua).
 While our Loss measures the Negative Log-Likelihood (NLL) of the Model 
-on different DataSets, our Feedback measures classification accuracy (which is what 
-we will use for early-stopping and comparing our model to the state of the art).
+on different DataSets, our [Feedback](https://github.com/nicholas-leonard/dp/blob/master/doc/feedback.md#feedback) 
+measures classification accuracy (which is what we will use for 
+early-stopping and comparing our model to the state of the art).
 
 ### Visitor ###
 Since the [Optimizer](propagator.md#dp.Optimizer) is used to train the Model on a DataSet, 
 we need to specify some Visitors to update its [parameters](model.md#dp.Model.parameters). 
-We want to update the Model by sequentially appling three visitors: 
+We want to update the Model by sequentially applying the following visitors: 
  1. [Momentum](../visitor/momentum.lua) : updates parameter gradients using a factored mixture of current and previous gradients.
  2. [Learn](../visitor/learn.lua) : updates the parameters using the gradients and a learning rate.
  3. [MaxNorm](../visitor/maxnorm.lua) : updates output or input neuron weights (in this case, output) so that they have a norm less or equal to a specified value.
 
-The only mandatory Visitor is the second one (Learn), which does the actual parameter updates (learning). 
+The only mandatory Visitor is the second one (Learn), which does the actual parameter updates. 
 The first is the well known momentum. 
 The last is the lesser known hard constraint on the norm of output or input neuron weights 
 (see [Hinton 2012](http://arxiv.org/pdf/1207.0580v1.pdf)), which acts as a regularizer. You could also
@@ -232,15 +235,12 @@ Once we have initialized the experiment, we need only run it on the `datasource`
 xp:run(datasource)
 ```
 We don't initialize the Experiment with the DataSource so that we may easily 
-save it onto disk, thereby keeping this snapshot separate from its data 
+save it to disk, thereby keeping this snapshot separate from its data 
 (which shouldn't be modified by the experiment).
 
 Let's run the [script](../examples/neuralnetwork_tutorial.lua) from the cmd-line:
 ```
 nicholas@xps:~/projects/dp$ th examples/neuralnetwork_tutorial.lua 
-checking for file located at: 	/home/nicholas/data/mnist/mnist-th7.tgz	
-checking for file located at: 	/home/nicholas/data/mnist/mnist-th7.tgz	
-checking for file located at: 	/home/nicholas/data/mnist/mnist-th7.tgz	
 FileLogger: log will be written to /home/nicholas/save/xps:25044:1398320864:1/log	
 xps:25044:1398320864:1:optimizer:loss avgError 0	
 xps:25044:1398320864:1:validator:loss avgError 0	

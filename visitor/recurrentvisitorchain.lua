@@ -8,7 +8,7 @@ RecurrentVisitorChain.isRecurrentVisitorChain = true
 
 function RecurrentVisitorChain:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, visit_interval = xlua.unpack(
+   local args, visit_interval, force_forget = xlua.unpack(
       {config},
       'RecurrentVisitorChain', 
       'A composite chain of visitors used to visit recurrent models. '..
@@ -16,11 +16,14 @@ function RecurrentVisitorChain:__init(config)
       'notified, forces a visit. Otherwise, visits models every '..
       'visit_interval epochs.',
       {arg='visit_interval', type='number', req=true,
-       help='model is visited every visit_interval epochs'}
+       help='model is visited every visit_interval epochs'},
+      {arg='force_forget', type='boolean', default=false,
+       help='force recurrent models to forget after each update'} 
    )
    config.name = config.name or 'recurrentvisitorchain'
    parent.__init(self, config)
    self._visit_interval = visit_interval
+   self._force_forget = force_forget
    self._force_visit = false
    self._n_visit = 0
 end
@@ -44,6 +47,9 @@ function RecurrentVisitorChain:_visitModel(model)
    self._n_visit = self._n_visit + 1
    if self._force_visit or self._n_visit == self._visit_interval then
       parent._visitModel(self, model)
+      if self._force_forget and model.forget then
+         model:forget()
+      end
       self._n_visit = 0
       self._force_visit = false
    end

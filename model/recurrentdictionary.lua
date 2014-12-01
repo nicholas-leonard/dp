@@ -71,6 +71,10 @@ function RecurrentDictionary:_backward(carry)
    return carry
 end
 
+function RecurrentDictionary:forget()
+   self._recurrent:forget()
+end
+
 function RecurrentDictionary:_type(type)
    self._module:type(type)
    if type == 'torch.FloatTensor' or type == 'torch.DoubleTensor' or type == 'torch.CudaTensor' then

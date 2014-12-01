@@ -23,12 +23,13 @@ cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better l
 --[[ recurrent layer ]]--
 cmd:option('--rho', 5, 'back-propagate through time (BPTT) for rho time-steps')
 cmd:option('--updateInterval', -1, 'BPTT every updateInterval steps (and implicitly, at the end of each sentence). Defaults to --rho')
+cmd:option('--forceForget', false, 'force the recurrent layer to forget its past activations after each update')
 cmd:option('--hiddenSize', 200, 'number of hidden units used in Simple RNN')
 cmd:option('--dropout', false, 'apply dropout on hidden neurons (not recommended)')
 
 --[[ output layer ]]--
 cmd:option('--softmaxtree', false, 'use SoftmaxTree instead of the inefficient (full) softmax')
-cmd:option('--accUpdate', false, 'accumulate output layer updates inplace. Note that this will cause BPTT instability, but will cost less memory.')
+--cmd:option('--accUpdate', false, 'accumulate output layer updates inplace. Note that this will cause BPTT instability, but will cost less memory.')
 
 --[[ data ]]--
 cmd:option('--small', false, 'use a small (1/30th) subset of the training set')
@@ -71,7 +72,7 @@ if opt.softmaxtree then
       dropout = opt.dropout and nn.Dropout() or nil,
       -- best we can do for now (yet, end of sentences will be under-represented in output updates)
       mvstate = {learn_scale = 1/opt.updateInterval},
-      acc_update = opt.accUpdate
+      --acc_update = opt.accUpdate
    }
 else
    print("Warning: you are using full LogSoftMax for last layer, which "..
@@ -83,7 +84,7 @@ else
       transfer = nn.LogSoftMax(),
       dropout = opt.dropout and nn.Dropout() or nil,
       mvstate = {learn_scale = 1/opt.updateInterval},
-      acc_update = opt.accUpdate
+      --acc_update = opt.accUpdate
    }
 end
 
@@ -102,6 +103,7 @@ train = dp.Optimizer{
    loss = opt.softmaxtree and dp.TreeNLL() or dp.NLL(),
    visitor = dp.RecurrentVisitorChain{ -- RNN visitors should be wrapped by this VisitorChain
       visit_interval = opt.updateInterval,
+      force_forget = opt.forceForget,
       visitors = {
          dp.Learn{ -- will call nn.Recurrent:updateParameters, which calls nn.Recurrent:backwardThroughTime()
             learning_rate = opt.learningRate, 

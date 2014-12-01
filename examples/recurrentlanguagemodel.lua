@@ -10,6 +10,7 @@ cmd:text('$> th recurrentlanguagemodel.lua --tiny --batchSize 64 ')
 cmd:text('$> th recurrentlanguagemodel.lua --tiny --batchSize 64 --rho 5 --validEpochSize 10000 --trainEpochSize 100000 --softmaxtree')
 cmd:text('Options:')
 cmd:option('--learningRate', 0.1, 'learning rate at t=0')
+cmd:option('--lrScales', '{1,1}', 'layer-wise learning rate scales : learningRate*lrScale')
 cmd:option('--maxWait', 4, 'maximum number of epochs to wait for a new minima to be found. After that, the learning rate is decayed by decayFactor.')
 cmd:option('--decayFactor', 0.1, 'factor by which learning rate is decayed.')
 cmd:option('--maxOutNorm', 2, 'max norm each layers output neuron weights')
@@ -39,11 +40,13 @@ cmd:option('--validEpochSize', 100000, 'number of valid examples used for early 
 cmd:option('--trainOnly', false, 'forget the validation and test sets, focus on the training set')
 cmd:option('--progress', false, 'print progress bar')
 
+version = 3
+
 cmd:text()
 opt = cmd:parse(arg or {})
-table.print(opt)
-
 opt.updateInterval = opt.updateInterval == -1 and opt.rho or opt.updateInterval
+table.print(opt)
+opt.lrScales = table.fromString(opt.lrScales)
 
 --[[data]]--
 local train_file = 'train_data.th7' 
@@ -71,7 +74,7 @@ if opt.softmaxtree then
       root_id = 880542,
       dropout = opt.dropout and nn.Dropout() or nil,
       -- best we can do for now (yet, end of sentences will be under-represented in output updates)
-      mvstate = {learn_scale = 1/opt.updateInterval},
+      mvstate = {learn_scale = opt.lrScales[2]/opt.updateInterval},
       --acc_update = opt.accUpdate
    }
 else
@@ -83,7 +86,7 @@ else
       output_size = table.length(datasource:classes()),
       transfer = nn.LogSoftMax(),
       dropout = opt.dropout and nn.Dropout() or nil,
-      mvstate = {learn_scale = 1/opt.updateInterval},
+      mvstate = {learn_scale = opt.lrScales[2]/opt.updateInterval},
       --acc_update = opt.accUpdate
    }
 end
@@ -93,6 +96,7 @@ mlp = dp.Sequential{
       dp.RecurrentDictionary{
          dict_size = datasource:vocabularySize(),
          output_size = opt.hiddenSize, rho = opt.rho
+         mvstate = {learn_scale = opt.lrScales[2]}
       },
       softmax
    }

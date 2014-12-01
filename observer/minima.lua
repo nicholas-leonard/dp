@@ -36,7 +36,6 @@ function Minima:__init(config)
    )
    self._minima_epoch = self._start_epoch - 1
    self._sign = self._maximize and -1 or 1
-   self._max_error = self._max_error * self._sign
    assert(not(self._error_report and self._error_channel))
    if not (self._error_report or self._error_channel) then
       self._error_report = {'validator','loss','avgError'}

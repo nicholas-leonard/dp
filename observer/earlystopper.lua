@@ -33,6 +33,7 @@ function EarlyStopper:__init(config)
        help='see max_error'}
    )
    parent.__init(self, config)
+   self._max_error = self._max_error * self._sign
 end
 
 function EarlyStopper:compareError(current_error, ...)

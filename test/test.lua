@@ -364,7 +364,7 @@ function dptest.neural()
    -- nn
    local mlp = nn.Sequential()
    local m = nn.Linear(10,2)
-   m:share(layer._affine, 'weight', 'bias')
+   m:share(layer._linear, 'weight', 'bias')
    mlp:add(m)
    mlp:add(nn.Tanh())
    local mlp_act = mlp:forward(tensor)
@@ -385,8 +385,8 @@ function dptest.neural()
    mytester:assertTensorNe(grad_ten, input:backward('bf'), 0.00001)
    -- accUpdate
    local layer2 = dp.Neural{input_size=10, output_size=2, transfer=nn.Tanh(), acc_update=true}
-   layer2._affine.weight = layer._affine.weight:clone()
-   layer2._affine.bias = layer._affine.bias:clone()
+   layer2._linear.weight = layer._linear.weight:clone()
+   layer2._linear.bias = layer._linear.bias:clone()
    layer2:zeroGradParameters()
    layer:zeroGradParameters()
    local input2 = dp.DataView()
@@ -400,12 +400,12 @@ function dptest.neural()
    input = layer:backward(output, carry)
    mytester:assertTensorEq(output2:forward('bf'), output:forward('bf'), 0.00001)
    mytester:assertTensorEq(input2:backward('bf'), input:backward('bf'), 0.00001)
-   mytester:assertTensorEq(layer2._affine.weight, layer._affine.weight, 0.00001)
-   mytester:assertTensorEq(layer2._affine.bias, layer._affine.bias, 0.00001)
+   mytester:assertTensorEq(layer2._linear.weight, layer._linear.weight, 0.00001)
+   mytester:assertTensorEq(layer2._linear.bias, layer._linear.bias, 0.00001)
    layer2:updateParameters(0.1)
    layer:updateParameters(0.1)
-   mytester:assertTensorEq(layer2._affine.weight, layer._affine.weight, 0.00001)
-   mytester:assertTensorEq(layer2._affine.bias, layer._affine.bias, 0.00001)
+   mytester:assertTensorEq(layer2._linear.weight, layer._linear.weight, 0.00001)
+   mytester:assertTensorEq(layer2._linear.bias, layer._linear.bias, 0.00001)
 end
 function dptest.sequential()
    local tensor = torch.randn(5,10)
@@ -426,10 +426,10 @@ function dptest.sequential()
    -- nn
    local mlp = nn.Sequential()
    mlp:add(nn.Linear(10,4))
-   mlp:get(1):share(model:get(1)._affine, 'weight', 'bias')
+   mlp:get(1):share(model:get(1)._linear, 'weight', 'bias')
    mlp:add(nn.Tanh())
    mlp:add(nn.Linear(4,2))
-   mlp:get(3):share(model:get(2)._affine, 'weight', 'bias')
+   mlp:get(3):share(model:get(2)._linear, 'weight', 'bias')
    mlp:add(nn.LogSoftMax())
    local mlp_act = mlp:forward(tensor)
    local mlp_grad = mlp:backward(tensor, grad_tensor)
@@ -1076,7 +1076,7 @@ function dptest.sentencesampler()
    mytester:assert(table.length(sampled) == nIndice-nSentence, "not all words were sampled")
 end
 
-function dp.minima()
+function dptest.minima()
    local report={validator={loss={avgError=11}},epoch=1}
    local mediator = dp.Mediator()
    local m = dp.Minima{start_epoch=5}
@@ -1087,13 +1087,13 @@ function dp.minima()
    mediator:subscribe('foundMinima', mt, 'foundMinima')
    
    -- test start_epoch
-   function mt:foundMinima(minima)
-      minima, minima_epoch = minima:minima()
+   function mt:foundMinima(m)
+      minima, minima_epoch = m:minima()
       recv_count = recv_count + 1
    end
    for epoch=1,10 do
       report.epoch = epoch
-      dp.Minima:doneEpoch(report)
+      m:doneEpoch(report)
    end
    mytester:assert(recv_count == 1, "minima recv_count error")
    mytester:assert(minima == 11, "minima minima error")
@@ -1105,20 +1105,51 @@ function dp.minima()
    local losses = {10,8,8,9,7}
    local cme = {11,12,15}
    local cm = {10,8,7}
-   function mt:foundMinima(minima)
-      minima, minima_epoch = minima:minima()
+   function mt:foundMinima(m)
+      minima, minima_epoch = m:minima()
       recv_count = recv_count + 1
       mytester:assert(losses[cme[recv_count]-10] == cm[recv_count], "wrong minima")
    end
    for epoch=11,15 do
       report.epoch = epoch
-      report.loss.avgError = losses[epoch-10]
-      dp.Minima:doneEpoch(report)
+      report.validator.loss.avgError = losses[epoch-10]
+      m:doneEpoch(report)
    end
    mytester:assert(recv_count == 3, "minima recv_count error")
    mytester:assert(minima == 7, "minima minima error")
    mytester:assert(minima_epoch == 15, "minima epoch error")
    
+end
+
+function dptest.learn()
+   local batchSize = 8
+   local inputSize = 10
+   local outputSize = 5
+   local lr, learn_scale = 0.1, 0.5
+   local mediator = dp.Mediator()
+   local input_tensor = torch.randn(batchSize, inputSize)
+   local gradOutput_tensor = torch.randn(batchSize, outputSize)
+   local input = dp.DataView('bf', input_tensor)
+   local visitor = dp.Learn{learning_rate=lr}
+   visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
+   local neural = dp.Neural{
+      input_size=inputSize,output_size=outputSize,
+      transfer=nn.Identity(),mvstate={learn_scale=0.5}
+   }
+   local linear = neural._linear:clone()
+   linear:zeroGradParameters()
+   local output = neural:forward(input, dp.Carry{nSample=batchSize})
+   output:backward('bf', gradOutput_tensor)
+   neural:backward(output, dp.Carry{nSample=batchSize})
+   neural:accept(visitor)
+   local output_tensor = linear:forward(input_tensor)
+   local gradInput_tensor = linear:backward(input_tensor, gradOutput_tensor)
+   linear:updateParameters(lr*learn_scale)
+   local params = neural:parameters()
+   local params2 = linear:parameters()
+   for i, param in ipairs(params) do
+      mytester:assertTensorEq(param, params2[i], 0.000001, "learn error")
+   end
 end
 
 function dp.test(tests)

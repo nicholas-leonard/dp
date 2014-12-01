@@ -10,8 +10,8 @@ cmd:text('$> th recurrentlanguagemodel.lua --tiny --batchSize 64 ')
 cmd:text('$> th recurrentlanguagemodel.lua --tiny --batchSize 64 --rho 5 --validEpochSize 10000 --trainEpochSize 100000 --softmaxtree')
 cmd:text('Options:')
 cmd:option('--learningRate', 0.1, 'learning rate at t=0')
-cmd:option('--decayPoint', 100, 'epoch at which learning rate is decayed')
-cmd:option('--decayFactor', 0.1, 'factory by which learning rate is decayed at decay point')
+cmd:option('--maxWait', 4, 'maximum number of epochs to wait for a new minima to be found. After that, the learning rate is decayed by decayFactor.')
+cmd:option('--decayFactor', 0.1, 'factor by which learning rate is decayed.')
 cmd:option('--maxOutNorm', 2, 'max norm each layers output neuron weights')
 cmd:option('--maxNormPeriod', 1, 'Applies MaxNorm Visitor every maxNormPeriod batches')
 cmd:option('--batchSize', 64, 'number of examples per batch')
@@ -107,9 +107,7 @@ train = dp.Optimizer{
       visitors = {
          dp.Learn{ -- will call nn.Recurrent:updateParameters, which calls nn.Recurrent:backwardThroughTime()
             learning_rate = opt.learningRate, 
-            observer = dp.LearningRateSchedule{
-               schedule = {[opt.decayPoint]=opt.learningRate*opt.decayFactor}
-            }
+            observer = dp.AdaptiveLearningRate{decay_factor=opt.decayFactor, max_wait=opt.maxWait}
          },
          dp.MaxNorm{max_out_norm=opt.maxOutNorm, period=opt.maxNormPeriod}
       }

@@ -11,14 +11,18 @@ Learn.isLearn = true
 
 function Learn:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, learning_rate, name = xlua.unpack(
+   local args, learning_rate, verbose, name = xlua.unpack(
       {config},
       'Learn', 
       'Updates model parameters using gradients',
-      {arg='learning_rate', type='number', req=true},
+      {arg='learning_rate', type='number', req=true,
+       help='learning rate of parameters updates'},
+      {arg='verbose', type='boolean', default=true,
+       help='print messages to stdout'},
       {arg='name', type='string', default='learn',
        help='identifies visitor in reports.'}
    )
+   self._verbose = verbose
    self:setLearningRate(learning_rate)
    config.name = name
    config.include = config.include or {}
@@ -54,6 +58,9 @@ function Learn:_visitModel(model)
 end
 
 function Learn:setLearningRate(learning_rate)
+   if self._verbose then
+      print("Learning rate = "..learning_rate)
+   end
    self._learning_rate = learning_rate
 end
 

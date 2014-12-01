@@ -1130,7 +1130,7 @@ function dptest.learn()
    local input_tensor = torch.randn(batchSize, inputSize)
    local gradOutput_tensor = torch.randn(batchSize, outputSize)
    local input = dp.DataView('bf', input_tensor)
-   local visitor = dp.Learn{learning_rate=lr}
+   local visitor = dp.Learn{learning_rate=lr, verbose=false}
    visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
    local neural = dp.Neural{
       input_size=inputSize,output_size=outputSize,
@@ -1164,7 +1164,7 @@ function dptest.recurrentvisitorchain()
    
    local visitor = dp.RecurrentVisitorChain{
       visit_interval = updateInterval, force_forget = false,
-      visitors = {dp.Learn{learning_rate = lr}}
+      visitors = {dp.Learn{learning_rate = lr, verbose=false}}
    }
    local mediator = dp.Mediator()
    visitor:setup{mediator=mediator, id=dp.ObjectID('recurrent')}

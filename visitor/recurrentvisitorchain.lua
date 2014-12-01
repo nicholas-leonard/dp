@@ -52,12 +52,14 @@ function RecurrentVisitorChain:_visitModel(model)
       end
       self._n_visit = 0
       self._force_visit = false
+      self._done_visit = true
    end
 end
 
 function RecurrentVisitorChain:doneVisit(model)
    -- only zeroGradParameters when the model is actually visited
-   if self._zero_grads and (self._force_visit or self._n_visit == self._visit_interval) then
+   if self._zero_grads and self._done_visit then
       model:zeroGradParameters()
+      self._done_visit = false
    end
 end

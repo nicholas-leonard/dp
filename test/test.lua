@@ -1152,6 +1152,47 @@ function dptest.learn()
    end
 end
 
+function dptest.recurrentvisitorchain()
+   local batchSize = 8
+   local inputSize = 10
+   local outputSize = 5
+   local lr = 0.1
+   local updateInterval = 3
+   local input_tensor = torch.randn(batchSize, inputSize)
+   local gradOutput_tensor = torch.randn(batchSize, outputSize)
+   local input = dp.DataView('bf', input_tensor)
+   
+   local visitor = dp.RecurrentVisitorChain{
+      visit_interval = updateInterval, force_forget = false,
+      visitors = {dp.Learn{learning_rate = lr}}
+   }
+   local mediator = dp.Mediator()
+   visitor:setup{mediator=mediator, id=dp.ObjectID('recurrent')}
+   
+   local neural = dp.Neural{input_size=inputSize,output_size=outputSize,transfer=nn.Identity()}
+   local linear = neural._linear:clone()
+   linear:zeroGradParameters()
+   
+   for i = 1,10 do
+      local output = neural:forward(input, dp.Carry{nSample=batchSize})
+      output:backward('bf', gradOutput_tensor)
+      neural:backward(output, dp.Carry{nSample=batchSize})
+      neural:accept(visitor)
+      
+      local output_tensor = linear:forward(input_tensor)
+      local gradInput_tensor = linear:backward(input_tensor, gradOutput_tensor)
+      if i % 3 == 0 then
+         linear:updateParameters(lr)
+         linear:zeroGradParameters()
+      end
+   end
+   local params = neural:parameters()
+   local params2 = linear:parameters()
+   for i, param in ipairs(params) do
+      mytester:assertTensorEq(param, params2[i], 0.000001, "recurrent visitor chain error")
+   end
+end
+
 function dp.test(tests)
    math.randomseed(os.time())
    mytester = torch.Tester()

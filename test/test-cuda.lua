@@ -67,7 +67,6 @@ function dptest.neural()
    local output, carry = layer:forward(input, dp.Carry{nSample=5})
    output:backward('bf', grad_tensor:cuda())
    input = layer:backward(output, carry)
-   layer:setup{mediator=mediator, id=dp.ObjectID('layer')}
    -- nn
    local mlp = nn.Sequential()
    local m = nn.Linear(10,2):cuda()
@@ -77,9 +76,7 @@ function dptest.neural()
    mlp:add(nn.Tanh())
    local mlp_act = mlp:forward(tensor)
    -- update
-   local visitor = dp.Learn{learning_rate=0.1}
-   visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
-   layer:accept(visitor)
+   layer:updateParameters(0.1)
    mytester:assertTensorEq(tensor, input:forward('bf', 'torch.DoubleTensor'), 0.00001)
    local mlp_grad = mlp:backwardUpdate(tensor, grad_tensor, 0.1)
    -- compare nn and dp
@@ -149,9 +146,7 @@ function dptest.dictionary()
    mytester:assertTensorEq(mlp_act, output:forward('bwc'):float(), 0.00001)
    -- update
    local act_ten = output:forward('bwc'):clone()
-   local visitor = dp.Learn{learning_rate=0.1}
-   visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
-   layer:accept(visitor)
+   layer:updateParameters(0.1)
    -- forward backward
    output, carry2 = layer:forward(input, dp.Carry{nSample=5})
    output:backward('bwc', grad_tensor:cuda())
@@ -196,9 +191,7 @@ function dptest.convolution2D()
    -- update
    local act_ten = output:forward('bhwc', 'torch.FloatTensor'):clone()
    local grad_ten = input:backward('bhwc', 'torch.FloatTensor'):clone()
-   local visitor = dp.Learn{learning_rate=0.1}
-   visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
-   layer:accept(visitor)
+   layer:updateParameters(0.1)
    layer:doneBatch()
    -- forward backward
    output, carry2 = layer:forward(input, dp.Carry{nSample=8})
@@ -256,9 +249,7 @@ function dptest.softmaxtree()
    local weight = model._module.weight:clone()
    local act_ten = output:forward('bf'):clone()
    local grad_ten = input:backward('bf'):clone()
-   local visitor = dp.Learn{learning_rate=0.1}
-   visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
-   model:accept(visitor)
+   model:updateParameters(0.1)
    local weight2 = model._module.weight
    mytester:assertTensorNe(weight:float(), weight2:float(), 0.00001)
    model:doneBatch()

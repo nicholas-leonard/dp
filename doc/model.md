@@ -5,6 +5,7 @@
    * [Module](#dp.Module) : generic nn.Module adapter ;
    * [Neural](#dp.Neural) : Linear followed by a Transfer Module;
    * [Dictionary](#dp.Dictionary) : a LookupTable wrapper using for word embeddings;
+   * [RecurrentDictionary](#dp.RecurrentDictionary) : used for building Simple RNN having a LookupTable input layer;
    * [Convolution1D](#dp.Convolution1D) : TemporalConvolution followed by a Transfer Module and TemporalMaxPooling;
    * [Convolution2D](#dp.Convolution2D) : SpatialConvolution followed by a Transfer Module and SpatialMaxPooling;
    * [SoftmaxTree](#dp.SoftmaxTree) : a hierarchy of parameterized softmaxes;
@@ -156,6 +157,20 @@ arguments, those specified in [Layer](#dp.Layer.__init) also apply.
 <a name='dp.Dictionary'/>
 ## Dictionary ##
 Adapts a [LookupTable](https://github.com/torch/nn/blob/master/doc/convolution.md#nn.LookupTable). Used primarily for learning word embeddings.
+
+<a name='dp.RecurrentDictionary'/>
+## RecurrentDictionary ##
+Adapts a [Recurrent](https://github.com/clementfarabet/lua---nnx#nnx.Recurrent) 
+Module encapsulating a [LookupTable](https://github.com/torch/nn/blob/master/doc/convolution.md#nn.LookupTable) 
+`input` layer, a [Linear](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Linear) `feedback` layer
+and a non-linear `transfer` layer. In effect, this implements everything but the `output` layer 
+of a Simple Recurrent Neural Network (SRNN), specifically an SRNN used for modeling 
+of temporal sequences, typically language models. 
+
+Due to its recurrent nature, this model has strong ties with other objects,
+including the SentenceSampler and the RecurrentVisitorChain. 
+An experiment combining all three components is examplified in the
+[recurrentneuralnetwork.lua](../examples/recurrentneuralnetwork.lua) script.
 
 <a name='dp.Convolution1D'/>
 ## Convolution1D ##

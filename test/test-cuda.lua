@@ -152,7 +152,6 @@ function dptest.dictionary()
    local visitor = dp.Learn{learning_rate=0.1}
    visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
    layer:accept(visitor)
-   layer:doneBatch()
    -- forward backward
    output, carry2 = layer:forward(input, dp.Carry{nSample=5})
    output:backward('bwc', grad_tensor:cuda())

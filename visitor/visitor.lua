@@ -4,21 +4,23 @@
 -- Visitors should try to access a model method assigned to 
 -- each visitor (if itexists). This would allow models to implement
 -- visitor specifics. (already started with dp.MaxNorm model)
-
--- TODO: 
--- Visitors accumulate stats for reporting purposes (including evaluation)
 ------------------------------------------------------------------------
 local Visitor = torch.class("dp.Visitor")
 Visitor.isVisitor = true
 
 function Visitor:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, name, include, exclude, observer = xlua.unpack(
+   local args, name, zero_grads, include, exclude, observer 
+      = xlua.unpack(
       {config},
       'Visitor', 
       'Visits a composite struture of Models and modifies their states.',
       {arg='name', type='string', req=true,
        help='identifies visitor in reports.'},
+      {arg='zero_grads', type='boolean', default=true,
+       help='calls zeroGradParameters on each model after it has '..
+       'been visited. Should be true for the root vistior.'..
+       'Note that the VisitorChain sets its components to false'},
       {arg='include', type='table',
        help='only models having a true value for the member named ' .. 
        'in this table are visited, unless the member is also listed ' ..
@@ -33,6 +35,7 @@ function Visitor:__init(config)
        help='observer that is notified when an event occurs.'}
    )
    self._name = name
+   self._zero_grads = zero_grads
    self._exclude = (exclude == '') and {} or exclude
    self._include = include
    self:setObserver(observer)
@@ -111,13 +114,20 @@ function Visitor:visitModel(model)
    if not self:canVisit(model) then 
       return 
    end
-   --TODO : mvstate[self:id():parent():name()][self:name()]
-   -- or mvstate[self._id_string] where self._id_string = self._id:toString())
-   -- has the model-visitor state been initialized?
+   
    if not model.mvstate[self:id():name()] then 
       model.mvstate[self:id():name()] = {}
    end
+   
    self:_visitModel(model)
+   
+   self:doneVisit(model)
+end
+
+function Visitor:doneVisit(model)
+   if self._zero_grads then
+      model:zeroGradParameters()
+   end
 end
 
 function Visitor:_visitModel(model)
@@ -131,5 +141,9 @@ end
 
 function Visitor:report()
    return {[self:name()] = {}}
+end
+
+function Visitor:setZeroGrads(zero_grads)
+   self._zero_grads = zero_grads
 end
 

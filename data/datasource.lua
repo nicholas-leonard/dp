@@ -83,7 +83,7 @@ function DataSource:setInputPreprocess(input_preprocess)
 end
 
 function DataSource:setTargetPreprocess(target_preprocess)
-   if not torch.type(target_preprocess) == 'table' then
+   if torch.type(target_preprocess) == 'table' then
       target_preprocess = dp.Pipeline(target_preprocess)
    end
    self._target_preprocess = target_preprocess
@@ -187,8 +187,6 @@ function DataSource.getDataPath(config)
    local datasrc_dir = paths.concat(data_dir, name)
    local data_file = paths.basename(url)
    local data_path = paths.concat(datasrc_dir, data_file)
-
-   print("checking for file located at: ", data_path)
 
    dp.check_and_mkdir(data_dir)
    dp.check_and_mkdir(datasrc_dir)

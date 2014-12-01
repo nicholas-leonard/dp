@@ -125,7 +125,7 @@ end
 
 function table.channelValue(tbl, channel, dept)
    dept = dept or 1
-   if type(tbl) ~= 'table' or dept > #channel then
+   if torch.type(tbl) ~= 'table' or dept > #channel then
       return tbl
    end
    return table.channelValue(tbl[channel[dept]], channel, dept+1)
@@ -141,7 +141,7 @@ end
 
 function table.fromString(str,splitter, f)
    f = f or  function(k,c) return tonumber(c) end
-   if type(str) == 'table' then
+   if torch.type(str) == 'table' then
       return str
    end
    splitter = splitter or '[,]'

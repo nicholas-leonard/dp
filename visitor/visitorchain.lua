@@ -16,6 +16,10 @@ function VisitorChain:__init(config)
    config.name = 'visitorchain'
    parent.__init(self, config)
    self._visitors = visitors
+   -- the root visitor will perform the zeroGradParameters on models
+   local zero_grads = self._zero_grads
+   self:setZeroGrads(false)
+   self._zero_grads = zero_grads
 end
 
 function VisitorChain:setup(config)
@@ -38,4 +42,11 @@ function VisitorChain:report()
       table.merge(report, visitor:report())
    end
    return report
+end
+
+function VisitorChain:setZeroGrads(zero_grads)
+   for k, visitor in pairs(self._visitors) do
+      visitor:setZeroGrads(zero_grads)
+   end
+   self._zero_grads = zero_grads
 end

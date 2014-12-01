@@ -111,9 +111,6 @@ function Model:_accept(visitor)
 end
 
 function Model:doneBatch(...)
-   if self.backwarded then
-      self:zeroGradParameters()
-   end
    parent.doneBatch(self, ...)
    self.visited = false
 end

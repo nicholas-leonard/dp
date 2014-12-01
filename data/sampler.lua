@@ -14,7 +14,7 @@ function Sampler:__init(config)
       'Sampler', 
       'Samples batches from a set of examples in a dataset. '..
       'Iteration ends after an epoch (sampler-dependent) ',
-      {arg='batch_size', type='number', default='1024',
+      {arg='batch_size', type='number', default=128,
        help='Number of examples per sampled batches'},
       {arg='epoch_size', type='number', default=-1,
        help='Number of examples presented per epoch. '..
@@ -38,7 +38,7 @@ function Sampler:setup(config)
       'Sampler:setup', 
       'Samples batches from a set of examples in a dataset. '..
       'Iteration ends after an epoch (sampler-dependent) ',
-      {arg='batch_size', type='number', default='64',
+      {arg='batch_size', type='number', default=128,
        help='Number of examples per sampled batches'},
       {arg='overwrite', type='boolean', default=false,
        help='overwrite existing values if not nil.' .. 

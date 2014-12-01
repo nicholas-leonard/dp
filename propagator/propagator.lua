@@ -63,9 +63,9 @@ function Propagator:setup(config)
        'Propagator should not hold a reference to a dataset due to ' ..
        'the propagator\'s possible serialization.'}
    )
-   assert(id.isObjectID)
+   assert(torch.isTypeOf(id, 'dp.ObjectID'))
    self._id = id
-   assert(mediator.isMediator)
+   assert(torch.isTypeOf(mediator, 'dp.Mediator'))
    self._mediator = mediator
    self:setModel(model)
    self._sampler:setup{mediator=mediator, model=model}
@@ -217,7 +217,7 @@ function Propagator:model()
 end
 
 function Propagator:setObserver(observer)
-   if not torch.typename(observer) and type(observer) == 'table' then
+   if torch.type(observer) == 'table' then
       --if list, make composite observer
       observer = dp.CompositeObserver(observer)
    end
@@ -229,7 +229,7 @@ function Propagator:observer()
 end
 
 function Propagator:setVisitor(visitor)
-   if not torch.typename(visitor) and type(visitor) == 'table' then
+   if torch.type(visitor) == 'table' then
       --if list, make visitor_chain
       visitor = dp.VisitorChain{visitors=visitor}
    end
@@ -241,7 +241,7 @@ function Propagator:visitor()
 end
 
 function Propagator:setFeedback(feedback)
-   if not torch.typename(feedback) and type(feedback) == 'table' then
+   if torch.type(feedback) == 'table' then
       --if list, make visitor_chain
       feedback = dp.CompositeFeedback{feedbacks=feedback}
    end

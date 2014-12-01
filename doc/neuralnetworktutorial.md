@@ -57,12 +57,14 @@ model = dp.Sequential{
       dp.Neural{
          input_size = datasource:featureSize(), 
          output_size = opt.nHidden, 
-         transfer = nn.Tanh()
+         transfer = nn.Tanh(),
+         sparse_init = true
       },
       dp.Neural{
          input_size = opt.nHidden, 
          output_size = #(datasource:classes()),
-         transfer = nn.LogSoftMax()
+         transfer = nn.LogSoftMax(),
+         sparse_init = true
       }
    }
 }

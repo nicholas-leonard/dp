@@ -21,7 +21,7 @@ function Layer:__init(config)
        help='the View used for communicating outputs and gradOutputs'},
       {arg='dropout', type='nn.Dropout', 
        help='applies dropout to the inputs of this model.'},
-      {arg='sparse_init', type='boolean', default=true,
+      {arg='sparse_init', type='boolean', default=false,
        help='sparse initialization of weights. See Martens (2010), '..
        '"Deep learning via Hessian-free optimization"'},
       {arg='acc_update', type='boolean', default=false,
@@ -42,7 +42,9 @@ function Layer:__init(config)
    self._sparse_init = sparse_init
    self._acc_update = acc_update
    parent.__init(self, config)
-   self:reset()
+   if self._sparse_init then
+      self:sparseReset()
+   end
    self._tags.hasParams = true
    if acc_update then
       self._tags.accUpdate = true
@@ -126,16 +128,17 @@ function Layer:zeroGradParameters()
    end
 end
 
-function Layer:reset()
-   self._module:reset()
-   if self._sparse_init then
-      local params = self:parameters()
-      -- Only affects 2D parameters.
-      -- Assumes that 2D parameters are aranged (output_dim x input_dim)
-      for k,param in pairs(params) do
-         if param:dim() == 2 then
-            self._sparseReset(param)
-         end
+function Layer:reset(stdv)
+   self._module:reset(stdv)
+end
+
+function Layer:sparseReset()
+   local params = self:parameters()
+   -- Only affects 2D parameters.
+   -- Assumes that 2D parameters are aranged (output_dim x input_dim)
+   for k,param in pairs(params) do
+      if param:dim() == 2 then
+         self._sparseReset(param)
       end
    end
 end

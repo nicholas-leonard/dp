@@ -129,8 +129,7 @@ function Propagator:propagateEpoch(dataset, report)
    self._epoch_duration = sys.clock() - start_time
    self._batch_duration = self._epoch_duration / last_n
    self._example_speed = last_n / self._epoch_duration
-   self._num_batches = last_n / n_batch
-   self._batch_speed = (self._num_batches / self._epoch_duration)
+   self._batch_speed = (n_batch / self._epoch_duration)
    if self._stats then
       print("\n==> epoch size = "..last_n..' examples')
       print("==> batch duration = "..(self._batch_duration*1000)..' ms')

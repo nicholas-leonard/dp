@@ -20,6 +20,7 @@ cmd:option('--cuda', false, 'use CUDA')
 cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
 cmd:option('--maxEpoch', 400, 'maximum number of epochs to run')
 cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better local minima for early-stopping')
+cmd:option('--sparseInit', false, 'initialize inputs using a sparse initialization (as opposed to the default normal initialization)')
 
 --[[ recurrent layer ]]--
 cmd:option('--rho', 5, 'back-propagate through time (BPTT) for rho time-steps')
@@ -76,6 +77,7 @@ if opt.softmaxtree then
       -- best we can do for now (yet, end of sentences will be under-represented in output updates)
       mvstate = {learn_scale = opt.lrScales[2]/opt.updateInterval},
       --acc_update = opt.accUpdate
+      sparse_init = opt.sparseInit
    }
 else
    print("Warning: you are using full LogSoftMax for last layer, which "..
@@ -88,6 +90,7 @@ else
       dropout = opt.dropout and nn.Dropout() or nil,
       mvstate = {learn_scale = opt.lrScales[2]/opt.updateInterval},
       --acc_update = opt.accUpdate
+      sparse_init = opt.sparseInit
    }
 end
 
@@ -95,7 +98,7 @@ mlp = dp.Sequential{
    models = {
       dp.RecurrentDictionary{
          dict_size = datasource:vocabularySize(),
-         output_size = opt.hiddenSize, rho = opt.rho
+         output_size = opt.hiddenSize, rho = opt.rho,
          mvstate = {learn_scale = opt.lrScales[2]}
       },
       softmax

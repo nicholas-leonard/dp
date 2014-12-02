@@ -172,6 +172,16 @@ including the SentenceSampler and the RecurrentVisitorChain.
 An experiment combining all three components is examplified in the
 [recurrentneuralnetwork.lua](../examples/recurrentneuralnetwork.lua) script.
 
+<a name='dp.RecurrentDictionary.__init'/>
+### dp.Recurrent{...} ###
+Constructs a Recurrent Layer. Arguments should be specified as key-value pairs. 
+Other than the following arguments, those specified in [Layer](#dp.Layer.__init) also apply.
+ * `dict_size` specifies the number of entries in the `input` layer dictionary, i.e. the vocabulary size of the LookupTable.
+ * `output_size` specifies the number of neurons per entry. Also the input and output size of the `feedback` layer.
+ * `rho` specifies the number of time-steps back in time to back-propagate through (refer to [Recurrent](https://github.com/clementfarabet/lua---nnx#nnx.Recurrent)). Defaults to 5.
+ * `transfer` is a transfer Module like [Tanh](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Tanh),
+[Sigmoid](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Sigmoid), [ReLU]([ReLU](https://github.com/torch/nn/blob/master/doc/transfer.md#relu), etc. Defaults to nn.Sigmoid (recommended for RNNs).
+
 <a name='dp.Convolution1D'/>
 ## Convolution1D ##
 [TemporalConvolution](https://github.com/torch/nn/blob/master/doc/convolution.md#temporalconvolution) (a 1D convolution) followed by a [Transfer](https://github.com/torch/nn/blob/master/doc/transfer.md) Module and a 
@@ -181,7 +191,7 @@ Both the `input_view` and `output_view` are _bwc_.
 <a name='dp.Convolution1D.__init'/>
 ### dp.Convolution1D{...} ###
 Constructs a Convolution1D Layer. Arguments should be specified as key-value pairs. 
-Other then the following arguments, those specified in [Layer](#dp.Layer.__init) also apply.
+Other than the following arguments, those specified in [Layer](#dp.Layer.__init) also apply.
  * `input_size` specifies the number of input channels (the size of the word embedding).
  * `output_size` specifies the number of output channels, i.e. the `outputFrameSize`.
  * `kernel_size` is a number specifying the size of the temporal convolution kernel.

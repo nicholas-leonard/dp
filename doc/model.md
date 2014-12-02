@@ -9,6 +9,7 @@
    * [Convolution1D](#dp.Convolution1D) : TemporalConvolution followed by a Transfer Module and TemporalMaxPooling;
    * [Convolution2D](#dp.Convolution2D) : SpatialConvolution followed by a Transfer Module and SpatialMaxPooling;
    * [SoftmaxTree](#dp.SoftmaxTree) : a hierarchy of parameterized softmaxes;
+   * [MixtureOfExperts](#dp.MixtureOfExperts) : a mixture of experts using MLPs;
  * [Container](#dp.Container) : abstract class inherited by composite Models;
    * [Sequential](#dp.Sequential) : a sequence of Models.
 
@@ -94,7 +95,7 @@ arguments, those specified in [Model](#dp.Model.__init) also apply.
  * `output_view` is a string specifying the `view` of the `output` [View](view.md#dp.View) like _bf_, _bhwc_, etc. This is usually hardcoded for each sub-class.
  * `output` is a [View](view.md#dp.View) used for communicating outputs and gradOutputs. This is usually hardcoded for each sub-class.
  * `dropout` is a [Dropout](https://github.com/clementfarabet/lua---nnx/blob/master/Dropout.lua) Module instance. When provided, it is applied to the inputs of the Model. Defaults to not using dropout.
- * `sparse_init` is a boolean with a default value of true. When true, applies a sparse initialization of weights. See Martens (2010), [Deep learning via Hessian-free optimization](http://machinelearning.wustl.edu/mlpapers/paper_files/icml2010_Martens10.pdf). This is 
+ * `sparse_init` is a boolean with a default value of false. When true, applies a sparse initialization of weights. See Martens (2010), [Deep learning via Hessian-free optimization](http://machinelearning.wustl.edu/mlpapers/paper_files/icml2010_Martens10.pdf). This is 
 the recommended initialization for [ReLU](https://github.com/torch/nn/blob/master/doc/transfer.md#relu) Transfer Modules.
 
 <a name='dp.Layer.inputAct'/>
@@ -156,7 +157,15 @@ arguments, those specified in [Layer](#dp.Layer.__init) also apply.
 
 <a name='dp.Dictionary'/>
 ## Dictionary ##
-Adapts a [LookupTable](https://github.com/torch/nn/blob/master/doc/convolution.md#nn.LookupTable). Used primarily for learning word embeddings.
+Adapts a [LookupTable](https://github.com/torch/nn/blob/master/doc/convolution.md#nn.LookupTable). 
+Used primarily for learning word embeddings. This Model can only be 
+situated at the begining of a digraph as `LookupTable:backward` produces no `gradInput` Tensor.
+
+### dp.Dictionary ###
+Constructs a Dictionary Layer. Arguments should be specified as key-value pairs. 
+Other than the following arguments, those specified in [Layer](#dp.Layer.__init) also apply.
+ * `dict_size` specifies the number of entries in the dictionary (e.g. number of words).
+ * `output_size` specifies the number of neurons per entry. This is also known as the embedding size.
 
 <a name='dp.RecurrentDictionary'/>
 ## RecurrentDictionary ##
@@ -173,8 +182,8 @@ An experiment combining all three components is examplified in the
 [recurrentneuralnetwork.lua](../examples/recurrentneuralnetwork.lua) script.
 
 <a name='dp.RecurrentDictionary.__init'/>
-### dp.Recurrent{...} ###
-Constructs a Recurrent Layer. Arguments should be specified as key-value pairs. 
+### dp.RecurrentDictionary{...} ###
+Constructs a RecurrentDictionary Layer. Arguments should be specified as key-value pairs. 
 Other than the following arguments, those specified in [Layer](#dp.Layer.__init) also apply.
  * `dict_size` specifies the number of entries in the `input` layer dictionary, i.e. the vocabulary size of the LookupTable.
  * `output_size` specifies the number of neurons per entry. Also the input and output size of the `feedback` layer.
@@ -223,10 +232,36 @@ Other then the following arguments, those specified in [Layer](#dp.Layer.__init)
 
 <a name='dp.SoftmaxTree'/>
 ## SoftmaxTree ##
-A hierarchy of parameterized softmaxes. Used for computing the likelihood of a leaf class. Use with [TreeNLL](loss.md#dp.TreeNLL) Loss. Requires a tensor mapping one `parent_id` to many `child_id`. 
+A hierarchy of parameterized softmaxes. Used for computing the likelihood of a leaf class. 
+Should be used with [TreeNLL](loss.md#dp.TreeNLL) Loss. Requires a tensor mapping one `parent_id` to many `child_id`. 
 Greatly accelerates learning and testing for language models with large vocabularies. 
 A vocabulary hierarchy is provided via the [BillionWords](data.md#dp.BillionWords) DataSource.
 
+<a name='dp.SoftmaxTree.__init'/>
+### dp.SoftmaxTree{...} ###
+Constructs a SoftmaxTree Layer. Arguments should be specified as key-value pairs. 
+Other then the following arguments, those specified in [Layer](#dp.Layer.__init) also apply.
+ * `input_size` specifies the number of input neurons, also known as the output embedding size.
+ * `hierarchy` is a table mapping integer `parent_ids` to a tensor of `child_ids`.
+ * `root_id` is an integer specifying the `id` of the root of the tree. Defaults to 1.
+ 
+<a name='dp.MixtureOfExperts'/>
+## MixtureOfExperts ##
+A mixture of MLP experts gated by an MLP gater.
+    
+<a name='dp.MixtureOfExperts.__init'/>
+### dp.MixtureOfExperts{...} ###
+Constructs a MixtureOfExperts Layer. Arguments should be specified as key-value pairs. 
+Other then the following arguments, those specified in [Layer](#dp.Layer.__init) also apply.
+ * `input_size` specifies the number of input neurons.
+ * `n_expert` specifies the number of experts.
+ * `expert_size` is a table outlining number of neurons per expert hidden layer.
+ * `expert_act` is a transfer Module like [Tanh](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Tanh) (the default) that will be used to activate the expert hidden layer(s).
+ * `gater_size` specifies the number of neurons in gater hidden layers.
+ * `gater_act` is a transfer Module like [Tanh](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Tanh) (the default) that will be used to activate the gater's hidden layer(s).
+ * `output_size` specifies the output size of the Model.
+ * `output_act` specifies the output activation Module. Defaults to [LogSoftMax](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.LogSoftMax).
+ 
 <a name='dp.Container'/>
 ## Container ##
 Abstract class inherited by composite [Models](#dp.Model) (see [Composite Design Pattern](https://en.wikipedia.org/wiki/Composite_pattern)).
@@ -255,5 +290,7 @@ Returns the component Model at index `index`.
 
 <a name='dp.Sequential'/>
 ## Sequential ##
-This Container is used for building multi-layer perceptrons (MLP). It has a similar interface to [nn.Sequential](https://github.com/torch/nn/blob/master/doc/containers.md#nn.Sequential), but doesn't use it internally, i.e. dp.Sequential does not adapt nn.Sequential. 
+This Container is used for building multi-layer perceptrons (MLP). It has a 
+similar interface to [nn.Sequential](https://github.com/torch/nn/blob/master/doc/containers.md#nn.Sequential), 
+but doesn't use it internally, i.e. dp.Sequential does not adapt nn.Sequential.
 

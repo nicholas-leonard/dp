@@ -20,7 +20,7 @@ function SoftmaxTree:__init(config)
        help='Number of input neurons'},
       {arg='hierarchy', type='table', req=true,
        help='A table mapping parent_ids to a tensor of child_ids'},
-      {arg='root_id', type='number | string', default=1,
+      {arg='root_id', type='number', default=1,
        help='id of the root of the tree.'},
       {arg='typename', type='string', default='softmaxtree', 
        help='identifies Model type in reports.'}

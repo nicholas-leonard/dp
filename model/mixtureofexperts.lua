@@ -8,8 +8,8 @@ MixtureOfExperts.isMixtureOfExperts = true
 function MixtureOfExperts:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, input_size, n_expert, expert_size, expert_act, 
-      gater_size, gater_act, output_size, output_act, sparse_init, 
-      typename = xlua.unpack(
+      gater_size, gater_act, output_size, output_act, typename 
+      = xlua.unpack(
       {config},
       'MixtureOfExperts', 
       'Mixture of experts model.',
@@ -29,9 +29,6 @@ function MixtureOfExperts:__init(config)
        help='output size of last layer'},
       {arg='output_act', type='nn.Module', default='',
        help='output activation. Defaults to nn.LogSoftMax()'},
-      {arg='sparse_init', type='boolean', default=false,
-       help='sparse initialization of weights. See Martens (2010), '..
-       '"Deep learning via Hessian-free optimization"'},
       {arg='typename', type='string', default='MixtureOfExperts', 
        help='identifies Model type in reports.'}
    )
@@ -85,7 +82,6 @@ function MixtureOfExperts:__init(config)
    config.input_view = 'bf'
    config.output_view = 'bf'
    config.tags = config.tags or {}
-   config.sparse_init = sparse_init
    parent.__init(self, config)
 end
 

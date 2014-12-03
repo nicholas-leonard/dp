@@ -1,22 +1,22 @@
 ------------------------------------------------------------------------
---[[ Minima ]]--
+--[[ ErrorMinima ]]--
 -- Observer.
 -- Notifies listeners when a new minima is found
 -- Should only be called on Experiment, Propagator or Model subjects.
--- There should only be once instance of this observer per Experiment.
+-- It is useful to use the Minima directly, as opposed to using a 
+-- subclass like EarlyStopper, when no-such sub-class is present.
 ------------------------------------------------------------------------
-local Minima, parent = torch.class("dp.Minima", "dp.Observer")
-Minima.isMinima = true
+local ErrorMinima, parent = torch.class("dp.ErrorMinima", "dp.Observer")
 
-function Minima:__init(config) 
+function ErrorMinima:__init(config) 
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args
-   args, self._start_epoch, self._error_report, self._error_channel, self._maximize
-      = xlua.unpack(
+   args, self._start_epoch, self._error_report, self._error_channel, 
+      self._maximize, self._notify = xlua.unpack(
       {config},
-      'Minima', 
-      'Notifies listeners when a new minima is found. ' ..
-      'Error can be obtained from experiment report or mediator ' ..
+      'ErrorMinima', 
+      'Monitors when a new minima over an error variable is found. ' ..
+      'Variable can be obtained from experiment report or mediator ' ..
       'channel. If obtained from experiment report via error_report, ' ..
       'the object subscribes to doneEpoch channel.',
       {arg='start_epoch', type='number', default=5,
@@ -26,13 +26,14 @@ function Minima:__init(config)
        'Default is {"validator", "loss", "avgError"}, unless ' ..
        'of course an error_channel is specified.'},
       {arg='error_channel', type='string | table',
-       help='channel to subscribe to for early stopping. Should ' ..
-       'return an error value for which the models should be ' ..
-       'minimized, and the report of the experiment.'},
+       help='channel to subscribe to for monitoring error. Should ' ..
+       'return an error value and the last experiment report.'},
       {arg='maximize', type='boolean', default=false,
        help='when true, the error channel or report is negated. ' ..
        'This is useful when the channel returns an accuracy ' ..
-       'that should be maximized, instead of an error that should not'}
+       'that should be maximized, instead of an error that should not'},
+      {arg='notify', type='boolean', default=true,
+       help='Notifies listeners when a new minima is found.'}
    )
    self._minima_epoch = self._start_epoch - 1
    self._sign = self._maximize and -1 or 1
@@ -43,14 +44,14 @@ function Minima:__init(config)
    parent.__init(self, "doneEpoch")
 end
 
-function Minima:setup(config)
+function ErrorMinima:setup(config)
    parent.setup(self, config)
    if self._error_channel then
       self._mediator:subscribe(self._error_channel, self, "compareError")
    end
 end
 
-function Minima:doneEpoch(report, ...)
+function ErrorMinima:doneEpoch(report, ...)
    assert(type(report) == 'table')
    self._epoch = report.epoch
    if self._error_report then
@@ -62,7 +63,7 @@ function Minima:doneEpoch(report, ...)
    end
 end
 
-function Minima:compareError(current_error, ...)
+function ErrorMinima:compareError(current_error, ...)
    -- if maximize is true, sign will be -1
    local found_minima = false
    current_error = current_error * self._sign
@@ -71,13 +72,15 @@ function Minima:compareError(current_error, ...)
          self._minima = current_error
          self._minima_epoch = self._epoch
          found_minima = true
-         self._mediator:publish("foundMinima", self)
       end
+   end
+   if self._notify then
+      self._mediator:publish("errorMinima", found_minima, self)
    end
    return found_minima, current_error
 end
 
-function Minima:minima()
+function ErrorMinima:minima()
    return self._minima, self._minima_epoch
 end
 

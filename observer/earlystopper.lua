@@ -5,7 +5,7 @@
 -- the experiment when no new minima is found for max_epochs.
 -- Should only be called on Experiment, Propagator or Model subjects.
 ------------------------------------------------------------------------
-local EarlyStopper, parent = torch.class("dp.EarlyStopper", "dp.Minima")
+local EarlyStopper, parent = torch.class("dp.EarlyStopper", "dp.ErrorMinima")
 EarlyStopper.isEarlyStopper = true
 
 function EarlyStopper:__init(config) 
@@ -36,6 +36,11 @@ function EarlyStopper:__init(config)
    self._max_error = self._max_error * self._sign
 end
 
+function EarlyStopper:setup(config)
+   parent.setup(self, config)
+   self._save_strategy:setup(self._subject)
+end
+
 function EarlyStopper:compareError(current_error, ...)
    if self._epoch >= self._min_epoch and (self._max_error ~= 0) 
          and current_error*self._sign > self._max_error then
@@ -45,8 +50,16 @@ function EarlyStopper:compareError(current_error, ...)
    
    local found_minima = parent.compareError(self, current_error, ...)
    
+   if found_minima then
+      self._save_strategy:save(self._subject, current_error)
+   end
+   
    if self._max_epochs < (self._epoch - self._minima_epoch) then
-      print("found minima : " .. self._minima .. " at epoch " .. self._minima_epoch) 
+      if self._maximize then
+         print("found maxima : " .. self._minima*self._sign .. " at epoch " .. self._minima_epoch) 
+      else
+         print("found minima : " .. self._minima .. " at epoch " .. self._minima_epoch) 
+      end
       self._mediator:publish("doneExperiment")
    end
    return found_minima

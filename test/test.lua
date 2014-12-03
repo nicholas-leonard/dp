@@ -1076,28 +1076,30 @@ function dptest.sentencesampler()
    mytester:assert(table.length(sampled) == nIndice-nSentence, "not all words were sampled")
 end
 
-function dptest.minima()
+function dptest.errorminima()
    local report={validator={loss={avgError=11}},epoch=1}
    local mediator = dp.Mediator()
-   local m = dp.Minima{start_epoch=5}
+   local m = dp.ErrorMinima{start_epoch=5}
    m:setup{mediator=mediator}
    local mt = {}
    local recv_count = 0
    local minima, minima_epoch
-   mediator:subscribe('foundMinima', mt, 'foundMinima')
+   mediator:subscribe('errorMinima', mt, 'errorMinima')
    
    -- test start_epoch
-   function mt:foundMinima(m)
-      minima, minima_epoch = m:minima()
-      recv_count = recv_count + 1
+   function mt:errorMinima(found_minima, m)
+      if found_minima then
+         minima, minima_epoch = m:minima()
+         recv_count = recv_count + 1
+      end
    end
    for epoch=1,10 do
       report.epoch = epoch
       m:doneEpoch(report)
    end
-   mytester:assert(recv_count == 1, "minima recv_count error")
-   mytester:assert(minima == 11, "minima minima error")
-   mytester:assert(minima_epoch == 5, "minima start_epoch error")
+   mytester:assert(recv_count == 1, "ErrorMinima recv_count error")
+   mytester:assert(minima == 11, "ErrorMinima minima error")
+   mytester:assert(minima_epoch == 5, "ErrorMinima start_epoch error")
 
    
    -- test that minimas is found
@@ -1105,19 +1107,21 @@ function dptest.minima()
    local losses = {10,8,8,9,7}
    local cme = {11,12,15}
    local cm = {10,8,7}
-   function mt:foundMinima(m)
-      minima, minima_epoch = m:minima()
-      recv_count = recv_count + 1
-      mytester:assert(losses[cme[recv_count]-10] == cm[recv_count], "wrong minima")
+   function mt:errorMinima(found_minima, m)
+      if found_minima then
+         minima, minima_epoch = m:minima()
+         recv_count = recv_count + 1
+         mytester:assert(losses[cme[recv_count]-10] == cm[recv_count], "ErrorMinima wrong minima")
+      end
    end
    for epoch=11,15 do
       report.epoch = epoch
       report.validator.loss.avgError = losses[epoch-10]
       m:doneEpoch(report)
    end
-   mytester:assert(recv_count == 3, "minima recv_count error")
-   mytester:assert(minima == 7, "minima minima error")
-   mytester:assert(minima_epoch == 15, "minima epoch error")
+   mytester:assert(recv_count == 3, "ErrorMinima recv_count error")
+   mytester:assert(minima == 7, "ErrorMinima minima error")
+   mytester:assert(minima_epoch == 15, "ErrorMinima epoch error")
    
 end
 

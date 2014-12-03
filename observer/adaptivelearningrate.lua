@@ -3,7 +3,7 @@
 -- Observer that onnly works on dp.Learn subject
 -- Decays learning rate when error on validation doesn't reach a new 
 -- minima for max_wait epochs.
--- Should observe in conjuction with a dp.Minima instance (such as 
+-- Should observe in conjuction with a dp.ErrorMinima instance (such as 
 -- EarlyStopper)
 ------------------------------------------------------------------------
 local AdaptiveLearningRate, parent = torch.class("dp.AdaptiveLearningRate", "dp.Observer")
@@ -24,7 +24,8 @@ function AdaptiveLearningRate:__init(config)
        help='Learning rate is decayed by lr = lr*decay_factor every '..
        'time a new minima has not been reached for max_wait epochs'}
    )
-   parent.__init(self, "foundMinima")
+   parent.__init(self, "errorMinima")
+   self._wait = 0
 end
 
 function AdaptiveLearningRate:setSubject(subject)
@@ -32,7 +33,10 @@ function AdaptiveLearningRate:setSubject(subject)
    self._subject = subject
 end
 
-function AdaptiveLearningRate:foundMinima()
-   self._subject:scaleLearningRate(self._decay_factor)
+function AdaptiveLearningRate:errorMinima(found_minima)
+   self._wait = found_minima and 0 or self._wait + 1
+   if self._max_wait <= self._wait then
+      self._subject:scaleLearningRate(self._decay_factor)   
+   end
 end
 

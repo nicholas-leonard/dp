@@ -65,11 +65,24 @@ accumulate `pastGrads` for each triplet.
 
 <a name="dp.Model.accept"/>
 ### accept(visitor) ###
-Accepts a `visitor` [Visitor](visitor.md#dp.Visitor) that will visit the Model and any of its component Models. This is how the Model's parameters are updated.
+Accepts a `visitor` [Visitor](visitor.md#dp.Visitor) that will visit the 
+Model and any of its component Models. This is how the Model's parameters are updated.
 
 <a name="dp.Model.reset"/>
 ### reset() ###
 Resets the parameters (and parameter gradients) of the Model.
+
+<a name="dp.Model.zeroGradParameters"/>
+### zeroGradParameters() ###
+A method that should be a [Visitor](visitor.md#dp.Visitor) after a model has been visited
+by all visitors. Internally, it will zero the parameter gradient vectors by calling
+[nn.Module:zeroGradParameters](https://github.com/torch/nn/blob/master/doc/module.md#zerogradparameters).
+In some cases, it also performs some cleanup operations (like emptying a table) 
+in preparation for the next batch of `forward` and `backward` propagations.
+
+Note that multiple calls to `forward` and `backward` between parameter updates 
+(as opposed to the usual one of each) will accumulate parameter gradients from 
+each `backward` until `zeroGradParameters` is called.
 
 <a name="dp.Model.toModule"/>
 ### toModule([batch]) ###
@@ -96,7 +109,8 @@ arguments, those specified in [Model](#dp.Model.__init) also apply.
  * `output` is a [View](view.md#dp.View) used for communicating outputs and gradOutputs. This is usually hardcoded for each sub-class.
  * `dropout` is a [Dropout](https://github.com/clementfarabet/lua---nnx/blob/master/Dropout.lua) Module instance. When provided, it is applied to the inputs of the Model. Defaults to not using dropout.
  * `sparse_init` is a boolean with a default value of false. When true, applies a sparse initialization of weights. See Martens (2010), [Deep learning via Hessian-free optimization](http://machinelearning.wustl.edu/mlpapers/paper_files/icml2010_Martens10.pdf). This is 
-the recommended initialization for [ReLU](https://github.com/torch/nn/blob/master/doc/transfer.md#relu) Transfer Modules.
+the recommended initialization for non-convolution layers activated by [ReLU](https://github.com/torch/nn/blob/master/doc/transfer.md#relu) Transfer Modules.
+ * `acc_update` is a boolean. When true, it uses the faster [accUpdateGradParameters](https://github.com/torch/nn/blob/master/doc/module.md#accupdategradparametersinput-gradoutput-learningrate) which performs an inplace update (no need for param gradients). However, this also means that [Momentum](visitor.md#dp.Momentum), [WeightDecay](visitor.md#dp.WeightDecay) and other such parameter gradient modifying [Visitors](visitor.md#dp.Visitor) cannot be used.
 
 <a name='dp.Layer.inputAct'/>
 ### [act] inputAct() ###

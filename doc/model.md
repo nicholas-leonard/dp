@@ -5,9 +5,11 @@
    * [Module](#dp.Module) : generic nn.Module adapter ;
    * [Neural](#dp.Neural) : Linear followed by a Transfer Module;
    * [Dictionary](#dp.Dictionary) : a LookupTable wrapper using for word embeddings;
+   * [RecurrentDictionary](#dp.RecurrentDictionary) : used for building Simple RNN having a LookupTable input layer;
    * [Convolution1D](#dp.Convolution1D) : TemporalConvolution followed by a Transfer Module and TemporalMaxPooling;
    * [Convolution2D](#dp.Convolution2D) : SpatialConvolution followed by a Transfer Module and SpatialMaxPooling;
    * [SoftmaxTree](#dp.SoftmaxTree) : a hierarchy of parameterized softmaxes;
+   * [MixtureOfExperts](#dp.MixtureOfExperts) : a mixture of experts using MLPs;
  * [Container](#dp.Container) : abstract class inherited by composite Models;
    * [Sequential](#dp.Sequential) : a sequence of Models.
 
@@ -21,6 +23,7 @@ Unlike Modules, Models should be parameterized (although this isn't strictly enf
 shouldn't be specified in their own dedicated Model. Instead, we encourage that Models use Transfer Modules after parameterized Modules like 
 [Linear](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Linear) or [SpatialConvolution](https://github.com/torch/nn/blob/master/doc/convolution.md#nn.SpatialConvolution).
 
+<a name="dp.Model.__init"/>
 ### dp.Model{typename, [tags, mvstate]} ###
 Constructs a Model. Arguments should be specified as key-value pairs. Other then the following 
 arguments, those specified in [Node](node.md#dp.Node.__init) also apply.
@@ -63,11 +66,24 @@ accumulate `pastGrads` for each triplet.
 
 <a name="dp.Model.accept"/>
 ### accept(visitor) ###
-Accepts a `visitor` [Visitor](visitor.md#dp.Visitor) that will visit the Model and any of its component Models. This is how the Model's parameters are updated.
+Accepts a `visitor` [Visitor](visitor.md#dp.Visitor) that will visit the 
+Model and any of its component Models. This is how the Model's parameters are updated.
 
 <a name="dp.Model.reset"/>
 ### reset() ###
 Resets the parameters (and parameter gradients) of the Model.
+
+<a name="dp.Model.zeroGradParameters"/>
+### zeroGradParameters() ###
+A method that should be a [Visitor](visitor.md#dp.Visitor) after a model has been visited
+by all visitors. Internally, it will zero the parameter gradient vectors by calling
+[nn.Module:zeroGradParameters](https://github.com/torch/nn/blob/master/doc/module.md#zerogradparameters).
+In some cases, it also performs some cleanup operations (like emptying a table) 
+in preparation for the next batch of `forward` and `backward` propagations.
+
+Note that multiple calls to `forward` and `backward` between parameter updates 
+(as opposed to the usual one of each) will accumulate parameter gradients from 
+each `backward` until `zeroGradParameters` is called.
 
 <a name="dp.Model.toModule"/>
 ### toModule([batch]) ###
@@ -93,8 +109,9 @@ arguments, those specified in [Model](#dp.Model.__init) also apply.
  * `output_view` is a string specifying the `view` of the `output` [View](view.md#dp.View) like _bf_, _bhwc_, etc. This is usually hardcoded for each sub-class.
  * `output` is a [View](view.md#dp.View) used for communicating outputs and gradOutputs. This is usually hardcoded for each sub-class.
  * `dropout` is a [Dropout](https://github.com/clementfarabet/lua---nnx/blob/master/Dropout.lua) Module instance. When provided, it is applied to the inputs of the Model. Defaults to not using dropout.
- * `sparse_init` is a boolean with a default value of true. When true, applies a sparse initialization of weights. See Martens (2010), [Deep learning via Hessian-free optimization](http://machinelearning.wustl.edu/mlpapers/paper_files/icml2010_Martens10.pdf). This is 
-the recommended initialization for [ReLU](https://github.com/torch/nn/blob/master/doc/transfer.md#relu) Transfer Modules.
+ * `sparse_init` is a boolean with a default value of false. When true, applies a sparse initialization of weights. See Martens (2010), [Deep learning via Hessian-free optimization](http://machinelearning.wustl.edu/mlpapers/paper_files/icml2010_Martens10.pdf). This is 
+the recommended initialization for non-convolution layers activated by [ReLU](https://github.com/torch/nn/blob/master/doc/transfer.md#relu) Transfer Modules.
+ * `acc_update` is a boolean. When true, it uses the faster [accUpdateGradParameters](https://github.com/torch/nn/blob/master/doc/module.md#accupdategradparametersinput-gradoutput-learningrate) which performs an inplace update (no need for param gradients). However, this also means that [Momentum](visitor.md#dp.Momentum), [WeightDecay](visitor.md#dp.WeightDecay) and other such parameter gradient modifying [Visitors](visitor.md#dp.Visitor) cannot be used.
 
 <a name='dp.Layer.inputAct'/>
 ### [act] inputAct() ###
@@ -155,7 +172,39 @@ arguments, those specified in [Layer](#dp.Layer.__init) also apply.
 
 <a name='dp.Dictionary'/>
 ## Dictionary ##
-Adapts a [LookupTable](https://github.com/torch/nn/blob/master/doc/convolution.md#nn.LookupTable). Used primarily for learning word embeddings.
+Adapts a [LookupTable](https://github.com/torch/nn/blob/master/doc/convolution.md#nn.LookupTable). 
+Used primarily for learning word embeddings. This Model can only be 
+situated at the begining of a digraph as `LookupTable:backward` produces no `gradInput` Tensor.
+
+### dp.Dictionary ###
+Constructs a Dictionary Layer. Arguments should be specified as key-value pairs. 
+Other than the following arguments, those specified in [Layer](#dp.Layer.__init) also apply.
+ * `dict_size` specifies the number of entries in the dictionary (e.g. number of words).
+ * `output_size` specifies the number of neurons per entry. This is also known as the embedding size.
+
+<a name='dp.RecurrentDictionary'/>
+## RecurrentDictionary ##
+Adapts a [Recurrent](https://github.com/clementfarabet/lua---nnx#nnx.Recurrent) 
+Module encapsulating a [LookupTable](https://github.com/torch/nn/blob/master/doc/convolution.md#nn.LookupTable) 
+`input` layer, a [Linear](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Linear) `feedback` layer
+and a non-linear `transfer` layer. In effect, this implements everything but the `output` layer 
+of a Simple Recurrent Neural Network (SRNN), specifically an SRNN used for modeling 
+of temporal sequences, typically language models. 
+
+Due to its recurrent nature, this model has strong ties with other objects,
+including the SentenceSampler and the RecurrentVisitorChain. 
+An experiment combining all three components is examplified in the
+[recurrentneuralnetwork.lua](../examples/recurrentlanguagemodel.lua) script.
+
+<a name='dp.RecurrentDictionary.__init'/>
+### dp.RecurrentDictionary{...} ###
+Constructs a RecurrentDictionary Layer. Arguments should be specified as key-value pairs. 
+Other than the following arguments, those specified in [Layer](#dp.Layer.__init) also apply.
+ * `dict_size` specifies the number of entries in the `input` layer dictionary, i.e. the vocabulary size of the LookupTable.
+ * `output_size` specifies the number of neurons per entry. Also the input and output size of the `feedback` layer.
+ * `rho` specifies the number of time-steps back in time to back-propagate through (refer to [Recurrent](https://github.com/clementfarabet/lua---nnx#nnx.Recurrent)). Defaults to 5.
+ * `transfer` is a transfer Module like [Tanh](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Tanh),
+[Sigmoid](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Sigmoid), [ReLU]([ReLU](https://github.com/torch/nn/blob/master/doc/transfer.md#relu), etc. Defaults to nn.Sigmoid (recommended for RNNs).
 
 <a name='dp.Convolution1D'/>
 ## Convolution1D ##
@@ -166,7 +215,7 @@ Both the `input_view` and `output_view` are _bwc_.
 <a name='dp.Convolution1D.__init'/>
 ### dp.Convolution1D{...} ###
 Constructs a Convolution1D Layer. Arguments should be specified as key-value pairs. 
-Other then the following arguments, those specified in [Layer](#dp.Layer.__init) also apply.
+Other than the following arguments, those specified in [Layer](#dp.Layer.__init) also apply.
  * `input_size` specifies the number of input channels (the size of the word embedding).
  * `output_size` specifies the number of output channels, i.e. the `outputFrameSize`.
  * `kernel_size` is a number specifying the size of the temporal convolution kernel.
@@ -198,10 +247,36 @@ Other then the following arguments, those specified in [Layer](#dp.Layer.__init)
 
 <a name='dp.SoftmaxTree'/>
 ## SoftmaxTree ##
-A hierarchy of parameterized softmaxes. Used for computing the likelihood of a leaf class. Use with [TreeNLL](loss.md#dp.TreeNLL) Loss. Requires a tensor mapping one `parent_id` to many `child_id`. 
+A hierarchy of parameterized softmaxes. Used for computing the likelihood of a leaf class. 
+Should be used with [TreeNLL](loss.md#dp.TreeNLL) Loss. Requires a tensor mapping one `parent_id` to many `child_id`. 
 Greatly accelerates learning and testing for language models with large vocabularies. 
 A vocabulary hierarchy is provided via the [BillionWords](data.md#dp.BillionWords) DataSource.
 
+<a name='dp.SoftmaxTree.__init'/>
+### dp.SoftmaxTree{...} ###
+Constructs a SoftmaxTree Layer. Arguments should be specified as key-value pairs. 
+Other then the following arguments, those specified in [Layer](#dp.Layer.__init) also apply.
+ * `input_size` specifies the number of input neurons, also known as the output embedding size.
+ * `hierarchy` is a table mapping integer `parent_ids` to a tensor of `child_ids`.
+ * `root_id` is an integer specifying the `id` of the root of the tree. Defaults to 1.
+ 
+<a name='dp.MixtureOfExperts'/>
+## MixtureOfExperts ##
+A mixture of MLP experts gated by an MLP gater.
+    
+<a name='dp.MixtureOfExperts.__init'/>
+### dp.MixtureOfExperts{...} ###
+Constructs a MixtureOfExperts Layer. Arguments should be specified as key-value pairs. 
+Other then the following arguments, those specified in [Layer](#dp.Layer.__init) also apply.
+ * `input_size` specifies the number of input neurons.
+ * `n_expert` specifies the number of experts.
+ * `expert_size` is a table outlining number of neurons per expert hidden layer.
+ * `expert_act` is a transfer Module like [Tanh](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Tanh) (the default) that will be used to activate the expert hidden layer(s).
+ * `gater_size` specifies the number of neurons in gater hidden layers.
+ * `gater_act` is a transfer Module like [Tanh](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Tanh) (the default) that will be used to activate the gater's hidden layer(s).
+ * `output_size` specifies the output size of the Model.
+ * `output_act` specifies the output activation Module. Defaults to [LogSoftMax](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.LogSoftMax).
+ 
 <a name='dp.Container'/>
 ## Container ##
 Abstract class inherited by composite [Models](#dp.Model) (see [Composite Design Pattern](https://en.wikipedia.org/wiki/Composite_pattern)).
@@ -230,5 +305,7 @@ Returns the component Model at index `index`.
 
 <a name='dp.Sequential'/>
 ## Sequential ##
-This Container is used for building multi-layer perceptrons (MLP). It has a similar interface to [nn.Sequential](https://github.com/torch/nn/blob/master/doc/containers.md#nn.Sequential), but doesn't use it internally, i.e. dp.Sequential does not adapt nn.Sequential. 
+This Container is used for building multi-layer perceptrons (MLP). It has a 
+similar interface to [nn.Sequential](https://github.com/torch/nn/blob/master/doc/containers.md#nn.Sequential), 
+but doesn't use it internally, i.e. dp.Sequential does not adapt nn.Sequential.
 

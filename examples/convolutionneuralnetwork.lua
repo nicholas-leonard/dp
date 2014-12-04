@@ -107,7 +107,6 @@ for i=1,#opt.channelSize do
    }
    cnn:add(conv)
    inputSize, height, width = conv:outputSize(height, width, 'bchw')
-   print(inputSize, height, width)
    depth = depth + 1
 end
 inputSize = inputSize*height*width

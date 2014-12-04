@@ -31,5 +31,5 @@ blurView = ds:makeTargets(bsView)
 output = dp.SequenceView('bwc', blurView:expand(nTest, 30, 98))
 batch = testSet:sub(1,nTest)
 kaggle:add(batch, output, {}, {})
-kaggle:foundMinima()
+kaggle:errorMinima(true)
 

@@ -60,33 +60,30 @@ function dptest.neural()
       mytester:assertTensorEq(params2[i]:float(), params[i]:float(), 0.00001)
       mytester:assertTensorEq(grads2[i]:float(), grads2[i]:float(), 0.00001)
    end
-   mytester:assert(torch.type(layer._affine.weight) == 'torch.CudaTensor')
+   mytester:assert(torch.type(layer._linear.weight) == 'torch.CudaTensor')
    mytester:assert(layer:inputType() == 'torch.CudaTensor')
    mytester:assert(layer:outputType() == 'torch.CudaTensor')
    mytester:assert(layer:moduleType() == 'torch.CudaTensor')
    local output, carry = layer:forward(input, dp.Carry{nSample=5})
    output:backward('bf', grad_tensor:cuda())
    input = layer:backward(output, carry)
-   layer:setup{mediator=mediator, id=dp.ObjectID('layer')}
    -- nn
    local mlp = nn.Sequential()
    local m = nn.Linear(10,2):cuda()
-   m:share(layer._affine, 'weight', 'bias')
+   m:share(layer._linear, 'weight', 'bias')
    m:double()
    mlp:add(m)
    mlp:add(nn.Tanh())
    local mlp_act = mlp:forward(tensor)
    -- update
-   local visitor = dp.Learn{learning_rate=0.1}
-   visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
-   layer:accept(visitor)
+   layer:updateParameters(0.1)
    mytester:assertTensorEq(tensor, input:forward('bf', 'torch.DoubleTensor'), 0.00001)
    local mlp_grad = mlp:backwardUpdate(tensor, grad_tensor, 0.1)
    -- compare nn and dp
    mytester:assertTensorEq(mlp_act:double(), output:forward('bf', 'torch.DoubleTensor'), 0.00001)
    mytester:assertTensorEq(mlp_grad:double(), input:backward('bf', 'torch.DoubleTensor'), 0.00001)
-   mytester:assertTensorEq(layer._affine.weight:double(), m.weight, 0.00001)
-   mytester:assertTensorEq(layer._affine.bias:double(), m.bias, 0.00001)
+   mytester:assertTensorEq(layer._linear.weight:double(), m.weight, 0.00001)
+   mytester:assertTensorEq(layer._linear.bias:double(), m.bias, 0.00001)
 end
 
 function dptest.sequential()
@@ -108,10 +105,10 @@ function dptest.sequential()
    -- nn
    local mlp = nn.Sequential()
    mlp:add(nn.Linear(10,4))
-   mlp:get(1):share(model:get(1)._affine:double(), 'weight', 'bias')
+   mlp:get(1):share(model:get(1)._linear:double(), 'weight', 'bias')
    mlp:add(nn.Tanh())
    mlp:add(nn.Linear(4,2))
-   mlp:get(3):share(model:get(2)._affine:double(), 'weight', 'bias')
+   mlp:get(3):share(model:get(2)._linear:double(), 'weight', 'bias')
    mlp:add(nn.LogSoftMax())
    local mlp_act = mlp:forward(tensor)
    local mlp_grad = mlp:backward(tensor, grad_tensor)
@@ -149,10 +146,7 @@ function dptest.dictionary()
    mytester:assertTensorEq(mlp_act, output:forward('bwc'):float(), 0.00001)
    -- update
    local act_ten = output:forward('bwc'):clone()
-   local visitor = dp.Learn{learning_rate=0.1}
-   visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
-   layer:accept(visitor)
-   layer:doneBatch()
+   layer:updateParameters(0.1)
    -- forward backward
    output, carry2 = layer:forward(input, dp.Carry{nSample=5})
    output:backward('bwc', grad_tensor:cuda())
@@ -197,9 +191,7 @@ function dptest.convolution2D()
    -- update
    local act_ten = output:forward('bhwc', 'torch.FloatTensor'):clone()
    local grad_ten = input:backward('bhwc', 'torch.FloatTensor'):clone()
-   local visitor = dp.Learn{learning_rate=0.1}
-   visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
-   layer:accept(visitor)
+   layer:updateParameters(0.1)
    layer:doneBatch()
    -- forward backward
    output, carry2 = layer:forward(input, dp.Carry{nSample=8})
@@ -257,9 +249,7 @@ function dptest.softmaxtree()
    local weight = model._module.weight:clone()
    local act_ten = output:forward('bf'):clone()
    local grad_ten = input:backward('bf'):clone()
-   local visitor = dp.Learn{learning_rate=0.1}
-   visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
-   model:accept(visitor)
+   model:updateParameters(0.1)
    local weight2 = model._module.weight
    mytester:assertTensorNe(weight:float(), weight2:float(), 0.00001)
    model:doneBatch()

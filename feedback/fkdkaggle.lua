@@ -59,7 +59,7 @@ end
 
 function FKDKaggle:setup(config)
    parent.setup(self, config)
-   self._mediator:subscribe("foundMinima", self, "foundMinima")
+   self._mediator:subscribe("errorMinima", self, "errorMinima")
 end
 
 function FKDKaggle:_add(batch, output, carry, report)
@@ -92,7 +92,9 @@ function FKDKaggle:_reset()
    self._i = 2
 end
 
-function FKDKaggle:foundMinima()
-   csvigo.save{path=self._path,data=self._submission,mode='raw'}
+function FKDKaggle:errorMinima(found_minima)
+   if found_minima then
+      csvigo.save{path=self._path,data=self._submission,mode='raw'}
+   end
 end
 

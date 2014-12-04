@@ -63,9 +63,9 @@ function Propagator:setup(config)
        'Propagator should not hold a reference to a dataset due to ' ..
        'the propagator\'s possible serialization.'}
    )
-   assert(id.isObjectID)
+   assert(torch.isTypeOf(id, 'dp.ObjectID'))
    self._id = id
-   assert(mediator.isMediator)
+   assert(torch.isTypeOf(mediator, 'dp.Mediator'))
    self._mediator = mediator
    self:setModel(model)
    self._sampler:setup{mediator=mediator, model=model}
@@ -98,6 +98,10 @@ function Propagator:propagateEpoch(dataset, report)
    local sampler = self._sampler:sampleEpoch(dataset)
    while true do
       -- reuse the batch object
+      if batch then
+         assert(torch.type(batch) == 'dp.Batch')
+      end
+      
       batch, i, n = sampler(batch)
       if not batch then 
          -- for aesthetics :
@@ -106,9 +110,11 @@ function Propagator:propagateEpoch(dataset, report)
          end
          break 
       end
+      
       self:propagateBatch(batch, report)
+      
       if self._progress then
-         -- disp progress
+         -- display progress
          xlua.progress(i, n)
       end
       last_n = n
@@ -123,8 +129,7 @@ function Propagator:propagateEpoch(dataset, report)
    self._epoch_duration = sys.clock() - start_time
    self._batch_duration = self._epoch_duration / last_n
    self._example_speed = last_n / self._epoch_duration
-   self._num_batches = last_n / n_batch
-   self._batch_speed = (self._num_batches / self._epoch_duration)
+   self._batch_speed = (n_batch / self._epoch_duration)
    if self._stats then
       print("\n==> epoch size = "..last_n..' examples')
       print("==> batch duration = "..(self._batch_duration*1000)..' ms')
@@ -211,7 +216,7 @@ function Propagator:model()
 end
 
 function Propagator:setObserver(observer)
-   if not torch.typename(observer) and type(observer) == 'table' then
+   if torch.type(observer) == 'table' then
       --if list, make composite observer
       observer = dp.CompositeObserver(observer)
    end
@@ -223,7 +228,7 @@ function Propagator:observer()
 end
 
 function Propagator:setVisitor(visitor)
-   if not torch.typename(visitor) and type(visitor) == 'table' then
+   if torch.type(visitor) == 'table' then
       --if list, make visitor_chain
       visitor = dp.VisitorChain{visitors=visitor}
    end
@@ -235,7 +240,7 @@ function Propagator:visitor()
 end
 
 function Propagator:setFeedback(feedback)
-   if not torch.typename(feedback) and type(feedback) == 'table' then
+   if torch.type(feedback) == 'table' then
       --if list, make visitor_chain
       feedback = dp.CompositeFeedback{feedbacks=feedback}
    end

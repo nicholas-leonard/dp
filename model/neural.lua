@@ -26,9 +26,9 @@ function Neural:__init(config)
    self._input_size = input_size
    self._output_size = output_size
    self._transfer = transfer
-   self._affine = nn.Linear(input_size, output_size)
+   self._linear = nn.Linear(input_size, output_size)
    self._module = nn.Sequential()
-   self._module:add(self._affine)
+   self._module:add(self._linear)
    self._module:add(self._transfer)
    config.typename = typename
    config.output = dp.DataView()

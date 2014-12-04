@@ -20,6 +20,7 @@ cmd:option('--dropout', false, 'apply dropout on hidden neurons, requires "nnx" 
 cmd:option('--dataset', 'Mnist', 'which dataset to use : Mnist | NotMnist | Cifar10 | Cifar100')
 cmd:option('--standardize', false, 'apply Standardize preprocessing')
 cmd:option('--zca', false, 'apply Zero-Component Analysis whitening')
+cmd:option('--progress', false, 'display progress bar')
 cmd:text()
 opt = cmd:parse(arg or {})
 table.print(opt)
@@ -84,7 +85,7 @@ train = dp.Optimizer{
    },
    feedback = dp.Confusion(),
    sampler = dp.ShuffleSampler{batch_size = opt.batchSize},
-   progress = true
+   progress = opt.progress
 }
 valid = dp.Evaluator{
    loss = dp.NLL(),

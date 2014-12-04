@@ -44,8 +44,9 @@ to upsate its internal `self._stats` table of statistics.
 
 <a name="dp.Node.doneBatch"/>
 ### doneBatch(...) ###
-This should be called on completion of each batch propagation. It can reset its internal state for the next batch, accumulate statistics on the batch, 
-zero parameter gradients, etc.
+This should be called on completion of each batch propagation. 
+It can reset its internal state for the next batch, 
+accumulate statistics on the batch.
 
 <a name="dp.Node.doneEpoch"/>
 ### doneEpoch([report,] ...) ###

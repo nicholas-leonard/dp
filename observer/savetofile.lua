@@ -30,6 +30,7 @@ function SaveToFile:filename()
 end
 
 function SaveToFile:save(subject)
+   assert(subject, "SaveToFile not setup error")
    print('SaveToFile: saving to '.. self._filename)
    --save subject to file
    return torch.save(self._filename, subject)

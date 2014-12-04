@@ -11,7 +11,7 @@ RecurrentDictionary.isRecurrentDictionary = true
 
 function RecurrentDictionary:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, dict_size, output_size, transfer, typename
+   local args, dict_size, output_size, rho, transfer, typename
       = xlua.unpack(
       {config},
       'RecurrentDictionary', 
@@ -22,12 +22,13 @@ function RecurrentDictionary:__init(config)
       {arg='output_size', type='number', req=true,
        help='Number of neurons per entry. Also the size of the '..
        'input and output size of the feedback layer'},
+      {arg='rho', type='number', default=5,
+       help='Number of time-steps to back-propagate through'},
       {arg='transfer', type='nn.Module',
        help='a transfer function like nn.Tanh, nn.Sigmoid, etc.'..
        'Defaults to nn.Sigmoid (recommended for RNNs)'},
       {arg='typename', type='string', default='recurrentdictionary', 
        help='identifies Model type in reports.'}
-       
    )
    assert(not config.dropout, 
       "RecurrentDictionary doesn't work with dropout (maybe later)")
@@ -37,13 +38,14 @@ function RecurrentDictionary:__init(config)
    config.sparse_init = false
    self._dict_size = dict_size
    self._output_size = output_size
+   self._rho = rho
    self._transfer = transfer or nn.Sigmoid()
    self._lookup = nn.LookupTable(dict_size, output_size)
    -- by default, we backwardUpdateThroughTime, so delete gradWeights :
    self._lookup:accUpdateOnly()
    self._feedback = nn.Linear(output_size, output_size)
    self._recurrent = nn.Recurrent(
-      output_size, self._lookup, self._feedback, self._transfer
+      output_size, self._lookup, self._feedback, self._transfer, rho
    )
    self._module = self._recurrent
    config.typename = typename
@@ -67,6 +69,10 @@ end
 function RecurrentDictionary:_backward(carry)
    self._module:backward(self:inputAct(), self:outputGrad(), self._acc_scale)
    return carry
+end
+
+function RecurrentDictionary:forget()
+   self._recurrent:forget()
 end
 
 function RecurrentDictionary:_type(type)
@@ -99,7 +105,9 @@ function RecurrentDictionary:parameters()
       for k,nBackward in pairs(self._lookup.inputs) do
          local kscale = self._lookup:scaleUpdateByKey(k)
          params[offset+k] = self._lookup.weight:select(1, k)
-         gradParams[offset+k] = self._lookup.gradWeight:select(1, k)
+         if not self._acc_update then -- will always be false (for now)
+            gradParams[offset+k] = self._lookup.gradWeight:select(1, k)
+         end
          scales[offset+k] = self._lookup:scaleUpdateByKey(k)
       end
    end
@@ -129,6 +137,10 @@ function RecurrentDictionary:maxNorm(max_out_norm, max_in_norm)
          end
       end
    end
+end
+
+function RecurrentDictionary:zeroGradParameters()
+   self._lookup:zeroGradParameters() -- to reset the inputs table
 end
 
 function RecurrentDictionary:updateParameters(lr)

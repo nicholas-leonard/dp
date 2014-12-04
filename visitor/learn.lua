@@ -13,8 +13,10 @@ function Learn:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, learning_rate, name = xlua.unpack(
       {config},
-      'Learn', nil,
-      {arg='learning_rate', type='number', req=true},
+      'Learn', 
+      'Updates model parameters using gradients',
+      {arg='learning_rate', type='number', req=true,
+       help='learning rate of parameters updates'},
       {arg='name', type='string', default='learn',
        help='identifies visitor in reports.'}
    )
@@ -29,20 +31,23 @@ end
 
 function Learn:_visitModel(model)
    if not self:canVisit(model) then return end
+   
+   -- learning rates can be scaled by Model
+   local learn_scale = model.mvstate.learn_scale
+   local learn_rate = self._learning_rate
+   if learn_scale then
+      learn_rate = learn_rate * learn_scale
+   end
+   
    if model.updateParameters then
-      model:updateParameters(self._learning_rate)
+      model:updateParameters(learn_rate)
       return
    end
+   
    local params, gradParams, scales = model:parameters()
-   local mvstate = model.mvstate
    for k, param in pairs(params) do
-      -- learning rates can be scaled by Model or Parameter
-      local learn_rate = self._learning_rate
-      if mvstate.learn_scale then
-         learn_rate = learn_rate * mvstate.learn_scale
-      end
       if scales and scales[k] then
-         -- this is useful when each param has a different scale
+         -- parameters each have different scales
          learn_rate = learn_rate * scales[k]
       end
       param:add(-learn_rate, gradParams[k])
@@ -50,9 +55,16 @@ function Learn:_visitModel(model)
 end
 
 function Learn:setLearningRate(learning_rate)
+   if self._verbose then
+      print("Learning rate = "..learning_rate)
+   end
    self._learning_rate = learning_rate
 end
 
 function Learn:learningRate()
    return self._learning_rate
+end
+
+function Learn:scaleLearningRate(scale)
+   self:setLearningRate(self._learning_rate * scale)
 end

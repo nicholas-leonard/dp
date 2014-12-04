@@ -1,6 +1,6 @@
 ------------------------------------------------------------------------
 --[[ WeightDecay ]]--
--- ModelVisitor
+-- Visitor
 -- Decays the weight of the visited parameterized models.
 ------------------------------------------------------------------------
 local WeightDecay, parent = torch.class("dp.WeightDecay", "dp.Visitor")

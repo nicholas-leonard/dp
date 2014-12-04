@@ -68,10 +68,9 @@ function SoftmaxForest:__init(config)
 end
 
 function SoftmaxForest:zeroGradParameters()
+   -- SoftMaxTrees won't zeroGrad but will erase updates table
+   self._experts:zeroGradParameters()
    if not self._acc_update then
-      for i=1,self._experts:size() do
-         self._experts:get(i):zeroGradParameters(true)
-      end
       self._gater:zeroGradParameters()      
    end
 end

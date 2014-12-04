@@ -413,18 +413,21 @@ prepared when a new minima is discovered by the EarlyStopper. Almost
 all objects part of an Experiment can communicate via the Mediator 
 [Singleton](https://en.wikipedia.org/wiki/Singleton_pattern). Listeners 
 need only subscribe to a channel and register a callback. In this case, both 
-have the same name: `foundMinima`. The EarlySopper notifies the `foundMinima` 
-channel (via the Mediator) every time a new minima is found and this gets 
-results in all registered callbacks being activated. In our case, this 
+have the same name: `errorMinima`. The EarlySopper notifies the `errorMinima` 
+channel (via the Mediator) every epoch, which results in all registered 
+callbacks being notified. If a new minima is found, it passes the 
+first argument as true, otherwise its false. In our case, this 
 means the CSV file is created: 
 ```lua
 function FKDKaggle:setup(config)
    parent.setup(self, config)
-   self._mediator:subscribe("foundMinima", self, "foundMinima")
+   self._mediator:subscribe("errorMinima", self, "errorMinima")
 end
 
-function FKDKaggle:foundMinima()
-   csvigo.save{path=self._path,data=self._submission,mode='raw'}
+function FKDKaggle:errorMinima(found_minima)
+   if found_minima then
+      csvigo.save{path=self._path,data=self._submission,mode='raw'}
+   end
 end
 ```
 

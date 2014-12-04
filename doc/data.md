@@ -196,15 +196,17 @@ A constructor having the following arguments:
 
 <a name="dp.SentenceSampler"/>
 ## SentenceSampler ##
-A subclass of [Sampler](#dp.Sampler) which iterates over parallel sentences of equal size one word at a time.
+A subclass of [Sampler](#dp.Sampler) which iterates over parallel 
+sentences of equal size one word at a time.
 The sentences sizes are iterated through randomly.
+Publishes to the `"beginSequence"` [Mediator](mediator.md#dp.Mediator) 
+[Channel](mediator.md#dp.Channel) before each new Sequence, which prompts 
+the recurrent [Models](model.md#dp.Model) to forget the previous sequence of inputs.
+Note that `epoch_size` only garantees the minimum number of samples per epoch (more could be sampled).
 Used for [Recurrent Neural Network Language Models](https://github.com/nicholas-leonard/dp/blob/master/examples/recurrentlanguagemodel.lua).
  
 <a name='dp.SentenceSampler.__init'/>
 ### dp.SentenceSampler{evaluate} ###
-In evaluation mode (`evaluate=true`), publishes to the "beginSequence" Mediator 
-channel before each new Sequence. This prompts the Recurrent Models 
-to forget the previous sequence of inputs. 
-In training mode (`evaluate=false`), publishes to "doneSequence" 
-channel to advise RecurrentVisitorChain to visit the model after 
-each sequence is propagated.
+In training mode (`evaluate=false`), the object publishes to the 
+`"doneSequence"` Channel to advise the [RecurrentVisitorChain](visitor.md#dp.RecurrentVisitorChain) 
+to visit the model after the current batch (the last of the sequence) is propagated.

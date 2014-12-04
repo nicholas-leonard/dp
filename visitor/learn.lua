@@ -69,5 +69,5 @@ function Learn:learningRate()
 end
 
 function Learn:scaleLearningRate(scale)
-   self._learning_rate = self._learning_rate * scale
+   self:setLearningRate(self._learning_rate * scale)
 end

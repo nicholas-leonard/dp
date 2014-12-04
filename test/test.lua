@@ -1122,7 +1122,31 @@ function dptest.errorminima()
    mytester:assert(recv_count == 3, "ErrorMinima recv_count error")
    mytester:assert(minima == 7, "ErrorMinima minima error")
    mytester:assert(minima_epoch == 15, "ErrorMinima epoch error")
+end
+
+function dptest.adaptivelearningrate()
+   local lr = 20
+   local mediator = dp.Mediator()
+   local m = dp.AdaptiveLearningRate{max_wait=1,decay_factor=0.1}
+   local visitor = dp.Learn{learning_rate=lr, verbose=false, observer=m}
+   visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
    
+   for epoch=1,10 do
+      if epoch % 3 == 0 then
+         mediator:publish('errorMinima', true)
+      else
+         mediator:publish('errorMinima', false)
+      end
+   end
+   lr = lr*(0.1^3)
+   mytester:assert(visitor:learningRate() == lr, "AdaptiveLearningRate learningRate error 1")
+   
+   mediator:publish('errorMinima', true)
+   mytester:assert(visitor:learningRate() == lr, "AdaptiveLearningRate learningRate error 2")
+   for epoch=1,10 do
+      mediator:publish('errorMinima', false)
+   end
+   mytester:assert(math.abs(visitor:learningRate() - lr*(0.1^5)) < 0.00001, "AdaptiveLearningRate learningRate error 3")
 end
 
 function dptest.learn()

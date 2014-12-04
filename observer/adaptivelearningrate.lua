@@ -1,6 +1,6 @@
 ------------------------------------------------------------------------
 --[[ AdaptiveLearningRate ]]--
--- Observer that onnly works on dp.Learn subject
+-- Observer that only works on dp.Learn subject
 -- Decays learning rate when error on validation doesn't reach a new 
 -- minima for max_wait epochs.
 -- Should observe in conjuction with a dp.ErrorMinima instance (such as 
@@ -15,7 +15,7 @@ function AdaptiveLearningRate:__init(config)
       = xlua.unpack(
       {config},
       'AdaptiveLearningRate', 
-      'Decays learning rate when error on validation does not reach '..
+      'Decays learning rate when validation set does not reach '..
       'a new minima for max_wait epochs',
       {arg='max_wait', type='number', default=2,
        help='maximum number of epochs to wait for a new minima ' ..
@@ -35,8 +35,11 @@ end
 
 function AdaptiveLearningRate:errorMinima(found_minima)
    self._wait = found_minima and 0 or self._wait + 1
-   if self._max_wait <= self._wait then
-      self._subject:scaleLearningRate(self._decay_factor)   
+   
+   if self._max_wait < self._wait then
+      self._subject:scaleLearningRate(self._decay_factor) 
+      self._wait = 0  
    end
 end
+
 

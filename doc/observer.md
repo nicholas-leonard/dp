@@ -4,6 +4,7 @@ The following Observers are available:
   * [ErrorMinima](#dp.ErrorMinima) : monitors an error variable to keep track of its minima.
    * [EarlyStopper](#dp.EarlyStopper) : upon reaching minima, saves [Experiment](experiment.md#dp.Experiment) and notifies [Subscribers](mediator.md#dp.Subscriber);
   * [LearningRateSchedule](#dp.LearningRateSchedule) : modifies learning rate using a schedule;
+  * [AdaptiveLearningRate](#dp.AdaptiveLearningRate) : decays learning rate when new minima on validation error isn't found;
   * [Logger](#dp.Logger) : abstract logging class (prints reports to cmdline);
    * [FileLogger](#dp.FileLogger) : basic file-based report logging;
   * [CompositeObserver](#dp.CompositeObserver) : a composite of observers;
@@ -71,6 +72,38 @@ Other then the following arguments, those specified in [ErrorMinima](#dp.ErrorMi
 
 <a name="dp.LearningRateSchedule"/>
 ## LearningRateSchedule ##
+An Observer that only works on [Learn](visitor.md#dp.Learn) subject. 
+It decays its subject's learning rate according to a schedule.
+
+<a name="dp.LearningRateSchedule.__init"/>
+### dp.LearningRateSchedule{schedule} ###
+Constructs an LearningRateSchedule Observer. The argument should be specified as key-value pairs.
+ * `schedule` is a table or a Tensor where epochs are keys, and learning rates are values. At each epoch having a key in the table, the subject's learning rate is set to its corresponding value. 
+
+<a name="dp.AdaptiveLearningRate"/>
+## AdaptiveLearningRate ##
+An Observer that only works on a [Learn](visitor.md#dp.Learn) subject.
+It decays learning rate by `decay_factor` when validation error doesn't reach a new 
+minima for `max_wait` epochs. This object should observe in conjuction with an 
+[ErrorMinima](#dp.ErrorMinima) instance, such as [EarlyStopper](#dp.EarlyStopper).
+
+As example, suppose the object is initialized with `decay_factor=0.5` 
+and `max_wait=1`, while the subject is initialized with `learning_rate=10`. 
+If the sequence of errors is 
+```lua
+10, 9, 8, 8, 8, 8, 9, 7, 7, 8
+```
+then the corresponding sequence of learning rates given these errors would be
+```lua
+10, 10, 10, 10, 1, 1, 0.1, 0.1, 0.1, 0.01
+```
+ 
+<a name="dp.AdaptiveLearningRate.__init"/>
+### dp.AdaptiveLearningRate{...} ###
+Constructs an AdaptiveLearningRate Observer. Arguments should be specified as key-value pairs.
+Other then the following arguments, those specified in [Observer](#dp.Observer.__init) also apply.
+ * `max_wait` specifies the maximum number of epochs to wait for a new minima to be found. After that, the learning rate is decayed by `decay_factor`. Defaults to 2.
+ * `decay_factor` specifies the factor by which learning rate `lr` is decayed as per : `lr = lr*decay_factor`.
 
 <a name="dp.Logger"/>
 ## Logger ##

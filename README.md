@@ -70,10 +70,6 @@ For CUDA:
 ```shell
 $> sudo luarocks install cunnx
 ```
-For LAPACK (then recompile torch):
-```shell
-$> sudo apt-get install liblapack-dev
-```
 For PostgresSQL:
 ```shell
 $> sudo apt-get install libpq-dev

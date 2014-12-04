@@ -77,7 +77,8 @@ in the [VisitorChain](#dp.VisitorChain)
 
 <a name="dp.VisitorChain"/> 
 ## VisitorChain ##
-A chain of Visitors to be executed sequentially. The order of encapsulated visitors is important.
+A chain of Visitors to be executed sequentially. 
+The order of encapsulated visitors is important.
 
 <a name="dp.VisitorChain.__init"/>
 ### dp.VisitorChain{visitors} ###
@@ -92,6 +93,7 @@ Subscribes to Mediator channel `"doneSequence"`. When this channel is notified,
 the next time this visitor is [accepted](model.md#dp.Model.accept) by the model, 
 the contained visitors will update (visit) it. 
 Otherwise, the model is visited every `visit_interval` epochs.
+Used for [Recurrent Neural Network Language Models](https://github.com/nicholas-leonard/dp/blob/master/examples/recurrentlanguagemodel.lua).
 
 <a name="dp.RecurrentVisitorChain.__init"/>
 ### dp.RecurrentVisitorChain{...} ###

@@ -9,7 +9,7 @@ on which it operates (in effect, implementing [double-dispatch](https://en.wikip
    * [WeightDecay](#dp.WeightDecay) : regularization using soft constraint on norm of weights;
    * [Momentum](#dp.Momentum) : adds momentum to parameter gradients.
    * [VisitorChain](#dp.VisitorChain) : a chain of visitors where the order is important;
-    * [RecurrentVisitorChain](#dp.RecurrentVisitorChain) : used by recurrent Models to visit sequences of batches;
+     * [RecurrentVisitorChain](#dp.RecurrentVisitorChain) : used by recurrent Models to visit sequences of batches;
 
 <a name="dp.Visitor"/>
 ## Visitor ##

@@ -1,6 +1,6 @@
 ------------------------------------------------------------------------
 --[[ MaxNorm ]]--
--- ModelVisitor
+-- Visitor
 -- Hard constraint on the upper bound of the norm of output and/or input
 -- neuron weights (in a weight matrix). Has a regularization effect 
 -- analogous to WeightDecay, but with easier to optimize 

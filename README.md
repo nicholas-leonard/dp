@@ -58,7 +58,7 @@ or install it locally:
 ```shell
 $> luarocks install dp --local
 ```
-or clone and make it:
+or clone and make it (recommended):
 ```shell
 $> git clone git@github.com:nicholas-leonard/dp.git
 $> cd dp

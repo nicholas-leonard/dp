@@ -23,6 +23,7 @@ Unlike Modules, Models should be parameterized (although this isn't strictly enf
 shouldn't be specified in their own dedicated Model. Instead, we encourage that Models use Transfer Modules after parameterized Modules like 
 [Linear](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Linear) or [SpatialConvolution](https://github.com/torch/nn/blob/master/doc/convolution.md#nn.SpatialConvolution).
 
+<a name="dp.Model.__init"/>
 ### dp.Model{typename, [tags, mvstate]} ###
 Constructs a Model. Arguments should be specified as key-value pairs. Other then the following 
 arguments, those specified in [Node](node.md#dp.Node.__init) also apply.

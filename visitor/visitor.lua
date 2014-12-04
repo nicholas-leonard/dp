@@ -10,7 +10,7 @@ Visitor.isVisitor = true
 
 function Visitor:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, name, zero_grads, include, exclude, observer 
+   local args, name, zero_grads, include, exclude, observer, verbose 
       = xlua.unpack(
       {config},
       'Visitor', 
@@ -32,12 +32,15 @@ function Visitor:__init(config)
        'visited, even if the member is in the include table, ' ..
        'i.e. exclude has precedence over include. Defaults to {}'},
       {arg='observer', type='dp.Observer', 
-       help='observer that is notified when an event occurs.'}
+       help='observer that is notified when an event occurs.'},
+      {arg='verbose', type='boolean', default=true,
+       help='can print messages to stdout'}
    )
    self._name = name
    self._zero_grads = zero_grads
    self._exclude = (exclude == '') and {} or exclude
    self._include = include
+   self._verbose = verbose
    self:setObserver(observer)
 end
 

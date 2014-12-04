@@ -11,7 +11,8 @@ function VisitorChain:__init(config)
       {config},
       'VisitorChain', 
       'A composite chain of visitors. The order is important.',
-      {arg='visitors', type='table', req=true}
+      {arg='visitors', type='table', req=true,
+       help='sequence of visitors to apply to visited models'}
    )
    config.name = 'visitorchain'
    parent.__init(self, config)

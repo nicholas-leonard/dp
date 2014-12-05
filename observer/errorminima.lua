@@ -73,9 +73,10 @@ function ErrorMinima:compareError(current_error, ...)
          self._minima_epoch = self._epoch
          found_minima = true
       end
-   end
-   if self._notify then
-      self._mediator:publish("errorMinima", found_minima, self)
+      
+      if self._notify then
+         self._mediator:publish("errorMinima", found_minima, self)
+      end
    end
    return found_minima, current_error
 end

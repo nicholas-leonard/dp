@@ -19,11 +19,6 @@ end
 typepattern = torch.typepattern
 -- END
 
--- TODO : PR to torch for added isTensor = true to userdata metatable
-function torch.isTensor(obj)
-   return torch.typepattern(obj, "^torch[.]%a*Tensor$")
-end
-
 function torch.typeString_to_tensorType(type_string)
    if type_string == 'cuda' then
       return 'torch.CudaTensor'

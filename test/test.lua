@@ -1221,6 +1221,35 @@ function dptest.recurrentvisitorchain()
    end
 end
 
+function dptest.savetofile()
+   local mediator = dp.Mediator()
+   local stf = dp.SaveToFile{in_memory=true,verbose=false}
+   local subject = {
+      tensor=torch.randn(3,4), stf=stf,
+      id=function()return{toPath=function()return'test462346';end};end
+   }
+   stf:setup(subject, mediator)
+   local path = paths.concat(stf._save_dir, stf._filename)
+   if paths.filep(path) then
+      os.execute('rm '..path)
+   end
+   stf:save(subject)
+   mediator:publish("doneExperiment")
+   mytester:assert(paths.filep(path), "file doesn't exist")
+   local saved_subject = torch.load(path)
+   mytester:assert(not saved_subject.stf._save_cache, "cache was saved")
+   mytester:assertTensorEq(subject.tensor, saved_subject.tensor, 0.000001, "tensor not saved")
+   
+   stf = saved_subject.stf
+   mediator = saved_subject.stf._mediator
+   subject = saved_subject
+   subject.tensor = torch.randn(3,4)
+   stf:save(subject)
+   mediator:publish("doneExperiment")
+   local saved_subject = torch.load(path)
+   mytester:assertTensorEq(subject.tensor, saved_subject.tensor, 0.000001, "tensor not re saved")
+end
+
 function dp.test(tests)
    math.randomseed(os.time())
    mytester = torch.Tester()

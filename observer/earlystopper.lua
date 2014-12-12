@@ -38,7 +38,7 @@ end
 
 function EarlyStopper:setup(config)
    parent.setup(self, config)
-   self._save_strategy:setup(self._subject)
+   self._save_strategy:setup(self._subject, self._mediator)
 end
 
 function EarlyStopper:compareError(current_error, ...)

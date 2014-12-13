@@ -25,7 +25,8 @@ function NotMnist:__init(config)
          target_preprocess
       = xlua.unpack(
       {config},
-      'NotMnist', nil,
+      'NotMnist', 
+      'A 500k+ example alternative to MNIST using unicode fonts.',
       {arg='valid_ratio', type='number', default=1/6,
        help='proportion of training set to use for cross-validation.'},
       {arg='train_dir', type='string', default='notMNIST_large',

@@ -1,82 +1,82 @@
-require 'torch'
+
 local ffi = require 'ffi'
 local dir = require 'pl.dir'
 local tablex = require 'pl.tablex'
 local argcheck = require 'argcheck'
 require 'sys'
 local gm = require 'graphicsmagick'
+------------------------------------------------------------------------
+--[[ ImageNet ]]--
+-- http://image-net.org/challenges/LSVRC/2014/download-images-5jj5.php
+-- Wraps the Large Scale Visual Recognition Challenge 2014 (ILSVRC2014)
+-- classification dataset (commonly known as ImageNet). The dataset
+-- hasn't changed from 2012-2014.
 
-local dataset = torch.class('chex.dataset')
+-- A dataset class for images in a flat folder structure :
+-- [pathtodata]/[class]/[imagename].JPEG  (folder-name is class-name)
+-- Optimized for extremely large datasets (14 million images+).
+-- Tested only on Linux (as it uses command-line linux utilities to 
+-- scale up to 14 million+ images)
+------------------------------------------------------------------------
+local ImageNet, DataSource = torch.class("dp.ImageNet", "dp.DataSource")
 
-local initcheck = argcheck{
-   pack=true,
-   help=[[
-     A dataset class for images in a flat folder structure (folder-name is class-name).
-     Optimized for extremely large datasets (upwards of 14 million images).
-     Tested only on Linux (as it uses command-line linux utilities to scale up to 14 million+ images)
-]],
-   {check=function(paths) 
-       local out = true; 
-       for k,v in ipairs(paths) do 
-          if type(v) ~= 'string' then 
-             print('paths can only be of string input'); 
-             out = false 
-          end 
-       end
-       return out
-   end,
-    name="paths",
-    type="table",
-    help="Multiple paths of directories with images"}, 
+ImageNet._name = 'ImageNet'
+ImageNet._image_axes = 'bhwc'
+ImageNet._structured_url = 'http://www.image-net.org/api/xml/structure_released.xml'
 
-   {name="sampleSize",
-    type="table",
-    help="a consistent sample size to resize the images"},
+function ImageNet:__init(config)
+   config = config or {}
+   assert(torch.type(config) == 'table' and not config[1], 
+      "Constructor requires key-value arguments")
+   local load_all, input_preprocess, target_preprocess
+   self._args, self._load_size, self._sample_size, self._sampling_mode, 
+      self._data_path, self._train_dir, self._valid_dir, self._test_dir, 
+      self._verbose, self._sample_hook_train, self._sample_hook_test,
+      self._download_url, load_all, input_preprocess, 
+      target_preprocess
+      = xlua.unpack(
+      {config},
+      'ImageNet',
+      'ILSVRC2012-14 image classification dataset',
+      {arg='load_size', type='table',
+       help='a size to load the images to, initially'},
+      {arg='sample_size', type='table',
+       help='a consistent sample size to resize the images'},
+      {arg='sampling_mode',type='string', default = 'balanced',
+       help='Sampling mode: random | balanced '},
+      {arg='data_path', type='table | string', default=dp.DATA_DIR,
+       help='one or many paths of directories with images'},
+      {arg='train_dir', type='string', default='ILSVRC2012_img_train',
+       help='name of train_dir'},
+      {arg='valid_dir', type='string', default='ILSVRC2012_img_val',
+       help='name of valid_dir'},
+      {arg='test_dir', type='string', default='ILSVRC2012_img_test',
+       help='name of test_dir'},
+      {arg='verbose', type='boolean', default = false,
+       help='Verbose mode during initialization'},
+      {arg='sample_hook_train', type='function',
+       help='applied to sample during training(ex: for lighting jitter). '
+       .. 'It takes the image path as input'},
+      {arg='sample_hook_test', type='function', 
+       help='applied to sample during testing'},
+      {arg='download_url', type='string',
+       default='http://yaroslavvb.com/upload/notMNIST/',
+       help='URL from which to download dataset if not found on disk.'},
+      {arg='load_all', type='boolean', 
+       help='Load all datasets : train, valid, test.', default=true},
+      {arg='input_preprocess', type='table | dp.Preprocess',
+       help='to be performed on set inputs, measuring statistics ' ..
+       '(fitting) on the train_set only, and reusing these to ' ..
+       'preprocess the valid_set and test_set.'},
+      {arg='target_preprocess', type='table | dp.Preprocess',
+       help='to be performed on set targets, measuring statistics ' ..
+       '(fitting) on the train_set only, and reusing these to ' ..
+       'preprocess the valid_set and test_set.'}  
+   }
 
-   {name="split",
-    type="number",
-    help="Percentage of split to go to Training",
-    default = 90},
-
-   {name="samplingMode",
-    type="string",
-    help="Sampling mode: random | balanced ",
-    default = "balanced"},
-
-   {name="verbose",
-    type="boolean",
-    help="Verbose mode during initialization",
-    default = false},
-
-   {name="loadSize",
-    type="table",
-    help="a size to load the images to, initially",
-    opt = true},
-
-   {name="sampleHookTrain",
-    type="function",
-    help="applied to sample during training(ex: for lighting jitter). "
-       .. "It takes the image path as input",
-    opt = true},
-
-   {name="sampleHookTest",
-    type="function", 
-    help="applied to sample during testing",
-    opt = true},
-}
-
-function dataset:__init(...)
+   self._load_size = self.load_size or self._sample_size
+   self._data_path = torch.type(self._data_path) == 'string' and {self._data_path) or self._data_path
    
-   -- argcheck
-   local args = initcheck(...)
-   print(args)
-   for k,v in pairs(args) do self[k] = v end   
-
-   if not self.loadSize then self.loadSize = self.sampleSize; end
-
-   if not self.sampleHookTrain then self.sampleHookTrain = self.defaultSampleHook end
-   if not self.sampleHookTest then self.sampleHookTest = self.defaultSampleHook end
-
    -- find class names
    self.classes = {}
    -- loop over each paths folder, get list of unique class names, 
@@ -269,8 +269,20 @@ function dataset:__init(...)
    end
 end
 
+function ImageNet:loadStructure()
+   local path = DataSource.getDataPath{
+      name=self._name, url=self._structured_url, 
+      decompress_file='structure_released.xml', 
+      data_dir=self._data_path
+   }
+   -- sudo luarocks install xml
+   local xml = require 'xml'
+   local structure = xml.loadpath(path)
+   return structure
+end
+
 -- size(), size(class)
-function dataset:size(class, list)
+function ImageNet:size(class, list)
    list = list or self.classList
    if not class then
       return self.numSamples
@@ -282,7 +294,7 @@ function dataset:size(class, list)
 end
 
 -- size(), size(class)
-function dataset:sizeTrain(class)
+function ImageNet:sizeTrain(class)
    if self.split == 0 then
       return 0;
    end
@@ -294,7 +306,7 @@ function dataset:sizeTrain(class)
 end
 
 -- size(), size(class)
-function dataset:sizeTest(class)
+function ImageNet:sizeTest(class)
    if self.split == 100 then
       return 0
    end
@@ -306,7 +318,7 @@ function dataset:sizeTest(class)
 end
 
 -- by default, just load the image and return it
-function dataset:defaultSampleHook(imgpath)
+function ImageNet:defaultSampleHook(imgpath)
    local out = gm.Image()
    out:load(imgpath, self.loadSize[3], self.loadSize[2])
    :size(self.sampleSize[3], self.sampleSize[2])
@@ -315,7 +327,7 @@ function dataset:defaultSampleHook(imgpath)
 end
 
 -- getByClass
-function dataset:getByClass(class)
+function ImageNet:getByClass(class)
    local index = math.ceil(torch.uniform() * self.classListSample[class]:nElement())
    local imgpath = ffi.string(torch.data(self.imagePath[self.classListSample[class][index]]))
    return self:sampleHookTrain(imgpath)
@@ -348,7 +360,7 @@ local function tableToOutput(self, dataTable, scalarTable)
 end
 
 -- sampler, samples from the training set.
-function dataset:sample(quantity)
+function ImageNet:sample(quantity)
    if self.split == 0 then 
       error('No training mode when split is set to 0') 
    end
@@ -365,7 +377,7 @@ function dataset:sample(quantity)
    return data, scalarLabels, labels      
 end
 
-function dataset:get(i1, i2)
+function ImageNet:get(i1, i2)
    local indices, quantity
    if type(i1) == 'number' then
       if type(i2) == 'number' then -- range of indices
@@ -396,7 +408,7 @@ function dataset:get(i1, i2)
    return data, scalarLabels, labels
 end
 
-function dataset:test(quantity)
+function ImageNet:test(quantity)
    if self.split == 100 then
       error('No test mode when you are not splitting the data')
    end

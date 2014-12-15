@@ -1,4 +1,5 @@
 require 'torch'
+require 'torchx'
 require 'nn'
 require 'nnx'
 require 'string'

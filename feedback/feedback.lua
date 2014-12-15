@@ -6,26 +6,6 @@
 -- Like observers they may also publish/subscribe to mediator channels.
 -- When serialized with the model, they may also be unserialized to
 -- generate graphical reports (see Confusion).
-
--- Discussion :
--- Need a way to inform components of error for various feedback units
--- For logging, report will be enough, but for samplers, models and such
--- that require access to the error of individual examples for every 
--- epoch, its not enough. 
--- First solution is to allow for feedback to modify batch object that 
--- will be returned during backwards pass. Second solution would be 
--- to use the mediator : have feedback publish individual errors, 
--- have model subscribe to this channel. The second solution is much 
--- more flexible, in that it doesn't require the Batch object to have 
--- preimplemented methods. Furthermore, we could save ourselves the 
--- hasle of reimplementing the criteria, by making the Feedback a 
--- propagator constructor parameter. It receives outputs, targets, 
--- can measure error and send it back. If this proves insufficiently
--- flexible
-
--- TODO :
--- Feedbacks publish feedback to channels which visitors, models, etc 
---    can subscribe to
 ------------------------------------------------------------------------
 local Feedback = torch.class("dp.Feedback")
 Feedback.isFeedback = true
@@ -35,7 +15,7 @@ function Feedback:__init(config)
    local args, name = xlua.unpack(
       {config},
       'Feedback', 
-      'strategies for processing predictions and targets.',
+      'Strategies for processing predictions and targets.',
       {arg='name', type='string', req=true,
        help='used to identify report'}
    )
@@ -70,7 +50,7 @@ function Feedback:id()
 end
 
 function Feedback:name()
-   return self._id:name()
+   return self._id and self._id:name() or self._name or ''
 end
 
 --accumulates information from the batch

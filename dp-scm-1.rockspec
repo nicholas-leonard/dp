@@ -18,6 +18,7 @@ designed for streamlining research and development using the Torch7 distribution
 
 dependencies = {
    "torch >= 7.0",
+   "torchx >= 1.0",
    "optim >= 1.0.5",
    "moses >= 1.3.1",
    "nnx >= 0.1",

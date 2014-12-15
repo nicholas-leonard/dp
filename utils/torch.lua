@@ -52,58 +52,6 @@ function torch.protoClone(proto, ...)
    return class(...)
 end
 
--- torch.concat([res], tensors, [dim])
-function torch.concat(result, tensors, dim, index)
-   index = index or 1
-   if type(result) == 'table' then
-      index = dim or 1
-      dim = tensors
-      tensors = result
-      result = torch.protoClone(tensors[index])
-   elseif result == nil then
-      assert(type(tensors) == 'table', "expecting table at arg 2")
-      result = torch.protoClone(tensors[index])
-   end
-   
-   assert(_.all(tensors, 
-      function(k,v) 
-         return torch.isTensor(v) 
-      end),
-      "Expecting table of torch.tensors at arg 1 and 2 : "..torch.type(result)
-   )
-   
-   dim = dim or 1
-
-   local size
-   for i,tensor in ipairs(tensors) do
-      if not size then
-         size = tensor:size():totable()
-         size[dim] = 0
-      end
-      for j,v in ipairs(tensor:size():totable()) do
-         if j == dim then
-            size[j] = (size[j] or 0) + v
-         else
-            if size[j] and size[j] ~= v then
-               error(
-                  "Cannot concat dim "..j.." with different sizes: "..
-                  (size[j] or 'nil').." ~= "..(v or 'nil')..
-                  " for tensor at index "..i, 2
-               )
-            end
-         end
-      end
-   end
-   
-   result:resize(unpack(size))
-   local start = 1
-   for i, tensor in ipairs(tensors) do
-      result:narrow(dim, start, tensor:size(dim)):copy(tensor)
-      start = start+tensor:size(dim)
-   end
-   return result
-end
-
 function torch.swapaxes(tensor, new_axes)
 
    -- new_axes : A table that give new axes of tensor, 

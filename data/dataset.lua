@@ -1,7 +1,6 @@
 ------------------------------------------------------------------------
 --[[ DataSet ]]--
 -- BaseSet subclass
--- Not Serializable
 -- Contains inputs and optional targets. Used for training or
 -- evaluating a model. Inputs and targets are tables of Views.
 

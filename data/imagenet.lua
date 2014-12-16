@@ -75,26 +75,28 @@ function ImageNet:__init(config)
    }
 
    self._load_size = self.load_size or self._sample_size
-   self._data_path = torch.type(self._data_path) == 'string' and {self._data_path) or self._data_path
+   self._data_path = torch.type(self._data_path) == 'string' 
+      and {self._data_path) or self._data_path
    
    -- find class names
-   self.classes = {}
+   self._classes = {}
    -- loop over each paths folder, get list of unique class names, 
    -- also store the directory paths per class
    -- for each class, 
    local classPaths = {}
-   for k,path in ipairs(self.paths) do
-      local dirs = dir.getdirectories(path);
-      for k,dirpath in ipairs(dirs) do
-         local class = paths.basename(dirpath)
-         local idx = tablex.find(self.classes, class)
-         if not idx then
-            table.insert(self.classes, class)
-            idx = #self.classes
-            classPaths[idx] = {}
-         end
-         if not tablex.find(classPaths[idx], dirpath) then
-            table.insert(classPaths[idx], dirpath);
+   local classes = {}
+   for k,path in ipairs(self._data_path) do
+      for k,class in lfs.dir(path) do
+         if #class > 2 and not classes[class] then
+            local class = paths.basename(dirpath)
+            if not idx then
+               table.insert(self._classes, class)
+               idx = #self.classes
+               classPaths[idx] = {}
+            end
+            if not tablex.find(classPaths[idx], dirpath) then
+               table.insert(classPaths[idx], dirpath);
+            end
          end
       end
    end

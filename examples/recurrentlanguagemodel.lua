@@ -43,11 +43,19 @@ cmd:option('--progress', false, 'print progress bar')
 
 version = 3
 
+cmd:option('--xpPath', '', 'path to a previously saved model')
+
 cmd:text()
 opt = cmd:parse(arg or {})
 opt.updateInterval = opt.updateInterval == -1 and opt.rho or opt.updateInterval
 table.print(opt)
+
 opt.lrScales = table.fromString(opt.lrScales)
+
+if opt.xpPath ~= '' then
+   -- check that saved model exists
+   assert(paths.filep(opt.xpPath), opt.xpPath..' does not exist')
+end
 
 --[[data]]--
 local train_file = 'train_data.th7' 
@@ -62,6 +70,22 @@ datasource:loadTrain()
 if not opt.trainOnly then
    datasource:loadValid()
    datasource:loadTest()
+end
+
+--[[Saved experiment]]--
+if opt.xpPath ~= '' then
+   if opt.cuda then
+      require 'cutorch'
+      require 'cunn'
+      require 'cunnx'
+      cutorch.setDevice(opt.useDevice)
+   end
+   xp = torch.load(opt.xpPath)
+   if opt.cuda then
+      xp:cuda()
+   end
+   xp:run(datasource)
+   os.exit()
 end
 
 --[[Model]]--

@@ -39,7 +39,7 @@ function ImageClassSet:__init(config)
    self._sampling_mode = sampling_mode
    self._carry = carry or dp.Carry()
    self._verbose = verbose   
-   self._data_path = type(data_path) == 'string' and {data_path) or data_path
+   self._data_path = type(data_path) == 'string' and {data_path} or data_path
    
    -- find class names
    self._classes = {}
@@ -49,9 +49,9 @@ function ImageClassSet:__init(config)
    local classPaths = {}
    local classes = {}
    for k,path in ipairs(self._data_path) do
-      for k,class in lfs.dir(path) do
-         if #class > 2 and not classes[class] then
-            local dirpath = paths.concat(self._data_path, class)
+      for class in lfs.dir(path) do
+         local dirpath = paths.concat(path, class)
+         if #class > 2 and paths.dirp(dirpath) and not classes[class] then
             local idx = classes[class]
             if not idx then
                table.insert(self._classes, class)
@@ -64,6 +64,9 @@ function ImageClassSet:__init(config)
             end
          end
       end
+   end
+   if self._verbose then
+      print("found " .. #self._classes .. " classes")
    end
    
    self._classIndices = classes
@@ -123,8 +126,8 @@ function ImageClassSet:__init(config)
    end
    local tmpfile = os.tmpname()
    local tmphandle = assert(io.open(tmpfile, 'w'))
-   -- concat all finds to a single large file in the order of self.classes
-   for i=1,#self.classes do
+   -- concat all finds to a single large file in the order of self._classes
+   for i=1,#self._classes do
       local command = 'cat "' .. classFindFiles[i] .. '" >>' .. combinedFindList .. ' \n'
       tmphandle:write(command)
    end
@@ -134,7 +137,7 @@ function ImageClassSet:__init(config)
    
    ---------------------------------------------------------------------
    if self._verbose then
-      print('load the large concatenated list of sample paths to self.imagePath')
+      print('loading concatenated list of sample paths to self.imagePath')
    end
    local maxPathLength = tonumber(sys.fexecute(wc .. " -L '" 
                                                   .. combinedFindList .. "' |" 
@@ -150,23 +153,21 @@ function ImageClassSet:__init(config)
    for line in io.lines(combinedFindList) do
       ffi.copy(s_data, line)
       s_data = s_data + maxPathLength
-      if self.verbose and count % 10000 == 0 then 
-         if self._verbose then
-            xlua.progress(count, length) 
-         end
+      if self._verbose and count % 10000 == 0 then 
+         xlua.progress(count, length) 
       end
       count = count + 1
    end
 
-   self.nSample = self.imagePath:size(1)
+   self._n_sample = self.imagePath:size(1)
    ---------------------------------------------------------------------
    if self._verbose then
-      print(self.nSample ..  ' samples found.')
+      print(self._n_sample ..  ' samples found.')
       print('Updating classList and imageClass appropriately')
    end
-   self.imageClass:resize(self.nSample)
+   self.imageClass:resize(self._n_sample)
    local runningIndex = 0
-   for i=1,#self.classes do
+   for i=1,#self._classes do
       if self.verbose then xlua.progress(i, #(self.classes)) end
       local length = tonumber(sys.fexecute(wc .. " -l '" 
                                               .. classFindFiles[i] .. "' |" 

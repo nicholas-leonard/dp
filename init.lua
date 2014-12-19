@@ -61,6 +61,7 @@ torch.include('dp', 'view/listview.lua')
 torch.include('dp', 'data/baseset.lua')
 torch.include('dp', 'data/dataset.lua')
 torch.include('dp', 'data/sentenceset.lua')
+torch.include('dp', 'data/imageclassset.lua')
 torch.include('dp', 'data/batch.lua')
 torch.include('dp', 'data/carry.lua')
 
@@ -73,6 +74,7 @@ torch.include('dp', 'data/notmnist.lua')
 torch.include('dp', 'data/facialkeypoints.lua')
 torch.include('dp', 'data/billionwords.lua')
 torch.include('dp', 'data/svhn.lua')
+torch.include('dp', 'data/imagenet.lua')
 
 --[[ preprocess ]]--
 torch.include('dp', 'preprocess/preprocess.lua')

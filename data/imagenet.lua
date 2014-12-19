@@ -58,12 +58,12 @@ function ImageNet:__init(config)
       {arg='target_preprocess', type='table | dp.Preprocess',
        help='to be performed on set targets, measuring statistics ' ..
        '(fitting) on the train_set only, and reusing these to ' ..
-       'preprocess the valid_set and test_set.'}  
-   }
+       'preprocess the valid_set and test_set.'} 
+   )
 
    self._load_size = self.load_size or self._sample_size
    self._data_path = torch.type(self._data_path) == 'string' 
-      and {self._data_path) or self._data_path
+      and (self._data_path) or self._data_path
    
    
 end

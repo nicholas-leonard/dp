@@ -11,7 +11,7 @@ DataSource.isDataSource = true
 function DataSource:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, train_set, valid_set, test_set, 
-         input_preprocess, output_preprocess
+         input_preprocess, target_preprocess
       = xlua.unpack(
       {config},
       'DataSource', 

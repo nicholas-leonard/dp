@@ -92,7 +92,7 @@ These two Neural [Models](model.md#dp.Model) are combined to form an MLP using [
 which is not to be confused with (yet very similar to) the 
 [Sequential](https://github.com/torch/nn/blob/master/containers.md#nn.Sequential) Module. It differs in that
 it can be constructed from a list of [Models](../model/model.lua) instead of 
-[Modules](https://github.com/torch/nn/blob/master/module.md#modules). Models have extra 
+[Modules](https://github.com/torch/nn/blob/master/doc/module.md#nn.Module). Models have extra 
 methods, allowing them to [accept](model.md#dp.Model.accept) 
 [Visitors](visitor.md#dp.Visitor), to communicate with 
 other components through a [Mediator](../mediator.lua), 

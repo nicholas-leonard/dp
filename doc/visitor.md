@@ -3,13 +3,14 @@ Visitors visit a composite struture of Models and modify their states.
 They implement the [visitor design pattern](https://en.wikipedia.org/wiki/Visitor_pattern) 
 which allows for separating a training algorithm from a structure of [Models](model.md#dp.Models) 
 on which it operates (in effect, implementing [double-dispatch](https://en.wikipedia.org/wiki/Double_dispatch)):
- * [Visitor](#dp.Visitor) : abstract class inherited by all Visitors;
-   * [Learn](#dp.Learn) : updates Model parameters;
-   * [MaxNorm](#dp.MaxNorm) : regularization using hard constraint on max norm of weights;
-   * [WeightDecay](#dp.WeightDecay) : regularization using soft constraint on norm of weights;
-   * [Momentum](#dp.Momentum) : adds momentum to parameter gradients.
-   * [VisitorChain](#dp.VisitorChain) : a chain of visitors where the order is important;
-     * [RecurrentVisitorChain](#dp.RecurrentVisitorChain) : used by recurrent Models to visit sequences of batches;
+
+  * [Visitor](#dp.Visitor) : abstract class inherited by all Visitors;
+    * [Learn](#dp.Learn) : updates Model parameters;
+    * [MaxNorm](#dp.MaxNorm) : regularization using hard constraint on max norm of weights;
+    * [WeightDecay](#dp.WeightDecay) : regularization using soft constraint on norm of weights;
+    * [Momentum](#dp.Momentum) : adds momentum to parameter gradients.
+    * [VisitorChain](#dp.VisitorChain) : a chain of visitors where the order is important;
+      * [RecurrentVisitorChain](#dp.RecurrentVisitorChain) : used by recurrent Models to visit sequences of batches;
 
 <a name="dp.Visitor"/>
 []()
@@ -24,12 +25,13 @@ each visitor (if it exists). This allows models to implement their own Visitor s
 []()
 ### dp.Visitor{name[,...]} ###
 Constructs a Visitor. Arguments should be specified as key-value pairs:
- * `name` is a string identifying the Visitor in reports. Usually this is hardcoded by the concrete sub-class;
- * `zero_grads` is a boolean. When true (the default), the visitor calls [zeroGradParameters](model.md#dp.Model.zeroGradParameters) on each model after it has been visited. Should be true for the root vistior. Note that the [VisitorChain](#dp.VisitorChain) sets this attribute to false for all its component visitors, such that this method is called only once.
- * `include` is a optional table where only the Models having a true value for the member named in this table are visited, unless the member is also listed in the exclude table, in which case it is not visited. If include is empty, all models are included, unless specified in the `exclude` list;
- * `exclude` is an optional table where models having a member named in this table are notvisited, even if the member is in the include table, i.e. `exclude` has precedence over `include`;
- * `observer` is an optional [Observer](observer.md#dp.Observer) that is notified when an event occurs;
- * `verbose` is a boolean. When true (the default), it can prints messages to `stdout`.
+
+  * `name` is a string identifying the Visitor in reports. Usually this is hardcoded by the concrete sub-class;
+  * `zero_grads` is a boolean. When true (the default), the visitor calls [zeroGradParameters](model.md#dp.Model.zeroGradParameters) on each model after it has been visited. Should be true for the root vistior. Note that the [VisitorChain](#dp.VisitorChain) sets this attribute to false for all its component visitors, such that this method is called only once.
+  * `include` is a optional table where only the Models having a true value for the member named in this table are visited, unless the member is also listed in the exclude table, in which case it is not visited. If include is empty, all models are included, unless specified in the `exclude` list;
+  * `exclude` is an optional table where models having a member named in this table are notvisited, even if the member is in the include table, i.e. `exclude` has precedence over `include`;
+  * `observer` is an optional [Observer](observer.md#dp.Observer) that is notified when an event occurs;
+  * `verbose` is a boolean. When true (the default), it can prints messages to `stdout`.
 
 <a name="dp.Learn"/>
 []()
@@ -52,7 +54,8 @@ In which case, the learning rate for that layer will be `learning_rate*learn_sca
 ### dp.Learn{learning_rate} ###
 Constructs a Learn Visitor. Arguments should be specified as key-value pairs. 
 Other then the following argument, those specified in [Visitor](#dp.Visitor.__init) also apply.
- * `learning_rate` is a number specifying the learning rate of parameters updates.
+
+  * `learning_rate` is a number specifying the learning rate of parameters updates.
 
 <a name="dp.MaxNorm"/>
 []()
@@ -68,9 +71,10 @@ Uses the C/CUDA optimized [torch.renorm](https://github.com/torch/torch7/blob/ma
 ### dp.MaxNorm{...} ###
 Constructs a MaxNorm Visitor. Arguments should be specified as key-value pairs. 
 Other then the following arguments, those specified in [Visitor](#dp.Visitor.__init) also apply.
- * `max_out_norm` specifies the maximum norm of output neuron weights. If not specified, this constraint is ignored. Defaults to 1.
- * `max_in_norm` specifies the maximum norm of input neuron weights. If not specified, this constraint is ignored. Default is to ignore.
- * `period` specifies the periodicity of application of the constraint. Every `period` batches, the norm is constrained. Defaults to 1.
+
+  * `max_out_norm` specifies the maximum norm of output neuron weights. If not specified, this constraint is ignored. Defaults to 1.
+  * `max_in_norm` specifies the maximum norm of input neuron weights. If not specified, this constraint is ignored. Default is to ignore.
+  * `period` specifies the periodicity of application of the constraint. Every `period` batches, the norm is constrained. Defaults to 1.
 
 <a name="dp.WeightDecay"/>
 []()
@@ -94,7 +98,8 @@ The order of encapsulated visitors is important.
 ### dp.VisitorChain{visitors} ###
 Constructs a VisitorChain Visitor. Arguments should be specified as key-value pairs. 
 Other then the following argument, those specified in [Visitor](#dp.Visitor.__init) also apply.
- * `visitors` is a sequence (a table) of visitors to apply to visited models.
+
+  * `visitors` is a sequence (a table) of visitors to apply to visited models.
 
 <a name="dp.RecurrentVisitorChain"/>
 []()
@@ -111,5 +116,6 @@ Used for [Recurrent Neural Network Language Models](https://github.com/nicholas-
 ### dp.RecurrentVisitorChain{...} ###
 Constructs a RecurrentVisitorChain Visitor. Arguments should be specified as key-value pairs. 
 Other then the following arguments, those specified in [Visitor](#dp.Visitor.__init) also apply.
- * `visit_interval` controls the frequency of updates. The [Model](model.md#dp.Model) is updated (visited) every `visit_interval` epochs. However, if [Channel](mediator.md#dp.Channel) `"doneSequence"` was notified, the Model will be updated at the end of the current epoch.
- * `force_forget` is boolean. When true, it forces recurrent models to [forget](https://github.com/clementfarabet/lua---nnx#nnx.Recurrent) after each update. Defaults to false.
+
+  * `visit_interval` controls the frequency of updates. The [Model](model.md#dp.Model) is updated (visited) every `visit_interval` epochs. However, if [Channel](mediator.md#dp.Channel) `"doneSequence"` was notified, the Model will be updated at the end of the current epoch.
+  * `force_forget` is boolean. When true, it forces recurrent models to [forget](https://github.com/clementfarabet/lua---nnx#nnx.Recurrent) after each update. Defaults to false.

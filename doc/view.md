@@ -1,11 +1,12 @@
 # Bird's Eye View #
 Views encapsulate an `input` Tensor and one or many `gradOutput` Tensor. 
 These can be forward and backward accessed (put/get) by specifying a `view` and an optional `tensor_type`: 
+
   * [View](#dp.View) : Abstract class inherited by all Views.
     * [DataView](#dp.DataView) : provides for views _b_ and _bf_;
-     * [ImageView](#dp.ImageView) : provides views _bhwc_, _bchw_ and _chwb_;
-     * [ClassView](#dp.ClassView) : provides views _b_ (overwritten) and _bt_;
-     * [SequenceView](#dp.SequenceView) : provides views _bwc_ and _bcw_;
+      * [ImageView](#dp.ImageView) : provides views _bhwc_, _bchw_ and _chwb_;
+      * [ClassView](#dp.ClassView) : provides views _b_ (overwritten) and _bt_;
+      * [SequenceView](#dp.SequenceView) : provides views _bwc_ and _bcw_;
     * [ListView](#dp.ListView) : Composite of Views (work in progress).
 
 <a name="dp.View"/>
@@ -21,24 +22,28 @@ via `torch.typename(tensor)` and thus does not need to be explicitly provided as
 
 A `view` is a string like : _bf_, _bwc_, _bhwc_, _chwb_, _b_, etc. Each character in the string identifies a type of axis.
 Possible axis symbols are : 
- 1. Standard Axes: 
-  * _b_ : Batch/Example 
-  * _f_ : Feature 
-  * _t_ : Class/Index 
- 2. Spatial/Temporal/Volumetric Axes: 
-  * _c_ : Color/Channel
-  * _h_ : Height 
-  * _w_ : Width 
-  * _d_ : Dept 
+  
+  1. Standard Axes: 
+    * _b_ : Batch/Example 
+    * _f_ : Feature 
+    * _t_ : Class/Index 
+  2. Spatial/Temporal/Volumetric Axes: 
+    * _c_ : Color/Channel
+    * _h_ : Height 
+    * _w_ : Width 
+    * _d_ : Dept 
+    
 A `view` thus specifies the order and nature of a provided or requested tensor's axes.
 
 A View is used at the input and output of Models. For example, in a Sequence, the first and second 
 Models will share a View. The first Model's output View is the second Model's input View. These Views abstract 
 away [Modules](https://github.com/torch/nn/blob/master/doc/module.md#module) like :
- * [Identity](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Identity) : used for forwarding base `input` Tensor as is (or conversely, backwarding `gradOutput` Tensor); 
- * [Reshape](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Reshape) : used for resizing (down-sizing) the `input` and `gradOutput` Tensors, 
- * [Transpose](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Transpose) : used for tranposing axe of `input` and `gradOutput` Tensors; and 
- * [Copy](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Copy) : used for forward/backward propagating a different `tensor_type`.
+
+  * [Identity](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Identity) : used for forwarding base `input` Tensor as is (or conversely, backwarding `gradOutput` Tensor); 
+  * [Reshape](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Reshape) : used for resizing (down-sizing) the `input` and `gradOutput` Tensors, 
+  * [Transpose](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Transpose) : used for tranposing axe of `input` and `gradOutput` Tensors; and 
+  * [Copy](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Copy) : used for forward/backward propagating a different `tensor_type`.
+
 By using these Modules to forward/backward Tensors, Views abstract away the tedious transformations that need to be performed and tested between Models. As such, 
 a Node (Model or Loss) need only specify a `view` and `tensor_type` for inputs and outputs. 
 
@@ -412,7 +417,4 @@ Like viewing method [bwc](#dp.SequenceView.bhwc), except some axes are transpose
 []()
 ## ListView ##
 A composite of Views. Allows for multiple input and multiple target datasets and batches. Work in progress.
-
-
-
 

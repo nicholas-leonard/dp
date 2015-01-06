@@ -33,8 +33,9 @@ in a View.
 []()
 ### apply(view, can_fit) ###
 Abstract method.
- * `view` is the [View](view.md#dp.View) to act upon.
- * `can_fit`. When true, the Preprocess can adapt internal parameters based on the contents of the `view`. This is usually true for input Views taken from the training DataSet.
+
+  * `view` is the [View](view.md#dp.View) to act upon.
+  * `can_fit`. When true, the Preprocess can adapt internal parameters based on the contents of the `view`. This is usually true for input Views taken from the training DataSet.
 
 For example, let us preprocess the [Mnist](data.md#dp.Mnist) inputs. First, we load the datasource and create a [Standardize](#dp.Standardize) preprocess.
 ```lua
@@ -69,9 +70,10 @@ A [Preprocess](#dp.Preprocess) that subtracts the mean and divides by the standa
 []()
 ### dp.Standardize{[...]} ###
 Constructs a Standardize Preprocess. Arguments should be specified as key-value pairs.
- * `global_mean` is a boolean with a default value of `false`. When true, subtracts the (scalar) mean over every element in the datset. Otherwise, subtract the mean from each column (feature) separately. 
- * `global_std` is a boolean with a default value of `false`. When true, after centering, divides by the (scalar) standard deviation of every element in the design matrix. Otherwise, divide by the column-wise (per-feature) standard deviation.
- * `std_eps` is a number with a default value of `1e-4`. It is a stabilization factor added to the standard deviations before dividing. This prevents standard deviations very close to zero from causing the feature values to blow up too much.
+ 
+  * `global_mean` is a boolean with a default value of `false`. When true, subtracts the (scalar) mean over every element in the datset. Otherwise, subtract the mean from each column (feature) separately. 
+  * `global_std` is a boolean with a default value of `false`. When true, after centering, divides by the (scalar) standard deviation of every element in the design matrix. Otherwise, divide by the column-wise (per-feature) standard deviation.
+  * `std_eps` is a number with a default value of `1e-4`. It is a stabilization factor added to the standard deviations before dividing. This prevents standard deviations very close to zero from causing the feature values to blow up too much.
 
 <a name="dp.GCN"/>
 ## GCN ##
@@ -84,12 +86,13 @@ each example).
 []()
 ### dp.GCN{[...]} ###
 Constructs a GCN Preprocess. Arguments should be specified as key-value pairs:
- * `substract_mean` is a boolean with a default value of true. Remove the mean across features/pixels before normalizing. Note that this is the per-example mean across pixels, not the per-pixel mean across examples.
- * `scale` is a number with a default value of 1.0. Multiply features by this constant.
- * `sqrt_bias` is a number with a default value of 0. A fudge factor added inside the square root. Adds this amount inside the square root when computing the standard deviation or the norm.
- * `use_std` is a boolean with a default value of false. If True uses the standard deviation instead of the norm.
- * `min_divisor` is a number with a default value of 1e-8. If the divisor for an example is less than this value, do not apply it.
- * `batch_size` is a number with a default value 0. The size of a batch used internally.
+  
+  * `substract_mean` is a boolean with a default value of true. Remove the mean across features/pixels before normalizing. Note that this is the per-example mean across pixels, not the per-pixel mean across examples.
+  * `scale` is a number with a default value of 1.0. Multiply features by this constant.
+  * `sqrt_bias` is a number with a default value of 0. A fudge factor added inside the square root. Adds this amount inside the square root when computing the standard deviation or the norm.
+  * `use_std` is a boolean with a default value of false. If True uses the standard deviation instead of the norm.
+  * `min_divisor` is a number with a default value of 1e-8. If the divisor for an example is less than this value, do not apply it.
+  * `batch_size` is a number with a default value 0. The size of a batch used internally.
        
 Note that `sqrt_bias = 10`, `use_std = true` and defaults for all other
 parameters corresponds to the preprocessing used in :
@@ -107,9 +110,10 @@ For a comprehensize explanation of ZCA Whitening please consult the [Standford W
 []()
 ### dp.ZCA{[...]} ###
 Constructs a ZCA Preprocess. Arguments should be specified as key-value pairs.
- * `n_component` measures the number of most important eigen components to use for ZCA. The default is to use all of components.
- * `n_drop_component` is the number of least important eigen components to drop. The default value is 0.
- * `filter_bias` is a number with a default value of 0.1. Filters are scaled by `1/sqrt(filter_bias + variance)`.
+  
+  * `n_component` measures the number of most important eigen components to use for ZCA. The default is to use all of components.
+  * `n_drop_component` is the number of least important eigen components to drop. The default value is 0.
+  * `filter_bias` is a number with a default value of 0.1. Filters are scaled by `1/sqrt(filter_bias + variance)`.
 
 <a name="dp.LeCunLCN"/>
 []()
@@ -142,8 +146,9 @@ and after LeCunLCN preprocessing:
 []()
 ### dp.LeCunLCN{[...]} ###
 Constructs a LeCunLCN Preprocess. Arguments should be specified as key-value pairs.
- * `kernel_size` is the local contrast kernel size. Default is 9.
- * `threshold` is the minimum threshold for using values as denomitators. Default is 0.0001.
- * `batch_size` used for performing the preprocessing. Default is 256.
- * `channels` is a list (table) of channels (colors) to normalize. Defaults to `{1,2,3}`.
- * `progress` is a boolean specifying whether a progress bar should be displayed.
+
+  * `kernel_size` is the local contrast kernel size. Default is 9.
+  * `threshold` is the minimum threshold for using values as denomitators. Default is 0.0001.
+  * `batch_size` used for performing the preprocessing. Default is 256.
+  * `channels` is a list (table) of channels (colors) to normalize. Defaults to `{1,2,3}`.
+  * `progress` is a boolean specifying whether a progress bar should be displayed.

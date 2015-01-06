@@ -9,9 +9,10 @@ While the library cannot provide rigid interaction patterns for every research u
 it provides different flexible alternatives. In this section we examine the Mediator singleton
 and its supporting classes that implement the 
 [Publish–subscribe pattern](http://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern):
- * [Mediator](#dp.Mediator) : singleton that implements listen-notify pattern;
- * [Channel](#dp.Channel) : can be published and subscribed to;
- * [Subscriber](#dp.Subscriber) : encapsulates a listening object and callback method;
+ 
+  * [Mediator](#dp.Mediator) : singleton that implements listen-notify pattern;
+  * [Channel](#dp.Channel) : can be published and subscribed to;
+  * [Subscriber](#dp.Subscriber) : encapsulates a listening object and callback method;
 
 <a name="dp.Mediator"/>
 []()

@@ -2,22 +2,22 @@ site_name: dp
 theme : simplex
 use_directory_urls : false
 markdown_extensions: [extra]
-docs_dir : .
+docs_dir : doc
 pages:
-- [README.md, Home]
-- [doc/neuralnetworktutorial.md, Tutorial, Neural Network Tutorial]
-- [doc/facialkeypointstutorial.md, Tutorial, Facial Keypoints Tutorial]
-- [doc/view.md, Data Library, View]
-- [doc/data.md, Data Library, Data]
-- [doc/preprocess.md, Data Library, Preprocess] 
-- [doc/node.md, Node Library, Node]
-- [doc/model.md, Node Library, Model]
-- [doc/loss.md, Node Library, Loss]
-- [doc/experiment.md, Experiment Library, Experiment]
-- [doc/propagator.md, Experiment Library, Propagator]
-- [doc/visitor.md, Experiment Library, Visitor] 
-- [doc/feedback.md, Extensions, Feedback]
-- [doc/observer.md, Extensions, Observer]
-- [doc/mediator.md, Extensions, Mediator]
+- [index.md, Home]
+- [neuralnetworktutorial.md, Tutorial, Neural Network Tutorial]
+- [facialkeypointstutorial.md, Tutorial, Facial Keypoints Tutorial]
+- [view.md, Data Library, View]
+- [data.md, Data Library, Data]
+- [preprocess.md, Data Library, Preprocess] 
+- [node.md, Node Library, Node]
+- [model.md, Node Library, Model]
+- [loss.md, Node Library, Loss]
+- [experiment.md, Experiment Library, Experiment]
+- [propagator.md, Experiment Library, Propagator]
+- [visitor.md, Experiment Library, Visitor] 
+- [feedback.md, Extensions, Feedback]
+- [observer.md, Extensions, Observer]
+- [mediator.md, Extensions, Mediator]
 
 

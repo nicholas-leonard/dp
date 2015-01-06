@@ -101,7 +101,7 @@ Returns its contained Model [Modules](https://github.com/torch/nn/blob/master/do
 and those of it's contained [Views](view.md#dp.View) as a composite Module.
 The method requires that a previous call to [forward](#dp.Model.forward) be made,
 which is done automatically when argument `batch`, a [Batch](data.md#dp.Batch) instance, is provided.
-This is particularly useful when you want to use the [dp](../README.md) framework to train your 
+This is particularly useful when you want to use the [dp](index.md) framework to train your 
 Modules, but want to omit it in your production environment 
 (and just use [nn](https://github.com/torch/nn/blob/master/README.md) and such instead).
 

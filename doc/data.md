@@ -1,5 +1,6 @@
 # Elementary, Dear Data #
 One of the most important aspects of any machine learning problem is the data. The _dp_ library provides the following data-related facilities:
+  
   * [BaseSet](#dp.BaseSet) : abstract class;
      * [DataSet](#dp.DataSet) : a dataset for input and target [Views](view.md#dp.View);
       * [SentenceSet](#dp.SentenceSet) : container of sentences (used for language modeling);

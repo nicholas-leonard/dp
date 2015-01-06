@@ -10,10 +10,11 @@ I was inspired by pylearn2 and Theano to build a framework better suited to
 my needs and style.
 
 Among other things, this package includes : 
- * common datasets like MNIST, CIFAR-10 and CIFAR-100, preprocessing like Zero-Component Analysis whitening, Global Contrast Normalization, Lecun's Local Contrast Normalization, and facilities for interfacing your own.
- * a high-level framework that abstracts away common usage patterns of the [nn](https://github.com/torch/nn/blob/master/README.md) and [torch7](https://github.com/torch/torch7/blob/master/README.md) package such as loading datasets and [early stopping](http://en.wikipedia.org/wiki/Early_stopping). 
- * hyperparameter optimization facilities for sampling and running experiments from the command-line or prior hyper-parameter distributions.
- * facilites for storing and analysing hyperpameters and results using a PostgreSQL database backend which facilitates distributing experiments over different machines.
+
+  * common datasets like MNIST, CIFAR-10 and CIFAR-100, preprocessing like Zero-Component Analysis whitening, Global Contrast Normalization, Lecun's Local Contrast Normalization, and facilities for interfacing your own.
+  * a high-level framework that abstracts away common usage patterns of the [nn](https://github.com/torch/nn/blob/master/README.md) and [torch7](https://github.com/torch/torch7/blob/master/README.md) package such as loading datasets and [early stopping](http://en.wikipedia.org/wiki/Early_stopping). 
+  * hyperparameter optimization facilities for sampling and running experiments from the command-line or prior hyper-parameter distributions.
+  * facilites for storing and analysing hyperpameters and results using a PostgreSQL database backend which facilitates distributing experiments over different machines.
 
 <a name="dp.tutorials"/>
 []()

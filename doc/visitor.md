@@ -12,6 +12,7 @@ on which it operates (in effect, implementing [double-dispatch](https://en.wikip
      * [RecurrentVisitorChain](#dp.RecurrentVisitorChain) : used by recurrent Models to visit sequences of batches;
 
 <a name="dp.Visitor"/>
+[]()
 ## Visitor ##
 Abstract class for visiting a composite struture of [Models](model.md#dp.Model) 
 (in particular [Layers](model.md#dp.Layer)) and modifying their states
@@ -19,6 +20,8 @@ Abstract class for visiting a composite struture of [Models](model.md#dp.Model)
 Concrete Visitors should try to access a Layer method assigned to 
 each visitor (if it exists). This allows models to implement their own Visitor specifics.
 
+<a name='dp.Visitor.__init'/>
+[]()
 ### dp.Visitor{name[,...]} ###
 Constructs a Visitor. Arguments should be specified as key-value pairs:
  * `name` is a string identifying the Visitor in reports. Usually this is hardcoded by the concrete sub-class;
@@ -29,6 +32,7 @@ Constructs a Visitor. Arguments should be specified as key-value pairs:
  * `verbose` is a boolean. When true (the default), it can prints messages to `stdout`.
 
 <a name="dp.Learn"/>
+[]()
 ## Learn ##
 Updates the parameters of parameterized models using backward 
 propagated gradients and learning rate(s)
@@ -51,6 +55,7 @@ Other then the following argument, those specified in [Visitor](#dp.Visitor.__in
  * `learning_rate` is a number specifying the learning rate of parameters updates.
 
 <a name="dp.MaxNorm"/>
+[]()
 ## MaxNorm ##
 Hard constraint on the upper bound of the norm of output and/or input neuron weights (in a weight matrix). 
 Has a regularization effect analogous to [WeightDecay](visitor.md#dp.WeightDecay), but with easier to optimize 
@@ -59,6 +64,7 @@ Should occur after [Learn](#dp.Learn) in the [VisitorChain](#dp.VisitorChain).
 Uses the C/CUDA optimized [torch.renorm](https://github.com/torch/torch7/blob/master/doc/maths.md#torch.renorm) function.
 
 <a name="dp.MaxNorm.__init"/>
+[]()
 ### dp.MaxNorm{...} ###
 Constructs a MaxNorm Visitor. Arguments should be specified as key-value pairs. 
 Other then the following arguments, those specified in [Visitor](#dp.Visitor.__init) also apply.
@@ -67,26 +73,31 @@ Other then the following arguments, those specified in [Visitor](#dp.Visitor.__i
  * `period` specifies the periodicity of application of the constraint. Every `period` batches, the norm is constrained. Defaults to 1.
 
 <a name="dp.WeightDecay"/>
+[]()
 ## WeightDecay ##
 Decays the weight of the visited parameterized models.
 
 <a name="dp.Momentum"/>
+[]()
 ## Momentum ##
 Applies momentum to parameter gradients. Should be placed before [Learn](#dp.Learn) 
 in the [VisitorChain](#dp.VisitorChain)
 
 <a name="dp.VisitorChain"/> 
+[]()
 ## VisitorChain ##
 A chain of Visitors to be executed sequentially. 
 The order of encapsulated visitors is important.
 
 <a name="dp.VisitorChain.__init"/>
+[]()
 ### dp.VisitorChain{visitors} ###
 Constructs a VisitorChain Visitor. Arguments should be specified as key-value pairs. 
 Other then the following argument, those specified in [Visitor](#dp.Visitor.__init) also apply.
  * `visitors` is a sequence (a table) of visitors to apply to visited models.
 
 <a name="dp.RecurrentVisitorChain"/>
+[]()
 ## RecurrentVisitorChain ##
 A composite chain of visitors used to visit recurrent models. 
 Subscribes to Mediator channel `"doneSequence"`. When this channel is notified, 
@@ -96,6 +107,7 @@ Otherwise, the model is visited every `visit_interval` epochs.
 Used for [Recurrent Neural Network Language Models](https://github.com/nicholas-leonard/dp/blob/master/examples/recurrentlanguagemodel.lua).
 
 <a name="dp.RecurrentVisitorChain.__init"/>
+[]()
 ### dp.RecurrentVisitorChain{...} ###
 Constructs a RecurrentVisitorChain Visitor. Arguments should be specified as key-value pairs. 
 Other then the following arguments, those specified in [Visitor](#dp.Visitor.__init) also apply.

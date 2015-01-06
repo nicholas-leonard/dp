@@ -1,4 +1,5 @@
 <a name="FacialKeypointsTutorial"/>
+[]()
 # Facial Keypoints Tutorial #
 In this tutorial, we demonstrate how the __dp__ library can be used 
 to build convolution neural networks and easily extended using Feedback 
@@ -716,7 +717,7 @@ print(opt)
 assert(opt.submissionFile ~= '', 'provide filename, e.g.: --submissionFile submission12.csv')
 ```
 The table values need to be translated from strings to tables using the 
-[table.fromString](../utils/table.md) function:
+[table.fromString](../utils/table.lua) function:
 ```lua
 opt.channelSize = table.fromString(opt.channelSize)
 opt.kernelSize = table.fromString(opt.kernelSize)

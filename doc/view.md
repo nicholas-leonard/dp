@@ -9,6 +9,7 @@ These can be forward and backward accessed (put/get) by specifying a `view` and 
     * [ListView](#dp.ListView) : Composite of Views (work in progress).
 
 <a name="dp.View"/>
+[]()
 ## View ##
 Abstract class inherited by ListViews (composites) and DataViews (components).
 Used to communicate Tensors between Models in a variety of formats. 
@@ -46,6 +47,7 @@ share its input View with the an [indexed](#dp.View.index) or a [sub](#dp.View.s
 means that a [Preprocess](preprocess.md#dp.Preprocess) would be applied to a View, thus requiring a call to `forwardGet`.
 
 <a name="dp.View.forwardPut"/>
+[]()
 ### forwardPut(view, input) ###
 This method should be called by a maximum of one input Model. Any
 subsequent call overwrites the previous call and reinitializes the 
@@ -57,33 +59,39 @@ batch would be forwarded as a 4D `tensor` and `view`, and never with
 collapses dimensions (2D).
 
 <a name="dp.View.forwardGet"/>
+[]()
 ### [output] forwardGet(view, [tensor_type]) ###
 This method could be called from multiple output Models. Can only be called 
 following a previous call to `forwardPut`. Returns the requested `view` and 
 `tensor_type` of the input tensor.
 
 <a name="dp.View.forward"/>
+[]()
 ### [output] forward(view, [inputORtype]) ###
 A convenience function that can be used as either forwardPut or forwardGet, but not 
 both at the same time.
 
 <a name="dp.View.backwardPut"/>
+[]()
 ### backwardPut(view, gradOutput) ###
 This method could be called from multiple output Models. Each call to backwardPut must have been 
 preceeded by a corresponding forwardGet, i.e. one with the same `view` and `tensor_type`.
 
 <a name="dp.View.backwardGet"/>
+[]()
 ### [gradInput] backwardGet(view, [tensor_type]) ###
 This method should be called by a maximum of one input Model.
 In the case of multiple output models having called backwardPut, 
 the different gradInputs must be accumulated (through summation).
 
 <a name="dp.View.backward"/>
+[]()
 ### [gradInput] backward(view, [gradOutputORtype]) ###
 A convenience function that can be used as either backwardPut or backwardGet, but not 
 both at the same time.
 
 <a name="dp.View.index"/>
+[]()
 ### [view] index([v,] indices) ###
 Returns a sub-[View](#dp.View) of the same type as self. 
 
@@ -97,6 +105,7 @@ to batch is that the same storage (memory) can be used. This includes any Module
 This method is used mainly by ShuffleSample` for retrieving random subsets of a dataset.
 
 <a name="dp.View.sub"/>
+[]()
 ### [view] sub([v,] start, stop) ###
 Returns a sub-[View](#dp.View) of the same type as self. 
 
@@ -110,6 +119,7 @@ to batch is that the same storage (memory) can be used. This includes any Module
 This method is used mainly by Sampler for retrieving random subsets of a dataset.
 
 <a name="dp.DataView"/>
+[]()
 ## DataView ##
 Encapsulates an `input` torch.Tensor having a given `view` and `tensor_type` through [forwardPut](#dp.View.forwardPut). 
 Models can request different `views` and `tensor_types` of the `input` through [forwardGet](#dp.View.forwardGet). 
@@ -126,11 +136,13 @@ During a backwardGet, any tensors provided via backwardPut are first backward pr
 view and tensor_type (provided in forwardPut), and then accumulated these with a sum.
 
 <a name="dp.DataView.__init"/>
+[]()
 ### dp.DataView([view, input]) ###
 Constructs a dp.DataView. When both `view` and `input` are provided, passes them to [forward](#dp.View.forwardPut) to initialize the 
 base Tensor.
 
 <a name="dp.DataView.bf"/>
+[]()
 ### [module] bf() ###
 Returns a [Module](https://github.com/torch/nn/blob/master/doc/module.md#module) that transforms an `input` Tensor from the base `view` 
 (i.e. the `view` provided in [forwardPut](#dp.View.forwardPut)) to `view` _bf_. The result of forwaring `input` through this Module would 
@@ -140,12 +152,14 @@ commonly used by the Neural Model. This method is called by `forwardGet` when `v
 method [flush](#dp.DataView.flush) is called. This method should be supported by all Views (currently, only [ClassView](#dp.ClassView) lacks support for it). 
 
 <a name="dp.DataView.b"/>
+[]()
 ### [module] b() ###
 Returns a [Module](https://github.com/torch/nn/blob/master/doc/module.md#module) that transforms an `input` Tensor from the base `view` 
 (i.e. the `view` provided in [forwardPut](#dp.View.forwardPut)) to `view` _b_. If the original forwardPut `view` was _bf_, the size of axis _f_ must be 1. Otherwise, 
 the original `view` should have been _b_.
 
 <a name="dp.DataView.replace"/>
+[]()
 ### replace(view, output) ###
 Used by [Preprocess](preprocess.md#dp.Preprocess) instances to replace the `input` with a preprocessed `output` retrieved using 
 [forwardGet](#dp.View.forwardGet) with argument `view`. Internally, the method backward propagates `output` as a `gradOutput` to 
@@ -153,23 +167,27 @@ get a `gradInput` of the same format as `input`, replaces the `input` with that 
 module and tensor caches.
 
 <a name="dp.DataView.flush"/>
+[]()
 ### flush() ###
 Flushes the Module and Tensor caches. This should be called before [forwardPut](#dp.View.forwardPut) is about
 to be used for a new kind of base `view` than was previously used. If not, results might be different than expected.
 
 <a name="dp.DataView.input"/>
+[]()
 ### [input] input([input]) ###
 When `input` is provided, sets the base Tensor to that value. Otherwise, returns the base Tensor (the `input`). 
 This method should be used with caution since it will cause errors if the `view` of the new `input` is different than 
 that of the old, in which case a `forwardPut` would be more appropriate.
 
 <a name="dp.DataView.transpose"/>
+[]()
 ### [module] transpose(view) ###
 A generic function for transposing views. Returns a [Transpose](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Transpose) Module 
 that transposes the `input` such that the requested `view` would be the result. Commonly used by viewing methods like [bhwc](#dp.ImageView.bhwc), 
 [bchw](#dp.ImageView.bhwc), [chwb](#dp.ImageView.chwb), [bwc](#dp.SequenceView.bwc), etc.
 
 <a name="dp.ImageView"/>
+[]()
 ## ImageView ##
 A [DataView](#dp.DataView) subclass used for providing access to a tensor of images. This is useful since it allows for automatic reshaping, transposing and such. 
 For example, let us suppose that we will be using a set of 8 images with 3x3 pixels and 1 channel (black and white):
@@ -229,6 +247,7 @@ Note that `tensor_type` (the second argument to forwardGet) defaults to the type
 [torch.FloatTensor of dimension 8x9]
 ```
 <a name="dp.ImageView.bhwc"/>
+[]()
 ### [module] bhwc() ###
 Returns a [Module](https://github.com/torch/nn/blob/master/doc/module.md#module) that transforms an `input` Tensor from the base image `view` 
 (i.e. the `view` provided in [forwardPut](#dp.View.forwardPut)) to `view` _bhwc_. The result of forwaring `input` through this Module would 
@@ -238,15 +257,18 @@ This method is called by `forwardGet` when `view` _bhwc_ is first requested (the
 method [flush](#dp.DataView.flush) is called afterwards.
 
 <a name="dp.ImageView.bchw"/>
+[]()
 ### [module] bchw() ###
 Like viewing method [bhwc](#dp.ImageView.bhwc), except some axes are transposed. View _bchw_ is commonly used by SpatialConvolution Modules.
 
 <a name="dp.ImageView.chwb"/>
+[]()
 ### [module] chwc() ###
 Like viewing method [bhwc](#dp.ImageView.bhwc), except some axes are transposed. View _bchw_ is commonly used by SpatialConvolutionCUDA Modules, i.e. CudaConvNet.
 
 
 <a name="dp.ClassView"/>
+[]()
 ## ClassView ##
 A [DataView](#dp.DataView) subclass used for providing access to a tensor of indices like classes and words.
 
@@ -283,6 +305,7 @@ Or we can forwardGet 'view' _bt_ to obtain a representation with an extra dimens
 ```
 
 <a name="dp.ClassView.b"/>
+[]()
 ### [module] b() ###
 Overwrites [DataView](#dp.DataView)'s viewing method [b](#dp.DataView.b). 
 Returns a [Module](https://github.com/torch/nn/blob/master/doc/module.md#module) that transforms an `input` Tensor from the base `view` 
@@ -292,6 +315,7 @@ DataSets to specify more than one class per example, as long as the primary clas
 Otherwise, the original `view` should have been _b_.
 
 <a name="dp.ClassView.bt"/>
+[]()
 ### [data] bt() ###
 Returns a [Module](https://github.com/torch/nn/blob/master/doc/module.md#module) that transforms an `input` Tensor from the base `view` 
 (i.e. the `view` provided in [forwardPut](#dp.View.forwardPut)) to `view` _bt_.
@@ -324,6 +348,7 @@ However, this doesn't mean we can't retrieve a multiple-class view of the `input
 ```
 
 <a name='dp.SequenceView'/>
+[]()
 ## SequenceView ##
 A [DataView](#dp.DataView) subclass used for providing access to a tensor of sequences. This is useful since it allows for automatic reshaping, transposing and such. 
 For example, let us suppose that we will be using a set of 8 sequences (_b_) of width (_w_) 2 with 5 channels (_c_). 
@@ -366,6 +391,7 @@ Or we can use it to obtain a `view` suitable for use with `Neural` Models and fe
 ```
 
 <a name="dp.SequenceView.bwc"/>
+[]()
 ### [module] bwc() ###
 Returns a [Module](https://github.com/torch/nn/blob/master/doc/module.md#module) that transforms an `input` Tensor from the base image `view` 
 (i.e. the `view` provided in [forwardPut](#dp.View.forwardPut)) to `view` _bwc_. The result of forwaring `input` through this Module would 
@@ -378,10 +404,12 @@ This method is called by `forwardGet` when `view` _bwc_ is first requested (the 
 method [flush](#dp.DataView.flush) is called afterwards.
 
 <a name="dp.SequenceView.bcw"/>
+[]()
 ### [module] bcw() ###
 Like viewing method [bwc](#dp.SequenceView.bhwc), except some axes are transposed. View _bcw_ isn't currently used by anything.
 
 <a name="dp.ListView"/>
+[]()
 ## ListView ##
 A composite of Views. Allows for multiple input and multiple target datasets and batches. Work in progress.
 

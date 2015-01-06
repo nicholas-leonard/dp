@@ -17,6 +17,7 @@ One of the most important aspects of any machine learning problem is the data. T
     * [SentenceSampler](#dp.SentenceSampler) : samples sentences for recurrent models;
 
 <a name="dp.BaseSet"/>
+[]()
 ## BaseSet ##
 This is the base (abstract) class inherited by subclasses like [DataSet](#dp.DataSet),
 [SentenceSet](#dp.SentenceSet) and [Batch](#dp.Batch). It is used for training or evaluating a model. 
@@ -28,6 +29,7 @@ tags, text with images, etc. Multi-input/target facilities could be used with nn
 nn.ConcatTable. If the BaseSet is used for unsupervised learning, only inputs need to be provided.
 
 <a name='dp.BaseSet.__init'/>
+[]()
 ### dp.BaseSet{inputs, [targets, which_set]} ###
 Constructs a dataset from inputs and targets.
 Arguments should be specified as key-value pairs. 
@@ -39,6 +41,7 @@ Arguments should be specified as key-value pairs.
    * *test* for testing, i.e. comparing your model to the current state-of-the-art and such.
 
 <a name="dp.BaseSet.preprocess"/>
+[]()
 ### preprocess([input_preprocess, target_preprocess, can_fit]) ###
 Preprocesses the BaseSet.
  * `input_preprocess` is [Preprocess](preprocess.md#dp.Preprocess) to be applied to the input [View](view.md#dp.View) of the [BaseSet](data.md#dp.BaseSet).
@@ -46,18 +49,22 @@ Preprocesses the BaseSet.
  * `can_fit` is a boolean. When true, allows measuring of statistics on the View of BaseSet to initialize the Preprocess. Should normally only be done on the training set. Default is to fit the training set.
 
 <a name="dp.BaseSet.inputs"/>
+[]()
 ### [inputs] inputs() ###
 Returns inputs [View](view.md#dp.View).
 
 <a name="dp.BaseSet.targets"/>
+[]()
 ### [targets] targets() ###
 Returns targets [View](view.md#dp.View).
 
 <a name="dp.DataSet"/>
+[]()
 ## DataSet ##
 A subclass of [BaseSet](#dp.BaseSet). Contains input and optional target [Views](view.md#dp.View) used for training or evaluating [Models](model.md#dp.Model).
 
 <a name='dp.DataSet.batch'/>
+[]()
 ### batch(batch_size) ###
 A factory method that builds a [Batch](#dp.Batch) of size `batch_size`. It effectively 
 calls [sub](#dp.DataSet.sub) with arguments `start=1` and `stop=batch_size`. This method 
@@ -65,6 +72,7 @@ reuses the DataSet's inputs and targets, such that these shouldn't be modified, 
 intent is to modify the original DataSet.
 
 <a name='dp.DataSet.sub'/>
+[]()
 ### sub(start, stop, [new]) ###
 A factory method that builds a [Batch](#dp.Batch) by calling [sub](view.md#dp.View.sub) 
 with argument `start` and `stop` on the DataSet's inputs and targets.
@@ -72,9 +80,11 @@ This method reuses the DataSet's inputs and targets, such that these shouldn't b
 intent is to modify the original DataSet.
 
 <a name='dp.DataSet.index'/>
+[]()
 ### index([batch,] indices) ###
 
 <a name="dp.SentenceSet"/>
+[]()
 ## SentenceSet ##
 A subclass of [DataSet](#dp.DataSet) used for language modeling. 
 Takes a sequence of words stored as a tensor of word IDs and a [Tensor](https://github.com/torch/torch7/blob/master/doc/tensor.md#tensor) 
@@ -85,18 +95,21 @@ However, the outputs of factory methods [batch](#dp.DataSet.batch), [sub](#dp.Da
 The returned [batch:inputs()](#dp.BaseSet.inputs) are filled according to [Google 1-Billion Words guidelines](https://code.google.com/p/1-billion-word-language-modeling-benchmark/source/browse/trunk/README.perplexity_and_such).
 
 <a name="dp.Batch"/>
+[]()
 ## Batch ##
 A subclass of [BaseSet](#dp.BaseSet). A mini-batch of input and target [Views](view.md#dp.View) 
 to be fed into a [Model](model.md#dp.Model) and [Loss](loss.md#dp.Loss). The batch of examples is usually sampled 
 from a [DataSet](#dp.DataSet) via a [Sampler](#dp.Sampler) iterator by calling the DataSet's different factory methods : [batch](#dp.DataSet.batch), [sub](#dp.DataSet.sub), and [index](#dp.DataSet.index). A batch is also the original generator of the `carry` table passed through the computation graph using a propagation.
 
 <a name="dp.Carry"/>
+[]()
 ## Carry ##
 An object store that is carried (passed) around the network during a propagation. 
 Useful for passing information between decoupled objects like 
 [DataSources](#dp.DataSource) and [Feedbacks](#dp.Feedbacks). 
 
 <a name="dp.DataSource"/>
+[]()
 ## DataSource ##
 Abstract class used to generate up to 3 [DataSets](#dp.DataSet) : *train*, *valid* and *test*:
  * *train* for training, i.e. for fitting a model to a dataset; 
@@ -104,6 +117,8 @@ Abstract class used to generate up to 3 [DataSets](#dp.DataSet) : *train*, *vali
  * *test* for testing, i.e. comparing your model to the current state-of-the-art and such.
 It can also perform preprocessing using [Preprocess](preprocess.md#dp.Preprocess) on all DataSets by fitting only the training set.
 
+<a name="dp.DataSource.__init"/>
+[]()
 ### dp.DataSource{...} ###
 DataSource constructor. Arguments should be specified as key-value pairs. 
  * `train_set` is an optional [DataSet](#dp.DataSet) used for training, i.e. optimizing a [Model](model.md#dp.Model) to minimize a [Loss](loss.md#dp.Loss)
@@ -130,11 +145,13 @@ Returns the `path` to the resulting data file.
  * `decompress_file` is a string that when non-nil, decompresses the downloaded data if `data_dir/name/decompress_file` is not found. In which case, returns `data_dir/name/decompress_file`.
  
 <a name="dp.Mnist"/>
+[]()
 ## Mnist ##
 A [DataSource](#dp.DataSource) subclass wrapping the simple but widely used handwritten digits 
 classification problem (see [MNIST](http://yann.lecun.com/exdb/mnist/)). The images are of size `28x28x1`. The classes are : 0, 1, 2, 3, 4, 5, 6, 7, 8, 9.
 
 <a name="dp.NotMnist"/>
+[]()
 ## NotMnist ##
 A [DataSource](#dp.DataSource) subclass wrapping the much larger alternative to MNIST: [NotMNIST](http://yaroslavvb.blogspot.ca/2011/09/notmnist-dataset.html). 
 If not found on the local machine, the object downloads the dataset from the 
@@ -142,17 +159,20 @@ If not found on the local machine, the object downloads the dataset from the
 It contains 500k+ examples of 10 charaters using unicode fonts: *A*,*B*,*C*,*D*,*E*,*F*,*G*,*H*,*I*,*J*. Like [Mnist](#dp.Mnist), the images are of size `28x28x1`.
 
 <a name="dp.Cifar10"/>
+[]()
 ## Cifar10 ##
 A [DataSource](#dp.DataSource) subclass wrapping the [CIFAR-10](http://www.cs.toronto.edu/~kriz/cifar.html) dataset. 
 It is a `3x32x32` color-image set of 10 different objects. Small dataset size makes it hard to generalize from train to test set (Regime : overfitting).
 
 <a name="dp.Cifar100"/>
+[]()
 ## Cifar100 ##
 A [DataSource](#dp.DataSource) subclass wrapping the [CIFAR-100](http://www.cs.toronto.edu/~kriz/cifar.html) 
 dataset. It is a `3x32x32` color-image set of 100 different objects. Small dataset (even less images 
 per class than [Cifar-10](#dp.Cifar10)) size makes it hard to generalize from train to test set (Regime : overfitting). 
 
 <a name="dp.BillionWords"/>
+[]()
 ## BillionWords ##
 A [DataSource](#dp.DataSource) subclass wrapping the corpus derived from the 
 `training-monolingual.tokenized/news.20??.en.shuffled.tokenized` data distributed for [WMT11](http://statmt.org/wmt11/translation-task.html). The preprocessing suggested by 
@@ -163,6 +183,7 @@ In, there are about 800 thousand (unique) words in the vocabulary, which makes i
 The DataSource inclues data for building hierarchical softmaxes to accelerate training.
 
 <a name="dp.Svhn"/>
+[]()
 ## Svhn ##
 The Google Street View House Numbers (SVHN) DataSource wraps 
 the [originalsource](http://ufldl.stanford.edu/housenumbers/). 
@@ -173,10 +194,12 @@ somewhat less difficult samples, to use as extra training data.
 Like [CIFAR](#dp.Cifar10), the images are of size `3x32x32`.
 
 <a name="dp.Sampler"/>
+[]()
 ## Sampler ##
 A [DataSet](#dp.DataSet) iterator which qequentially samples [Batches](#dp.Batch) from a DataSet for a [Propagator](propagator.md#dp.Propagator).
 
 <a name="dp.Sampler.__init"/>
+[]()
 ### dp.Sampler{batch_size, epoch_size} ###
 A constructor having the following arguments:
  * `batch_size` type='number', default='1024',
@@ -184,17 +207,20 @@ help='Number of examples per sampled batches'},
  * `epoch_size` specifies the number of examples presented per epoch. When `epoch_size` is less than the size of the dataset, the sampler remuses processing the dataset from its ending position the next time `Sampler:sampleEpoch()` is called. When `epoch_size` is greater, it loops through the dataset until enough samples are draw. The default (-1) is to use then entire dataset per epoch.
 
 <a name="dp.ShuffleSampler"/>
+[]()
 ## ShuffleSampler ##
 A subclass of [Sampler](#dp.Sampler) which iterates over [Batches](#dp.Batch) in a dataset 
 by shuffling the example indices before each epoch.
 
 <a name="dp.ShuffleSample.__init"/>
+[]()
 ### dp.ShuffleSampler{batch_size, random_seed} ###
 A constructor having the following arguments:
  * `batch_size` specifies the number of examples per sampled batches. The default is 128.
  * `random_seed` is a number used to initialize the shuffle generator.
 
 <a name="dp.SentenceSampler"/>
+[]()
 ## SentenceSampler ##
 A subclass of [Sampler](#dp.Sampler) which iterates over parallel 
 sentences of equal size one word at a time.
@@ -206,6 +232,7 @@ Note that `epoch_size` only garantees the minimum number of samples per epoch (m
 Used for [Recurrent Neural Network Language Models](https://github.com/nicholas-leonard/dp/blob/master/examples/recurrentlanguagemodel.lua).
  
 <a name='dp.SentenceSampler.__init'/>
+[]()
 ### dp.SentenceSampler{evaluate} ###
 In training mode (`evaluate=false`), the object publishes to the 
 `"doneSequence"` Channel to advise the [RecurrentVisitorChain](visitor.md#dp.RecurrentVisitorChain) 

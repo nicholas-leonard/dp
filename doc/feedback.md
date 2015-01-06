@@ -8,6 +8,7 @@ statistics which can be used for early-stopping (cross-validation) or used to gu
    * [CompositeFeedback](#dp.CompositeFeedback) : composite of Feedback components ;
 
 <a name="dp.Feedback"/>
+[]()
 ## Feedback ##
 Abstract class. Strategy (design pattern) for processing predictions and targets. 
 Unlike [Observers](observer.md), Feedback objects generate reports. 
@@ -33,17 +34,21 @@ The main method of the object. It is called for every `batch` propagated through
  *`report` is a table of statistics and meta-data returned by the [Experiment:report](experiment.md#dp.Experiment.report) method during the last epoch;
 
 <a name="dp.Confusion"/>
+[]()
 ## Confusion ##
 Confusion is a wrapper for the [ConfusionMatrix](https://github.com/torch/optim/blob/master/ConfusionMatrix.lua) found in the [optim](https://github.com/torch/optim/blob/master/README.md) package.
 
 <a name="dp.Perplexity"/>
+[]()
 ## Perplexity ##
 Computes perplexity for language models. For now, only works with the SoftmaxTree Model.
 
 <a name="dp.FacialKeypointFeedback"/>
+[]()
 ## FacialKeypointFeedback ##
 Measures MSE with respect to targets and optionaly compares this to constant (mean) value baseline.
 
 <a name="dp.CompositeFeedback"/>
+[]()
 ## CompositeFeedback ##
 Composite of Feedback components.

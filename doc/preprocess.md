@@ -1,4 +1,5 @@
 <a name="Preprocessing"/>
+[]()
 # Preprocess the Ground #
 Preprocessing is used to analyse and optimize the statistical properties of datasets such that they are easier to push through neural networks.
 
@@ -9,6 +10,7 @@ Preprocessing is used to analyse and optimize the statistical properties of data
     * [LeCunLCN](#dp.LeCunLCN) : Yann LeCun's Local Contrast Normalization;
 
 <a name="dp.Preprocess"/>
+[]()
 ## Preprocess ##
 Abstract class.
 
@@ -28,6 +30,7 @@ just example-wise transformations of the examples stored
 in a View.
 
 <a name="dp.Preprocess.apply"/>
+[]()
 ### apply(view, can_fit) ###
 Abstract method.
  * `view` is the [View](view.md#dp.View) to act upon.
@@ -63,6 +66,7 @@ ds = Mnist{input_preprocess=dp.Standardize()}
 A [Preprocess](#dp.Preprocess) that subtracts the mean and divides by the standard deviation. Uses the _bf_ `view`.
 
 <a name="dp.Standardize.__init"/>
+[]()
 ### dp.Standardize{[...]} ###
 Constructs a Standardize Preprocess. Arguments should be specified as key-value pairs.
  * `global_mean` is a boolean with a default value of `false`. When true, subtracts the (scalar) mean over every element in the datset. Otherwise, subtract the mean from each column (feature) separately. 
@@ -77,6 +81,7 @@ the vector norm or the standard deviation (across features, for
 each example).
 
 <a name="dp.GCN.__init"/>
+[]()
 ### dp.GCN{[...]} ###
 Constructs a GCN Preprocess. Arguments should be specified as key-value pairs:
  * `substract_mean` is a boolean with a default value of true. Remove the mean across features/pixels before normalizing. Note that this is the per-example mean across pixels, not the per-pixel mean across examples.
@@ -92,12 +97,14 @@ A. Coates, H. Lee and A. Ng. [An Analysis of Single-Layer
 Networks in Unsupervised Feature Learning](http://www.stanford.edu/~acoates/papers/coatesleeng_aistats_2011.pdf). AISTATS 14, 2011.
 
 <a name="dp.ZCA"/>
+[]()
 ## ZCA ##
 Performs Zero Component Analysis Whitening.
 Commonly used for images, yet uses the _bf_ `view`. 
 For a comprehensize explanation of ZCA Whitening please consult the [Standford Whitening article](http://ufldl.stanford.edu/wiki/index.php/Whitening)
 
 <a name="dp.ZCA.__init"/>
+[]()
 ### dp.ZCA{[...]} ###
 Constructs a ZCA Preprocess. Arguments should be specified as key-value pairs.
  * `n_component` measures the number of most important eigen components to use for ZCA. The default is to use all of components.
@@ -105,6 +112,7 @@ Constructs a ZCA Preprocess. Arguments should be specified as key-value pairs.
  * `filter_bias` is a number with a default value of 0.1. Filters are scaled by `1/sqrt(filter_bias + variance)`.
 
 <a name="dp.LeCunLCN"/>
+[]()
 ## LeCunLCN ##
 Implements the Local Contrast Normalization Layer at page 3 in
 [What is the Best Multi-Stage Architecture for Object Recognition?](http://yann.lecun.com/exdb/publis/pdf/jarrett-iccv-09.pdf).
@@ -130,6 +138,8 @@ and after LeCunLCN preprocessing:
 
 ![LeCunLCN preprocessed Lenna](image/lecunlcn.png).
 
+<a name="dp.LeCunLCN.__init"/>
+[]()
 ### dp.LeCunLCN{[...]} ###
 Constructs a LeCunLCN Preprocess. Arguments should be specified as key-value pairs.
  * `kernel_size` is the local contrast kernel size. Default is 9.

@@ -1,5 +1,6 @@
 site_name: dp
 theme : simplex
+repo_url : https://github.com/nicholas-leonard/dp
 use_directory_urls : false
 markdown_extensions: [extra]
 docs_dir : doc

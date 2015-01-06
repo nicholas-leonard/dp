@@ -204,6 +204,32 @@ function ImageClassSet:batch(batch_size)
    return self:sub(1, batch_size)
 end
 
+-- converts a table of samples (and corresponding labels) to a clean tensor
+function ImageClassSet:tableToOutput(dataTable, scalarTable)
+   local data, scalarLabels, labels
+   local quantity = #scalarTable
+   local samplesPerDraw
+   if dataTable[1]:dim() == 3 then samplesPerDraw = 1
+   else samplesPerDraw = dataTable[1]:size(1) end
+   if quantity == 1 and samplesPerDraw == 1 then
+      data = dataTable[1]
+      scalarLabels = scalarTable[1]
+      labels = torch.LongTensor(#(self.classes)):fill(-1)
+      labels[scalarLabels] = 1
+   else
+      data = torch.Tensor(quantity * samplesPerDraw, 
+                          self.sampleSize[1], self.sampleSize[2], self.sampleSize[3])
+      scalarLabels = torch.LongTensor(quantity * samplesPerDraw)
+      labels = torch.LongTensor(quantity * samplesPerDraw, #(self.classes)):fill(-1)
+      for i=1,#dataTable do
+         data[{{i, i+samplesPerDraw-1}}]:copy(dataTable[i])
+         scalarLabels[{{i, i+samplesPerDraw-1}}]:fill(scalarTable[i])
+         labels[{{i, i+samplesPerDraw-1},{scalarTable[i]}}]:fill(1)
+      end
+   end   
+   return data, scalarLabels, labels
+end
+
 function ImageClassSet:sub(batch, start, stop)
    if (not batch) or (not stop) then 
       if batch then
@@ -218,12 +244,27 @@ function ImageClassSet:sub(batch, start, stop)
       }    
    end
    assert(batch.isBatch, "Expecting dp.Batch at arg 1")
+   
    self:inputs():sub(batch:inputs(), start, stop)
    if self:targets() then
       self:targets():sub(batch:targets(), start, stop)
    end
    self:carry():sub(batch:carry(), start, stop)
    return batch  
+   
+   assert(quantity > 0)
+   -- now that indices has been initialized, get the samples
+   local dataTable = {}
+   local scalarTable = {}
+   for idx=start,stop do
+      -- load the sample
+      local imgpath = ffi.string(torch.data(self.imagePath[idx]]))
+      out = self:sampleHookTest(imgpath)
+      table.insert(dataTable, out)
+      table.insert(scalarTable, self.imageClass[idx])      
+   end
+   local data, scalarLabels, labels = self:tableToOutput(dataTable, scalarTable)
+   return data, scalarLabels, labels
 end
 
 function ImageClassSet:index(batch, indices)
@@ -277,31 +318,6 @@ function ImageClassSet:getByClass(class)
    return self:sampleHookTrain(imgpath)
 end
 
--- converts a table of samples (and corresponding labels) to a clean tensor
-local function tableToOutput(self, dataTable, scalarTable)
-   local data, scalarLabels, labels
-   local quantity = #scalarTable
-   local samplesPerDraw
-   if dataTable[1]:dim() == 3 then samplesPerDraw = 1
-   else samplesPerDraw = dataTable[1]:size(1) end
-   if quantity == 1 and samplesPerDraw == 1 then
-      data = dataTable[1]
-      scalarLabels = scalarTable[1]
-      labels = torch.LongTensor(#(self.classes)):fill(-1)
-      labels[scalarLabels] = 1
-   else
-      data = torch.Tensor(quantity * samplesPerDraw, 
-                          self.sampleSize[1], self.sampleSize[2], self.sampleSize[3])
-      scalarLabels = torch.LongTensor(quantity * samplesPerDraw)
-      labels = torch.LongTensor(quantity * samplesPerDraw, #(self.classes)):fill(-1)
-      for i=1,#dataTable do
-         data[{{i, i+samplesPerDraw-1}}]:copy(dataTable[i])
-         scalarLabels[{{i, i+samplesPerDraw-1}}]:fill(scalarTable[i])
-	       labels[{{i, i+samplesPerDraw-1},{scalarTable[i]}}]:fill(1)
-      end
-   end   
-   return data, scalarLabels, labels
-end
 
 -- sampler, samples from the training set.
 function ImageClassSet:sample(quantity)

@@ -111,6 +111,7 @@ Modules, but want to omit it in your production environment
 (and just use [nn](https://github.com/torch/nn/blob/master/README.md) and such instead).
 
 <a name='dp.Layer'/>
+[]()
 ## Layer ##
 []()
 Abstract class inherited by component [Models](#dp.Model). 

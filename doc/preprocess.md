@@ -63,6 +63,7 @@ ds = Mnist{input_preprocess=dp.Standardize()}
 ```
 
 <a name="dp.Standardize"/>
+[]()
 ## Standardize ##
 A [Preprocess](#dp.Preprocess) that subtracts the mean and divides by the standard deviation. Uses the _bf_ `view`.
 
@@ -76,6 +77,7 @@ Constructs a Standardize Preprocess. Arguments should be specified as key-value 
   * `std_eps` is a number with a default value of `1e-4`. It is a stabilization factor added to the standard deviations before dividing. This prevents standard deviations very close to zero from causing the feature values to blow up too much.
 
 <a name="dp.GCN"/>
+[]()
 ## GCN ##
 Performs Global Contrast Normalization by (optionally) subtracting the 
 mean across features and normalizing by either 

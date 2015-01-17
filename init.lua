@@ -67,7 +67,6 @@ torch.include('dp', 'data/carry.lua')
 
 torch.include('dp', 'data/datasource.lua')
 torch.include('dp', 'data/mnist.lua')
-torch.include('dp', 'data/sampler.lua')
 torch.include('dp', 'data/cifar10.lua')
 torch.include('dp', 'data/cifar100.lua')
 torch.include('dp', 'data/notmnist.lua')
@@ -75,6 +74,12 @@ torch.include('dp', 'data/facialkeypoints.lua')
 torch.include('dp', 'data/billionwords.lua')
 torch.include('dp', 'data/svhn.lua')
 torch.include('dp', 'data/imagenet.lua')
+
+--[[ sampler ]]--
+torch.include('dp', 'data/sampler.lua')
+torch.include('dp', 'data/shufflesampler.lua')
+torch.include('dp', 'data/sentencesampler.lua')
+torch.include('dp', 'data/randomsampler.lua')
 
 --[[ preprocess ]]--
 torch.include('dp', 'preprocess/preprocess.lua')

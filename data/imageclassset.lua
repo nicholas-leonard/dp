@@ -1,5 +1,3 @@
-local ffi = require 'ffi'
-local gm = require 'graphicsmagick'
 ------------------------------------------------------------------------
 --[[ ImageClassSet ]]--
 -- A DataSet for image classification in a flat folder structure :
@@ -33,6 +31,10 @@ function ImageClassSet:__init(config)
       {arg='verbose', type='boolean', default=true,
        help='display verbose messages'}
    )
+   
+   local ffi = require 'ffi'
+   local gm = require 'graphicsmagick'
+
    self:setWhichSet(which_set)
    self._load_size = load_size
    self._sample_size = sample_size or self._load_size
@@ -198,160 +200,74 @@ function ImageClassSet:__init(config)
    os.execute('rm -f "' .. combinedFindList .. '"')
 end
 
--- builds a batch (factory method)
--- reuses the inputs and targets (so don't modify them)
 function ImageClassSet:batch(batch_size)
-   return self:sub(1, batch_size)
+   return self:rand(batch_size)
 end
 
--- converts a table of samples (and corresponding labels) to a clean tensor
-function ImageClassSet:tableToOutput(dataTable, scalarTable)
-   local data, scalarLabels, labels
-   local quantity = #scalarTable
-   local samplesPerDraw
-   if dataTable[1]:dim() == 3 then samplesPerDraw = 1
-   else samplesPerDraw = dataTable[1]:size(1) end
-   if quantity == 1 and samplesPerDraw == 1 then
-      data = dataTable[1]
-      scalarLabels = scalarTable[1]
-      labels = torch.LongTensor(#(self.classes)):fill(-1)
-      labels[scalarLabels] = 1
-   else
-      data = torch.Tensor(quantity * samplesPerDraw, 
-                          self.sampleSize[1], self.sampleSize[2], self.sampleSize[3])
-      scalarLabels = torch.LongTensor(quantity * samplesPerDraw)
-      labels = torch.LongTensor(quantity * samplesPerDraw, #(self.classes)):fill(-1)
-      for i=1,#dataTable do
-         data[{{i, i+samplesPerDraw-1}}]:copy(dataTable[i])
-         scalarLabels[{{i, i+samplesPerDraw-1}}]:fill(scalarTable[i])
-         labels[{{i, i+samplesPerDraw-1},{scalarTable[i]}}]:fill(1)
-      end
-   end   
-   return data, scalarLabels, labels
-end
-
-function ImageClassSet:sub(batch, start, stop)
-   if (not batch) or (not stop) then 
-      if batch then
-         stop = start
-         start = batch
-      end
-      return dp.Batch{
-         which_set=self:whichSet(), epoch_size=self:nSample(),
-         inputs=self:inputs():sub(start, stop),
-         targets=self:targets() and self:targets():sub(start, stop),
-         carry=self:carry() and self:carry():sub(start, stop)
-      }    
-   end
-   assert(batch.isBatch, "Expecting dp.Batch at arg 1")
-   
-   self:inputs():sub(batch:inputs(), start, stop)
-   if self:targets() then
-      self:targets():sub(batch:targets(), start, stop)
-   end
-   self:carry():sub(batch:carry(), start, stop)
-   return batch  
-   
-   assert(quantity > 0)
-   -- now that indices has been initialized, get the samples
-   local dataTable = {}
-   local scalarTable = {}
-   for idx=start,stop do
-      -- load the sample
-      local imgpath = ffi.string(torch.data(self.imagePath[idx]]))
-      out = self:sampleHookTest(imgpath)
-      table.insert(dataTable, out)
-      table.insert(scalarTable, self.imageClass[idx])      
-   end
-   local data, scalarLabels, labels = self:tableToOutput(dataTable, scalarTable)
-   return data, scalarLabels, labels
-end
-
-function ImageClassSet:index(batch, indices)
-   if (not batch) or (not indices) then 
-      indices = indices or batch
-      return dp.Batch{
-         which_set=self:whichSet(), epoch_size=self:nSample(),
-         inputs=self:inputs():index(indices),
-         targets=self:targets() and self:targets():index(indices),
-         carry=self:carry() and self:carry():index(indices)
-      }
-   end
-   assert(batch.isBatch, "Expecting dp.Batch at arg 1")
-   self:inputs():index(batch:inputs(), indices)
-   if self:targets() then
-      self:targets():index(batch:targets(), indices)
-   end
-   self:carry():index(batch:carry(), indices)
-   return batch
-end
-
-function ImageClassSet:loadImage(path)
-   -- https://github.com/clementfarabet/graphicsmagick#gmimage
-   local out = gm.Image()
-   out:load(path, self.loadSize[3], self.loadSize[2])
-   :size(self.sampleSize[3], self.sampleSize[2])
-   out = out:toTensor('float','RGB','DHW')
-   return out
-end
-
-
-
-
--- size(), size(class)
-function ImageClassSet:size(class, list)
+-- nSample(), nSample(class)
+function ImageClassSet:nSample(class, list)
    list = list or self.classList
    if not class then
-      return self.numSamples
+      return self._n_sample
    elseif type(class) == 'string' then
-      return list[self.classIndices[class]]:size(1)
+      return list[self._classIndices[class]]:size(1)
    elseif type(class) == 'number' then
       return list[class]:size(1)
    end
 end
 
-
--- getByClass
-function ImageClassSet:getByClass(class)
-   local index = math.ceil(torch.uniform() * self.classListSample[class]:nElement())
-   local imgpath = ffi.string(torch.data(self.imagePath[self.classListSample[class][index]]))
-   return self:sampleHookTrain(imgpath)
-end
-
-
--- sampler, samples from the training set.
-function ImageClassSet:sample(quantity)
-   if self.split == 0 then 
-      error('No training mode when split is set to 0') 
+-- Sample a class uniformly, and then samples uniformly from class.
+-- This keeps the class distribution balanced.
+function ImageClassSet:sample(batch, nSample, sampleFunc)
+   if (not batch) or (not nSample) then 
+      if batch then
+         nSample = batch
+         sampleFunc = nSample
+         batch = nil
+      end
+      batch = batch or dp.Batch{which_set=self:whichSet(), epoch_size=self:nSample()}   
    end
-   quantity = quantity or 1
-   local dataTable = {}
-   local scalarTable = {}   
-   for i=1,quantity do
+   
+   batch = batch or 
+   sampleFunc = sampleFunc or self.defaultSample
+
+   nSample = nSample or 1
+   local inputTable = {}
+   local targetTable = {}   
+   for i=1,nSample do
+      -- sample class
       local class = torch.random(1, #self.classes)
-      local out = self:getByClass(class)
-      table.insert(dataTable, out)
-      table.insert(scalarTable, class)      
+      -- sample image from class
+      local index = math.ceil(torch.uniform() * self.classListSample[class]:nElement())
+      local imgPath = ffi.string(torch.data(self.imagePath[self.classListSample[class][index]]))
+      -- TODO sampleFunc uses dst buffers
+      local out = sampleFunc(self, imgPath)
+      table.insert(inputTable, out)
+      table.insert(targetTable, class)  
    end
-   local data, scalarLabels, labels = tableToOutput(self, dataTable, scalarTable)
-   return data, scalarLabels, labels      
+   
+   local inputView = batch and batch:inputs() or dp.ImageView()
+   local targetView = batch and batch:targets() or dp.ClassView()
+   local inputTensor = inputView:input() or torch.FloatTensor()
+   local targetTensor = targetView:input() or torch.IntTensor()
+   
+   self:tableToTensor(inputTable, targetTable, inputTensor, targetTensor)
+   
+   inputView:forward('bhwc', inputTensor)
+   targetView:forward('b', targetTensor)
+   targetView:setClasses(self._classes)
+   batch:setInputs(inputView)
+   batch:setTargets(targetView)  
+   batch:carry():putObj('nSample', targetTensor:size(1))
+   
+   return batch
 end
 
-function ImageClassSet:get(i1, i2)
-   local indices, quantity
-   if type(i1) == 'number' then
-      if type(i2) == 'number' then -- range of indices
-         indices = torch.range(i1, i2); 
-         quantity = i2 - i1 + 1;
-      else -- single index 
-         indices = {i1}; quantity = 1 
-      end 
-   elseif type(i1) == 'table' then
-      indices = i1; quantity = #i1;         -- table
-   elseif (type(i1) == 'userdata' and i1:nDimension() == 1) then
-      indices = i1; quantity = (#i1)[1];    -- tensor
-   else
-      error('Unsupported input types: ' .. type(i1) .. ' ' .. type(i2))      
+function ImageClassSet:sub(batch, start, stop)
+   if (not batch) or (not nSample) then 
+      if batch then
+         nSample = batch
+      end
    end
    assert(quantity > 0)
    -- now that indices has been initialized, get the samples
@@ -359,13 +275,47 @@ function ImageClassSet:get(i1, i2)
    local scalarTable = {}
    for i=1,quantity do
       -- load the sample
-      local imgpath = ffi.string(torch.data(self.imagePath[indices[i]]))
+      local imgpath = ffi.string(torch.data(self.imagePath[start]))
       out = self:sampleHookTest(imgpath)
       table.insert(dataTable, out)
       table.insert(scalarTable, self.imageClass[indices[i]])      
    end
-   local data, scalarLabels, labels = tableToOutput(self, dataTable, scalarTable)
+   local data, scalarLabels, labels = self:tableToTensor(dataTable, scalarTable)
    return data, scalarLabels, labels
+end
+
+function ImageClassSet:index(batch, indices)
+   error"notImplemented"
+end
+
+-- converts a table of samples (and corresponding labels) to tensors
+function ImageClassSet:tableToTensor(inputTable, targetTable, inputTensor, targetTensor)
+   inputTensor = inputTensor or torch.FloatTensor()
+   targetTensor = targetTensor or torch.IntTensor()
+   local n = #targetTable
+   local samplesPerDraw = inputTable[1]:dim() == 3 and 1 or inputTable[1]:size(1) 
+
+   inputTensor:resize(n, samplesPerDraw, unpack(self._sample_size))
+   targetTensor:resize(n, samplesPerDraw)
+   
+   for i=1,#dataTable do
+      inputTensor[i]:copy(inputTable[i])
+      targetTensor[i]:fill(targetTable[i])
+   end
+   
+   inputTensor:resize(n*samplesPerDraw, unpack(self._sample_size))
+   targetTensor:resize(n*samplesPerDraw)
+   
+   return inputTensor, targetTensor
+end
+
+function ImageClassSet:loadImage(path, nocopy)
+   -- https://github.com/clementfarabet/graphicsmagick#gmimage
+   local out = gm.Image()
+   out:load(path, self._load_size[3], self._load_size[2])
+   :size(self.sampleSize[3], self.sampleSize[2])
+   out = out:toTensor('float','RGB','DHW', nocopy) 
+   return out
 end
 
 function ImageClassSet:test(quantity)
@@ -383,3 +333,54 @@ function ImageClassSet:test(quantity)
       end
    end
 end
+
+-- by default, just load the image and return it
+function ImageClassSet:defaultSample(dst, imgPath)
+   if not imgPath then
+      imgPath = dst
+      dst = torch.Tensor()
+   end
+   if not dst then
+      dst = torch.Tensor()
+   end
+   local out = image.load(imgPath, self._load_size[1])
+   dst:resize(out:size(1), self._sample_size[3], self._sample_size[2])
+   image.scale(dst, out)
+   return dst
+end
+
+-- function to load the image, jitter it appropriately (random crops etc.)
+function ImageClassSet:sampleTrain(self, path, mean, std)
+   -- load image with size hints
+   local input = gm.Image():load(path, self.loadSize[3], self.loadSize[2])
+   -- find the smaller dimension, and resize it to 256 (while keeping aspect ratio)
+   local iW, iH = input:size()
+   if iW < iH then
+      input:size(256, 256 * iH / iW);
+   else
+      input:size(256 * iW / iH, 256);
+   end
+   iW, iH = input:size();
+   -- do random crop
+   local oW = sampleSize[3];
+   local oH = sampleSize[2]
+   local h1 = math.ceil(torch.uniform(1e-2, iH-oH))
+   local w1 = math.ceil(torch.uniform(1e-2, iW-oW))
+   local out = input:crop(oW, oH, w1, h1)
+   -- do hflip with probability 0.5
+   if torch.uniform() > 0.5 then 
+      out:flop(); 
+   end
+   out = out:toTensor('float','RGB','DHW')
+   -- mean/std
+   for i=1,3 do -- channels
+      if mean then 
+         out[{{i},{},{}}]:add(-mean[i]) 
+      end
+      if std then 
+         out[{{i},{},{}}]:div(std[i]) 
+      end
+   end
+   return out
+end
+

@@ -11,7 +11,7 @@ local ImageClassSet, parent = torch.class("dp.ImageClassSet", "dp.DataSet")
 function ImageClassSet:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, data_path, load_size, which_set, sample_size, 
-      sampling_mode, carry, verbose = xlua.unpack(
+      carry, verbose = xlua.unpack(
       {config},
       'ImageClassSet', 
       'A DataSet for images in a flat folder structure',
@@ -23,8 +23,6 @@ function ImageClassSet:__init(config)
        help='"train", "valid" or "test" set'},
       {arg='sample_size', type='table',
        help='a consistent sample size to resize the images'},
-      {arg='sampling_mode',type='string', default = 'balanced',
-       help='Sampling mode: random | balanced '},
       {arg='carry', type='dp.Carry',
        help='An object store that is carried (passed) around the '..
        'network during a propagation.'},

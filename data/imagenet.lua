@@ -4,6 +4,8 @@
 -- Wraps the Large Scale Visual Recognition Challenge 2014 (ILSVRC2014)
 -- classification dataset (commonly known as ImageNet). The dataset
 -- hasn't changed from 2012-2014.
+-- The validation set labels are in the devkit at 
+-- data/ILSVRC2014_clsloc_validation_ground_truth.txt
 ------------------------------------------------------------------------
 local ImageNet, DataSource = torch.class("dp.ImageNet", "dp.DataSource")
 
@@ -16,8 +18,8 @@ function ImageNet:__init(config)
    assert(torch.type(config) == 'table' and not config[1], 
       "Constructor requires key-value arguments")
    local load_all, input_preprocess, target_preprocess
-   self._args, self._load_size, self._sample_size, self._sampling_mode, 
-      self._data_path, self._train_dir, self._valid_dir, self._test_dir, 
+   self._args, self._load_size, self._sample_size, self._data_path, 
+      self._train_dir, self._valid_dir, self._test_dir, 
       self._verbose, self._sample_hook_train, self._sample_hook_test,
       self._download_url, load_all, input_preprocess, 
       target_preprocess
@@ -29,8 +31,6 @@ function ImageNet:__init(config)
        help='a size to load the images to, initially'},
       {arg='sample_size', type='table',
        help='a consistent sample size to resize the images'},
-      {arg='sampling_mode',type='string', default = 'balanced',
-       help='Sampling mode: random | balanced '},
       {arg='data_path', type='table | string', default=dp.DATA_DIR,
        help='one or many paths of directories with images'},
       {arg='train_dir', type='string', default='ILSVRC2012_img_train',
@@ -61,11 +61,24 @@ function ImageNet:__init(config)
        'preprocess the valid_set and test_set.'} 
    )
 
-   self._load_size = self.load_size or self._sample_size
+   self._load_size = self._load_size or self._sample_size
    self._data_path = torch.type(self._data_path) == 'string' 
       and (self._data_path) or self._data_path
-   
-   
+
+   if load_all then
+      self:loadTrain()
+      self:loadValid()
+   end
+end
+
+function ImageNet:loadTrain()
+   local dataset = dp.ImageClassSet{
+      data_path=self._data_path, load_size=self._load_size,
+      which_set='train', sample_size=self._sample_size,
+      carry=dp.Carry(), verbose=self._verbose
+   }
+   self:trainSet(dataset)
+   return dataset
 end
 
 function ImageNet:loadStructure()

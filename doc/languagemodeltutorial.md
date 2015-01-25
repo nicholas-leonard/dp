@@ -25,9 +25,23 @@ as an example, each input -> target word would have the following contexts of 3 
 The entire dataset is divided into 100 partitions of equal size,
 99 of which are used for training. The remaining partition is further 
 divided into 50 partitions, one of which is used for testing,
- while the remaining 49 are reserved for cross-validation. 
- All words with less then 3 occurrences in the training set are replaced 
- with the "<UNK>" token. This is the same split used in (\cite{chelba2013one}).
+while the remaining 49 are reserved for cross-validation. 
+All words with less then 3 occurrences in the training set are replaced 
+with the "<UNK>" token. This is the same split used in (\cite{chelba2013one}).
+The dataset is wrapped by the [BillionWords](data.md#dp.BillionWords) [DataSource](data.md#dp.DataSource).
+The downloaded `billionwords.tar.gz` compressed tarball contains the following files:
+ 
+  * `train_data.th7`, `train_small.th7` and `train_tiny.th7` training sets of different size (from fullest to smallest) ;
+  * `valid_data.th7` the validation set ;
+  * `test_data.th7` the test set ;  
+  * `word_freq.th7` the frequencies of words (not really used) ;  
+  * `word_tree1.th7`, `word_tree2.th7` and `word_tree3.th7` different hierarchies of words ; and
+  * `word_map.th7` maps the word IDs (efficient integers) to the actual words (bulky strings). 
+  
+The training, validation and test set files contain serialized 2D Tensors.
+Each such Tensor has 2 columns. First column is for storing start indices of sentences. 
+Second column is for storing the sequence of word IDs of shuffled sentences. 
+Sentences are seperated by `sentence_end` word ID (see [SentenceSet](data.md#dp.SentenceSet)).
 
 ## Neural Network Language Model ##
 

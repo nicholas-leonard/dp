@@ -13,21 +13,21 @@ The dataset contains one billion words. The task consists in using the
 previous $n$ words (the context) to predict the next word (the target word).
 All sentences are shuffled such that only the words from the target's sentence 
 can be used for prediction. The end of the sentence, identified 
-by token "</S>", must also be predicted. To predict the first $n$ words of a sentence, 
-padding is added. Using sentence "<S> Nicholas is writing</S>"
+by token `"</S>"`, must also be predicted. To predict the first $n$ words of a sentence, 
+padding is added. Using sentence `"<S> Nicholas is writing</S>"`
 as an example, each input -> target word would have the following contexts of 3 words:
 
-  * "</S> </S> <S>" -> "Nicholas" ;
-  * "</S> <S> Nicholas" -> "is" ;
-  * "<S> Nicholas is" -> "writing" ; and
-  * "Nicholas is writing" -> "</S>".
+  * `"</S> </S> <S>" -> "Nicholas"` ;
+  * `"</S> <S> Nicholas" -> "is"` ;
+  * `"<S> Nicholas is" -> "writing"` ; and
+  * `"Nicholas is writing" -> "</S>"`.
 
 The entire dataset is divided into 100 partitions of equal size,
 99 of which are used for training. The remaining partition is further 
 divided into 50 partitions, one of which is used for testing,
 while the remaining 49 are reserved for cross-validation. 
 All words with less then 3 occurrences in the training set are replaced 
-with the "<UNK>" token. This is the same split used in (\cite{chelba2013one}).
+with the `"<UNK>"` token. This is the same split used in (\cite{chelba2013one}).
 The dataset is wrapped by the [BillionWords](data.md#dp.BillionWords) [DataSource](data.md#dp.DataSource).
 The downloaded `billionwords.tar.gz` compressed tarball contains the following files:
  

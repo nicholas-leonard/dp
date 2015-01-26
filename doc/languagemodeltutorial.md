@@ -110,6 +110,8 @@ To evaluate our NNLMs, we use perplexity (PPL) as this is the
 standard metric used in the field NLP for language modeling:
 ```lua
 PPL = exp(NLL)
-``` as long as the NLL and PPL use the same logarithm basis (`e` in this case).
+``` 
+Note: the above is true as long as the NLL and PPL use the same logarithm basis (`e` in this case).
 
 ## Output Layer ##
+SoftMaxTree for faster propagations.

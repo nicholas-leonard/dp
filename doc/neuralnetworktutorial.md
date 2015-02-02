@@ -276,3 +276,36 @@ xps:25044:1398320864:1:tester:confusion accuracy = 0.92548076923077
 ==> epoch # 3 for optimizer	
  [===============................ 10112/50000 ................................] ETA: 8s540ms | Step: 0ms  
 ```
+
+## Hyperoptimizing ##
+
+Hyper-optimization is the hardest part of deep learning. 
+In many ways, it feels more like an art than a science. 
+Momentum can help convergence, but it requires so much more memory. 
+The same is true of weight decay, as both methods require a 
+copy of parameter gradients which often almost double the memory footprint of the model. 
+Using MaxNorm and AdaptiveLearningRate is often better as 
+experiments can gain more from the extra memory when it 
+is used instead for more modeling capacity (more parameters). 
+But this may be mostly applicable to large datasets like the BillionWords dataset. 
+The models it requires are proportionally heavy to the vocabulary size, which is `~800,000` unique words.
+
+Anyway, rule of thumb, always start hyper-optimizing 
+by seeking the highest learning rate you can afford. 
+You will need to try many different experiments (hyper-parameter configurations), 
+so you need them to converge fast. 
+If you are worried about controlling the decay of the learning rate, 
+try out the AdaptiveLearningRate Observer. Regularize with MaxNorm Visitor. 
+A `max_out_norm` around 2 is usually a good starting point, continuing with 1, 10, 
+and only try 1000000000 when out of ideas. 
+You can vary the epoch sizes to divide processing time 
+between evaluation and training. 
+It's often best to keep the evaluation sets small when you can 
+(like 10% of all data). The more training data the better. 
+
+But these are all arbitrary guidelines. No one can tell you how to hyper-optimize. 
+You need to try optimizing a dataset for yourself to find your own methodology and tricks. 
+The dp GitHub repository also provides a wiki that can be used to share hyper-parameter configurations
+as well as corresponding performance metrics and observations. 
+It is easier to hyper-optimize as a team than alone.
+Everyone has a piece of the puzzle.

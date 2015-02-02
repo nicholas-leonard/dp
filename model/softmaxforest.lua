@@ -87,9 +87,9 @@ function SoftmaxForest:parameters()
          param[n+k] = p
          gradParam[n+k] = gradParamE[k]
       end
-      n = n+(smt.maxParentId*2)
+      n = n+(smt.nChildNode*2)
    end
-   return param, gradParam
+   return param, gradParam, nil, n
 end
 
 function SoftmaxForest:sharedClone()

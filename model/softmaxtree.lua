@@ -88,7 +88,8 @@ end
 -- if after feedforward, returns active parameters 
 -- else returns all parameters
 function SoftmaxTree:parameters()
-   return self._module:parameters()
+   local params, gradParams = self._module:parameters()
+   return params, gradParams, nil, self._module.nChildNode * 2
 end
 
 function SoftmaxTree:sharedClone()

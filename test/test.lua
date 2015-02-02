@@ -437,6 +437,28 @@ function dptest.sequential()
    mytester:assertTensorEq(mlp_act, output:forward('bf'), 0.00001)
    mytester:assertTensorEq(mlp_grad, input:backward('bf'), 0.00001)
 end
+function dptest.container()
+   -- test container:parameters()
+   local dict = dp.Dictionary{dict_size=100,output_size=10}
+   dict.forwarded = true
+   dict._lookup.inputs = {[1]=1,[3]=1,[5]=1}
+   local model = dp.Sequential{
+      models = {
+         dict,
+         dp.Neural{input_size=10, output_size=2, transfer=nn.LogSoftMax()}
+      }
+   }
+   local params, gradParams, scales = model:parameters()
+   local nParam = table.length(params)
+   local nGradParam = table.length(gradParams)
+   mytester:assert(nParam == nGradParam, "missing gradParams")
+   mytester:assert(nParam == 3+2, "missing parameters")
+   mytester:assert(torch.type(params[1]) == 'torch.DoubleTensor', "missing param 1")
+   mytester:assert(torch.type(params[3]) == 'torch.DoubleTensor', "missing param 3")
+   mytester:assert(torch.type(params[5]) == 'torch.DoubleTensor', "missing param 5")
+   mytester:assert(torch.type(params[101]) == 'torch.DoubleTensor', "missing param 101")
+   mytester:assert(torch.type(params[102]) == 'torch.DoubleTensor', "missing param 102")
+end
 function dptest.softmaxtree()
    local input_tensor = torch.randn(5,10)
    local target_tensor = torch.IntTensor{20,24,27,10,12}

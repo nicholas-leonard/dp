@@ -77,7 +77,7 @@ function Dictionary:parameters()
          end
          scales[k] = self._lookup:scaleUpdateByKey(k)
       end
-      return params, gradParams, scales
+      return params, gradParams, scales, self._dict_size
    end
    return self._lookup:parameters()
 end

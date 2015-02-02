@@ -55,13 +55,16 @@ Backward propagates an `output` [View](view.md#dp.View) to fill and `input` View
 The returned `input` is a View filled using a backwardPut. It is the same View that was passed to the previous call to this Model's [forward](#dp.Model.forward).
 
 <a name="dp.Model.parameters"/>
-### [params, gradParams [, scales]] parameters() ###
+### [params, gradParams [, scales, size]] parameters() ###
 The method is used by Visitors for manipulating parameters and gradients. Return 2 to 3 tables : 
  * `params` : a table of parameters used by the Model;
  * `gradParams` : a table of parameter gradients (w.r.t Loss) used by the Model; 
- * `scales` : a table of update scales (optional).
-Each param/gradParam/scale triplet must be identified by a unique key, i.e. the tensors associated to each key must be the same from batch to batch. 
-This allows Visitors to use the Model's `mvstate` table to append meta-data to the triplet for later use. This is the case of Momentum which must 
+ * `scales` : a table of update scales (optional);
+ * `size` : a number specifying the maximum number of parameters to be returned (optional).
+Each param/gradParam/scale triplet must be identified by a unique key, 
+i.e. the tensors associated to each key must be the same from batch to batch. 
+This allows Visitors to use the Model's `mvstate` table to append meta-data 
+to the triplet for later use. This is the case of Momentum which must 
 accumulate `pastGrads` for each triplet.
 
 <a name="dp.Model.accept"/>
@@ -75,7 +78,7 @@ Resets the parameters (and parameter gradients) of the Model.
 
 <a name="dp.Model.zeroGradParameters"/>
 ### zeroGradParameters() ###
-A method that should be a [Visitor](visitor.md#dp.Visitor) after a model has been visited
+A method called by a [Visitor](visitor.md#dp.Visitor) after a model has been visited
 by all visitors. Internally, it will zero the parameter gradient vectors by calling
 [nn.Module:zeroGradParameters](https://github.com/torch/nn/blob/master/doc/module.md#zerogradparameters).
 In some cases, it also performs some cleanup operations (like emptying a table) 

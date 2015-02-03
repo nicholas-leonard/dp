@@ -1,0 +1,25 @@
+site_name: dp
+theme : simplex
+repo_url : https://github.com/nicholas-leonard/dp
+use_directory_urls : false
+markdown_extensions: [extra]
+docs_dir : doc
+pages:
+- [index.md, Home]
+- [neuralnetworktutorial.md, Tutorial, Neural Network]
+- [facialkeypointstutorial.md, Tutorial, Facial Keypoints]
+- [languagemodeltutorial.md, Tutorial, Language Model]
+- [view.md, Data Library, View]
+- [data.md, Data Library, Data]
+- [preprocess.md, Data Library, Preprocess] 
+- [node.md, Node Library, Node]
+- [model.md, Node Library, Model]
+- [loss.md, Node Library, Loss]
+- [experiment.md, Experiment Library, Experiment]
+- [propagator.md, Experiment Library, Propagator]
+- [visitor.md, Experiment Library, Visitor] 
+- [feedback.md, Extensions, Feedback]
+- [observer.md, Extensions, Observer]
+- [mediator.md, Extensions, Mediator]
+
+

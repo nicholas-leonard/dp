@@ -14,24 +14,27 @@ to sub-objects during propagation in case they need to act upon
 data found in other branches of the experiment tree.
 
 <a name="dp.Experiment.__init"/>
+[]()
 ## dp.Experiment{...} ##
 An Experiment constructor which takes key-value arguments:
- * `id` is an ObjectID uniquely identifying the experiment. Defaults to using `dp.uniqueID()`.
- * `model` is a [Model](model.md#dp.Model) instance shared by all Propagators.
- * `optimizer` is an [Optimizer](propagator.md#dp.Optimizer) instance used for propagating the train set.
- * `validator` is an [Evaluator](propagator.md#dp.Evaluator) instance used for propagating the valid set. 
- * `tester` is an [Evaluator](propagator.md#dp.Evaluator) instance used for propagating the test set. 
- * `observer` is an [Observer](observer.md#dp.Observer) instance used for extending the subject Experiment. 
- * `random_seed` is a number used to initialize the random number generator. Defouts to `7`.
- * `epoch` at which to start the experiment. This is useful reusing trained Models in new Experiments. Defaults to `0`.
- * `mediator` is a Mediator, a Singleton, used for inter-object communication. Defaults to `Mediator()`.
- * `overwrite` is a boolead with a default value of `false` used to overwrite existing values. For example, if a datasource is provided, and optimizer is already nitialized with a dataset, and overwrite is true, then optimizer would be setup with `datasource:trainSet()`.
- * `max_epoch` sets the maximum number of epochs allocated to the experiment. Defaults to `1000`.
- * `description` a short description of the experiment.
+
+  * `id` is an ObjectID uniquely identifying the experiment. Defaults to using `dp.uniqueID()`.
+  * `model` is a [Model](model.md#dp.Model) instance shared by all Propagators.
+  * `optimizer` is an [Optimizer](propagator.md#dp.Optimizer) instance used for propagating the train set.
+  * `validator` is an [Evaluator](propagator.md#dp.Evaluator) instance used for propagating the valid set. 
+  * `tester` is an [Evaluator](propagator.md#dp.Evaluator) instance used for propagating the test set. 
+  * `observer` is an [Observer](observer.md#dp.Observer) instance used for extending the subject Experiment. 
+  * `random_seed` is a number used to initialize the random number generator. Defouts to `7`.
+  * `epoch` at which to start the experiment. This is useful reusing trained Models in new Experiments. Defaults to `0`.
+  * `mediator` is a Mediator, a Singleton, used for inter-object communication. Defaults to `Mediator()`.
+  * `overwrite` is a boolead with a default value of `false` used to overwrite existing values. For example, if a datasource is provided, and optimizer is already nitialized with a dataset, and overwrite is true, then optimizer would be setup with `datasource:trainSet()`.
+  * `max_epoch` sets the maximum number of epochs allocated to the experiment. Defaults to `1000`.
+  * `description` a short description of the experiment.
 
 The only mandatory arguments are `model` and at least one `optimizer`, `validator` or `tester`.
 
 <a name="dp.Experiment.run"/>
+[]()
 ## run(datasource) ##
 This method loops through the propagators until a doneExperiment is 
 received or experiment reaches `max_epoch` epochs. The `datasource` 
@@ -39,6 +42,7 @@ is provided as an argument here, as opposed to being passed to the
 constructor to keep it from being serialized with the Experiment. 
 
 <a name="dp.Experiment.report"/>
+[]()
 ## [report] report() ##
 This method returns a `report` table using for monitoring the components
 of the Experiment. This report includes reports 

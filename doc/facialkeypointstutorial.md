@@ -1,4 +1,5 @@
 <a name="FacialKeypointsTutorial"/>
+[]()
 # Facial Keypoints Tutorial #
 In this tutorial, we demonstrate how the __dp__ library can be used 
 to build convolution neural networks and easily extended using Feedback 
@@ -53,11 +54,12 @@ preparing Kaggle submissions when new minima on the valid set are found
 ## Building Components ##
 From the above analysis, we can begin to draw a roadmap of components to 
 build :
- 1. [FacialKeypoints](#facialkeypoints) : wrapper for the DataSource;
- 2. [FKDKaggle](#fkdkaggle) : a Feedback for creating a Kaggle submission out of predictions;
- 3. [FacialKeypointFeedback](#facialkeypointfeedback) : a Feedback for monitoring performance (and comparing to baseline);
- 4. [MultiSoftMax](#multisoftmax) : a nn.Module that will allow us to apply a softmax for each keypoint;
- 5. [facialkeypointsdetector.lua](#facialkeypointsdetector.lua) : main launch script; 
+
+  1. [FacialKeypoints](#facialkeypoints) : wrapper for the DataSource;
+  2. [FKDKaggle](#fkdkaggle) : a Feedback for creating a Kaggle submission out of predictions;
+  3. [FacialKeypointFeedback](#facialkeypointfeedback) : a Feedback for monitoring performance (and comparing to baseline);
+  4. [MultiSoftMax](#multisoftmax) : a nn.Module that will allow us to apply a softmax for each keypoint;
+  5. [facialkeypointsdetector.lua](#facialkeypointsdetector.lua) : main launch script; 
 
 ### FacialKeypoints ###
 The first task of any machine learning endeavor is to prepare the 
@@ -716,7 +718,7 @@ print(opt)
 assert(opt.submissionFile ~= '', 'provide filename, e.g.: --submissionFile submission12.csv')
 ```
 The table values need to be translated from strings to tables using the 
-[table.fromString](../utils/table.md) function:
+[table.fromString](../utils/table.lua) function:
 ```lua
 opt.channelSize = table.fromString(opt.channelSize)
 opt.kernelSize = table.fromString(opt.kernelSize)

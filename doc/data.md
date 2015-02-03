@@ -114,6 +114,46 @@ DataSource constructor. Arguments should be specified as key-value pairs.
 
 Note that at least one of the 3 `set` arguments should be specified. If you need guidance to build your own DataSource, the [Facial Keypoint Tutorial](facialkeypointstutorial.md#facial-keypoints-tutorial) also includes a [section](facialkeypointstutorial.md#facialkeypoints) demonstrating how a DataSource can be built to wrap facial keypoint detection data.
 
+<a name = "dp.DataSource.get"/>
+### [tensor, dataview, dataset] get(which_set, attribute, view, type) ###
+This method simplifies access to tensors. This is best demonstrated with an example. 
+Say you want to access the input tensor of the training set, you can call :
+```lua
+tensor = ds:trainSet():inputs():forward('default')
+```
+That is a lot of function calls. You can use the `get` method instead:
+```lua
+tensor = ds:get('train', 'input', 'default')
+```
+These are also the default arguments, so the above are equivalent to :
+```lua
+tensor = ds:get()
+```
+
+All arguments are optional strings :
+ * `which_set` specifies which DataSet : *train*, *valid* or *test*. Defaults to *train*;
+ * `attribute` specifies which attribute of the DataSet : *input* or *target*. Defaults to *inputs*;
+ * `view` specifies the axis order of the tensor to get : *bwc*, *bchw*, *b*, etc. Defaults to *default*. See [Views](#dp.View);
+ * `type` specifies the type of the Tensor to get : *float*, *torch.FloatTensor*, *Float*, *cuda*, etc. 
+
+<a name = "dp.DataSource.set"/>
+### [dataview, dataset] set(which_set, attribute, view, tensor) ###
+This method allows for setting one of the encapsulated Tensors.
+Say you want to set the input tensor of the training set, you can call :
+```lua
+ds:trainSet():inputs():forward('bf', torch.randn(3,4))
+```
+That is a lot of function calls. You can use the `set` method instead:
+```lua
+ds:set('train', 'input', 'bf', torch.randn(3,4))
+```
+
+All arguments are mandatory :
+ * `which_set` specifies which DataSet : *train*, *valid* or *test*;
+ * `attribute` specifies which attribute of the DataSet : *input* or *target*;
+ * `view` specifies the axis order of the tensor to be encapsulated in a [Views](#dp.View) : *bwc*, *bchw*, *b*, etc;
+ * `tensor` is the Tensor that you want to encapsulate.
+
 ### preprocess() ###
 If they exist, applies the `input_preprocess` and `target_preprocess` [Preprocess](preprocess.md#dp.Preprocess) 
 attributed specified in the constructor or via the `set[Input,Target]Preprocess` methods 

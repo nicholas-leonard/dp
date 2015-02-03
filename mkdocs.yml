@@ -6,9 +6,9 @@ markdown_extensions: [extra]
 docs_dir : doc
 pages:
 - [index.md, Home]
-- [neuralnetworktutorial.md, Tutorial, Neural Network Tutorial]
-- [facialkeypointstutorial.md, Tutorial, Facial Keypoints Tutorial]
-- [languagemodeltutorial.md, Tutorial, Language Model Tutorial]
+- [neuralnetworktutorial.md, Tutorial, Neural Network]
+- [facialkeypointstutorial.md, Tutorial, Facial Keypoints]
+- [languagemodeltutorial.md, Tutorial, Language Model]
 - [view.md, Data Library, View]
 - [data.md, Data Library, Data]
 - [preprocess.md, Data Library, Preprocess] 

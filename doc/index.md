@@ -23,6 +23,8 @@ In order to help you get up and running we provide a quick [neural network tutor
 
 A [Facial Keypoints tutorial](facialkeypointstutorial.md) involving the case study of a Kaggle Challenge is also available. It provides an overview of the steps required for extending and using  __dp__ in the context of the challenge. And even provides the script so that you can generate your own Kaggle submissions.
 
+The [Language Model tutorial](languagemodeltutorial.md) examines the implementation of a neural network language model trained on the Billion Words dataset.
+
 <a name="dp.packages"/>
 []()
 ## dp Packages ##
@@ -45,10 +47,6 @@ A [Facial Keypoints tutorial](facialkeypointstutorial.md) involving the case stu
     * [Feedback](feedback.md) : provides I/O feedback given the Model output, input and targets;
     * [Observer](observer.md) : plugins that can be appended to objects as extensions;
     * [Mediator](mediator.md) : singleton to which objects can publish and subscribe Channels;
-  * Hyperparameter Library
-    * Hyperoptimizer : explores different experiment configurations;
-    * DatasourceFactory : builds a datasource;
-    * ExperimentFactory : builds an experiment and Model.
 
 
 <a name="dp.install"/>

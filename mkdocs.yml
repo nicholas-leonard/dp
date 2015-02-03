@@ -8,6 +8,7 @@ pages:
 - [index.md, Home]
 - [neuralnetworktutorial.md, Tutorial, Neural Network Tutorial]
 - [facialkeypointstutorial.md, Tutorial, Facial Keypoints Tutorial]
+- [languagemodeltutorial.md, Tutorial, Language Model Tutorial]
 - [view.md, Data Library, View]
 - [data.md, Data Library, Data]
 - [preprocess.md, Data Library, Preprocess] 

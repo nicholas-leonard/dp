@@ -1,15 +1,17 @@
 # You can Observe a lot by just watching #
 The following Observers are available:
- * [Observer](#dp.Observer) : abstract class;
-  * [ErrorMinima](#dp.ErrorMinima) : monitors an error variable to keep track of its minima.
-   * [EarlyStopper](#dp.EarlyStopper) : upon reaching minima, saves [Experiment](experiment.md#dp.Experiment) and notifies [Subscribers](mediator.md#dp.Subscriber);
-  * [LearningRateSchedule](#dp.LearningRateSchedule) : modifies learning rate using a schedule;
-  * [AdaptiveLearningRate](#dp.AdaptiveLearningRate) : decays learning rate when new minima on validation error isn't found;
-  * [Logger](#dp.Logger) : abstract logging class (prints reports to cmdline);
-   * [FileLogger](#dp.FileLogger) : basic file-based report logging;
-  * [CompositeObserver](#dp.CompositeObserver) : a composite of observers;
+
+  * [Observer](#dp.Observer) : abstract class;
+    * [ErrorMinima](#dp.ErrorMinima) : monitors an error variable to keep track of its minima.
+      * [EarlyStopper](#dp.EarlyStopper) : upon reaching minima, saves [Experiment](experiment.md#dp.Experiment) and notifies [Subscribers](mediator.md#dp.Subscriber);
+   * [LearningRateSchedule](#dp.LearningRateSchedule) : modifies learning rate using a schedule;
+   * [AdaptiveLearningRate](#dp.AdaptiveLearningRate) : decays learning rate when new minima on validation error isn't found;
+   * [Logger](#dp.Logger) : abstract logging class (prints reports to cmdline);
+     * [FileLogger](#dp.FileLogger) : basic file-based report logging;
+   * [CompositeObserver](#dp.CompositeObserver) : a composite of observers;
 
 <a name="dp.Observer"/>
+[]()
 ## Observer ##
 An object that is called when events occur. Based on the Listen-Notify design pattern. 
 Uses a mediator to publish/subscribe to channels.
@@ -21,6 +23,7 @@ received report, but then the ordering of these modifications would
 be undefined, unless they make use of Mediator priorities.
 
 <a name='dp.Observer.__init'/>
+[]()
 ### dp.Observer(channels, callbacks) ###
 Constructs an Observer. Arguments `channels` and `callbacks` can 
 be strings or tables thereof. The first argument specifies the name of 
@@ -31,6 +34,7 @@ If no `callbacks` are provided, these default to taking on the same values
 as `channels`.
 
 <a name='dp.ErrorMinima'/>
+[]()
 ## ErrorMinima ##
 Monitors an error variable to keep track of its minima. Optionally notifies
 [Subscribers](mediator.md#dp.Subscriber) to the `errorMinima` of the current state 
@@ -44,16 +48,19 @@ In this case, the object subscribes to `doneEpoch` channel in order to receive t
 at the end of each epoch.
 
 <a name='dp.ErrorMinima.__init'/>
+[]()
 ### dp.ErrorMinima{...} ###
 Constructs an ErrorMinima Observer. Arguments should be specified as key-value pairs. 
 Other then the following arguments, those specified in [Observer](#dp.Observer.__init) also apply.
- * `start_epoch` is a number identifying the minimum epoch after which [Experiments](experiment.md#dp.Experiment) can begin to be persisted to disk. Useful to reduce I/O at beginning of training. Defaults to 5;
- * `error_report` is a table specifying a sequence of keys to access variable from epoch [reports](experiment.md#dp.Experiment.repot). Default is `{'validator', 'loss', 'avgError'}` (for cross-validation), unless of course an `error_channel` is specified.
- * `error_channel` is a string or table specifying the [Channel](mediator.md#dp.Channel) to subscribe to for early stopping. Should return an error value and the last experiment report. Over-rides `error_report` when specified.
- * `maximize` is a boolean having a default value of false. When true, the error channel or report is negated. This is useful when the channel returns a measure like accuracy that should be maximized, instead of an error that should be minimized.
- * `notify` is a boolean. When true (the default), notifies listeners ([Subscribers](mediator.md#dp.Subscriber)) when a new minima is found.
+ 
+  * `start_epoch` is a number identifying the minimum epoch after which [Experiments](experiment.md#dp.Experiment) can begin to be persisted to disk. Useful to reduce I/O at beginning of training. Defaults to 5;
+  * `error_report` is a table specifying a sequence of keys to access variable from epoch [reports](experiment.md#dp.Experiment.repot). Default is `{'validator', 'loss', 'avgError'}` (for cross-validation), unless of course an `error_channel` is specified.
+  * `error_channel` is a string or table specifying the [Channel](mediator.md#dp.Channel) to subscribe to for early stopping. Should return an error value and the last experiment report. Over-rides `error_report` when specified.
+  * `maximize` is a boolean having a default value of false. When true, the error channel or report is negated. This is useful when the channel returns a measure like accuracy that should be maximized, instead of an error that should be minimized.
+  * `notify` is a boolean. When true (the default), notifies listeners ([Subscribers](mediator.md#dp.Subscriber)) when a new minima is found.
  
 <a name="dp.EarlyStopper"/>
+[]()
 ## EarlyStopper ##
 An [ErrorMinima](#dp.ErrorMinima) instance that saves the version of 
 the `subject` with the lowest error and terminates 
@@ -63,24 +70,30 @@ Error can be obtained from experiment report or mediator Channel.
 If obtained from experiment report via error_report, subscribes to doneEpoch channel.
 
 ### dp.EarlyStopper{...} ###
+[]()
 Constructs an EarlyStopper Observer. Arguments should be specified as key-value pairs.
 Other then the following arguments, those specified in [ErrorMinima](#dp.ErrorMinima.__init) also apply.
- * `save_strategy` is an object with a `save(subject)` method for persisting the subject to disk. Defaults to `dp.SaveToFile()`
- * `max_epochs` specifies the maximum number of epochs to consider after a minima has been found. After that, a terminate signal is published to the mediator. Defaults to 30.
- * `max_error` is the maximum value for which the experiment should be stopped after `min_epoch` epochs. If `maximize=true` this is minimum value. A value of 0 (the default) means that it is ignored.
- * `min_epoch` is a number having a default value of 1000000. See `max_value` for a description.
+ 
+  * `save_strategy` is an object with a `save(subject)` method for persisting the subject to disk. Defaults to `dp.SaveToFile()`
+  * `max_epochs` specifies the maximum number of epochs to consider after a minima has been found. After that, a terminate signal is published to the mediator. Defaults to 30.
+  * `max_error` is the maximum value for which the experiment should be stopped after `min_epoch` epochs. If `maximize=true` this is minimum value. A value of 0 (the default) means that it is ignored.
+  * `min_epoch` is a number having a default value of 1000000. See `max_value` for a description.
 
 <a name="dp.LearningRateSchedule"/>
+[]()
 ## LearningRateSchedule ##
 An Observer that only works on [Learn](visitor.md#dp.Learn) subject. 
 It decays its subject's learning rate according to a schedule.
 
 <a name="dp.LearningRateSchedule.__init"/>
+[]()
 ### dp.LearningRateSchedule{schedule} ###
 Constructs an LearningRateSchedule Observer. The argument should be specified as key-value pairs.
- * `schedule` is a table or a Tensor where epochs are keys, and learning rates are values. At each epoch having a key in the table, the subject's learning rate is set to its corresponding value. 
+ 
+  * `schedule` is a table or a Tensor where epochs are keys, and learning rates are values. At each epoch having a key in the table, the subject's learning rate is set to its corresponding value. 
 
 <a name="dp.AdaptiveLearningRate"/>
+[]()
 ## AdaptiveLearningRate ##
 An Observer that only works on a [Learn](visitor.md#dp.Learn) subject.
 It decays learning rate by `decay_factor` when validation error doesn't reach a new 
@@ -99,17 +112,22 @@ then the corresponding sequence of learning rates given these errors would be
 ```
  
 <a name="dp.AdaptiveLearningRate.__init"/>
+[]()
 ### dp.AdaptiveLearningRate{...} ###
 Constructs an AdaptiveLearningRate Observer. Arguments should be specified as key-value pairs.
 Other then the following arguments, those specified in [Observer](#dp.Observer.__init) also apply.
- * `max_wait` specifies the maximum number of epochs to wait for a new minima to be found. After that, the learning rate is decayed by `decay_factor`. Defaults to 2.
- * `decay_factor` specifies the factor by which learning rate `lr` is decayed as per : `lr = lr*decay_factor`.
+ 
+  * `max_wait` specifies the maximum number of epochs to wait for a new minima to be found. After that, the learning rate is decayed by `decay_factor`. Defaults to 2.
+  * `decay_factor` specifies the factor by which learning rate `lr` is decayed as per : `lr = lr*decay_factor`.
 
 <a name="dp.Logger"/>
+[]()
 ## Logger ##
 
 <a name="dp.FileLogger"/>
+[]()
 ## FileLogger ##
 
 <a name="dp.CompositeObserver"/>
+[]()
 ## CompositeObserver ##

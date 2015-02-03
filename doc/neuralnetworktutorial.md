@@ -1,4 +1,5 @@
 <a name="NeuralNetworkTutorial"/>
+[]()
 # Neural Network Tutorial #
 We begin with a simple [neural network example](../examples/neuralnetwork_tutorial.lua). The first line loads 
 the __dp__ package, whose first matter of business is to load its dependencies (see [init.lua](../init.lua)):
@@ -167,9 +168,10 @@ early-stopping and comparing our model to the state of the art).
 Since the [Optimizer](propagator.md#dp.Optimizer) is used to train the Model on a DataSet, 
 we need to specify some Visitors to update its [parameters](model.md#dp.Model.parameters). 
 We want to update the Model by sequentially applying the following visitors: 
- 1. [Momentum](../visitor/momentum.lua) : updates parameter gradients using a factored mixture of current and previous gradients.
- 2. [Learn](../visitor/learn.lua) : updates the parameters using the gradients and a learning rate.
- 3. [MaxNorm](../visitor/maxnorm.lua) : updates output or input neuron weights (in this case, output) so that they have a norm less or equal to a specified value.
+
+  1. [Momentum](../visitor/momentum.lua) : updates parameter gradients using a factored mixture of current and previous gradients.
+  2. [Learn](../visitor/learn.lua) : updates the parameters using the gradients and a learning rate.
+  3. [MaxNorm](../visitor/maxnorm.lua) : updates output or input neuron weights (in this case, output) so that they have a norm less or equal to a specified value.
 
 The only mandatory Visitor is the second one (Learn), which does the actual parameter updates. 
 The first is the well known momentum. 

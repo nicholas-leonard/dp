@@ -17,9 +17,12 @@ Among other things, this package includes :
 
 <a name="dp.tutorials"/>
 ## Tutorials and Examples ##
+
 In order to help you get up and running we provide a quick [neural network tutorial](doc/neuralnetworktutorial.md) which explains step-by-step the contents of this [example script](examples/neuralnetwork_tutorial.lua). For a more flexible option that allows input from the command-line specifying different datasources and preprocesses, using dropout, running the code on a GPU/CPU, please consult this [script](examples/neuralnetwork.lua).
 
 A [Facial Keypoints tutorial](doc/facialkeypointstutorial.md) involving the case study of a Kaggle Challenge is also available. It provides an overview of the steps required for extending and using  __dp__ in the context of the challenge. And even provides the script so that you can generate your own Kaggle submissions.
+
+The [Language Model tutorial](doc/languagemodeltutorial.md) examines the implementation of a neural network language model trained on the Billion Words dataset.
 
 <a name="dp.packages"/>
 ## dp Packages ##

@@ -68,6 +68,13 @@ local datasource = dp.BillionWords{
 }
 
 --[[Model]]--
+
+local inputModel = dp.Dictionary{
+   dict_size = datasource:vocabularySize(),
+   output_size = opt.inputEmbeddingSize,
+   acc_update = opt.accUpdate
+}
+
 print("Input to first hidden layer has "..
    opt.contextSize*opt.inputEmbeddingSize.." neurons.")
 
@@ -140,11 +147,7 @@ end
 
 mlp = dp.Sequential{
    models = {
-      dp.Dictionary{
-         dict_size = datasource:vocabularySize(),
-         output_size = opt.inputEmbeddingSize,
-         acc_update = opt.accUpdate
-      },
+      inputModel,
       hiddenModel,
       dp.Neural{
          input_size = inputSize, 

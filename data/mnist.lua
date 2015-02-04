@@ -41,7 +41,7 @@ function Mnist:__init(config)
       {arg='shuffle', type='boolean', 
        help='shuffle different sets', default=false},
       {arg='download_url', type='string',
-       default='https://stife076.files.wordpress.com/2014/08/mnist2.zip',
+       default='https://stife076.files.wordpress.com/2015/02/mnist4.zip',
        help='URL from which to download dataset if not found on disk.'},
       {arg='load_all', type='boolean', 
        help='Load all datasets : train, valid, test.', default=true},
@@ -135,6 +135,6 @@ function Mnist:loadData(file_name, download_url)
       decompress_file=file_name, 
       data_dir=self._data_path
    }
-   return torch.load(path)
+   return torch.load(path, "ascii")
 end
 

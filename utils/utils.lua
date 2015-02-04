@@ -15,11 +15,13 @@ function dp.is_file(path)
 end
 
 -- Check that a data directory exists, and create it if not.
-function dp.check_and_mkdir(dir)
-   if not paths.filep(dir) then
-      fs.mkdir(dir)
+function dp.mkdir(dir)
+   if not paths.dirp(dir) then
+      os.execute('mkdir -p '..dir)
    end
 end
+-- DEPRECATED : use dp.mkdir instead
+dp.check_and_mkdir = dp.mkdir
 
 -- Download the file at location url.
 function dp.download_file(url)

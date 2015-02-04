@@ -47,6 +47,77 @@ function DataSource:__init(config)
    self:preprocess()
 end
 
+function DataSource:getView(which_set, attribute)
+   which_set = which_set or 'train'
+   attribute = attribute or 'input'
+   
+   local dataset
+   if which_set == 'train' then
+      dataset = self:trainSet()
+   elseif which_set == 'valid' then
+      dataset = self:validSet()
+   elseif which_set == 'test' then
+      dataset = self:testSet()
+   else
+      error("expecting 'train', 'valid' or 'test' at arg 1: "..which_set)
+   end
+   
+   local dataview
+   if attribute == 'input' or attribute == 'inputs' then
+      dataview = dataset:inputs()
+   elseif attribute == 'target' or attribute == 'targets' then 
+      dataview = dataset:targets()
+   else
+      error("expecting 'input' or 'target' at arg 2: "..attribute)
+   end
+   
+   return dataview, dataset
+end
+
+-- a function to simplify calling :
+-- ds:[train,valid,test]Set():[inputs,targets]():forward(view, tensor_type).
+-- all attributes are optional.
+-- example usage : get('train', 'input', 'bchw', 'float')
+function DataSource:get(which_set, attribute, view, type)
+   view = view or 'default'
+   local dataview, dataset = self:getView(which_set, attribute)
+   local tensor_type
+   if torch.type(type) == 'string' then
+      tensor_type = 'torch.%sTensor'
+      if type:sub(-6,-1) == 'Tensor' then
+         tensor_type = type
+      elseif type == 'float' or type == 'Float' then
+         tensor_type = string.format(tensor_type, 'Float')
+      elseif type == 'double' or type == 'Double' then
+         tensor_type = string.format(tensor_type, 'Double')
+      elseif type == 'cuda' or type == 'Cuda' then
+         tensor_type = string.format(tensor_type, 'Cuda')
+      elseif type == 'int' or type == 'Int' then
+         tensor_type = string.format(tensor_type, 'Int')
+      elseif type == 'long' or type == 'Long' then
+         tensor_type = string.format(tensor_type, 'Long')
+      elseif type == 'char' or type == 'Char' then
+         tensor_type = string.format(tensor_type, 'Char')
+      elseif type == 'byte' or type == 'Byte' then
+         tensor_type = string.format(tensor_type, 'Byte')
+      elseif type == 'short' or type == 'Short' then
+         tensor_type = string.format(tensor_type, 'Short')
+      else
+         error("expecting tensor type at arg 4 : "..type)
+      end
+   end
+   local tensor = dataview:forward(view, tensor_type)
+   return tensor, dataview, dataset
+end
+
+-- And we cannot have a get without a set:
+function DataSource:set(which_set, attribute, view, tensor)
+   assert(view, "expecting view at arg 3")
+   local dataview, dataset = self:getView(which_set, attribute)
+   dataview:forward(view, tensor)
+   return dataview, dataset
+end
+
 function DataSource:write(...)
    error"DataSource Error: Shouldn't serialize DataSource"
 end

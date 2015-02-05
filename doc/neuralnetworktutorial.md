@@ -1,8 +1,8 @@
 <a name="NeuralNetworkTutorial"/>
 []()
 # Neural Network Tutorial #
-We begin with a simple [neural network example](../examples/neuralnetwork_tutorial.lua). The first line loads 
-the __dp__ package, whose first matter of business is to load its dependencies (see [init.lua](../init.lua)):
+We begin with a simple [neural network example](https://github.com/nicholas-leonard/dp/blob/master/examples/neuralnetwork_tutorial.lua). The first line loads 
+the __dp__ package, whose first matter of business is to load its dependencies (see [init.lua](https://github.com/nicholas-leonard/dp/blob/master/init.lua)):
 ```lua
 require 'dp'
 ```
@@ -35,15 +35,15 @@ datasource = dp.Mnist{input_preprocess = dp.Standardize()}
 ```
 A DataSource contains up to three [DataSets](data.md#dp.DataSet): 
 `train`, `valid` and `test`. The first if for training the model. 
-The second is used for [early-stopping](observer/earlystopper.lua) and cross-validation.
+The second is used for [early-stopping](observer.md#dp.EarlyStopper) and cross-validation.
 The third is used for publishing papers and comparing different models.
   
-Although not really necessary, we [Standardize](../preprocess/standardize.lua) 
+Although not really necessary, we [Standardize](preprocess.md#dp.Standardize) 
 the datasource, which subtracts the mean and divides 
 by the standard deviation. Both statistics (mean and standard deviation) are 
 measured on the `train` set only. This is a common pattern when preprocessing data. 
 When statistics need to be measured accross different examples 
-(as in [ZCA](preprocess.md#dp.ZCA) and [LecunLCN](../preprocess/lecunlcn.lua) preprocesses), 
+(as in [ZCA](preprocess.md#dp.ZCA) and [LecunLCN](preprocess.md#dp.LeCunLCN) preprocesses), 
 we fit the preprocessor on the `train` set and apply it to all sets (`train`, `valid` and `test`). 
 However, some preprocesses require that statistics be measured
 only on each example (as in [global constrast normalization](preprocess.md#dp.GCN)). 
@@ -92,11 +92,11 @@ which is what Neural uses internally for its parameters.
 These two Neural [Models](model.md#dp.Model) are combined to form an MLP using [Sequential](model.md#dp.Sequential), 
 which is not to be confused with (yet very similar to) the 
 [Sequential](https://github.com/torch/nn/blob/master/containers.md#nn.Sequential) Module. It differs in that
-it can be constructed from a list of [Models](../model/model.lua) instead of 
+it can be constructed from a list of [Models](model.md#dp.Model) instead of 
 [Modules](https://github.com/torch/nn/blob/master/doc/module.md#nn.Module). Models have extra 
 methods, allowing them to [accept](model.md#dp.Model.accept) 
 [Visitors](visitor.md#dp.Visitor), to communicate with 
-other components through a [Mediator](../mediator.lua), 
+other components through a [Mediator](mediator.md#dp.Mediator), 
 or [setup](node.md#dp.Node.setup) with variables after initialization.
 Model instances also differ from Modules in their ability to [forward](model.md#dp.Model.forward) 
 and [backward](model.md#dp.Model.backward) using [Views](view.md#dp.View). 
@@ -132,8 +132,8 @@ test = dp.Evaluator{
    sampler = dp.Sampler{}
 }
 ```
-For this example, we use an [Optimizer](../propagator/optimizer.lua) for the training DataSet,
-and two [Evaluators](../propagator/evaluator.lua), one for cross-validation 
+For this example, we use an [Optimizer](propagator.md#dp.Optimizer) for the training DataSet,
+and two [Evaluators](propagator.md#dp.Evaluator), one for cross-validation 
 and another for testing. 
 
 ### Sampler ###
@@ -148,7 +148,7 @@ which makes the training algorithm more stochastic.
 ### Loss ###
 Each Propagator must also specify a [Loss](loss.md#dp.Loss) for training or evaluation.
 If you have previously used the [nn](https://github.com/torch/nn/blob/master/README.md) package, 
-there is nothing new here, a [Loss](loss/loss.lua) is simply an adapter of
+there is nothing new here, a [Loss](loss.md#dp.Loss) is simply an adapter of
 [Criterions](https://github.com/torch/nn/blob/master/criterion.md#nn.Criterion). 
 Each example has a single target class and our Model output is LogSoftMax so 
 we use a [NLL](loss.md#dp.NLL), which wraps a 
@@ -169,22 +169,22 @@ Since the [Optimizer](propagator.md#dp.Optimizer) is used to train the Model on 
 we need to specify some Visitors to update its [parameters](model.md#dp.Model.parameters). 
 We want to update the Model by sequentially applying the following visitors: 
 
-  1. [Momentum](../visitor/momentum.lua) : updates parameter gradients using a factored mixture of current and previous gradients.
-  2. [Learn](../visitor/learn.lua) : updates the parameters using the gradients and a learning rate.
-  3. [MaxNorm](../visitor/maxnorm.lua) : updates output or input neuron weights (in this case, output) so that they have a norm less or equal to a specified value.
+  1. [Momentum](visitor.md#dp.Momentum) : updates parameter gradients using a factored mixture of current and previous gradients.
+  2. [Learn](visitor.md#dp.Learn) : updates the parameters using the gradients and a learning rate.
+  3. [MaxNorm](visitor.md#dp.MaxNorm) : updates output or input neuron weights (in this case, output) so that they have a norm less or equal to a specified value.
 
 The only mandatory Visitor is the second one (Learn), which does the actual parameter updates. 
 The first is the well known momentum. 
 The last is the lesser known hard constraint on the norm of output or input neuron weights 
 (see [Hinton 2012](http://arxiv.org/pdf/1207.0580v1.pdf)), which acts as a regularizer. You could also
-replace it with a more classic regularizer like [WeightDecay](../visitor/weightdecay.lua), in which case you 
+replace it with a more classic regularizer like [WeightDecay](visitor.md#dp.WeightDecay), in which case you 
 would have to put it *before* the Learn visitor.
 
 Finally, we have the Optimizer switch on its `progress` bar so we 
 can monitor its progress during training. 
 
 ## Experiment ##
-Now its time to put this all togetherto form an [Experiment](../propagator/experiment.lua):
+Now its time to put this all togetherto form an [Experiment](experiment.md):
 ```lua
 --[[Experiment]]--
 xp = dp.Experiment{
@@ -205,8 +205,8 @@ xp = dp.Experiment{
 }
 ```
 ### Observer ###
-The Experiment can be initialized with a list of [Observers](../observer/observer.lua). The 
-order is not important. Observers listen to mediator [Channels](mediator.lua). The Mediator 
+The Experiment can be initialized with a list of [Observers](observer.md#dp.Observer). The 
+order is not important. Observers listen to mediator [Channels](mediator.md#dp.Channel). The Mediator 
 calls them back when certain events occur. In particular, they may listen to the _doneEpoch_
 Channel to receive a report from the Experiment after each epoch. A report is nothing more than 
 a hierarchy of tables. After each epoch, the component objects of the Experiment (except Observers) 
@@ -215,12 +215,12 @@ these and modify the component which they are assigned to (in this case, Experim
 Observers may be attached to Experiments, Propagators, Visitors, etc. 
 
 #### FileLogger ####
-Here we use a simple [FileLogger](../observer/filelogger.lua) which will 
+Here we use a simple [FileLogger](observer.md#dp.FileLogger) which will 
 store serialized reports in a simple text file for later use. Each experiment has a unique ID which are 
 included in reports, thus allowing the FileLogger to name its file appropriately. 
 
 #### EarlyStopper ####
-The [EarlyStopper](../observer/earlystopper.lua) is used for stopping the Experiment when error has not decreased, or accuracy has not 
+The [EarlyStopper](observer.md#dp.EarlyStopper) is used for stopping the Experiment when error has not decreased, or accuracy has not 
 be maximized. It also saves onto disk the best version of the Experiment when it finds a new one. 
 It is initialized with a channel to `maximize` or minimize (default is to minimize). In this case, we intend 
 to early-stop the experiment on a field of the report, in particular the _accuracy_ field of the 
@@ -240,7 +240,7 @@ We don't initialize the Experiment with the DataSource so that we may easily
 save it to disk, thereby keeping this snapshot separate from its data 
 (which shouldn't be modified by the experiment).
 
-Let's run the [script](../examples/neuralnetwork_tutorial.lua) from the cmd-line:
+Let's run the [script](https://github.com/nicholas-leonard/dp/blob/master/examples/neuralnetwork_tutorial.lua) from the cmd-line:
 ```
 nicholas@xps:~/projects/dp$ th examples/neuralnetwork_tutorial.lua 
 FileLogger: log will be written to /home/nicholas/save/xps:25044:1398320864:1/log	
@@ -283,13 +283,13 @@ xps:25044:1398320864:1:tester:confusion accuracy = 0.92548076923077
 
 Hyper-optimization is the hardest part of deep learning. 
 In many ways, it feels more like an art than a science. 
-Momentum can help convergence, but it requires so much more memory. 
+[Momentum](visitor.md#dp.Momentum) can help convergence, but it requires so much more memory. 
 The same is true of weight decay, as both methods require a 
 copy of parameter gradients which often almost double the memory footprint of the model. 
-Using MaxNorm and AdaptiveLearningRate is often better as 
+Using [MaxNorm](visitor.md#dp.MaxNorm) and [AdaptiveLearningRate](observer.md#dp.AdaptiveLearningRate) is often better as 
 experiments can gain more from the extra memory when it 
 is used instead for more modeling capacity (more parameters). 
-But this may be mostly applicable to large datasets like the BillionWords dataset. 
+But this may be mostly applicable to large datasets like the [BillionWords](data.md#dp.BillionWords) dataset. 
 The models it requires are proportionally heavy to the vocabulary size, which is `~800,000` unique words.
 
 Anyway, rule of thumb, always start hyper-optimizing 
@@ -297,7 +297,9 @@ by seeking the highest learning rate you can afford.
 You will need to try many different experiments (hyper-parameter configurations), 
 so you need them to converge fast. 
 If you are worried about controlling the decay of the learning rate, 
-try out the AdaptiveLearningRate Observer. Regularize with MaxNorm Visitor. 
+try out the AdaptiveLearningRate Observer. 
+
+Regularize with MaxNorm Visitor. 
 A `max_out_norm` around 2 is usually a good starting point, continuing with 1, 10, 
 and only try 1000000000 when out of ideas. 
 You can vary the epoch sizes to divide processing time 
@@ -307,7 +309,8 @@ It's often best to keep the evaluation sets small when you can
 
 But these are all arbitrary guidelines. No one can tell you how to hyper-optimize. 
 You need to try optimizing a dataset for yourself to find your own methodology and tricks. 
-The dp GitHub repository also provides a wiki that can be used to share hyper-parameter configurations
+The [dp GitHub repository](https://github.com/nicholas-leonard/dp/) 
+also provides a [wiki](https://github.com/nicholas-leonard/dp/wiki/Hyperparameter-Optimization) 
+that can be used to share hyper-parameter configurations
 as well as corresponding performance metrics and observations. 
-It is easier to hyper-optimize as a team than alone.
-Everyone has a piece of the puzzle.
+It is easier to hyper-optimize as a team than alone (everyone has a piece of the puzzle).

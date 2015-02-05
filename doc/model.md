@@ -234,7 +234,7 @@ of temporal sequences, typically language models.
 Due to its recurrent nature, this model has strong ties with other objects,
 including the SentenceSampler and the RecurrentVisitorChain. 
 An experiment combining all three components is examplified in the
-[recurrentneuralnetwork.lua](../examples/recurrentlanguagemodel.lua) script.
+[recurrentneuralnetwork.lua](https://github.com/nicholas-leonard/dp/blob/master/examples/recurrentlanguagemodel.lua) script.
 
 <a name='dp.RecurrentDictionary.__init'/>
 []()

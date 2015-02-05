@@ -1275,7 +1275,7 @@ end
 function dp.test(tests)
    math.randomseed(os.time())
    mytester = torch.Tester()
-   mytester.lenna = image.loadPNG("test/Lenna.png")
+   mytester.lenna = image.lena()
    mytester:add(dptest)
    mytester:run(tests)   
    return mytester

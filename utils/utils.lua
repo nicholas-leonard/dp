@@ -44,8 +44,7 @@ function dp.do_with_cwd(path, fn)
 end
 
 
--- Check that a file exists at path, and if not downloads it from url
--- into directory of path
+-- If file doesn't exists at path, downloads it from url into path 
 function dp.check_and_download_file(path, url)
    if not paths.filep(path) then
       dp.do_with_cwd(

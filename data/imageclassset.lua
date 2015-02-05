@@ -251,7 +251,8 @@ function ImageClassSet:sample(batch, nSample, sampleFunc)
    
    self:tableToTensor(inputTable, targetTable, inputTensor, targetTensor)
    
-   inputView:forward('bhwc', inputTensor)
+   assert(inputTensor:size(2) == 3)
+   inputView:forward('bchw', inputTensor)
    targetView:forward('b', targetTensor)
    targetView:setClasses(self._classes)
    batch:setInputs(inputView)

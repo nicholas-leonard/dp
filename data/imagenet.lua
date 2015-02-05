@@ -10,8 +10,12 @@
 local ImageNet, DataSource = torch.class("dp.ImageNet", "dp.DataSource")
 
 ImageNet._name = 'ImageNet'
-ImageNet._image_axes = 'bhwc'
+ImageNet._image_axes = 'bchw'
 ImageNet._structured_url = 'http://www.image-net.org/api/xml/structure_released.xml'
+ImageNet._devkit_url = 'http://image-net.org/image/ilsvrc2014/ILSVRC2014_devkit.tgz'
+ImageNet._img_train_url = 'http://www.image-net.org/challenges/LSVRC/2012/nonpub/ILSVRC2012_img_train.tar'
+ImageNet._img_valid_url = 'http://www.image-net.org/challenges/LSVRC/2012/nonpub/ILSVRC2012_img_val.tar'
+ImageNet._img_test_url = 'http://www.image-net.org/challenges/LSVRC/2012/nonpub/ILSVRC2012_img_test.tar'
 
 function ImageNet:__init(config)
    config = config or {}
@@ -19,7 +23,7 @@ function ImageNet:__init(config)
       "Constructor requires key-value arguments")
    local load_all, input_preprocess, target_preprocess
    self._args, self._load_size, self._sample_size, self._data_path, 
-      self._train_dir, self._valid_dir, self._test_dir, 
+      self._train_dir, self._valid_dir, self._test_dir, self._devkit_dir
       self._verbose, self._sample_hook_train, self._sample_hook_test,
       self._download_url, load_all, input_preprocess, 
       target_preprocess
@@ -39,6 +43,9 @@ function ImageNet:__init(config)
        help='name of valid_dir'},
       {arg='test_dir', type='string', default='ILSVRC2012_img_test',
        help='name of test_dir'},
+      {arg='devkit_dir', type='string', default='ILSVRC2014_devkit',
+       help='name of devkit dir, which contains validation labels and '
+       ..'metadata like mapings of wordnet id to class index'},
       {arg='verbose', type='boolean', default = false,
        help='Verbose mode during initialization'},
       {arg='sample_hook_train', type='function',
@@ -63,7 +70,7 @@ function ImageNet:__init(config)
 
    self._load_size = self._load_size or self._sample_size
    self._data_path = torch.type(self._data_path) == 'string' 
-      and (self._data_path) or self._data_path
+      and {self._data_path} or self._data_path
 
    if load_all then
       self:loadTrain()
@@ -71,7 +78,16 @@ function ImageNet:__init(config)
    end
 end
 
+function ImageNet:download()
+   -- call download script
+end
+
 function ImageNet:loadTrain()
+   
+   
+   -- there could be multiple trainPaths :
+   local trainPaths = _.map(
+   
    local dataset = dp.ImageClassSet{
       data_path=self._data_path, load_size=self._load_size,
       which_set='train', sample_size=self._sample_size,

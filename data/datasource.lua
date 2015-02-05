@@ -228,7 +228,7 @@ function DataSource:imageAxes(idx)
 end
 -- end access static attributes
 
--- Check locally and download datasource if not found.  
+-- Download datasource if not found locally.  
 -- Returns the path to the resulting data file.
 function DataSource.getDataPath(config)
    assert(type(config) == 'table', "getDataPath requires key-value arguments")
@@ -242,7 +242,7 @@ function DataSource.getDataPath(config)
          {arg='name', type='string', req=true, 
           help='name of the DataSource (e.g. "mnist", "svhn", etc). ' ..
           'A directory with this name is created within ' ..
-          'data_directory to contain the downloaded files. Or is ' ..
+          'data_dir to contain the downloaded files. Or is ' ..
           'expected to find the data files in this directory.'},
          {arg='url', type='string', req=true,
           help='URL from which data can be downloaded in case '..

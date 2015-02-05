@@ -138,7 +138,7 @@ over a spatial neighborhood.
 
 As an example, here is Lenna before :
 
-![LeCunLCN preprocessed Lenna](../test/Lenna.png) 
+![LeCunLCN preprocessed Lenna](https://github.com/nicholas-leonard/dp/blob/master/test/Lenna.png) 
 
 and after LeCunLCN preprocessing:
 

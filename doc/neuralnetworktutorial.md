@@ -160,7 +160,7 @@ statistics after each epoch. We use [Confusion](feedback.md#dp.Confusion), which
 for the [optim](https://github.com/torch/optim/blob/master/README.md) package's 
 [ConfusionMatrix](https://github.com/torch/optim/blob/master/ConfusionMatrix.lua).
 While our Loss measures the Negative Log-Likelihood (NLL) of the Model 
-on different DataSets, our [Feedback](https://github.com/nicholas-leonard/dp/blob/master/doc/feedback.md#feedback) 
+on different DataSets, our [Feedback](feedback.md#feedback) 
 measures classification accuracy (which is what we will use for 
 early-stopping and comparing our model to the state of the art).
 

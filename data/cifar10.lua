@@ -36,7 +36,7 @@ function Cifar10:__init(config)
       {arg='scale', type='table', 
         help='bounds to scale the values between'},
       {arg='download_url', type='string',
-        default='http://data.neuflow.org/data/cifar10.t7.tgz',
+        default='http://torch7.s3-website-us-east-1.amazonaws.com/data/cifar10.t7.tgz',
         help='URL from which to download dataset if not found on disk.'},
       {arg='load_all', type='boolean', 
         help='Load all datasets : train, valid, test.', default=true},

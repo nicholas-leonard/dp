@@ -76,10 +76,10 @@ torch.include('dp', 'data/svhn.lua')
 torch.include('dp', 'data/imagenet.lua')
 
 --[[ sampler ]]--
-torch.include('dp', 'data/sampler.lua')
-torch.include('dp', 'data/shufflesampler.lua')
-torch.include('dp', 'data/sentencesampler.lua')
-torch.include('dp', 'data/randomsampler.lua')
+torch.include('dp', 'sampler/sampler.lua')
+torch.include('dp', 'sampler/shufflesampler.lua')
+torch.include('dp', 'sampler/sentencesampler.lua')
+torch.include('dp', 'sampler/randomsampler.lua')
 
 --[[ preprocess ]]--
 torch.include('dp', 'preprocess/preprocess.lua')

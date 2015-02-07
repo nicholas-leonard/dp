@@ -226,7 +226,6 @@ function ImageClassSet:sample(batch, nSample, sampleFunc)
       batch = batch or dp.Batch{which_set=self:whichSet(), epoch_size=self:nSample()}   
    end
    
-   batch = batch or 
    sampleFunc = sampleFunc or self.defaultSample
 
    nSample = nSample or 1

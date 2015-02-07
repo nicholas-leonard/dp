@@ -268,11 +268,11 @@ function DataSource.getDataPath(config)
       local decompress_path = paths.concat(datasrc_dir, decompress_file)
 
       if not dp.is_file(decompress_path) then
-        dp.do_with_cwd(datasrc_dir,
-          function()
-              print("decompressing file: ", data_path)
-              dp.decompress_file(data_path)
-          end)
+         dp.do_with_cwd(datasrc_dir,
+            function()
+               print("decompressing file: ", data_path)
+               dp.decompress_file(data_path)
+            end)
       end
       return decompress_path
    end

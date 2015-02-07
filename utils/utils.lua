@@ -17,7 +17,7 @@ end
 -- Check that a data directory exists, and create it if not.
 function dp.mkdir(dir)
    if not paths.dirp(dir) then
-      os.execute('mkdir -p '..dir)
+      paths.mkdir(dir)
    end
 end
 -- DEPRECATED : use dp.mkdir instead

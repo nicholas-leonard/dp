@@ -4,8 +4,9 @@
 -- Wraps the Large Scale Visual Recognition Challenge 2014 (ILSVRC2014)
 -- classification dataset (commonly known as ImageNet). The dataset
 -- hasn't changed from 2012-2014.
--- The validation set labels are in the devkit at 
--- data/ILSVRC2014_clsloc_validation_ground_truth.txt
+-- Due to its size, the data first needs to be prepared offline :
+-- 1. use scripts/downloadimagenet.lua to download and extract the data
+-- 2. use scripts/harmonizeimagenet.lua to harmonize train/valid sets
 ------------------------------------------------------------------------
 local ImageNet, DataSource = torch.class("dp.ImageNet", "dp.DataSource")
 
@@ -18,9 +19,8 @@ function ImageNet:__init(config)
       "Constructor requires key-value arguments")
    local load_all, input_preprocess, target_preprocess
    self._args, self._load_size, self._sample_size, self._data_path, 
-      self._train_dir, self._valid_dir, self._test_dir, self._devkit_dir,
-      self._verbose, self._sample_hook_train, self._sample_hook_test,
-      self._download_url, load_all, input_preprocess, 
+      self._train_path, self._valid_path, self._devkit_path,
+      self._meta_path, self._verbose, load_all, input_preprocess, 
       target_preprocess
       = xlua.unpack(
       {config},
@@ -32,25 +32,15 @@ function ImageNet:__init(config)
        help='a consistent sample size to resize the images'},
       {arg='data_path', type='table | string', default=dp.DATA_DIR,
        help='one or many paths of directories with images'},
-      {arg='train_dir', type='string', default='ILSVRC2012_img_train',
+      {arg='train_path', type='string', default='ILSVRC2012_img_train',
        help='name of train_dir'},
-      {arg='valid_dir', type='string', default='ILSVRC2012_img_val',
+      {arg='valid_path', type='string', default='ILSVRC2012_img_val',
        help='name of valid_dir'},
-      {arg='test_dir', type='string', default='ILSVRC2012_img_test',
-       help='name of test_dir'},
       {arg='devkit_dir', type='string', default='ILSVRC2014_devkit',
        help='name of devkit dir, which contains validation labels and '
        ..'metadata like mapings of wordnet id to class index'},
       {arg='verbose', type='boolean', default = false,
        help='Verbose mode during initialization'},
-      {arg='sample_hook_train', type='function',
-       help='applied to sample during training(ex: for lighting jitter). '
-       .. 'It takes the image path as input'},
-      {arg='sample_hook_test', type='function', 
-       help='applied to sample during testing'},
-      {arg='download_url', type='string',
-       default='http://yaroslavvb.com/upload/notMNIST/',
-       help='URL from which to download dataset if not found on disk.'},
       {arg='load_all', type='boolean', 
        help='Load all datasets : train, valid, test.', default=true},
       {arg='input_preprocess', type='table | dp.Preprocess',
@@ -71,10 +61,6 @@ function ImageNet:__init(config)
       self:loadTrain()
       self:loadValid()
    end
-end
-
-function ImageNet:download()
-   -- call download script
 end
 
 function ImageNet:loadTrain()

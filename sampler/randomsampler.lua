@@ -5,21 +5,6 @@
 ------------------------------------------------------------------------
 local RandomSampler, parent = torch.class("dp.RandomSampler", "Sampler")
 
-function RandomSampler:__init(config)
-   config = config or {}
-   assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, sample_func = xlua.unpack(
-      {config},
-      'RandomSampler', 
-      'Samples batches from a set of examples in a dataset. '..
-      'Iteration ends after an epoch (sampler-dependent) ',
-      {arg='sample_func', type='function',
-       help='function to sample batches'}
-   )
-   self._sample_func = sample_func
-   parent.__init(self, config)
-end
-
 --Returns an iterator over samples for one epoch
 --Default is to iterate sequentially over all examples
 function RandomSampler:sampleEpoch(dataset)
@@ -43,6 +28,7 @@ function RandomSampler:sampleEpoch(dataset)
          batch_iter=nSampled, batch_size=self._batch_size,
          n_sample=sself._batch_size
       }
+      batch = self._pp_func(batch)
       nSampled = nSampled + self._batch_size
       self._start = self._start + self._batch_size
       if self._start >= nSample then

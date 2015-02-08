@@ -48,6 +48,7 @@ function SentenceSampler:sampleEpoch(dataset)
       local code, batch, batchIter, epochSize = coroutine.resume(self._co, batch)
       
       if code and batch then
+         batch = pp_func(batch)
          return batch, batchIter, epochSize
       elseif not code then
          print(batch, dataset:whichSet())

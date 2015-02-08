@@ -77,6 +77,7 @@ function ShuffleSampler:sampleEpoch(dataset)
          n_sample=stop-self._start+1, 
          indices=indices:range(self._start,stop)
       }
+      batch = pp_func(batch)
       nSampled = nSampled + stop - self._start + 1
       self._start = self._start + self._batch_size
       if self._start >= nSample then

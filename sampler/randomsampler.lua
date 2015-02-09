@@ -3,7 +3,7 @@
 -- DataSet iterator
 -- Randomly samples batches from a dataset.
 ------------------------------------------------------------------------
-local RandomSampler, parent = torch.class("dp.RandomSampler", "Sampler")
+local RandomSampler, parent = torch.class("dp.RandomSampler", "dp.Sampler")
 
 function RandomSampler:__init(config)
    config = config or {}

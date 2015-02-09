@@ -26,6 +26,7 @@ else
 end
 
 dp.mkdir(opt.savePath)
+assert(paths.dirp(opt.savePath), 'error creating --savePath')
 
 for i, url in ipairs(opt.urls) do
    local tarName = paths.basename(url)

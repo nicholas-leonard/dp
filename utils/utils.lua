@@ -55,30 +55,39 @@ function dp.check_and_download_file(path, url)
    return path
 end
 
--- Decompress a .tgz or .tar.gz file.
-function dp.decompress_tarball(path)
-   os.execute('tar -xvzf ' .. path)
+-- Decompress a .tar, .tgz or .tar.gz file.
+function dp.decompress_tarball(srcPath, dstPath)
+   local dstPath = dstPath or '.'
+   paths.mkdir(dstPath)
+   if srcPath:match("%.tar$") then
+      os.execute('tar -xvf ' .. srcPath .. ' -C ' .. dstPath)
+   else
+      os.execute('tar -xvzf ' .. srcPath .. ' -C ' .. dstPath)
+   end
 end
 
 -- unzip a .zip file
-function dp.unzip(path)
-   os.execute('unzip ' .. path)
+function dp.unzip(srcPath, dstPath)
+   local dstPath = dstPath or '.'
+   paths.mkdir(dstPath)
+   os.execute('unzip ' .. srcPath .. '-d ' .. dstPath)
 end
 
 -- gunzip a .gz file
-function dp.gunzip(path)
-   os.execute('gunzip ' .. path)
+function dp.gunzip(srcPath, dstPath)
+   assert(not dstPath, "destination path not supported with gunzip")
+   os.execute('gunzip ' .. srcPath)
 end
 
-function dp.decompress_file(path)
-    if string.find(path, ".zip") then
-        dp.unzip(path)
-    elseif string.find(path, ".tar.gz") or string.find(path, ".tgz") then
-        dp.decompress_tarball(path)
-    elseif string.find(path, ".gz") or string.find(path, ".gzip") then
-        dp.gunzip(path)
+function dp.decompress_file(srcPath, dstPath)
+    if string.find(srcPath, ".zip") then
+        dp.unzip(srcPath, dstPath)
+    elseif string.find(srcPath, ".tar") or string.find(srcPath, ".tgz") then
+        dp.decompress_tarball(srcPath, dstPath)
+    elseif string.find(srcPath, ".gz") or string.find(srcPath, ".gzip") then
+        dp.gunzip(srcPath, dstPath)
     else
-        print("Don't know how to decompress file: ", path)
+        print("Don't know how to decompress file: ", srcPath)
     end
 end
 

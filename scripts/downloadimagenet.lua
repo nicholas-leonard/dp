@@ -48,7 +48,7 @@ for i, url in ipairs(opt.urls) do
       print(string.format("extracting downloaded file : %s", tarPath))
       dp.do_with_cwd(opt.savePath,
          function()
-            dp.decompress_file(tarPath)
+            dp.decompress_file(tarPath, extractPath)
          end)
       assert(paths.dirp(extractPath), string.format("expecting tar %s to be extracted at %s", tarName, extractPath))
       -- for the training directory, which contains a tar for each class

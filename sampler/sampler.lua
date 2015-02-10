@@ -9,7 +9,7 @@ Sampler.isSampler = true
 function Sampler:__init(config)
    config = config or {}
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, batch_size, epoch_size = xlua.unpack(
+   local args, batch_size, epoch_size, pp_func = xlua.unpack(
       {config},
       'Sampler', 
       'Samples batches from a set of examples in a dataset. '..
@@ -19,7 +19,10 @@ function Sampler:__init(config)
       {arg='epoch_size', type='number', default=-1,
        help='Number of examples presented per epoch. '..
        'Default is to use then entire dataset per epoch'}
+      {arg='pp_func', type='function', 
+       help='a function that preprocesses a Batch into another Batch'} 
    )
+   self._pp_func = pp_func or function(batch) return batch end
    self:setBatchSize(batch_size)
    self._epoch_size = epoch_size
    if epoch_size > 0 then
@@ -106,6 +109,7 @@ function Sampler:sampleEpoch(dataset)
          n_sample=stop-self._start+1, 
          indices=indices:range(self._start,stop)
       }
+      batch = self._pp_func(batch)
       nSampled = nSampled + stop - self._start + 1
       self._start = self._start + self._batch_size
       if self._start >= nSample then

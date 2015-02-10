@@ -30,8 +30,9 @@ function ImageClassSet:__init(config)
        help='display verbose messages'}
    )
    
-   local ffi = require 'ffi'
-   local gm = require 'graphicsmagick'
+   -- globals :
+   ffi = require 'ffi'
+   gm = require 'graphicsmagick'
 
    self:setWhichSet(which_set)
    self._load_size = load_size
@@ -216,6 +217,8 @@ end
 
 -- Sample a class uniformly, and then samples uniformly from class.
 -- This keeps the class distribution balanced.
+-- sampleFunc is a function that generates one or many samples
+-- from one image. e.g. sampleDefault, sampleTrain, sampleTest.
 function ImageClassSet:sample(batch, nSample, sampleFunc)
    if (not batch) or (not nSample) then 
       if batch then
@@ -226,7 +229,10 @@ function ImageClassSet:sample(batch, nSample, sampleFunc)
       batch = batch or dp.Batch{which_set=self:whichSet(), epoch_size=self:nSample()}   
    end
    
-   sampleFunc = sampleFunc or self.defaultSample
+   if sampleFunc == 'string' then
+      sampleFunc = self[sampleFunc]
+   end
+   sampleFunc = sampleFunc or self.sampleDefault
 
    nSample = nSample or 1
    local inputTable = {}
@@ -274,7 +280,7 @@ function ImageClassSet:sub(batch, start, stop)
    for i=1,quantity do
       -- load the sample
       local imgpath = ffi.string(torch.data(self.imagePath[start]))
-      out = self:sampleHookTest(imgpath)
+      out = self:sampleTest(imgpath)
       table.insert(dataTable, out)
       table.insert(scalarTable, self.imageClass[indices[i]])      
    end
@@ -311,29 +317,13 @@ function ImageClassSet:loadImage(path, nocopy)
    -- https://github.com/clementfarabet/graphicsmagick#gmimage
    local out = gm.Image()
    out:load(path, self._load_size[3], self._load_size[2])
-   :size(self.sampleSize[3], self.sampleSize[2])
+   :size(self._sample_size[3], self._sample_size[2])
    out = out:toTensor('float','RGB','DHW', nocopy) 
    return out
 end
 
-function ImageClassSet:test(quantity)
-   if self.split == 100 then
-      error('No test mode when you are not splitting the data')
-   end
-   local i = 1
-   local n = self.testIndicesSize
-   local qty = quantity or 1
-   return function ()
-      if i+qty-1 <= n then 
-         local data, scalarLabelss, labels = self:get(i, i+qty-1)
-         i = i + qty
-         return data, scalarLabelss, labels
-      end
-   end
-end
-
 -- by default, just load the image and return it
-function ImageClassSet:defaultSample(dst, imgPath)
+function ImageClassSet:sampleDefault(dst, imgPath)
    if not imgPath then
       imgPath = dst
       dst = torch.Tensor()
@@ -341,6 +331,7 @@ function ImageClassSet:defaultSample(dst, imgPath)
    if not dst then
       dst = torch.Tensor()
    end
+   -- if load_size[1] == 1, converts to greyscale (y in YUV)
    local out = image.load(imgPath, self._load_size[1])
    dst:resize(out:size(1), self._sample_size[3], self._sample_size[2])
    image.scale(dst, out)
@@ -348,9 +339,9 @@ function ImageClassSet:defaultSample(dst, imgPath)
 end
 
 -- function to load the image, jitter it appropriately (random crops etc.)
-function ImageClassSet:sampleTrain(self, path, mean, std)
+function ImageClassSet:sampleTrain(path, mean, std)
    -- load image with size hints
-   local input = gm.Image():load(path, self.loadSize[3], self.loadSize[2])
+   local input = gm.Image():load(path, self._load_size[3], self._load_size[2])
    -- find the smaller dimension, and resize it to 256 (while keeping aspect ratio)
    local iW, iH = input:size()
    if iW < iH then
@@ -360,8 +351,8 @@ function ImageClassSet:sampleTrain(self, path, mean, std)
    end
    iW, iH = input:size();
    -- do random crop
-   local oW = sampleSize[3];
-   local oH = sampleSize[2]
+   local oW = self._sample_size[3];
+   local oH = self._sample_size[2]
    local h1 = math.ceil(torch.uniform(1e-2, iH-oH))
    local w1 = math.ceil(torch.uniform(1e-2, iW-oW))
    local out = input:crop(oW, oH, w1, h1)
@@ -382,3 +373,49 @@ function ImageClassSet:sampleTrain(self, path, mean, std)
    return out
 end
 
+-- Create a test data loader (testLoader),
+-- which can iterate over the test set and returns an image's
+-- 10 crops (center + 4 corners) and their hflips]]--
+-- function to load the image, do 10 crops (center + 4 corners) and their hflips
+-- Works with the TopCrop feedback
+function ImageClassSet:sampleTest(path, mean, std)
+   local oH = self._sample_size[2]
+   local oW = self._sample_size[3];
+   local out = torch.Tensor(10, 3, oW, oH)
+   local input = gm.Image():load(path, self._load_size[3], self._load_size[2])
+   -- find the smaller dimension, and resize it to 256 (while keeping aspect ratio)
+   local iW, iH = input:size()
+   if iW < iH then
+      input:size(256, 256 * iH / iW);
+   else
+      input:size(256 * iW / iH, 256);
+   end
+   iW, iH = input:size();
+   local im = input:toTensor('float','RGB','DHW')
+   -- mean/std
+   for i=1,3 do -- channels
+      if mean then 
+         im[{{i},{},{}}]:add(-mean[i]) 
+      end
+      if std then i
+         m[{{i},{},{}}]:div(std[i]) 
+      end
+   end
+   local w1 = math.ceil((iW-oW)/2)
+   local h1 = math.ceil((iH-oH)/2)
+   out[1] = image.crop(im, w1, h1, w1+oW, h1+oW) -- center patch
+   out[2] = image.hflip(out[1])
+   h1 = 1; w1 = 1;
+   out[3] = image.crop(im, w1, h1, w1+oW, h1+oW) -- top-left
+   out[4] = image.hflip(out[3])
+   h1 = 1; w1 = iW-oW;
+   out[5] = image.crop(im, w1, h1, w1+oW, h1+oW) -- top-right
+   out[6] = image.hflip(out[5])
+   h1 = iH-oH; w1 = 1;
+   out[7] = image.crop(im, w1, h1, w1+oW, h1+oW) -- bottom-left
+   out[8] = image.hflip(out[7])
+   h1 = iH-oH; w1 = iW-oW;
+   out[9] = image.crop(im, w1, h1, w1+oW, h1+oW) -- bottom-right
+   out[10] = image.hflip(out[9])
+   return out
+end

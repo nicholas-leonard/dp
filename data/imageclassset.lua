@@ -397,7 +397,7 @@ function ImageClassSet:sampleTest(path, mean, std)
       if mean then 
          im[{{i},{},{}}]:add(-mean[i]) 
       end
-      if std then i
+      if std then
          m[{{i},{},{}}]:div(std[i]) 
       end
    end

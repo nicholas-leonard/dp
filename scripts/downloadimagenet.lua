@@ -9,7 +9,7 @@ cmd:text('Example:')
 cmd:text('$> th downloadimagenet.lua ')
 cmd:text('Options:')
 cmd:option('--savePath', paths.concat(dp.DATA_DIR, 'ImageNet'), 'where to download and extract the files')
-cmd:option('--metaURL', 'https://stife076.files.wordpress.com/2015/02/meta.zip', 'URL for file containing serialized JSON mapping word net ids to class index, name and description')
+cmd:option('--metaURL', 'https://stife076.files.wordpress.com/2015/02/metadata.zip', 'URL for file containing serialized JSON mapping word net ids to class index, name and description')
 cmd:option('--trainURL', 'http://www.image-net.org/challenges/LSVRC/2012/nonpub/ILSVRC2012_img_train.tar', 'URL of train images')
 cmd:option('--validURL', 'http://www.image-net.org/challenges/LSVRC/2012/nonpub/ILSVRC2012_img_val.tar', 'URL of validation images')
 cmd:option('--testURL', 'http://www.image-net.org/challenges/LSVRC/2012/nonpub/ILSVRC2012_img_test.tar', 'URL of test images')
@@ -36,7 +36,9 @@ for i, url in ipairs(opt.urls) do
    if paths.filep(tarPath) and not opt.squash then
       print(string.format("skipping download as dir %s already exists. Use --squash to squash", tarPath))
    else
-      print("downloading "..url.." "..tarName.." "..tarPath)
+      if paths.filep(tarPath) then
+         os.execute("rm "..tarPath)
+      end
       dp.do_with_cwd(opt.savePath, function() dp.download_file(url) end)
    end
    
@@ -45,6 +47,9 @@ for i, url in ipairs(opt.urls) do
    if paths.dirp(extractPath) and not opt.squash then
       print(string.format("skipping extraction as dir %s already exists. Use --squash to squash", extractPath))
    else
+      if paths.dirp(tarPath) then
+         paths.rmdir(tarPath)
+      end
       print(string.format("extracting downloaded file : %s", tarPath))
       dp.do_with_cwd(opt.savePath,
          function()
@@ -57,7 +62,7 @@ for i, url in ipairs(opt.urls) do
          if subDir then
             local subExtractPath = paths.concat(extractPath, subDir)
             local subTarPath = paths.concat(extractPath, subTar)
-            if opt.dirp(subExtractPath) and not opt.squash then
+            if paths.dirp(subExtractPath) and not opt.squash then
                print(string.format("skipping extraction as dir %s already exists. Use --squash to squash", subExtractPath))
             else
                paths.decompress_tarball(subTarPath)

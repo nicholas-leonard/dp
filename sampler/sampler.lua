@@ -18,7 +18,7 @@ function Sampler:__init(config)
        help='Number of examples per sampled batches'},
       {arg='epoch_size', type='number', default=-1,
        help='Number of examples presented per epoch. '..
-       'Default is to use then entire dataset per epoch'}
+       'Default is to use then entire dataset per epoch'},
       {arg='pp_func', type='function', 
        help='a function that preprocesses a Batch into another Batch'} 
    )

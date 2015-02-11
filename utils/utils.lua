@@ -70,7 +70,7 @@ end
 function dp.unzip(srcPath, dstPath)
    local dstPath = dstPath or '.'
    paths.mkdir(dstPath)
-   os.execute('unzip ' .. srcPath .. '-d ' .. dstPath)
+   os.execute('unzip ' .. srcPath .. ' -d ' .. dstPath)
 end
 
 -- gunzip a .gz file

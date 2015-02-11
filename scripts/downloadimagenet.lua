@@ -65,7 +65,7 @@ for i, url in ipairs(opt.urls) do
             if paths.dirp(subExtractPath) and not opt.squash then
                print(string.format("skipping extraction as dir %s already exists. Use --squash to squash", subExtractPath))
             else
-               paths.decompress_tarball(subTarPath)
+               dp.decompress_tarball(subTarPath, subExtractPath)
             end
          end
       end

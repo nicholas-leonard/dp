@@ -135,6 +135,11 @@ function Mnist:loadData(file_name, download_url)
       decompress_file=file_name, 
       data_dir=self._data_path
    }
-   return torch.load(path, "ascii")
+   -- backwards compatible with old binary format
+   local status, data = pcall(function() return torch.load(path, "ascii") end)
+   if not status then
+      return torch.load(path, "binary")
+   end
+   return data
 end
 

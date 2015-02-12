@@ -134,7 +134,7 @@ DataSource constructor. Arguments should be specified as key-value pairs.
 
 Note that at least one of the 3 `set` arguments should be specified. If you need guidance to build your own DataSource, the [Facial Keypoint Tutorial](facialkeypointstutorial.md#facial-keypoints-tutorial) also includes a [section](facialkeypointstutorial.md#facialkeypoints) demonstrating how a DataSource can be built to wrap facial keypoint detection data.
 
-<a name = "dp.DataSource.get"/>
+<a name = "dp.DataSource.get"></a>
 ### [tensor, dataview, dataset] get(which_set, attribute, view, type) ###
 This method simplifies access to tensors. This is best demonstrated with an example. 
 Say you want to access the input tensor of the training set, you can call :
@@ -156,7 +156,7 @@ All arguments are optional strings :
  * `view` specifies the axis order of the tensor to get : *bwc*, *bchw*, *b*, etc. Defaults to *default*. See [Views](#dp.View);
  * `type` specifies the type of the Tensor to get : *float*, *torch.FloatTensor*, *Float*, *cuda*, etc. 
 
-<a name = "dp.DataSource.set"/>
+<a name = "dp.DataSource.set"></a>
 ### [dataview, dataset] set(which_set, attribute, view, tensor) ###
 This method allows for setting one of the encapsulated Tensors.
 Say you want to set the input tensor of the training set, you can call :

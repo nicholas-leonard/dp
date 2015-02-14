@@ -76,11 +76,11 @@ which we used as a baseline to implement a
 [NNLM training script](https://github.com/nicholas-leonard/dp/blob/master/examples/languagemodel.lua) for dp.
 In many respects, the script is very similar to the other training scripts includes in the 
 [examples directory](https://github.com/nicholas-leonard/dp/tree/master/examples). Since the basics of these scripts 
-are explained in the [Neural Network](https://github.com/nicholas-leonard/dp/blob/master/doc/neuralnetworktutorial.md#neural-network-tutorial) and 
-[Facial Keypoint Detection](https://github.com/nicholas-leonard/dp/blob/master/doc/facialkeypointstutorial.md#facial-keypoints-tutorial) 
+are explained in the [Neural Network](neuralnetworktutorial.md) and 
+[Facial Keypoint Detection](facialkeypointstutorial.md) 
 Tutorials, we assume that the reader has consulted these beforehand. 
 
-The actual training is very similar to the [first tutorial](https://github.com/nicholas-leonard/dp/blob/master/doc/neuralnetworktutorial.md#neural-network-tutorial). 
+The actual training is very similar to the [first tutorial](neuralnetworktutorial.md). 
 An NNLM can be formulated as a classification problem where the objective is to correctly 
 classify the next word (target class) given the previous words (inputs). 
 Let's take a look at the different components used to build a NNLM.

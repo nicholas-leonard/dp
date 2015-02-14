@@ -293,7 +293,7 @@ this DataSource's `loadSubmission` and `loadBaseline` methods.
 Feedbacks are a little tricky to get the hang of,
 but are very useful for extending an experiment with task-tailored 
 I/O functionality. 
-The [FKDKaggle](../feedback/fkdkaggle.lua) is a Feedback class 
+The [FKDKaggle](https://github.com/nicholas-leonard/dp/blob/master/feedback/fkdkaggle.lua) is a Feedback class 
 used to prepare Kaggle submissions and 
 persist them to disk in CSV-format each time a new minima is found on 
 the validation set. 
@@ -438,11 +438,11 @@ Unlike the previous Feedback which is used for preparing submissions
 base on the model predictions given the test set, this one is used for 
 the train and valid set. Its can take an optional baseline Tensor, 
 which contains the mean of the 30 keypoints over the train and valid set. 
-We built a [simple script](../examples/fkdbaseline.lua) to prepare this 
+We built a [simple script](https://github.com/nicholas-leonard/dp/blob/master/examples/fkdbaseline.lua) to prepare this 
 baseline and generate `baseline.th7`, which can be obtained via the 
 [FacialKeypoints](#FacialKeypoints) DataSource. 
 
-The [FacialKeypointFeedback](../feedback/facialkeypointfeedback.lua) 
+The [FacialKeypointFeedback](feedback.md#dp.FacialKeypointFeedback) 
 is initialized with the `baseline` (optional) and the precision (size) 
 of the keypoint vectors (in our case, 98). Notice again how we 
 initialize a Tensor for each intermediate operation we require. This 
@@ -562,7 +562,7 @@ end
 Finally, a report is prepared every epoch. It includes field `mse`, which
 contains the MSE of predictions. This will be useful later when we 
 will need to early-stop on minima found on the validation set:
-```
+```lua
 function FacialKeypointFeedback:report()
    return { 
       [self:name()] = {
@@ -665,7 +665,7 @@ end
 ```
 
 ### facialkeypointsdetector.lua ###
-The final component is the [script](../examples/facialkeypointsdetector.lua) 
+The final component is the [script](https://github.com/nicholas-leonard/dp/blob/master/examples/facialkeypointdetector.lua) 
 that provides different cmd-line options for specifying Model assembly 
 and Experiment hyper-parameters. 
 
@@ -718,7 +718,7 @@ print(opt)
 assert(opt.submissionFile ~= '', 'provide filename, e.g.: --submissionFile submission12.csv')
 ```
 The table values need to be translated from strings to tables using the 
-[table.fromString](../utils/table.lua) function:
+[table.fromString](https://github.com/nicholas-leonard/dp/blob/master/utils/table.lua) function:
 ```lua
 opt.channelSize = table.fromString(opt.channelSize)
 opt.kernelSize = table.fromString(opt.kernelSize)

@@ -10,7 +10,7 @@ local ImageClassSet, parent = torch.class("dp.ImageClassSet", "dp.DataSet")
 
 function ImageClassSet:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, data_path, load_size, which_set, sample_size, 
+   local args, data_path, load_size, sample_size, which_set,  
       carry, verbose = xlua.unpack(
       {config},
       'ImageClassSet', 
@@ -19,17 +19,17 @@ function ImageClassSet:__init(config)
        help='one or many paths of directories with images'},
       {arg='load_size', type='table', req=true,
        help='a size to load the images to, initially'},
+      {arg='sample_size', type='table',
+       help='a consistent sample size to resize the images. '..
+       'Defaults to load_size'},
       {arg='which_set', type='string', default='train',
        help='"train", "valid" or "test" set'},
-      {arg='sample_size', type='table',
-       help='a consistent sample size to resize the images'},
       {arg='carry', type='dp.Carry',
        help='An object store that is carried (passed) around the '..
        'network during a propagation.'},
       {arg='verbose', type='boolean', default=true,
        help='display verbose messages'}
    )
-   
    -- globals :
    ffi = require 'ffi'
    gm = require 'graphicsmagick'
@@ -46,26 +46,37 @@ function ImageClassSet:__init(config)
    self._classes = {}
    -- loop over each paths folder, get list of unique class names, 
    -- also store the directory paths per class
-   -- for each class, 
-   local classPaths = {}
    local classes = {}
+   local classList = {}
    for k,path in ipairs(self._data_path) do
       for class in lfs.dir(path) do
          local dirpath = paths.concat(path, class)
-         if #class > 2 and paths.dirp(dirpath) and not classes[class] then
-            local idx = classes[class]
-            if not idx then
-               table.insert(self._classes, class)
-               idx = #self._classes
-               classes[class] = idx
-               classPaths[idx] = {}
-            end
-            if not _.find(classPaths[idx], dirpath) then
-               table.insert(classPaths[idx], dirpath)
-            end
+         if paths.dirp(dirpath) and not classes[class] then
+            table.insert(classList, class)
+            classes[class] = true
          end
       end
    end
+   
+   local classPaths = {}
+   -- sort classes for indexing consistency
+   for i, class in ipairs(_.sort(classList)) do
+      classes[class] = i
+      classPaths[i] = {}
+   end
+   
+   for k,path in ipairs(self._data_path) do
+      for class in lfs.dir(path) do
+         local dirpath = paths.concat(path, class)
+         if paths.dirp(dirpath) then
+            local idx = classes[class]
+            table.insert(classPaths[idx], dirpath)
+         end
+      end
+   end
+   
+   self._classes = classList
+   
    if self._verbose then
       print("found " .. #self._classes .. " classes")
    end
@@ -92,7 +103,7 @@ function ImageClassSet:__init(config)
 
    -- find the image path names
    self.imagePath = torch.CharTensor()  -- path to each image in dataset
-   self.imageClass = torch.LongTensor() -- class index of each image (class index in self.classes)
+   self.imageClass = torch.LongTensor() -- class index of each image (class index in self._classes)
    self.classList = {}                  -- index of imageList to each image of a particular class
    self.classListSample = self.classList -- the main list used when sampling data
    
@@ -169,7 +180,7 @@ function ImageClassSet:__init(config)
    self.imageClass:resize(self._n_sample)
    local runningIndex = 0
    for i=1,#self._classes do
-      if self.verbose then xlua.progress(i, #(self.classes)) end
+      if self.verbose then xlua.progress(i, #(self._classes)) end
       local length = tonumber(sys.fexecute(wc .. " -l '" 
                                               .. classFindFiles[i] .. "' |" 
                                               .. cut .. " -f1 -d' '"))
@@ -197,6 +208,9 @@ function ImageClassSet:__init(config)
    end
    os.execute('rm -f '  .. tmpfilelistall)
    os.execute('rm -f "' .. combinedFindList .. '"')
+   
+   -- buffers
+   self._imgBuffers = {}
 end
 
 function ImageClassSet:batch(batch_size)
@@ -215,57 +229,6 @@ function ImageClassSet:nSample(class, list)
    end
 end
 
--- Sample a class uniformly, and then samples uniformly from class.
--- This keeps the class distribution balanced.
--- sampleFunc is a function that generates one or many samples
--- from one image. e.g. sampleDefault, sampleTrain, sampleTest.
-function ImageClassSet:sample(batch, nSample, sampleFunc)
-   if (not batch) or (not nSample) then 
-      if batch then
-         nSample = batch
-         sampleFunc = nSample
-         batch = nil
-      end
-      batch = batch or dp.Batch{which_set=self:whichSet(), epoch_size=self:nSample()}   
-   end
-   
-   if sampleFunc == 'string' then
-      sampleFunc = self[sampleFunc]
-   end
-   sampleFunc = sampleFunc or self.sampleDefault
-
-   nSample = nSample or 1
-   local inputTable = {}
-   local targetTable = {}   
-   for i=1,nSample do
-      -- sample class
-      local class = torch.random(1, #self.classes)
-      -- sample image from class
-      local index = math.ceil(torch.uniform() * self.classListSample[class]:nElement())
-      local imgPath = ffi.string(torch.data(self.imagePath[self.classListSample[class][index]]))
-      -- TODO sampleFunc uses dst buffers
-      local out = sampleFunc(self, imgPath)
-      table.insert(inputTable, out)
-      table.insert(targetTable, class)  
-   end
-   
-   local inputView = batch and batch:inputs() or dp.ImageView()
-   local targetView = batch and batch:targets() or dp.ClassView()
-   local inputTensor = inputView:input() or torch.FloatTensor()
-   local targetTensor = targetView:input() or torch.IntTensor()
-   
-   self:tableToTensor(inputTable, targetTable, inputTensor, targetTensor)
-   
-   assert(inputTensor:size(2) == 3)
-   inputView:forward('bchw', inputTensor)
-   targetView:forward('b', targetTensor)
-   targetView:setClasses(self._classes)
-   batch:setInputs(inputView)
-   batch:setTargets(targetView)  
-   batch:carry():putObj('nSample', targetTensor:size(1))
-   
-   return batch
-end
 
 function ImageClassSet:sub(batch, start, stop)
    if (not batch) or (not nSample) then 
@@ -273,16 +236,18 @@ function ImageClassSet:sub(batch, start, stop)
          nSample = batch
       end
    end
-   assert(quantity > 0)
    -- now that indices has been initialized, get the samples
    local dataTable = {}
    local scalarTable = {}
-   for i=1,quantity do
+   local i = 1
+   for idx=start,stop do
       -- load the sample
-      local imgpath = ffi.string(torch.data(self.imagePath[start]))
-      out = self:sampleTest(imgpath)
-      table.insert(dataTable, out)
-      table.insert(scalarTable, self.imageClass[indices[i]])      
+      local imgpath = ffi.string(torch.data(self.imagePath[idx]))
+      local dst = self:getImageBuffer(i)
+      dst = self:sampleTest(dst, imgpath)
+      table.insert(dataTable, dst)
+      table.insert(scalarTable, self.imageClass[idx])     
+      i = i + 1 
    end
    local data, scalarLabels, labels = self:tableToTensor(dataTable, scalarTable)
    return data, scalarLabels, labels
@@ -313,64 +278,118 @@ function ImageClassSet:tableToTensor(inputTable, targetTable, inputTensor, targe
    return inputTensor, targetTensor
 end
 
-function ImageClassSet:loadImage(path, nocopy)
+function ImageClassSet:loadImage(path)
    -- https://github.com/clementfarabet/graphicsmagick#gmimage
-   local out = gm.Image()
-   out:load(path, self._load_size[3], self._load_size[2])
-   :size(self._sample_size[3], self._sample_size[2])
-   out = out:toTensor('float','RGB','DHW', nocopy) 
-   return out
+   local lW, lH = self._load_size[3], self._load_size[2]
+   -- load image with size hints
+   local input = gm.Image():load(path, self._load_size[3], self._load_size[2])
+   -- resize by imposing the smallest dimension (while keeping aspect ratio)
+   local iW, iH = input:size()
+   if iW/iH < lW/lH then
+      input:size(nil, lW)
+   else
+      input:size(nil, lH)
+   end
+   return input
+end
+
+function ImageClassSet:getImageBuffer()
+   self._imgBuffers[i] = self._imgBuffers[i] or torch.FloatTensor()
+   return self._imgBuffers[i]
+end
+
+-- Sample a class uniformly, and then uniformly samples example from class.
+-- This keeps the class distribution balanced.
+-- sampleFunc is a function that generates one or many samples
+-- from one image. e.g. sampleDefault, sampleTrain, sampleTest.
+function ImageClassSet:sample(batch, nSample, sampleFunc)
+   if (not batch) or (not nSample) then 
+      if batch then
+         nSample = batch
+         sampleFunc = nSample
+         batch = nil
+      end
+      batch = batch or dp.Batch{which_set=self:whichSet(), epoch_size=self:nSample()}   
+   end
+   
+   if sampleFunc == 'string' then
+      sampleFunc = self[sampleFunc]
+   end
+   sampleFunc = sampleFunc or self.sampleDefault
+
+   nSample = nSample or 1
+   local inputTable = {}
+   local targetTable = {}   
+   for i=1,nSample do
+      -- sample class
+      local class = torch.random(1, #self._classes)
+      -- sample image from class
+      local index = math.ceil(torch.uniform() * self.classListSample[class]:nElement())
+      local imgPath = ffi.string(torch.data(self.imagePath[self.classListSample[class][index]]))
+      local dst = self:getImageBuffer(i)
+      dst = sampleFunc(self, dst, imgPath)
+      table.insert(inputTable, dst)
+      table.insert(targetTable, class)  
+   end
+   
+   local inputView = batch and batch:inputs() or dp.ImageView()
+   local targetView = batch and batch:targets() or dp.ClassView()
+   local inputTensor = inputView:input() or torch.FloatTensor()
+   local targetTensor = targetView:input() or torch.IntTensor()
+   
+   self:tableToTensor(inputTable, targetTable, inputTensor, targetTensor)
+   
+   assert(inputTensor:size(2) == 3)
+   inputView:forward('bchw', inputTensor)
+   targetView:forward('b', targetTensor)
+   targetView:setClasses(self._classes)
+   batch:setInputs(inputView)
+   batch:setTargets(targetView)  
+   batch:carry():putObj('nSample', targetTensor:size(1))
+   
+   return batch
 end
 
 -- by default, just load the image and return it
-function ImageClassSet:sampleDefault(dst, imgPath)
-   if not imgPath then
-      imgPath = dst
-      dst = torch.Tensor()
+function ImageClassSet:sampleDefault(dst, path)
+   if not path then
+      path = dst
+      dst = torch.FloatTensor()
    end
    if not dst then
-      dst = torch.Tensor()
+      dst = torch.FloatTensor()
    end
    -- if load_size[1] == 1, converts to greyscale (y in YUV)
    local out = image.load(imgPath, self._load_size[1])
+   self._floatBuffer = self._floatBuffer or torch.FloatTensor()
+   self._floatBuffer:resize(out:size()):copy(out)
    dst:resize(out:size(1), self._sample_size[3], self._sample_size[2])
-   image.scale(dst, out)
+   image.scale(dst, self._floatBuffer)
    return dst
 end
 
 -- function to load the image, jitter it appropriately (random crops etc.)
-function ImageClassSet:sampleTrain(path, mean, std)
-   -- load image with size hints
-   local input = gm.Image():load(path, self._load_size[3], self._load_size[2])
-   -- find the smaller dimension, and resize it to 256 (while keeping aspect ratio)
-   local iW, iH = input:size()
-   if iW < iH then
-      input:size(256, 256 * iH / iW);
-   else
-      input:size(256 * iW / iH, 256);
+function ImageClassSet:sampleTrain(dst, path)
+   if not path then
+      path = dst
+      dst = torch.FloatTensor()
    end
-   iW, iH = input:size();
+   
+   local input = self:loadImage(path)
+   iW, iH = input:size()
    -- do random crop
-   local oW = self._sample_size[3];
+   local oW = self._sample_size[3]
    local oH = self._sample_size[2]
    local h1 = math.ceil(torch.uniform(1e-2, iH-oH))
    local w1 = math.ceil(torch.uniform(1e-2, iW-oW))
    local out = input:crop(oW, oH, w1, h1)
    -- do hflip with probability 0.5
    if torch.uniform() > 0.5 then 
-      out:flop(); 
+      out:flop()
    end
-   out = out:toTensor('float','RGB','DHW')
-   -- mean/std
-   for i=1,3 do -- channels
-      if mean then 
-         out[{{i},{},{}}]:add(-mean[i]) 
-      end
-      if std then 
-         out[{{i},{},{}}]:div(std[i]) 
-      end
-   end
-   return out
+   out = out:toTensor('float','RGB','DHW', true)
+   dst:resizeAs(out):copy(out)
+   return dst
 end
 
 -- Create a test data loader (testLoader),
@@ -378,44 +397,42 @@ end
 -- 10 crops (center + 4 corners) and their hflips]]--
 -- function to load the image, do 10 crops (center + 4 corners) and their hflips
 -- Works with the TopCrop feedback
-function ImageClassSet:sampleTest(path, mean, std)
+function ImageClassSet:sampleTest(dst, path)
+   if not path then
+      path = dst
+      dst = torch.FloatTensor()
+   end
+   
+   local input = self:loadImage(path)
+   iW, iH = input:size()
+   
    local oH = self._sample_size[2]
    local oW = self._sample_size[3];
-   local out = torch.Tensor(10, 3, oW, oH)
-   local input = gm.Image():load(path, self._load_size[3], self._load_size[2])
-   -- find the smaller dimension, and resize it to 256 (while keeping aspect ratio)
-   local iW, iH = input:size()
-   if iW < iH then
-      input:size(256, 256 * iH / iW);
-   else
-      input:size(256 * iW / iH, 256);
-   end
-   iW, iH = input:size();
-   local im = input:toTensor('float','RGB','DHW')
-   -- mean/std
-   for i=1,3 do -- channels
-      if mean then 
-         im[{{i},{},{}}]:add(-mean[i]) 
-      end
-      if std then
-         m[{{i},{},{}}]:div(std[i]) 
-      end
-   end
+   local dst:resize(10, 3, oW, oH)
+   
+   local im = input:toTensor('float','RGB','DHW', true)
    local w1 = math.ceil((iW-oW)/2)
    local h1 = math.ceil((iH-oH)/2)
-   out[1] = image.crop(im, w1, h1, w1+oW, h1+oW) -- center patch
-   out[2] = image.hflip(out[1])
+   -- center
+   image.crop(dst[1], im, w1, h1) 
+   image.hflip(dst[2], dst[1])
+   -- top-left
    h1 = 1; w1 = 1;
-   out[3] = image.crop(im, w1, h1, w1+oW, h1+oW) -- top-left
-   out[4] = image.hflip(out[3])
+   image.crop(dst[3], im, w1, h1) 
+   dst[4] = image.hflip(dst[3])
+   -- top-right
    h1 = 1; w1 = iW-oW;
-   out[5] = image.crop(im, w1, h1, w1+oW, h1+oW) -- top-right
-   out[6] = image.hflip(out[5])
+   image.crop(dst[5], im, w1, h1) 
+   image.hflip(dst[6], dst[5])
+   -- bottom-left
    h1 = iH-oH; w1 = 1;
-   out[7] = image.crop(im, w1, h1, w1+oW, h1+oW) -- bottom-left
-   out[8] = image.hflip(out[7])
+   image.crop(dst[7], im, w1, h1) 
+   image.hflip(dst[8], dst[7])
+   -- bottom-right
    h1 = iH-oH; w1 = iW-oW;
-   out[9] = image.crop(im, w1, h1, w1+oW, h1+oW) -- bottom-right
-   out[10] = image.hflip(out[9])
-   return out
+   image.crop(dst[9], im, w1, h1) 
+   image.hflip(dst[10], dst[9])
+   return dst
 end
+
+

@@ -148,6 +148,7 @@ function ImageNet:normalizePPF()
       for i=1,3 do -- channels
          input:select(2,i):add(-mean[i]):div(std[i]) 
       end
+      return batch
    end
 
    if self._verbose then

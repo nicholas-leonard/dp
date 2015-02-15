@@ -127,8 +127,8 @@ function TopCrop:report()
    local allTops = {}
    local nSample = self._n_sample / self._n_crop
    for i,top in ipairs(self._n_top) do
-      table.insert(centerTops, self.topCounts.center[top]/nSample*100)
-      table.insert(allTops, self.topCounts.all[top]/nSample*100)
+      centerTops[top] = self.topCounts.center[top]/nSample*100
+      allTops[top] = self.topCounts.all[top]/nSample*100
    end
    return { 
       [self:name()] = {center=centerTops, all=allTops},

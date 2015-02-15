@@ -51,9 +51,10 @@ for i, url in ipairs(opt.urls) do
          paths.rmdir(tarPath)
       end
       print(string.format("extracting downloaded file : %s", tarPath))
+      
       dp.do_with_cwd(opt.savePath,
          function()
-            dp.decompress_file(tarPath, extractPath)
+            dp.decompress_file(tarPath, (not tarPath:find('devkit')) and extractPath or nil)
          end)
       assert(paths.dirp(extractPath), string.format("expecting tar %s to be extracted at %s", tarName, extractPath))
       -- for the training directory, which contains a tar for each class

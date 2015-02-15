@@ -21,7 +21,7 @@ cmd:option('--progress', false, 'display progress bars')
 cmd:text()
 opt = cmd:parse(arg or {})
 
-opt.metaPath = opt.metaPath == '' and paths.concat(opt.dataPath,'meta') or opt.metaPath
+opt.metaPath = opt.metaPath == '' and paths.concat(opt.dataPath,'metadata') or opt.metaPath
 opt.trainPath = opt.trainPath == '' and paths.concat(opt.dataPath,'ILSVRC2012_img_train') or opt.trainPath
 opt.validPath = opt.validPath == '' and paths.concat(opt.dataPath,'ILSVRC2012_img_val') or opt.validPath
 opt.devkitPath = opt.devkitPath == '' and paths.concat(opt.dataPath,'ILSVRC2014_devkit') or opt.devkitPath

@@ -116,6 +116,10 @@ function View:toModule()
    error"Not Implemented"
 end
 
+function View:view()
+   return self._view or ''
+end
+
 ---- static methods ----
 --returns true if all indices in obj_table are instances of View
 --else return false and index of first non-element

@@ -28,7 +28,7 @@ function RandomSampler:sampleEpoch(dataset)
          batch_iter=nSampled, batch_size=self._batch_size,
          n_sample=sself._batch_size
       }
-      batch = self._pp_func(batch)
+      batch = self._ppf(batch)
       nSampled = nSampled + self._batch_size
       self._start = self._start + self._batch_size
       if self._start >= nSample then

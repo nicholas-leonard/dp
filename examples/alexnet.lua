@@ -25,18 +25,15 @@ cmd:text()
 opt = cmd:parse(arg or {})
 table.print(opt)
 
-opt.channelSize = table.fromString(opt.channelSize)
-opt.padding = table.fromString(opt.padding)
-opt.kernelSize = table.fromString(opt.kernelSize)
-opt.kernelStride = table.fromString(opt.kernelStride)
-opt.poolSize = table.fromString(opt.poolSize)
-opt.poolStride = table.fromString(opt.poolStride)
-opt.dropoutProb = table.fromString(opt.dropoutProb)
-opt.hiddenSize = table.fromString(opt.hiddenSize)
-
 
 --[[data]]--
-datasource = dp.ImageNet()
+
+datasource = dp.ImageNet{
+   train_path=opt.trainPath, 
+   valid_path=opt.validPath, 
+   meta_path=opt.metaPath,
+}
+
 
 --[[Model]]--
 -- We create the model using pure nn
@@ -104,9 +101,9 @@ if opt.momentum > 0 then
    if opt.accUpdate then
       error"momentum doesn't work with --accUpdate"
    end
-   table.insert(visitor, dp.Momentum{momentum_factor = opt.momentum})
+   table.insert(visitor, dp.Momentum{momentum_factor=opt.momentum})
 end
-table.insert(visitor, dp.Learn{learning_rate = opt.learningRate})
+table.insert(visitor, dp.Learn{learning_rate=opt.learningRate})
 table.insert(visitor, dp.MaxNorm{
    max_out_norm = opt.maxOutNorm, period=opt.maxNormPeriod
 })
@@ -116,13 +113,19 @@ train = dp.Optimizer{
    loss = dp.NLL(),
    visitor = visitor,
    feedback = dp.Confusion(),
-   sampler = dp.RandomSampler{batch_size = opt.batchSize},
+   sampler = dp.RandomSampler{
+      batch_size=opt.batchSize, 
+      ppf=datasource:normalizePPF()
+   },
    progress = opt.progress
 }
 valid = dp.Evaluator{
    loss = dp.NLL(),
-   feedback = dp.TopCrop(),  
-   sampler = dp.Sampler{batch_size = opt.batchSize}
+   feedback = dp.TopCrop{n_top={1,5},n_crop=10,center=2},  
+   sampler = dp.Sampler{
+      batch_size=opt.batchSize,
+      ppf=datasource:normalizePPF()
+   }
 }
 
 --[[Experiment]]--
@@ -133,7 +136,7 @@ xp = dp.Experiment{
    observer = {
       dp.FileLogger(),
       dp.EarlyStopper{
-         error_report = {'validator','feedback','confusion','accuracy'},
+         error_report = {'validator','topcrop',5},
          maximize = true,
          max_epochs = opt.maxTries
       }

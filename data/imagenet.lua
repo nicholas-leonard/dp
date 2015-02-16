@@ -66,7 +66,7 @@ function ImageNet:loadTrain()
       which_set='train', sample_size=self._sample_size,
       carry=dp.Carry(), verbose=self._verbose
    }
-   self:trainSet(dataset)
+   self:setTrainSet(dataset)
    return dataset
 end
 
@@ -76,13 +76,13 @@ function ImageNet:loadValid()
       which_set='valid', sample_size=self._sample_size,
       carry=dp.Carry(), verbose=self._verbose
    }
-   self:trainSet(dataset)
+   self:setValidSet(dataset)
    return dataset
 end
 
 function ImageNet:loadMeta()
    local classInfoPath = paths.concat(self._meta_path, 'classInfo.th7')
-   if paths.filep(classInfoPath) do
+   if paths.filep(classInfoPath) then
       self.classInfo = torch.load(classInfoPath)
    else
       if self._verbose then

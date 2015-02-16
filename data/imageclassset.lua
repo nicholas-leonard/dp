@@ -36,8 +36,9 @@ function ImageClassSet:__init(config)
 
    self:setWhichSet(which_set)
    self._load_size = load_size
+   assert(self._load_size[1] == 3, "ImageClassSet doesn't yet support greyscaling : load_size")
    self._sample_size = sample_size or self._load_size
-   self._sampling_mode = sampling_mode
+   assert(self._sample_size[1] == 3, "ImageClassSet doesn't yet support greyscaling : sample_size")
    self._carry = carry or dp.Carry()
    self._verbose = verbose   
    self._data_path = type(data_path) == 'string' and {data_path} or data_path
@@ -51,7 +52,7 @@ function ImageClassSet:__init(config)
    for k,path in ipairs(self._data_path) do
       for class in lfs.dir(path) do
          local dirpath = paths.concat(path, class)
-         if paths.dirp(dirpath) and not classes[class] then
+         if class:sub(1,1) ~= '.' and paths.dirp(dirpath) and not classes[class] then
             table.insert(classList, class)
             classes[class] = true
          end
@@ -68,7 +69,7 @@ function ImageClassSet:__init(config)
    for k,path in ipairs(self._data_path) do
       for class in lfs.dir(path) do
          local dirpath = paths.concat(path, class)
-         if paths.dirp(dirpath) then
+         if class:sub(1,1) ~= '.' and paths.dirp(dirpath) then
             local idx = classes[class]
             table.insert(classPaths[idx], dirpath)
          end
@@ -170,11 +171,13 @@ function ImageClassSet:__init(config)
       end
       count = count + 1
    end
-
+   if self._verbose then 
+      xlua.progress(length, length) 
+   end
+      
    self._n_sample = self.imagePath:size(1)
    ---------------------------------------------------------------------
    if self._verbose then
-      print(self._n_sample ..  ' samples found.')
       print('Updating classList and imageClass appropriately')
    end
    self.imageClass:resize(self._n_sample)
@@ -229,7 +232,6 @@ function ImageClassSet:nSample(class, list)
    end
 end
 
-
 function ImageClassSet:sub(batch, start, stop)
    if (not batch) or (not nSample) then 
       if batch then
@@ -267,7 +269,7 @@ function ImageClassSet:tableToTensor(inputTable, targetTable, inputTensor, targe
    inputTensor:resize(n, samplesPerDraw, unpack(self._sample_size))
    targetTensor:resize(n, samplesPerDraw)
    
-   for i=1,#dataTable do
+   for i=1,n do
       inputTensor[i]:copy(inputTable[i])
       targetTensor[i]:fill(targetTable[i])
    end
@@ -293,7 +295,7 @@ function ImageClassSet:loadImage(path)
    return input
 end
 
-function ImageClassSet:getImageBuffer()
+function ImageClassSet:getImageBuffer(i)
    self._imgBuffers[i] = self._imgBuffers[i] or torch.FloatTensor()
    return self._imgBuffers[i]
 end
@@ -303,16 +305,16 @@ end
 -- sampleFunc is a function that generates one or many samples
 -- from one image. e.g. sampleDefault, sampleTrain, sampleTest.
 function ImageClassSet:sample(batch, nSample, sampleFunc)
-   if (not batch) or (not nSample) then 
+   if (not batch) or (not sampleFunc) then 
       if batch then
-         nSample = batch
          sampleFunc = nSample
+         nSample = batch
          batch = nil
       end
       batch = batch or dp.Batch{which_set=self:whichSet(), epoch_size=self:nSample()}   
    end
    
-   if sampleFunc == 'string' then
+   if torch.type(sampleFunc) == 'string' then
       sampleFunc = self[sampleFunc]
    end
    sampleFunc = sampleFunc or self.sampleDefault
@@ -360,7 +362,8 @@ function ImageClassSet:sampleDefault(dst, path)
       dst = torch.FloatTensor()
    end
    -- if load_size[1] == 1, converts to greyscale (y in YUV)
-   local out = image.load(imgPath, self._load_size[1])
+   local input = self:loadImage(path)
+   local out = input:toTensor('float','RGB','DHW', true)
    self._floatBuffer = self._floatBuffer or torch.FloatTensor()
    self._floatBuffer:resize(out:size()):copy(out)
    dst:resize(out:size(1), self._sample_size[3], self._sample_size[2])
@@ -408,7 +411,7 @@ function ImageClassSet:sampleTest(dst, path)
    
    local oH = self._sample_size[2]
    local oW = self._sample_size[3];
-   local dst:resize(10, 3, oW, oH)
+   dst:resize(10, 3, oW, oH)
    
    local im = input:toTensor('float','RGB','DHW', true)
    local w1 = math.ceil((iW-oW)/2)
@@ -434,5 +437,3 @@ function ImageClassSet:sampleTest(dst, path)
    image.hflip(dst[10], dst[9])
    return dst
 end
-
-

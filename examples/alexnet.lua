@@ -4,11 +4,15 @@ require 'dp'
 cmd = torch.CmdLine()
 cmd:text()
 cmd:text('Training ImageNet (large-scale image classification) using an Alex Krizhevsky Convolution Neural Network')
-cmd:test('Ref.: A. http://www.cs.toronto.edu/~fritz/absps/imagenet.pdf')
-cmd:test('B. https://github.com/facebook/fbcunn/blob/master/examples/imagenet/models/alexnet_cunn.lua')
+cmd:text('Ref.: A. http://www.cs.toronto.edu/~fritz/absps/imagenet.pdf')
+cmd:text('B. https://github.com/facebook/fbcunn/blob/master/examples/imagenet/models/alexnet_cunn.lua')
 cmd:text('Example:')
 cmd:text('$> th alexnet.lua --batchSize 128 --momentum 0.5')
 cmd:text('Options:')
+cmd:option('--dataPath', paths.concat(dp.DATA_DIR, 'ImageNet'), 'path to ImageNet')
+cmd:option('--trainPath', '', 'Path to train set. Defaults to --dataPath/ILSVRC2012_img_train')
+cmd:option('--validPath', '', 'Path to valid set. Defaults to --dataPath/ILSVRC2012_img_val')
+cmd:option('--metaPath', '', 'Path to metadata. Defaults to --dataPath/metadata')
 cmd:option('--learningRate', 0.1, 'learning rate at t=0')
 cmd:option('--maxOutNorm', 1, 'max norm each layers output neuron weights')
 cmd:option('--maxNormPeriod', 2, 'Applies MaxNorm Visitor every maxNormPeriod batches')
@@ -20,20 +24,25 @@ cmd:option('--maxEpoch', 100, 'maximum number of epochs to run')
 cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better local minima for early-stopping')
 cmd:option('--standardize', false, 'apply Standardize preprocessing')
 cmd:option('--accUpdate', false, 'accumulate gradients inplace')
+cmd:option('--verbose', false, 'print verbose messages')
 cmd:option('--progress', false, 'print progress bar')
 cmd:text()
 opt = cmd:parse(arg or {})
+
+opt.trainPath = (opt.trainPath == '') and paths.concat(opt.dataPath, 'ILSVRC2012_img_train') or opt.trainPath
+opt.validPath = (opt.validPath == '') and paths.concat(opt.dataPath, 'ILSVRC2012_img_val') or opt.validPath
+opt.metaPath = (opt.metaPath == '') and paths.concat(opt.dataPath, 'metadata') or opt.metaPath
 table.print(opt)
 
 
 --[[data]]--
-
 datasource = dp.ImageNet{
-   train_path=opt.trainPath, 
-   valid_path=opt.validPath, 
-   meta_path=opt.metaPath,
+   train_path=opt.trainPath, valid_path=opt.validPath, 
+   meta_path=opt.metaPath, verbose=opt.verbose
 }
 
+-- preprocessing function 
+ppf = datasource:normalizePPF()
 
 --[[Model]]--
 -- We create the model using pure nn
@@ -115,7 +124,7 @@ train = dp.Optimizer{
    feedback = dp.Confusion(),
    sampler = dp.RandomSampler{
       batch_size=opt.batchSize, 
-      ppf=datasource:normalizePPF()
+      ppf=ppf
    },
    progress = opt.progress
 }
@@ -123,14 +132,14 @@ valid = dp.Evaluator{
    loss = dp.NLL(),
    feedback = dp.TopCrop{n_top={1,5},n_crop=10,center=2},  
    sampler = dp.Sampler{
-      batch_size=opt.batchSize,
-      ppf=datasource:normalizePPF()
+      batch_size=math.round(opt.batchSize/10),
+      ppf=ppf
    }
 }
 
 --[[Experiment]]--
 xp = dp.Experiment{
-   model = cnn,
+   model = model,
    optimizer = train,
    validator = valid,
    observer = {
@@ -153,9 +162,7 @@ if opt.cuda then
    xp:cuda()
 end
 
-print"dp.Models :"
-print(cnn)
 print"nn.Modules :"
-print(cnn:toModule(datasource:trainSet():sub(1,32)))
+print(model:toModule(datasource:trainSet():sub(1,32)))
 
 xp:run(datasource)

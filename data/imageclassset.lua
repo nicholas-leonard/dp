@@ -5,12 +5,13 @@
 -- Optimized for extremely large datasets (14 million images+).
 -- Tested only on Linux (as it uses command-line linux utilities to 
 -- scale up to 14 million+ images)
+-- Images on disk can have different height, width and number of channels.
 ------------------------------------------------------------------------
 local ImageClassSet, parent = torch.class("dp.ImageClassSet", "dp.DataSet")
 
 function ImageClassSet:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, data_path, load_size, sample_size, which_set,  
+   local args, data_path, load_size, sample_size, sample_func, which_set,  
       carry, verbose = xlua.unpack(
       {config},
       'ImageClassSet', 
@@ -22,6 +23,11 @@ function ImageClassSet:__init(config)
       {arg='sample_size', type='table',
        help='a consistent sample size to resize the images. '..
        'Defaults to load_size'},
+      {arg='sample_func', type='string | function', default='sampleDefault',
+       help='function f(self, dst, path) used to create a sample(s) from '..
+       'an image path. Stores them in dst. Strings "sampleDefault", '..
+       '"sampleTrain" or "sampleTest" can also be provided as they '..
+       'refer to existing functions'},
       {arg='which_set', type='string', default='train',
        help='"train", "valid" or "test" set'},
       {arg='carry', type='dp.Carry',
@@ -42,6 +48,7 @@ function ImageClassSet:__init(config)
    self._carry = carry or dp.Carry()
    self._verbose = verbose   
    self._data_path = type(data_path) == 'string' and {data_path} or data_path
+   self._sample_func = sample_func
    
    -- find class names
    self._classes = {}
@@ -217,7 +224,7 @@ function ImageClassSet:__init(config)
 end
 
 function ImageClassSet:batch(batch_size)
-   return self:rand(batch_size)
+   return self:sub(1,batch_size)
 end
 
 -- nSample(), nSample(class)
@@ -233,26 +240,47 @@ function ImageClassSet:nSample(class, list)
 end
 
 function ImageClassSet:sub(batch, start, stop)
-   if (not batch) or (not nSample) then 
-      if batch then
-         nSample = batch
-      end
+   if not stop then
+      stop = start
+      start = batch
+      batch = nil
    end
-   -- now that indices has been initialized, get the samples
-   local dataTable = {}
-   local scalarTable = {}
+   batch = batch or dp.Batch{which_set=self:whichSet(), epoch_size=self:nSample()}   
+   
+   local sampleFunc = self._sample_func
+   if torch.type(sampleFunc) == 'string' then
+      sampleFunc = self[sampleFunc]
+   end
+   
+   local inputTable = {}
+   local targetTable = {}
    local i = 1
    for idx=start,stop do
       -- load the sample
       local imgpath = ffi.string(torch.data(self.imagePath[idx]))
       local dst = self:getImageBuffer(i)
-      dst = self:sampleTest(dst, imgpath)
-      table.insert(dataTable, dst)
-      table.insert(scalarTable, self.imageClass[idx])     
+      dst = sampleFunc(self, dst, imgpath)
+      table.insert(inputTable, dst)
+      table.insert(targetTable, self.imageClass[idx])     
       i = i + 1 
    end
-   local data, scalarLabels, labels = self:tableToTensor(dataTable, scalarTable)
-   return data, scalarLabels, labels
+   
+   local inputView = batch and batch:inputs() or dp.ImageView()
+   local targetView = batch and batch:targets() or dp.ClassView()
+   local inputTensor = inputView:input() or torch.FloatTensor()
+   local targetTensor = targetView:input() or torch.IntTensor()
+   
+   self:tableToTensor(inputTable, targetTable, inputTensor, targetTensor)
+   
+   assert(inputTensor:size(2) == 3)
+   inputView:forward('bchw', inputTensor)
+   targetView:forward('b', targetTensor)
+   targetView:setClasses(self._classes)
+   batch:setInputs(inputView)
+   batch:setTargets(targetView)  
+   batch:carry():putObj('nSample', targetTensor:size(1))
+
+   return batch
 end
 
 function ImageClassSet:index(batch, indices)
@@ -306,7 +334,7 @@ end
 -- from one image. e.g. sampleDefault, sampleTrain, sampleTest.
 function ImageClassSet:sample(batch, nSample, sampleFunc)
    if (not batch) or (not sampleFunc) then 
-      if batch then
+      if torch.type(batch) == 'number' then
          sampleFunc = nSample
          nSample = batch
          batch = nil
@@ -314,10 +342,10 @@ function ImageClassSet:sample(batch, nSample, sampleFunc)
       batch = batch or dp.Batch{which_set=self:whichSet(), epoch_size=self:nSample()}   
    end
    
+   sampleFunc = sampleFunc or self._sample_func
    if torch.type(sampleFunc) == 'string' then
       sampleFunc = self[sampleFunc]
    end
-   sampleFunc = sampleFunc or self.sampleDefault
 
    nSample = nSample or 1
    local inputTable = {}

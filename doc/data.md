@@ -13,6 +13,7 @@ One of the most important aspects of any machine learning problem is the data. T
     * [Cifar100](#dp.Cifar100) : the very difficult to generalize CIFAR-100 dataset;
     * [BillionWords](#dp.BillionWords) : the Google 1-Billion Words language model dataset;
     * [Svhn](#dp.Svhn) : the Google Street View House Numbers dataset;
+    * [ImageNet](#dp.ImageNet) : the
   * [Sampler](#dp.Sampler) : dataset iterator;
     * [ShuffleSampler](#dp.ShuffleSampler) : shuffled dataset iterator;
     * [SentenceSampler](#dp.SentenceSampler) : samples sentences for recurrent models;
@@ -96,6 +97,29 @@ Unlike DataSets, for memory efficiency reasons, this class does not store its da
 However, the outputs of factory methods [batch](#dp.DataSet.batch), [sub](#dp.DataSet.sub), and
 [index](#dp.DataSet.index) are [Batches](#dp.Batch) containing input and target [ClassViews](view.md#dp.ClassView).
 The returned [batch:inputs()](#dp.BaseSet.inputs) are filled according to [Google 1-Billion Words guidelines](https://code.google.com/p/1-billion-word-language-modeling-benchmark/source/browse/trunk/README.perplexity_and_such).
+
+<a name="dp.ImageClassSet"></a>
+## ImageClassSet ##
+A DataSet for image classification tasked stored in a flat folder structure :
+```
+[data_path]/[class]/[imagename].[JPEG,png,...] 
+```
+Optimized for extremely large datasets (14 million images+). 
+This DataSet is very memory efficient in that the images are loaded from 
+disk into memory only when requested as a [Batch](#dp.Batch). It is 
+used to wrap the training and validation sets of the [ImageNet](#dp.ImageNet)
+DataSource.
+
+<a name="dp.ImageClassSet.__init"></a>
+### dp.ImageClassSet{...} ###
+ImageClassSet constructor. Arguments should be specified as key-value pairs. 
+
+  * `data_path` is a string (or table thereof) specifying one or many paths to the data.
+  * `load_size` ia a table specifying the approximate size (`nChannel x Height x Width`) for which to load the images to, initially.
+  * `sample_size` is a table specifying a consistent sample size to resize the images to (or crop them). Defaults to `load_size`.
+  * `verbose` is a boolean specifying whether or not to display verbose messages. Defaults to true.
+  
+The DataSet constructor arguments also apply.
 
 <a name="dp.Batch"/>
 []()
@@ -241,6 +265,47 @@ If not found on the local machine, the object downloads the dataset from
 It contains 73257 digits for training, 26032 digits for testing, and 531131 additional, 
 somewhat less difficult samples, to use as extra training data. 
 Like [CIFAR](#dp.Cifar10), the images are of size `3x32x32`.
+
+<a name="dp.ImageNet"></a>
+## ImageNet ##
+Ref.: A. http://image-net.org/challenges/LSVRC/2014/download-images-5jj5.php
+
+This DataSource wraps the Large Scale Visual Recognition Challenge 2014 (ILSVRC2014)
+image classification dataset (commonly known as ImageNet). 
+The dataset hasn't changed from 2012-2014.
+
+Due to its size, the data first needs to be prepared offline.
+Use [downloadimagenet.lua](https://github.com/nicholas-leonard/dp/tree/master/scripts/downloadimagenet.lua) 
+to download and extract the data :
+```bash
+th downloadimagenet.lua --savePath '/path/to/diskspace/ImageNet'
+```
+The entire process requires about 360 GB of disk space to complete the download and extraction process.
+This can be reduced to about 150GB if the training set is downloaded and extracted first, 
+and all the `.tar` files are manually deleted. Repeat for the validation set, devkit and metadata. 
+If you still don't have enough space in one partition, you can divide the data among different partitions.
+We recommend a good internet connection (>60Mbs download) and a good Solid-State Drives (SSD).
+
+Use [harmonizeimagenet.lua](https://github.com/nicholas-leonard/dp/tree/master/scripts/harmonizeimagenet.lua) 
+to harmonize the train and validation sets:
+```bash
+th scripts/harmonizeimagenet.lua --dataPath /path/to/diskspace/ImageNet --progress --forReal
+```
+The sets will then contain a directory of images for each class with name `class[id]`
+where `[id]` is a class index, between 1 and 1000, used for the ILVRC2014 competition.
+
+Then we need to install [graphicsmagick](https://github.com/clementfarabet/graphicsmagick/blob/master/README.md) 
+and [torchx](https://github.com/nicholas-leonard/torchx):
+```bash
+sudo luarocks install graphicsmagick
+sudo luarocks install torchx
+```
+
+Unlike most DataSources, ImageNet doesn't read all images into memory when it is first loaded.
+Instead it builds a list of all images and indexes them per class. In this way, 
+each [Batch](#dp.Batch) is only loaded from disk and created when requested from a Sampler,
+making it very memory efficient. This is also the reason why we recommend 
+storing the dataset on SSD.
 
 <a name="dp.Sampler"/>
 []()

@@ -64,7 +64,7 @@ function ImageNet:loadTrain()
    local dataset = dp.ImageClassSet{
       data_path=self._train_path, load_size=self._load_size,
       which_set='train', sample_size=self._sample_size,
-      carry=dp.Carry(), verbose=self._verbose
+      carry=dp.Carry(), verbose=self._verbose, sample_func='sampleTrain'
    }
    self:setTrainSet(dataset)
    return dataset
@@ -74,7 +74,7 @@ function ImageNet:loadValid()
    local dataset = dp.ImageClassSet{
       data_path=self._valid_path, load_size=self._load_size,
       which_set='valid', sample_size=self._sample_size,
-      carry=dp.Carry(), verbose=self._verbose
+      carry=dp.Carry(), verbose=self._verbose, sample_func='sampleTest'
    }
    self:setValidSet(dataset)
    return dataset
@@ -114,8 +114,8 @@ function ImageNet:normalizePPF()
                .. nSamples .. ' randomly sampled training images')
       end
       
-      local mean = {0,0,0}
-      local std = {0,0,0}
+      mean = {0,0,0}
+      std = {0,0,0}
       local batch
       for i=1,nSamples,100 do
          batch = trainSet:sample(batch, 100)
@@ -126,8 +126,8 @@ function ImageNet:normalizePPF()
          end
       end
       for j=1,3 do
-         mean[j] = mean[j] / nSamples
-         std[j] = std[j] / nSamples
+         mean[j] = mean[j]*100 / nSamples
+         std[j] = std[j]*100 / nSamples
       end
       local cache = {mean=mean,std=std}
       torch.save(meanstdCache, cache)
@@ -142,7 +142,7 @@ function ImageNet:normalizePPF()
    end
    
    local function ppf(batch)
-      local inputview = batch:inputs()
+      local inputView = batch:inputs()
       assert(inputView:view() == 'bchw', 'ImageNet ppf only works with bchw')
       local input = inputView:input()
       for i=1,3 do -- channels
@@ -153,14 +153,14 @@ function ImageNet:normalizePPF()
 
    if self._verbose then
       -- just check if mean/std look good now
-      local testmean = 0
-      local teststd = 0
+      local trainSet = self:trainSet() or self:loadTrain()
       local batch = trainSet:sample(100)
       ppf(batch)
       local input = batch:inputs():input()
       print('Stats of 100 randomly sampled images after normalizing. '..
             'Mean: ' .. input:mean().. ' Std: ' .. input:std())
    end
+   return ppf
 end
 
 

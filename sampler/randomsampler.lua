@@ -26,7 +26,7 @@ function RandomSampler:sampleEpoch(dataset)
       -- metadata
       batch:setup{
          batch_iter=nSampled, batch_size=self._batch_size,
-         n_sample=sself._batch_size
+         n_sample=self._batch_size
       }
       batch = self._ppf(batch)
       nSampled = nSampled + self._batch_size

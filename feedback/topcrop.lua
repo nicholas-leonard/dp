@@ -131,8 +131,9 @@ function TopCrop:report()
       allTops[top] = self.topCounts.all[top]/nSample*100
    end
    return { 
-      [self:name()] = {center=centerTops, all=allTops},
-      n_sample = nSample,
-      n_crop = self._n_crop
+      [self:name()] = {
+         center=centerTops, all=allTops, n_crop=self._n_crop
+      },
+      n_sample = nSample
    }
 end

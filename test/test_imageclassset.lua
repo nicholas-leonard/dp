@@ -23,27 +23,128 @@ print("sub1", batch:inputs():view(), batch:inputs():input():size())
 validSet:sub(batch, 200, 240)
 print("sub2", batch:inputs():view(), batch:inputs():input():size())
 
-ppf = ds:normalizePPF()
+--ppf = ds:normalizePPF()
 
-trainSet = ds:trainSet()
-start = os.clock()
-for i=1,100 do
+trainSet = ds:validSet()
+
+local a = torch.Timer()
+for i=1,10*120 do
+   local imgpath = ffi.string(torch.data(trainSet.imagePath[i]))
+   local img = image.load(imgpath)
+   if math.fmod(i, 120) == 0 then
+      collectgarbage()
+   end
+end
+print("loadImageB", (a:time().real)/10)
+
+local a = torch.Timer()
+float = torch.FloatTensor()
+dst = torch.FloatTensor()
+for i=1,10*120 do
+   local imgpath = ffi.string(torch.data(trainSet.imagePath[i]))
+   local out = image.load(imgpath)
+   float:resize(out:size()):copy(out)
+   dst:resize(out:size(1), trainSet._sample_size[3], trainSet._sample_size[2])
+   image.scale(dst, float)
+   if math.fmod(i, 120) == 0 then
+      collectgarbage()
+   end
+end
+print("loadImageB+scale", (a:time().real)/10)
+
+local a = torch.Timer()
+for i=1,10*120 do
+   local imgpath = ffi.string(torch.data(trainSet.imagePath[i]))
+   trainSet:loadImage(imgpath) 
+   if math.fmod(i, 120) == 0 then
+      collectgarbage()
+   end
+end
+print("loadImage", (a:time().real)/10)
+
+
+local a = torch.Timer()
+for i=1,10*120 do
+   local imgpath = ffi.string(torch.data(trainSet.imagePath[i]))
+   input = trainSet:loadImage(imgpath) 
+   local out = input:toTensor('float','RGB','DHW', true)
+   if math.fmod(i, 120) == 0 then
+      collectgarbage()
+   end
+end
+print("loadImage+", (a:time().real)/10)
+
+local a = torch.Timer()
+for i=1,10*120 do
+   local imgpath = ffi.string(torch.data(trainSet.imagePath[i]))
+   input = trainSet:loadImage(imgpath) 
+   local out = input:toTensor('float','RGB','DHW', true)
+   dst:resize(out:size(1), trainSet._sample_size[3], trainSet._sample_size[2])
+   image.scale(dst, out)
+   if math.fmod(i, 120) == 0 then
+      collectgarbage()
+   end
+end
+print("loadImage+scale", (a:time().real)/10)
+
+local a = torch.Timer()
+for i=1,120 do
+   local dst = trainSet:getImageBuffer(i)
+   dst:resize(10, 3, trainSet._sample_size[3], trainSet._sample_size[2])
+end
+print("getImageBuffer : first pass", (a:time().real)/120)
+
+local a = torch.Timer()
+for j=1,10 do
+   local inputTable = {}
+   local targetTable = {} 
+   for i=1,120 do 
+      assert(batch)
+      local imgpath = ffi.string(torch.data(trainSet.imagePath[j*120+i]))
+      input = trainSet:loadImage(imgpath) 
+      local out = input:toTensor('float','RGB','DHW', true)
+      local dst = trainSet:getImageBuffer(i)
+      dst:resize(out:size(1), trainSet._sample_size[3], trainSet._sample_size[2])
+      image.scale(dst, out)
+      table.insert(inputTable, dst)
+      table.insert(targetTable, 1)  
+   end
+   local inputView = batch and batch:inputs() or dp.ImageView()
+   local targetView = batch and batch:targets() or dp.ClassView()
+   local inputTensor = inputView:input() or torch.FloatTensor()
+   local targetTensor = targetView:input() or torch.IntTensor()
+   
+   trainSet:tableToTensor(inputTable, targetTable, inputTensor, targetTensor)
+   
+   assert(inputTensor:size(2) == 3)
+   inputView:forward('bchw', inputTensor)
+   targetView:forward('b', targetTensor)
+   targetView:setClasses(trainSet._classes)
+   batch:setInputs(inputView)
+   batch:setTargets(targetView)  
+   batch:carry():putObj('nSample', targetTensor:size(1))
+   collectgarbage()
+end
+print("loadImage+scale+tableToTensor", (a:time().real)/10)
+
+a = torch.Timer()
+for i=1,10 do
+   trainSet:sample(batch,120,'sampleDefault') 
+   collectgarbage()
+end
+print("sampleDefault", (a:time().real)/10)
+
+a = torch.Timer()
+for i=1,10 do
    trainSet:sample(batch,120,'sampleTrain') 
    collectgarbage()
 end
-print("sampleTrain", (os.clock()-start)/100)
+print("sampleTrain", (a:time().real)/10)
 
-start = os.clock()
-for i=1,12*100,12 do
-   trainSet:sub(batch,i,i+11) 
-   collectgarbage()
-end
-print("sampleTest", (os.clock()-start)/100)
-
-trainSet = dp.SVHN():trainSet()
-start = os.clock()
-for i=1,120*100,120 do
+a = torch.Timer()
+for i=1,120*10,120 do
    trainSet:sub(batch,i,i+119) 
    collectgarbage()
 end
-print("SVHN", (os.clock()-start)/100)
+print("sampleTest", (a:time().real)/10)
+

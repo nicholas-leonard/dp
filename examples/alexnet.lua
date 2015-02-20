@@ -20,9 +20,9 @@ cmd:option('--momentum', 0, 'momentum')
 cmd:option('--batchSize', 128, 'number of examples per batch')
 cmd:option('--cuda', false, 'use CUDA')
 cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
+cmd:option('--trainEpochSize', -1, 'number of train examples seen between each epoch')
 cmd:option('--maxEpoch', 100, 'maximum number of epochs to run')
 cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better local minima for early-stopping')
-cmd:option('--standardize', false, 'apply Standardize preprocessing')
 cmd:option('--accUpdate', false, 'accumulate gradients inplace')
 cmd:option('--verbose', false, 'print verbose messages')
 cmd:option('--progress', false, 'print progress bar')
@@ -123,7 +123,7 @@ train = dp.Optimizer{
    visitor = visitor,
    feedback = dp.Confusion(),
    sampler = dp.RandomSampler{
-      batch_size=opt.batchSize, 
+      batch_size=opt.batchSize, epoch_size=opt.trainEpochSize,
       ppf=ppf
    },
    progress = opt.progress
@@ -145,7 +145,7 @@ xp = dp.Experiment{
    observer = {
       dp.FileLogger(),
       dp.EarlyStopper{
-         error_report = {'validator','topcrop',5},
+         error_report = {'validator','feedback','topcrop','all',5},
          maximize = true,
          max_epochs = opt.maxTries
       }

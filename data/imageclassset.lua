@@ -392,10 +392,8 @@ function ImageClassSet:sampleDefault(dst, path)
    -- if load_size[1] == 1, converts to greyscale (y in YUV)
    local input = self:loadImage(path)
    local out = input:toTensor('float','RGB','DHW', true)
-   self._floatBuffer = self._floatBuffer or torch.FloatTensor()
-   self._floatBuffer:resize(out:size()):copy(out)
    dst:resize(out:size(1), self._sample_size[3], self._sample_size[2])
-   image.scale(dst, self._floatBuffer)
+   image.scale(dst, out)
    return dst
 end
 

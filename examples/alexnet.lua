@@ -13,10 +13,11 @@ cmd:option('--dataPath', paths.concat(dp.DATA_DIR, 'ImageNet'), 'path to ImageNe
 cmd:option('--trainPath', '', 'Path to train set. Defaults to --dataPath/ILSVRC2012_img_train')
 cmd:option('--validPath', '', 'Path to valid set. Defaults to --dataPath/ILSVRC2012_img_val')
 cmd:option('--metaPath', '', 'Path to metadata. Defaults to --dataPath/metadata')
-cmd:option('--learningRate', 0.1, 'learning rate at t=0')
-cmd:option('--maxOutNorm', 1, 'max norm each layers output neuron weights')
-cmd:option('--maxNormPeriod', 2, 'Applies MaxNorm Visitor every maxNormPeriod batches')
-cmd:option('--momentum', 0, 'momentum') 
+cmd:option('--learningRate', 0.01, 'learning rate at t=0')
+cmd:option('--maxOutNorm', -1, 'max norm each layers output neuron weights')
+ cmd:option('-weightDecay', 5e-4, 'weight decay')
+cmd:option('--maxNormPeriod', 1, 'Applies MaxNorm Visitor every maxNormPeriod batches')
+cmd:option('--momentum', 0.9, 'momentum') 
 cmd:option('--batchSize', 128, 'number of examples per batch')
 cmd:option('--cuda', false, 'use CUDA')
 cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
@@ -104,18 +105,36 @@ model = dp.Module{
    output = dp.ClassView()
 }
 
+--[[Visitor]]--
 local visitor = {}
 -- the ordering here is important:
 if opt.momentum > 0 then
    if opt.accUpdate then
-      error"momentum doesn't work with --accUpdate"
+      print"Warning : momentum is ignored with acc_update = true"
    end
-   table.insert(visitor, dp.Momentum{momentum_factor=opt.momentum})
+   table.insert(visitor, 
+      dp.Momentum{momentum_factor = opt.momentum}
+   )
 end
-table.insert(visitor, dp.Learn{learning_rate=opt.learningRate})
-table.insert(visitor, dp.MaxNorm{
-   max_out_norm = opt.maxOutNorm, period=opt.maxNormPeriod
-})
+if opt.weightDecay and opt.weightDecay > 0 then
+   if opt.accUpdate then
+      print"Warning : weightdecay is ignored with acc_update = true"
+   end
+   table.insert(visitor, dp.WeightDecay{wd_factor=opt.weightDecay})
+end
+table.insert(visitor, 
+   dp.Learn{
+      learning_rate = opt.learningRate, 
+      observer = dp.LearningRateSchedule{
+         schedule={[1]=1e-2,[19]=5e-3,[30]=1e-3,[44]=5e-4,[53]=1e-4}
+      }
+   }
+)
+if opt.maxOutNorm > 0 then
+   table.insert(visitor, dp.MaxNorm{
+      max_out_norm = opt.maxOutNorm, period=opt.maxNormPeriod
+   })
+end
 
 --[[Propagators]]--
 train = dp.Optimizer{
@@ -130,7 +149,7 @@ train = dp.Optimizer{
 }
 valid = dp.Evaluator{
    loss = dp.NLL(),
-   feedback = dp.TopCrop{n_top={1,5},n_crop=10,center=2},  
+   feedback = dp.TopCrop{n_top={1,5,10},n_crop=10,center=2},  
    sampler = dp.Sampler{
       batch_size=math.round(opt.batchSize/10),
       ppf=ppf

@@ -23,9 +23,25 @@ print("sub1", batch:inputs():view(), batch:inputs():input():size())
 validSet:sub(batch, 200, 240)
 print("sub2", batch:inputs():view(), batch:inputs():input():size())
 
+
 --ppf = ds:normalizePPF()
 
-trainSet = ds:validSet()
+trainSet = ds:trainSet() or ds:loadTrain()
+
+batch = trainSet:sample(batch,120,'sampleTrain')
+
+inputView = batch:inputs() 
+inputs = inputView:forward('bchw')
+
+targetView = batch:targets()
+targets = targetView:forward('b')
+
+savePath = paths.concat(dp.SAVE_DIR, 'imagenettest')
+paths.mkdir(savePath)
+
+for i=1,inputs:size(1) do
+   image.save(paths.concat(savePath, 'sample'..i..'_'..targets[i]..'.png'), inputs[i])
+end
 
 local a = torch.Timer()
 for i=1,10*120 do

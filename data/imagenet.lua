@@ -74,7 +74,10 @@ function ImageNet:loadValid()
    local dataset = dp.ImageClassSet{
       data_path=self._valid_path, load_size=self._load_size,
       which_set='valid', sample_size=self._sample_size,
-      carry=dp.Carry(), verbose=self._verbose, sample_func='sampleTest'
+      carry=dp.Carry(), verbose=self._verbose, sample_func='sampleTest',
+      sort_func=function(x,y)
+         return tonumber(x:match('[0-9]+')) < tonumber(y:match('[0-9]+'))
+      end
    }
    self:setValidSet(dataset)
    return dataset

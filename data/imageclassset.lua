@@ -12,7 +12,7 @@ local ImageClassSet, parent = torch.class("dp.ImageClassSet", "dp.DataSet")
 function ImageClassSet:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, data_path, load_size, sample_size, sample_func, which_set,  
-      carry, verbose = xlua.unpack(
+      carry, verbose, sort_func = xlua.unpack(
       {config},
       'ImageClassSet', 
       'A DataSet for images in a flat folder structure',
@@ -34,7 +34,10 @@ function ImageClassSet:__init(config)
        help='An object store that is carried (passed) around the '..
        'network during a propagation.'},
       {arg='verbose', type='boolean', default=true,
-       help='display verbose messages'}
+       help='display verbose messages'},
+      {arg='sort_func', type='boolean', 
+       help='comparison operator used for sorting class dir to get idx.'
+       ..' Defaults to < operator'}
    )
    -- globals :
    ffi = require 'ffi'
@@ -49,6 +52,7 @@ function ImageClassSet:__init(config)
    self._verbose = verbose   
    self._data_path = type(data_path) == 'string' and {data_path} or data_path
    self._sample_func = sample_func
+   self._sort_func = sort_func
    
    -- find class names
    self._classes = {}
@@ -66,9 +70,11 @@ function ImageClassSet:__init(config)
       end
    end
    
-   local classPaths = {}
    -- sort classes for indexing consistency
-   for i, class in ipairs(_.sort(classList)) do
+   _.sort(classList, self._sort_func)
+   
+   local classPaths = {}
+   for i, class in ipairs(classList) do
       classes[class] = i
       classPaths[i] = {}
    end

@@ -36,7 +36,7 @@ function Feedback:__init(config)
       {config},
       'Feedback', 
       'strategies for processing predictions and targets.',
-      {arg='verbose', type='boolean', req=true,
+      {arg='verbose', type='boolean', default=true,
        help='provide verbose outputs every epoch'},
       {arg='name', type='string', req=true,
        help='used to identify report'}

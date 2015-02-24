@@ -21,9 +21,12 @@ cmd:option('--dropout', false, 'apply dropout on hidden neurons, requires "nnx" 
 cmd:option('--dataset', 'Mnist', 'which dataset to use : Mnist | NotMnist | Cifar10 | Cifar100')
 cmd:option('--standardize', false, 'apply Standardize preprocessing')
 cmd:option('--zca', false, 'apply Zero-Component Analysis whitening')
+cmd:option('--silent', false, 'dont print anything to stdout')
 cmd:text()
 opt = cmd:parse(arg or {})
-print(opt)
+if not opt.silent then
+   table.print(opt)
+end
 
 --[[preprocessing]]--
 local input_preprocess = {}
@@ -114,5 +117,6 @@ xp = dp.Experiment{
    random_seed = os.time(),
    max_epoch = opt.maxEpoch
 }
+xp:verbose(not opt.silent)
 
 xp:run(datasource)

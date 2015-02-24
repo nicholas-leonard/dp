@@ -34,8 +34,8 @@ function ErrorMinima:__init(config)
        'that should be maximized, instead of an error that should not'},
       {arg='notify', type='boolean', default=true,
        help='Notifies listeners when a new minima is found.'},
-      {arg='verbose', type='boolean', req=true,
-       help='provide verbose outputs every epoch'},
+      {arg='verbose', type='boolean', default=true,
+       help='provide verbose outputs every epoch'}
    )
    self._minima_epoch = self._start_epoch - 1
    self._sign = self._maximize and -1 or 1
@@ -86,5 +86,3 @@ end
 function ErrorMinima:minima()
    return self._minima, self._minima_epoch
 end
-
-

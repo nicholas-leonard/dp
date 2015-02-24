@@ -42,23 +42,17 @@ end
 function SaveToFile:save(subject)
    assert(subject, "SaveToFile not setup error")
    if self._in_memory then
-      if self._verbose then
-         print('SaveToFile: serializing subject to memory')
-      end
+      dp.vprint(self._verbose, 'SaveToFile: serializing subject to memory')
       self._save_cache = torch.serialize(subject)
    else
-      if self._verbose then
-         print('SaveToFile: saving to '.. self._filename)
-      end
+      dp.vprint(self._verbose, 'SaveToFile: saving to '.. self._filename)
       return torch.save(self._filename, subject)
    end
 end
 
 function SaveToFile:doneExperiment()
    if self._in_memory and self._save_cache then
-      if self._verbose then
-         print('SaveToFile: saving to '.. self._filename)
-      end
+      dp.vprint(self._verbose, 'SaveToFile: saving to '.. self._filename)
       local f = io.open(self._filename, 'w')
       f:write(self._save_cache)
       f:close()

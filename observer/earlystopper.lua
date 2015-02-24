@@ -44,7 +44,7 @@ end
 function EarlyStopper:compareError(current_error, ...)
    if self._epoch >= self._min_epoch and (self._max_error ~= 0) 
          and current_error*self._sign > self._max_error then
-      print"EarlyStopper ending experiment. Error too high" 
+      dp.vprint(self._verbose, "EarlyStopper ending experiment. Error too high" )
       self._mediator:publish("doneExperiment")
    end
    

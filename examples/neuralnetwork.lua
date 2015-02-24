@@ -24,7 +24,9 @@ cmd:option('--progress', false, 'display progress bar')
 cmd:option('--silent', false, 'dont print anything to stdout')
 cmd:text()
 opt = cmd:parse(arg or {})
-table.print(opt)
+if not opt.silent then
+   table.print(opt)
+end
 
 --[[preprocessing]]--
 local input_preprocess = {}
@@ -125,9 +127,12 @@ if opt.cuda then
    xp:cuda()
 end
 
-print"dp.Models :"
-print(mlp)
-print"nn.Modules :"
-print(mlp:toModule(datasource:trainSet():sub(1,32)))
+xp:verbose(not opt.silent)
+if not opt.silent then
+   print"dp.Models :"
+   print(mlp)
+   print"nn.Modules :"
+   print(mlp:toModule(datasource:trainSet():sub(1,32)))
+end
 
 xp:run(datasource)

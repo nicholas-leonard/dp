@@ -39,7 +39,9 @@ cmd:option('--mlp', false, 'use multi-layer perceptron, as opposed to convolutio
 cmd:option('--silent', false, 'dont print anything to stdout')
 cmd:text()
 opt = cmd:parse(arg or {})
-table.print(opt)
+if not opt.silent then
+   table.print(opt)
+end
 
 assert(opt.submissionFile ~= '', 'provide filename, e.g.: --submissionFile submission12.csv')
 
@@ -94,7 +96,7 @@ if not opt.mlp then
       inputSize, height, width = conv:outputSize(height, width, 'bchw')
    end
    inputSize = inputSize*height*width
-   print("input to first Neural layer has: "..inputSize.." neurons")
+   dp.vprint(not opt.silent, "input to first Neural layer has: "..inputSize.." neurons")
 else
    inputSize = datasource:featureSize()
    if opt.neuralSize > 0 then
@@ -205,9 +207,12 @@ if opt.cuda then
    xp:cuda()
 end
 
-print"dp.Models :"
-print(cnn)
-print"nn.Modules :"
-print(cnn:toModule(datasource:trainSet():sub(1,32)))
+xp:verbose(not opt.silent)
+if not opt.silent then
+   print"dp.Models :"
+   print(cnn)
+   print"nn.Modules :"
+   print(cnn:toModule(datasource:trainSet():sub(1,32)))
+end
 
 xp:run(datasource)

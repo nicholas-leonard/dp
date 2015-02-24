@@ -149,10 +149,10 @@ which makes the training algorithm more stochastic.
 Each Propagator must also specify a [Loss](loss.md#dp.Loss) for training or evaluation.
 If you have previously used the [nn](https://github.com/torch/nn/blob/master/README.md) package, 
 there is nothing new here, a [Loss](loss.md#dp.Loss) is simply an adapter of
-[Criterions](https://github.com/torch/nn/blob/master/criterion.md#nn.Criterion). 
+[Criterions](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.Criterion). 
 Each example has a single target class and our Model output is LogSoftMax so 
 we use a [NLL](loss.md#dp.NLL), which wraps a 
-[ClassNLLCriterion](https://github.com/torch/nn/blob/master/criterion.md#nn.ClassNLLCriterion).
+[ClassNLLCriterion](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.ClassNLLCriterion).
 
 ### Feedback ###
 The `feedback` parameter is used to provide us with, you guessed it, feedback; like performance measures and

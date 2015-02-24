@@ -34,7 +34,7 @@ function Perplexity:perplexity()
 end
 
 function Perplexity:doneEpoch(report)
-   if self._n_sample > 0 then
+   if self._n_sample > 0 and self._verbose then
       print(self._id:toString().." perplexity = "..self:perplexity())
    end
 end

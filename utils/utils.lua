@@ -159,3 +159,9 @@ end
 function dp.returnString(str)
    return loadstring(" return "..str)()
 end
+
+function dp.vprint(verbose, str)
+   if verbose then
+      print(str)
+   end
+end

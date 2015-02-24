@@ -125,7 +125,9 @@ end
 
 function Loss:report()
    local err = self:avgError()
-   print(self:id():toString() .. ' avgError ' .. err)
+   if self._verbose then
+      print(self:id():toString() .. ' avgError ' .. err)
+   end
    local report = {avgError=err}
    return self._report(report) or report
 end

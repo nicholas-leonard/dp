@@ -11,8 +11,8 @@ EarlyStopper.isEarlyStopper = true
 function EarlyStopper:__init(config) 
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args
-   args, self._save_strategy, self._max_epochs, self._max_error, self._min_epoch
-      = xlua.unpack(
+   args, self._save_strategy, self._max_epochs, self._max_error, 
+      self._min_epoch = xlua.unpack(
       {config},
       'EarlyStopper', 
       'Saves a model at each new minima of error. ' ..
@@ -44,7 +44,7 @@ end
 function EarlyStopper:compareError(current_error, ...)
    if self._epoch >= self._min_epoch and (self._max_error ~= 0) 
          and current_error*self._sign > self._max_error then
-      print"EarlyStopper ending experiment. Error too high" 
+      dp.vprint(self._verbose, "EarlyStopper ending experiment. Error too high" )
       self._mediator:publish("doneExperiment")
    end
    
@@ -55,12 +55,17 @@ function EarlyStopper:compareError(current_error, ...)
    end
    
    if self._max_epochs < (self._epoch - self._minima_epoch) then
-      if self._maximize then
+      if self._maximize and self._verbose then
          print("found maxima : " .. self._minima*self._sign .. " at epoch " .. self._minima_epoch) 
-      else
+      elseif self._verbose then
          print("found minima : " .. self._minima .. " at epoch " .. self._minima_epoch) 
       end
       self._mediator:publish("doneExperiment")
    end
    return found_minima
+end
+
+function EarlyStopper:verbose(verbose)
+   parent.verbose(self, verbose)
+   self._save_strategy:verbose(self._verbose)
 end

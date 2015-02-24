@@ -150,3 +150,10 @@ function Visitor:setZeroGrads(zero_grads)
    self._zero_grads = zero_grads
 end
 
+function Visitor:verbose(verbose)
+   self._verbose = (verbose == nil) and true or verbose
+end
+
+function Visitor:silent()
+   self:verbose(false)
+end

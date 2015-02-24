@@ -3,18 +3,7 @@
 -- An experiment propagates DataSets through Models. The specifics 
 -- such propagations are handled by Propagators. The propagation of 
 -- a DataSet is called an epoch. At the end of each epoch, a monitoring
--- step is performed where the a report is generated for all observers.
-
--- We keep datasource/datasets, and mediator in outer scope to allow for 
--- experiment serialization. Serialization of an object requires 
--- that it be an instance of a registered torch.class. Sadly, objects 
--- which have references to functions (excluding those in their 
--- metatables) cannot currently be serialized. This also implies that 
--- the mediator cannot currently be serialized since it holds references
--- to callback functions. 
--- The data is kept out of scope in order to reduce the size of 
--- serializations. Data objects should therefore be reportless, 
--- i.e. restorable from its constructor.
+-- step is performed where a report is generated for all observers.
 
 -- The experiment keeps a log of the report of the experiment after 
 -- every epoch. This is done by calling the report() method of 
@@ -113,12 +102,7 @@ end
 function Experiment:run(datasource, once)
    if not self._setup then
       self:setup(datasource)
-   end
-   -- use mediator to publishes 'doneEpoch' for observers and allows
-   -- observers to communicate with each other. Should only be used 
-   -- during the monitoring phase
-   
-   -- gets a read-only copy of all experiment parameters
+   end   
    local report = self:report()
    local train_set = datasource:trainSet()
    local valid_set = datasource:validSet()
@@ -233,6 +217,26 @@ function Experiment:setModel(model)
       model = dp.Module{module=model}
    end
    self._model = model
+end
+
+function Experiment:verbose(verbose)
+   self._verbose = (verbose == nil) and true or verbose
+   if self._optimizer then
+      self._optimizer:verbose(self._verbose)
+   end
+   if self._validator then
+      self._validator:verbose(self._verbose)
+   end
+   if self._tester then 
+      self._tester:verbose(self._verbose)
+   end
+   if self._model then
+      self._model:verbose(self._verbose)
+   end
+end
+
+function Experiment:silent()
+   self:verbose(false)
 end
 
 function Experiment:type(new_type)

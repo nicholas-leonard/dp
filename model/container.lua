@@ -122,3 +122,10 @@ end
 function Container:_toModule()
    error"Not Implemented"
 end
+
+function Container:verbose(verbose)
+   self._verbose = (verbose == nil) and true or verbose
+   for k, v in pairs(self._models) do
+      v:verbose(self._verbose)
+   end
+end

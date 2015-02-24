@@ -12,7 +12,7 @@ function ErrorMinima:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args
    args, self._start_epoch, self._error_report, self._error_channel, 
-      self._maximize, self._notify = xlua.unpack(
+      self._maximize, self._notify, self._verbose = xlua.unpack(
       {config},
       'ErrorMinima', 
       'Monitors when a new minima over an error variable is found. ' ..
@@ -33,7 +33,9 @@ function ErrorMinima:__init(config)
        'This is useful when the channel returns an accuracy ' ..
        'that should be maximized, instead of an error that should not'},
       {arg='notify', type='boolean', default=true,
-       help='Notifies listeners when a new minima is found.'}
+       help='Notifies listeners when a new minima is found.'},
+      {arg='verbose', type='boolean', req=true,
+       help='provide verbose outputs every epoch'},
    )
    self._minima_epoch = self._start_epoch - 1
    self._sign = self._maximize and -1 or 1

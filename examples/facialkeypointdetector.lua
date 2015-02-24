@@ -36,6 +36,7 @@ cmd:option('--normalInit', false, 'initialize inputs using a normal distribution
 cmd:option('--validRatio', 1/10, 'proportion of dataset used for cross-validation')
 cmd:option('--neuralSize', 1000, 'Size of first neural layer in 3 Neural Layer MLP.')
 cmd:option('--mlp', false, 'use multi-layer perceptron, as opposed to convolution neural network')
+cmd:option('--silent', false, 'dont print anything to stdout')
 cmd:text()
 opt = cmd:parse(arg or {})
 table.print(opt)

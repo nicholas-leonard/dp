@@ -267,6 +267,29 @@ function Propagator:loss()
    return self._loss
 end
 
+function Propagator:verbose(verbose)
+   self._verbose = (verbose == nil) and true or verbose
+   if self._loss then
+      self._loss:verbose(self._verbose)
+   end
+   if self._feedback then
+      self._feedback:verbose(self._verbose)
+   end
+   if self._visitor then 
+      self._visitor:verbose(self._verbose)
+   end
+   if self._observer then
+      self._observer:verbose(self._verbose)
+   end
+   if self._sampler then
+      self._sampler:verbose(self._verbose)
+   end
+end
+
+function Propagator:silent()
+   self:verbose(false)
+end
+
 function Propagator:type(new_type)
    if self._loss then
       self._loss:type(new_type)

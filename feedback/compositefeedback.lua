@@ -49,3 +49,10 @@ function CompositeFeedback:_reset()
       feedback:reset()
    end
 end
+
+function CompositeFeedback:verbose(verbose)
+   self._verbose = (verbose == nil) and true or verbose
+   for k, v in pairs(self._feedbacks) do
+      v:verbose(self._verbose)
+   end
+end

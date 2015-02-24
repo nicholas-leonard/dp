@@ -53,6 +53,7 @@ cmd:option('--trainEpochSize', 1000000, 'number of train examples seen between e
 cmd:option('--validEpochSize', 100000, 'number of valid examples used for early stopping and cross-validation') 
 cmd:option('--trainOnly', false, 'forget the validation and test sets, focus on the training set')
 cmd:option('--progress', false, 'print progress bar')
+cmd:option('--silent', false, 'dont print anything to stdout')
 
 cmd:text()
 opt = cmd:parse(arg or {})
@@ -60,7 +61,6 @@ table.print(opt)
 
 opt.decayPoints = table.fromString(opt.decayPoints)
 opt.learningRates = table.fromString(opt.learningRates)
-
 
 --[[data]]--
 local train_file = 'train_data.th7' 

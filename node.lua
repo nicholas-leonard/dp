@@ -147,6 +147,14 @@ function Node:moduleType(module_type)
    return self._module_type
 end
 
+function Node:verbose(verbose)
+   self._verbose = (verbose == nil) and true or verbose
+end
+
+function Node:silent()
+   self:verbose(false)
+end
+
 -- changes the type of internal variables inplace (same as nn)
 -- returns self
 function Node:type(new_type)

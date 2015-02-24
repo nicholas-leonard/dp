@@ -84,3 +84,11 @@ function SaveToFile:read(file)
       self[k] = v
    end
 end
+
+function SaveToFile:verbose(verbose)
+   self._verbose = (verbose == nil) and true or verbose
+end
+
+function SaveToFile:silent()
+   self:verbose(false)
+end

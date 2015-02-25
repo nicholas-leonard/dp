@@ -166,4 +166,6 @@ function ImageNet:normalizePPF()
    return ppf
 end
 
-
+function ImageNet:multithread()
+   
+end

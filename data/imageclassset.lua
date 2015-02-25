@@ -511,3 +511,91 @@ function ImageClassSet:sampleTest(dst, path)
    image.hflip(dst[10], dst[9])
    return dst
 end
+
+
+function ImageClassSet:multithread(nThread)
+   local Threads = require 'threads' -- from threads-ffi
+   
+   nThread = nThread or 2
+   if not paths.filep(self._cache_path) then
+      -- workers will read a serialized index to speed things up
+      self:saveIndex()
+   end
+   
+   local mainSeed = os.time()
+   local config = self._config
+   config.cache_mode = 'readonly'
+   config.verbose = self._verbose
+   
+   self._threads = Threads(
+      nThread,
+      function()
+         gsdl = require 'sdl2'
+         require 'torch'
+         require 'dp'
+      end,
+      function(idx)
+         opt = options -- pass to all donkeys via upvalue
+         tid = idx
+         local seed = mainSeed + idx
+         math.randomseed(seed)
+         torch.manualSeed(seed)
+         if config.verbose then
+            print(string.format('Starting worker thread with id: %d seed: %d', tid, seed))
+         end
+         
+         dataset = dp.ImageClassSet(config)
+      end
+   )
+   
+   self.nThread = nThread
+end
+
+-- send request to worker : put request into queue
+function ImageClassSet:subAsyncPut(batch, start, stop, callback)
+   -- get batch tensor pointers 
+   self._iter_mode = self._iter_mode or 'sub'
+   if (self._iter_mode ~= 'sub') then
+      error'can only use one Sampler per async ImageClassSet'
+   end   
+   
+end
+
+-- recv results from worker : get results from queue
+function ImageClassSet:subAsyncGet()
+   -- get batch tensor pointers
+end
+
+function ImageClassSet:sampleAsyncPut(batch, nSample, sampleFunc)
+   
+end
+
+function ImageClassSet:sampleAsyncGet(batch, nSample, sampleFunc)
+   
+end
+
+------ Some FFI stuff used to pass storages between threads ------------------
+ffi.cdef[[
+void THFloatStorage_free(THFloatStorage *self);
+void THLongStorage_free(THLongStorage *self);
+]]
+
+function setFloatStorage(tensor, storage_p)
+   assert(storage_p and storage_p ~= 0, "FloatStorage is NULL pointer");
+   local cstorage = ffi.cast('THFloatStorage*', torch.pointer(tensor:storage()))
+   if cstorage ~= nil then
+      ffi.C['THFloatStorage_free'](cstorage)
+   end
+   local storage = ffi.cast('THFloatStorage*', storage_p)
+   tensor:cdata().storage = storage
+end
+
+function setLongStorage(tensor, storage_p)
+   assert(storage_p and storage_p ~= 0, "LongStorage is NULL pointer");
+   local cstorage = ffi.cast('THLongStorage*', torch.pointer(tensor:storage()))
+   if cstorage ~= nil then
+      ffi.C['THLongStorage_free'](cstorage)
+   end
+   local storage = ffi.cast('THLongStorage*', storage_p)
+   tensor:cdata().storage = storage
+end

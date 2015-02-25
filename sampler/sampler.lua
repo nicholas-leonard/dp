@@ -120,3 +120,64 @@ function Sampler:sampleEpoch(dataset)
       return batch, math.min(nSampled, epochSize), epochSize
    end
 end
+
+-- used with datasets that support asynchronous iterators like ImageClassSet
+function Sampler:sampleEpochAsync(dataset)
+   dataset = dp.Sampler.toDataset(dataset)
+   local nSample = dataset:nSample()
+   local epochSize = self._epoch_size or nSample
+   self._start = self._start or 1
+   local nSampledPut = 0
+   local nSampledGet = 0
+   local stop
+     
+   -- build iterator
+   local sampleBatch = function(batch, putOnly)
+      if nSampledGet >= epochSize then
+         return
+      end
+      
+      if nSampledPut < epochSize then
+         batch = batch or dataset:batch(self._batch_size)
+         stop = math.min(self._start+self._batch_size-1,nSample)
+         -- inputs and targets
+         dataset:subAsyncPut(batch, self._start, stop,
+            function(batch) 
+               local indices = batch:indices() or torch.Tensor()
+               -- metadata
+               batch:setup{
+                  batch_iter=stop, batch_size=self._batch_size,
+                  n_sample=stop-self._start+1, 
+                  indices=indices:range(self._start,stop)
+               }
+               batch = self._ppf(batch)
+            end)
+         
+         nSampledPut = nSampledPut + stop - self._start + 1
+         self._start = self._start + self._batch_size
+         if self._start >= nSample then
+            self._start = 1
+         end      
+      end
+      
+      if not putOnly then
+         batch = dataset:subAsyncGet()
+         nSampledGet = nSampledGet + batch:nSample()
+         collectgarbage() 
+         return batch, math.min(nSampledGet, epochSize), epochSize
+      end
+   end
+   
+   assert(dataset.nThreads, "expecting asynchronous dataset")
+   dataset:emptyQueue()
+   -- fill task queue with some batch requestes
+   for tidx=1,dataset.nThreads do
+      sampleBatch(batch, true)
+   end
+   
+   return sampleBatch
+end
+
+function Sampler:async()
+   self.sampleEpoch = self.sampleEpochAsync
+end

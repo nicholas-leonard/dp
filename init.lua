@@ -9,6 +9,7 @@ require 'os'
 require 'sys'
 require 'image'
 require 'lfs'
+ffi = require 'ffi'
 
 ------------------------------------------------------------------------
 --[[ dp ]]--

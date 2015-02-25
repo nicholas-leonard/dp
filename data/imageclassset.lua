@@ -12,7 +12,7 @@ local ImageClassSet, parent = torch.class("dp.ImageClassSet", "dp.DataSet")
 function ImageClassSet:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, data_path, load_size, sample_size, sample_func, which_set,  
-      carry, verbose, sort_func = xlua.unpack(
+      carry, verbose, sort_func, cache_mode, cache_path = xlua.unpack(
       {config},
       'ImageClassSet', 
       'A DataSet for images in a flat folder structure',
@@ -37,12 +37,19 @@ function ImageClassSet:__init(config)
        help='display verbose messages'},
       {arg='sort_func', type='boolean', 
        help='comparison operator used for sorting class dir to get idx.'
-       ..' Defaults to < operator'}
+       ..' Defaults to < operator'},
+      {arg='cache_mode', type='string', default='writeonce',
+       help='writeonce : read from cache if exists, else write to cache. '..
+       'overwrite : write to cache, regardless if exists. '..
+       'nocache : dont read or write from cache. '..
+       'readonly : only read from cache, fail otherwise.'},
+      {arg='cache_path', type='string', 
+       help='Path to cache. Defaults to [data_path[1]]/cache.th7'}
    )
-   -- globals :
-   ffi = require 'ffi'
+   -- globals
    gm = require 'graphicsmagick'
-
+   
+   -- locals
    self:setWhichSet(which_set)
    self._load_size = load_size
    assert(self._load_size[1] == 3, "ImageClassSet doesn't yet support greyscaling : load_size")
@@ -53,9 +60,47 @@ function ImageClassSet:__init(config)
    self._data_path = type(data_path) == 'string' and {data_path} or data_path
    self._sample_func = sample_func
    self._sort_func = sort_func
+   self._cache_mode = cache_mode
+   self._cache_path = cache_path or paths.concat(self._data_path[1], 'cache.th7')
    
-   -- find class names
-   self._classes = {}
+   -- indexing and caching
+   assert(_.find({'writeonce','overwrite','nocache','readonly'},cache_mode), 'invalid cache_mode :'..cache_mode)
+   local cacheExists = paths.filep(self._cache_path)
+   if cache_mode == 'readonly' or (cache_mode == 'writeonce' and cacheExists) then
+      if not cacheExists then
+         error"'readonly' cache_mode requires an existing cache, none found"
+      end
+      self:loadIndex()
+   else
+      self:buildIndex()
+      if cache_mode ~= 'nocache' then
+         self:saveIndex()
+      end
+   end
+   
+   -- buffers
+   self._imgBuffers = {}
+   
+   -- required for multi-threading
+   self._config = config 
+end
+
+function ImageClassSet:saveIndex()
+   local index = {}
+   for i,k in ipairs{'_classes','_classIndices','imagePath','imageClass','classList','classListSample'} do
+      index[k] = self[k]
+   end
+   torch.save(self._cache_path, index)
+end
+
+function ImageClassSet:loadIndex()
+   local index = torch.load(self._cache_path)
+   for k,v in pairs(index) do
+      self[k] = v
+   end
+end
+
+function ImageClassSet:buildIndex()
    -- loop over each paths folder, get list of unique class names, 
    -- also store the directory paths per class
    local classes = {}
@@ -224,9 +269,6 @@ function ImageClassSet:__init(config)
    end
    os.execute('rm -f '  .. tmpfilelistall)
    os.execute('rm -f "' .. combinedFindList .. '"')
-   
-   -- buffers
-   self._imgBuffers = {}
 end
 
 function ImageClassSet:batch(batch_size)

@@ -514,7 +514,8 @@ end
 
 
 function ImageClassSet:multithread(nThread)
-   local Threads = require 'threads' -- from threads-ffi
+   -- https://github.com/torch/threads-ffi
+   local Threads = require 'threads'
    
    nThread = nThread or 2
    if not paths.filep(self._cache_path) then
@@ -545,8 +546,16 @@ function ImageClassSet:multithread(nThread)
          end
          
          dataset = dp.ImageClassSet(config)
+         tbatch = dataset:batch(1)
       end
    )
+   
+   -- extend the queues
+   self._threads.mainworker.maxjobs = nThreads * 2
+   self._threads.threadworker.maxjobs = nThreads * 2
+   
+   self._empty_batches = dp.Queue()
+   self._full_batches = dp.Queue()
    
    self.nThread = nThread
 end
@@ -559,28 +568,85 @@ function ImageClassSet:subAsyncPut(batch, start, stop, callback)
       error'can only use one Sampler per async ImageClassSet'
    end   
    
+   if not batch then
+      error"ImageClassSet : expecting batch"
+   end
+   local input = batch:inputs():data()
+   local target = batch:targets():data()
+   
+   -- transfer the storage pointer over to a thread
+   local inputPointer = tonumber(ffi.cast('intptr_t', torch.pointer(input:storage())))
+   local targetPointer = tonumber(ffi.cast('intptr_t', torch.pointer(target:storage())))
+   input:cdata().storage = nil
+   target:cdata().storage = nil
+   
+   self._empty_batches:put(batch)
+   
+   self._threads:addjob(
+      -- the job callback (runs in data-worker thread)
+      function()
+         local input = tbatch:inputs():data()
+         local target = tbatch:targets():data()
+         -- set the transfered storage
+         setFloatStorage(input, inputPointer)
+         setLongStorage(target, targetPointer)
+         
+         dataset:sub(tbatch, start, stop)
+         
+         -- transfer it back to the main thread
+         local istg = tonumber(ffi.cast('intptr_t', torch.pointer(input:storage())))
+         local tstg = tonumber(ffi.cast('intptr_t', torch.pointer(target:storage())))
+         input:cdata().storage = nil
+         target:cdata().storage = nil
+         return istg, tstg
+      end,
+      -- the endcallback (runs in the main thread)
+      function(istg, tstg)
+         local batch = self._empty_batches:get()
+      
+         callback(batch)
+         setFloatStorage(batch:inputs():data(), dataPointer)
+         setLongStorage(batch:targets():data(), labelPointer)
+         
+         -- actually, this queue should contain at most one element
+         self._full_batches:put(batch)
+      end
+   )
 end
 
 -- recv results from worker : get results from queue
 function ImageClassSet:subAsyncGet()
    -- get batch tensor pointers
+   if (self._iter_mode ~= 'sub') then
+      error'can only use one Sampler per async ImageClassSet'
+   end  
+   
+   -- waits until an endcallback can be run
+   self._threads:dojob()
+   return self._full_batches:get()
 end
 
 function ImageClassSet:sampleAsyncPut(batch, nSample, sampleFunc)
-   
+   self._iter_mode = self._iter_mode or 'sample'
+   if (self._iter_mode ~= 'sample') then
+      error'can only use one Sampler per async ImageClassSet'
+   end  
 end
 
 function ImageClassSet:sampleAsyncGet(batch, nSample, sampleFunc)
+   if (self._iter_mode ~= 'sample') then
+      error'can only use one Sampler per async ImageClassSet'
+   end  
    
 end
 
 ------ Some FFI stuff used to pass storages between threads ------------------
 ffi.cdef[[
 void THFloatStorage_free(THFloatStorage *self);
-void THLongStorage_free(THLongStorage *self);
+void THIntStorage_free(THIntStorage *self);
 ]]
 
-function setFloatStorage(tensor, storage_p)
+local function setFloatStorage(tensor, storage_p)
    assert(storage_p and storage_p ~= 0, "FloatStorage is NULL pointer");
    local cstorage = ffi.cast('THFloatStorage*', torch.pointer(tensor:storage()))
    if cstorage ~= nil then
@@ -590,12 +656,12 @@ function setFloatStorage(tensor, storage_p)
    tensor:cdata().storage = storage
 end
 
-function setLongStorage(tensor, storage_p)
-   assert(storage_p and storage_p ~= 0, "LongStorage is NULL pointer");
-   local cstorage = ffi.cast('THLongStorage*', torch.pointer(tensor:storage()))
+local function setIntStorage(tensor, storage_p)
+   assert(storage_p and storage_p ~= 0, "IntStorage is NULL pointer");
+   local cstorage = ffi.cast('THIntStorage*', torch.pointer(tensor:storage()))
    if cstorage ~= nil then
-      ffi.C['THLongStorage_free'](cstorage)
+      ffi.C['THIntStorage_free'](cstorage)
    end
-   local storage = ffi.cast('THLongStorage*', storage_p)
+   local storage = ffi.cast('THIntStorage*', storage_p)
    tensor:cdata().storage = storage
 end

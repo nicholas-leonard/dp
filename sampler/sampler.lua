@@ -172,7 +172,7 @@ function Sampler:sampleEpochAsync(dataset)
    dataset:emptyQueue()
    -- fill task queue with some batch requestes
    for tidx=1,dataset.nThreads do
-      sampleBatch(batch, true)
+      sampleBatch(nil, true)
    end
    
    return sampleBatch

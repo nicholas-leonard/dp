@@ -138,17 +138,19 @@ function Sampler:sampleEpochAsync(dataset)
       end
       
       if nSampledPut < epochSize then
-         batch = batch or dataset:batch(self._batch_size)
          stop = math.min(self._start+self._batch_size-1,nSample)
-         -- inputs and targets
+         -- up values
+         local uvstop = stop
+         local uvbatchsize = self._batch_size
+         local uvstart = self._start
          dataset:subAsyncPut(batch, self._start, stop,
             function(batch) 
                local indices = batch:indices() or torch.Tensor()
                -- metadata
                batch:setup{
-                  batch_iter=stop, batch_size=self._batch_size,
-                  n_sample=stop-self._start+1, 
-                  indices=indices:range(self._start,stop)
+                  batch_iter=uvstop, batch_size=uvbatchsize,
+                  n_sample=uvstop-uvstart+1, 
+                  indices=indices:range(uvstart,uvstop)
                }
                batch = self._ppf(batch)
             end)
@@ -157,7 +159,7 @@ function Sampler:sampleEpochAsync(dataset)
          self._start = self._start + self._batch_size
          if self._start >= nSample then
             self._start = 1
-         end      
+         end
       end
       
       if not putOnly then
@@ -168,10 +170,11 @@ function Sampler:sampleEpochAsync(dataset)
       end
    end
    
-   assert(dataset.nThreads, "expecting asynchronous dataset")
-   dataset:emptyQueue()
-   -- fill task queue with some batch requestes
-   for tidx=1,dataset.nThreads do
+   assert(dataset.isAsync, "expecting asynchronous dataset")
+   -- empty the async queue
+   dataset:synchronize()
+   -- fill task queue with some batch requests
+   for tidx=1,dataset.queueSize-1 do
       sampleBatch(nil, true)
    end
    

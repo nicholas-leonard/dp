@@ -98,6 +98,7 @@ function ImageClassSet:loadIndex()
    for k,v in pairs(index) do
       self[k] = v
    end
+   self._n_sample = self.imagePath:size(1)
 end
 
 function ImageClassSet:buildIndex()
@@ -513,11 +514,12 @@ function ImageClassSet:sampleTest(dst, path)
 end
 
 
-function ImageClassSet:multithread(nThread)
+function ImageClassSet:multithread(nThread, queueSize)
    -- https://github.com/torch/threads-ffi
    local Threads = require 'threads'
    
    nThread = nThread or 2
+   queueSize = queueSize or nThread
    if not paths.filep(self._cache_path) then
       -- workers will read a serialized index to speed things up
       self:saveIndex()
@@ -551,13 +553,24 @@ function ImageClassSet:multithread(nThread)
    )
    
    -- extend the queues
-   self._threads.mainworker.maxjobs = nThreads * 2
-   self._threads.threadworker.maxjobs = nThreads * 2
+   self._threads.mainworker.maxjobs = queueSize
+   self._threads.threadworker.maxjobs = queueSize
    
-   self._empty_batches = dp.Queue()
-   self._full_batches = dp.Queue()
+   self._send_batches = dp.Queue() -- batches sent from main to threads
+   self._recv_batches = dp.Queue() -- batches received in main from threads
+   self._buffer_batches = dp.Queue() -- buffered batches
    
+   -- public variables
    self.nThread = nThread
+   self.queueSize = queueSize
+   self.isAsync = true
+end
+
+function ImageClassSet:synchronize()
+   self._threads:synchronize()
+   while not self._recv_batches:empty() do
+     self._buffer_batches:put(self._recv_batches:get())
+   end
 end
 
 -- send request to worker : put request into queue
@@ -565,14 +578,15 @@ function ImageClassSet:subAsyncPut(batch, start, stop, callback)
    -- get batch tensor pointers 
    self._iter_mode = self._iter_mode or 'sub'
    if (self._iter_mode ~= 'sub') then
-      error'can only use one Sampler per async ImageClassSet'
+      error'can only use one Sampler per async ImageClassSet (for now)'
    end   
    
    if not batch then
-      error"ImageClassSet : expecting batch"
+      batch = (not self._buffer_batches:empty()) and self._buffer_batches:get() or self:sub(start, stop)
    end
-   local input = batch:inputs():data()
-   local target = batch:targets():data()
+   local input = batch:inputs():input()
+   local target = batch:targets():input()
+   assert(input and target)
    
    -- transfer the storage pointer over to a thread
    local inputPointer = tonumber(ffi.cast('intptr_t', torch.pointer(input:storage())))
@@ -580,16 +594,16 @@ function ImageClassSet:subAsyncPut(batch, start, stop, callback)
    input:cdata().storage = nil
    target:cdata().storage = nil
    
-   self._empty_batches:put(batch)
+   self._send_batches:put(batch)
    
    self._threads:addjob(
       -- the job callback (runs in data-worker thread)
       function()
-         local input = tbatch:inputs():data()
-         local target = tbatch:targets():data()
+         local input = tbatch:inputs():input()
+         local target = tbatch:targets():input()
          -- set the transfered storage
-         setFloatStorage(input, inputPointer)
-         setLongStorage(target, targetPointer)
+         torch.setFloatStorage(input, inputPointer)
+         torch.setIntStorage(target, targetPointer)
          
          dataset:sub(tbatch, start, stop)
          
@@ -602,14 +616,13 @@ function ImageClassSet:subAsyncPut(batch, start, stop, callback)
       end,
       -- the endcallback (runs in the main thread)
       function(istg, tstg)
-         local batch = self._empty_batches:get()
-      
+         local batch = self._send_batches:get()
+         torch.setFloatStorage(batch:inputs():input(), istg)
+         torch.setIntStorage(batch:targets():input(), tstg)
          callback(batch)
-         setFloatStorage(batch:inputs():data(), dataPointer)
-         setLongStorage(batch:targets():data(), labelPointer)
          
          -- actually, this queue should contain at most one element
-         self._full_batches:put(batch)
+         self._recv_batches:put(batch)
       end
    )
 end
@@ -618,50 +631,24 @@ end
 function ImageClassSet:subAsyncGet()
    -- get batch tensor pointers
    if (self._iter_mode ~= 'sub') then
-      error'can only use one Sampler per async ImageClassSet'
+      error'can only use one Sampler per async ImageClassSet (for now)'
    end  
    
    -- waits until an endcallback can be run
    self._threads:dojob()
-   return self._full_batches:get()
+   return self._recv_batches:get()
 end
 
 function ImageClassSet:sampleAsyncPut(batch, nSample, sampleFunc)
    self._iter_mode = self._iter_mode or 'sample'
    if (self._iter_mode ~= 'sample') then
-      error'can only use one Sampler per async ImageClassSet'
+      error'can only use one Sampler per async ImageClassSet (for now)'
    end  
 end
 
 function ImageClassSet:sampleAsyncGet(batch, nSample, sampleFunc)
    if (self._iter_mode ~= 'sample') then
-      error'can only use one Sampler per async ImageClassSet'
+      error'can only use one Sampler per async ImageClassSet (for now)'
    end  
    
-end
-
------- Some FFI stuff used to pass storages between threads ------------------
-ffi.cdef[[
-void THFloatStorage_free(THFloatStorage *self);
-void THIntStorage_free(THIntStorage *self);
-]]
-
-local function setFloatStorage(tensor, storage_p)
-   assert(storage_p and storage_p ~= 0, "FloatStorage is NULL pointer");
-   local cstorage = ffi.cast('THFloatStorage*', torch.pointer(tensor:storage()))
-   if cstorage ~= nil then
-      ffi.C['THFloatStorage_free'](cstorage)
-   end
-   local storage = ffi.cast('THFloatStorage*', storage_p)
-   tensor:cdata().storage = storage
-end
-
-local function setIntStorage(tensor, storage_p)
-   assert(storage_p and storage_p ~= 0, "IntStorage is NULL pointer");
-   local cstorage = ffi.cast('THIntStorage*', torch.pointer(tensor:storage()))
-   if cstorage ~= nil then
-      ffi.C['THIntStorage_free'](cstorage)
-   end
-   local storage = ffi.cast('THIntStorage*', storage_p)
-   tensor:cdata().storage = storage
 end

@@ -142,8 +142,7 @@ train = dp.Optimizer{
    visitor = visitor,
    feedback = dp.Confusion(),
    sampler = dp.RandomSampler{
-      batch_size=opt.batchSize, epoch_size=opt.trainEpochSize,
-      ppf=ppf
+      batch_size=opt.batchSize, epoch_size=opt.trainEpochSize, ppf=ppf
    },
    progress = opt.progress
 }

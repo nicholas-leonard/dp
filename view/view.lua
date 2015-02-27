@@ -14,6 +14,7 @@ end
 
 -- view is a string or a table of strings
 function View:forward(view, inputORtype)
+   view = view or 'default'
    local arg_type = torch.type(inputORtype)
    if arg_type == 'string' or arg_type == 'nil' then
       return self:forwardGet(view, inputORtype)

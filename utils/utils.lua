@@ -168,6 +168,7 @@ function dp.returnString(str)
    return loadstring(" return "..str)()
 end
 
+------------------------ Queue -----------------------------
 local Queue = torch.class("dp.Queue")
 function Queue:__init()
    self.first = 0
@@ -187,12 +188,43 @@ end
  
 function Queue:get()
    local last = self.last
-   if self.first > last then 
+   if self:empty() then 
       error("Queue is empty")
    end
    local value = self.list[last]
    self.list[last] = nil  
    self.last = last - 1
    return value
+end
+
+
+------ Some FFI stuff used to pass storages between threads ------------------
+ffi.cdef[[
+void THFloatStorage_free(THFloatStorage *self);
+void THIntStorage_free(THIntStorage *self);
+]]
+
+function torch.setFloatStorage(tensor, storage_p, free)
+   assert(storage_p and storage_p ~= 0, "FloatStorage is NULL pointer");
+   if free then
+      local cstorage = ffi.cast('THFloatStorage*', torch.pointer(tensor:storage()))
+      if cstorage ~= nil then
+         ffi.C['THFloatStorage_free'](cstorage)
+      end
+   end
+   local storage = ffi.cast('THFloatStorage*', storage_p)
+   tensor:cdata().storage = storage
+end
+
+function torch.setIntStorage(tensor, storage_p, free)
+   assert(storage_p and storage_p ~= 0, "IntStorage is NULL pointer");
+   if free then 
+      local cstorage = ffi.cast('THIntStorage*', torch.pointer(tensor:storage()))
+      if cstorage ~= nil then
+         ffi.C['THIntStorage_free'](cstorage)
+      end
+   end
+   local storage = ffi.cast('THIntStorage*', storage_p)
+   tensor:cdata().storage = storage
 end
 

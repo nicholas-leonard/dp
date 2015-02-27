@@ -1,15 +1,28 @@
 require 'dp'
 
+cmd = torch.CmdLine()
+cmd:text()
+cmd:text('Test ImageNet and ImageClassSet')
+cmd:text('Options:')
+cmd:option('--dataPath', paths.concat(dp.DATA_DIR, 'ImageNet'), 'path to ImageNet')
+cmd:option('--batchSize', 128, 'number of examples per batch')
+cmd:option('--epochSize', 2000, 'number of train examples seen between each epoch')
+cmd:option('--verbose', false, 'print verbose messages')
+cmd:option('--testAsync', false, 'test asynchronous mode bar')
+cmd:text()
+opt = cmd:parse(arg or {})
+
 ds = dp.ImageNet{
-   train_path='/media/Nick/ImageNet/ILSVRC2012_img_train',
-   valid_path='/media/Nick/ImageNet/ILSVRC2012_img_val',
-   meta_path='/media/Nick/ImageNet/metadata',
+   train_path=paths.concat(opt.dataPath, 'ILSVRC2012_img_train'),
+   valid_path=paths.concat(opt.dataPath, 'ILSVRC2012_img_val'),
+   meta_path=paths.concat(opt.dataPath, 'metadata'),
+   verbose = opt.verbose,
    load_all = false
 }
 
 validSet = ds:loadValid()
 batch = validSet:sample(128)
-print(batch:inputs():view(), batch:inputs():input():size())
+--[[print(batch:inputs():view(), batch:inputs():input():size())
 
 batch = validSet:sample(128, 'sampleTest')
 print(batch:inputs():view(), batch:inputs():input():size(), batch:targets():input())
@@ -21,8 +34,45 @@ batch = validSet:sub(100, 200)
 print("sub1", batch:inputs():view(), batch:inputs():input():size())
 
 validSet:sub(batch, 200, 240)
-print("sub2", batch:inputs():view(), batch:inputs():input():size())
+print("sub2", batch:inputs():view(), batch:inputs():input():size())--]]
 
+
+if opt.testAsync then
+   validSet:multithread(2)
+   samplerA = dp.Sampler{batch_size=math.floor(opt.batchSize/10), epoch_size=opt.epochSize}
+   samplerA:async()
+   local sampler = samplerA:sampleEpoch(validSet)
+   
+   samplerB = dp.Sampler{batch_size=math.floor(opt.batchSize/10), epoch_size=opt.epochSize}
+   local sampler2 = samplerB:sampleEpoch(validSet)
+   
+   local batch, i, n
+   local n_batch, last_n = 0, 0
+   local isum, tsum = 0, 0
+   local isum2, tsum2 = 0, 0
+   while true do
+      batch, i, n = sampler(batch)
+      batch2 = sampler2(batch)
+      if not batch then
+         break
+      end
+      assert(batch.isBatch)
+      local sumi, sumt = batch:inputs():forward():sum(), batch:targets():forward():sum()
+      local sumi2, sumt2 = batch:inputs():forward():sum(), batch:targets():forward():sum()
+      print(i, n, sumi, sumt, sumi2, sumt2)
+      isum = isum + sumi
+      tsum = tsum + sumt
+      isum2 = isum2 + sumi2
+      tsum2 = tsum2 + sumt2
+      --xlua.progress(i, n)
+      last_n = n
+      n_batch = n_batch + 1
+   end
+   print("sums", isum, tsum, isum2, tsum2, "counts", last_n, n_batch)
+end
+
+
+os.exit()
 
 --ppf = ds:normalizePPF()
 

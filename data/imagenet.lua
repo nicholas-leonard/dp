@@ -166,6 +166,11 @@ function ImageNet:normalizePPF()
    return ppf
 end
 
-function ImageNet:multithread()
-   
+function ImageNet:multithread(nThread)
+   if self._train_set then
+      self._train_set:multithread(nThread)
+   end
+   if self._valid_set then
+      self._valid_set:multithread(nThread)
+   end
 end

@@ -530,6 +530,11 @@ function ImageClassSet:multithread(nThread, queueSize)
    config.cache_mode = 'readonly'
    config.verbose = self._verbose
    
+   -- TODO : Pull Request to threads-ffi
+   function Threads:isEmpty()
+      return not (self.mainworker.runningjobs > 0 or self.threadworker.runningjobs > 0 or self.endcallbacks.n > 0)
+   end
+   
    self._threads = Threads(
       nThread,
       function()
@@ -634,8 +639,11 @@ function ImageClassSet:subAsyncGet()
       error'can only use one Sampler per async ImageClassSet (for now)'
    end  
    
-   -- waits until an endcallback can be run
-   self._threads:dojob()
+   -- necessary because Threads:addjob sometimes calls dojob...
+   if not self._threads:isEmpty() then
+      self._threads:dojob()
+   end
+   
    return self._recv_batches:get()
 end
 

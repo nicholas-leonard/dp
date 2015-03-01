@@ -67,7 +67,9 @@ end
 
 -- Returns the number of samples in the BaseSet.
 function BaseSet:nSample()
-   if self._inputs then
+   if self._n_sample then
+      return self._n_sample
+   elseif self._inputs then
       return self._inputs:nSample()
    elseif self._targets then
       return self._targets:nSample()

@@ -27,6 +27,7 @@ cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better l
 cmd:option('--accUpdate', false, 'accumulate gradients inplace')
 cmd:option('--verbose', false, 'print verbose messages')
 cmd:option('--progress', false, 'print progress bar')
+cmd:option('--nThread', 1, 'allocate threads for loading images from disk. Requires threads-ffi.')
 cmd:text()
 opt = cmd:parse(arg or {})
 
@@ -68,7 +69,7 @@ function createModel()
    fb1:add(nn.ReLU())
    
    fb1:add(nn.SpatialMaxPooling(3,3,2,2))                   -- 13 -> 6
-   fb1:add(nn.Copy(nil, nil, true)) -- temp fix to SpatialMaxPooling bug
+   fb1:add(nn.Copy(nil, nil, true)) -- prevents a newContiguous in SpatialMaxPooling:backward()
 
    local fb2 = fb1:clone() -- branch 2
    for k,v in ipairs(fb2:findModules('nn.SpatialConvolutionMM')) do

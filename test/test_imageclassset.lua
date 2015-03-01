@@ -38,37 +38,56 @@ print("sub2", batch:inputs():view(), batch:inputs():input():size())--]]
 
 
 if opt.testAsync then
-   validSet:multithread(2)
+   samplerB = dp.Sampler{batch_size=math.floor(opt.batchSize/10), epoch_size=opt.epochSize}
+      
+   local isum2, tsum2 = 0, 0
+   local a = torch.Timer()
+   local nBatch2 = 0
+   for k=1,2 do
+      local batch2, i, n
+      local sampler2 = samplerB:sampleEpoch(validSet)
+      while true do
+         batch2, i, n = sampler2(batch2)
+         if not batch2 then
+            break
+         end
+         local sumi2, sumt2 = batch2:inputs():forward():sum(), batch2:targets():forward():sum()
+         isum2 = isum2 + sumi2
+         tsum2 = tsum2 + sumt2
+         nBatch2 = nBatch2 + 1
+      end
+   end
+   print("sync", (a:time().real)/nBatch2)
+   
+   validSet:multithread(4)
    samplerA = dp.Sampler{batch_size=math.floor(opt.batchSize/10), epoch_size=opt.epochSize}
    samplerA:async()
-   local sampler = samplerA:sampleEpoch(validSet)
    
-   samplerB = dp.Sampler{batch_size=math.floor(opt.batchSize/10), epoch_size=opt.epochSize}
-   local sampler2 = samplerB:sampleEpoch(validSet)
-   
-   local batch, i, n
-   local n_batch, last_n = 0, 0
+   local a = torch.Timer()
+   local nBatch = 0
    local isum, tsum = 0, 0
-   local isum2, tsum2 = 0, 0
-   while true do
-      batch, i, n = sampler(batch)
-      batch2 = sampler2(batch)
-      if not batch then
-         break
+   for k=1,2 do
+      local batch, i, n
+      local sampler = samplerA:sampleEpoch(validSet)
+      while true do
+         batch, i, n = sampler(batch)
+         if not batch then
+            break
+         end
+         assert(batch.isBatch)
+         local sumi, sumt = batch:inputs():forward():sum(), batch:targets():forward():sum()
+         isum = isum + sumi
+         tsum = tsum + sumt
+         nBatch = nBatch + 1
       end
-      assert(batch.isBatch)
-      local sumi, sumt = batch:inputs():forward():sum(), batch:targets():forward():sum()
-      local sumi2, sumt2 = batch:inputs():forward():sum(), batch:targets():forward():sum()
-      print(i, n, sumi, sumt, sumi2, sumt2)
-      isum = isum + sumi
-      tsum = tsum + sumt
-      isum2 = isum2 + sumi2
-      tsum2 = tsum2 + sumt2
-      --xlua.progress(i, n)
-      last_n = n
-      n_batch = n_batch + 1
    end
-   print("sums", isum, tsum, isum2, tsum2, "counts", last_n, n_batch)
+   print("async", (a:time().real)/nBatch)
+   
+   print("sums", isum, tsum, isum2, tsum2, "counts", nBatch, nBatch2)
+   
+   assert(isum == isum2)
+   assert(tsum == tsum2)
+   assert(nBatch == nBatch2)
 end
 
 

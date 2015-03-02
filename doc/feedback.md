@@ -5,6 +5,7 @@ statistics which can be used for early-stopping (cross-validation) or used to gu
   * [Feedback](#dp.Model) : abstract class;
     * [Confusion](#dp.Confusion) : adapts the optim ConfusionMatrix (used for classification);
     * [Perplexity](#dp.Perplexity) : measures perplexity (used for language models);
+    * [TopCrop](#dp.TopCrop) : measures the top-`n` classification accuracy for `m`-crops taken from the same image;
     * [FacialKeypointFeedback](#dp.FacialKeypointFeedback) : measures the MSE for facial keypoint detection;
     * [CompositeFeedback](#dp.CompositeFeedback) : composite of Feedback components ;
 
@@ -46,6 +47,21 @@ Confusion is a wrapper for the [ConfusionMatrix](https://github.com/torch/optim/
 []()
 ## Perplexity ##
 Computes perplexity for language models. For now, only works with the SoftmaxTree Model.
+
+<a name="dp.TopCrop"></a>
+## TopCrop ##
+This Feedback measures the top-`n` classification accuracy for `m`-crops 
+taken from the same image (which therefore have the same target class). 
+In particular, this Feedback is used for evaluating the accuracy of the 
+[ImageNet](data.md#dp.ImageNet) DataSource (see [alexnet.lua](https://github.com/nicholas-leonard/dp/blob/master/examples/alexnet.lua) for an example use-case).
+
+<a name="dp.TopCrop.__init"></a>
+### dp.TopCrop{...} ###
+The constructor takes the following key-value arguments. The Feedback constructor arguments also apply.
+
+ * `n_top` is a number (or table thereof). The accuracy is measured by looking for the target class in the `n_top` predictions with highest log-likelihood. Defaults to `{1,5}`, i.e. top-1 and top-5.
+ * `n_crop` specifies the number of crops taken from each sample. The assumption is that the input performs `n_crop` propagations of each image such that their predictions can be averaged. Defaults to 10.
+ * `center`, specifies the number of first crops to be considered center patches. Their performance will also be reported separately. This means that you should put center crops first. Defaults to 2.
 
 <a name="dp.FacialKeypointFeedback"/>
 []()

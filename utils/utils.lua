@@ -198,33 +198,3 @@ function Queue:get()
 end
 
 
------- Some FFI stuff used to pass storages between threads ------------------
-ffi.cdef[[
-void THFloatStorage_free(THFloatStorage *self);
-void THIntStorage_free(THIntStorage *self);
-]]
-
-function torch.setFloatStorage(tensor, storage_p, free)
-   assert(storage_p and storage_p ~= 0, "FloatStorage is NULL pointer");
-   if free then
-      local cstorage = ffi.cast('THFloatStorage*', torch.pointer(tensor:storage()))
-      if cstorage ~= nil then
-         ffi.C['THFloatStorage_free'](cstorage)
-      end
-   end
-   local storage = ffi.cast('THFloatStorage*', storage_p)
-   tensor:cdata().storage = storage
-end
-
-function torch.setIntStorage(tensor, storage_p, free)
-   assert(storage_p and storage_p ~= 0, "IntStorage is NULL pointer");
-   if free then 
-      local cstorage = ffi.cast('THIntStorage*', torch.pointer(tensor:storage()))
-      if cstorage ~= nil then
-         ffi.C['THIntStorage_free'](cstorage)
-      end
-   end
-   local storage = ffi.cast('THIntStorage*', storage_p)
-   tensor:cdata().storage = storage
-end
-

@@ -163,7 +163,7 @@ function Sampler:sampleEpochAsync(dataset)
       end
       
       if not putOnly then
-         batch = dataset:subAsyncGet()
+         batch = dataset:asyncGet()
          nSampledGet = nSampledGet + batch:nSample()
          collectgarbage() 
          return batch, math.min(nSampledGet, epochSize), epochSize
@@ -174,7 +174,7 @@ function Sampler:sampleEpochAsync(dataset)
    -- empty the async queue
    dataset:synchronize()
    -- fill task queue with some batch requests
-   for tidx=1,dataset.queueSize-1 do
+   for tidx=1,dataset.queueSize do
       sampleBatch(nil, true)
    end
    

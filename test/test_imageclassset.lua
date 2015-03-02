@@ -8,7 +8,9 @@ cmd:option('--dataPath', paths.concat(dp.DATA_DIR, 'ImageNet'), 'path to ImageNe
 cmd:option('--batchSize', 128, 'number of examples per batch')
 cmd:option('--epochSize', 2000, 'number of train examples seen between each epoch')
 cmd:option('--verbose', false, 'print verbose messages')
-cmd:option('--testAsync', false, 'test asynchronous mode bar')
+cmd:option('--testAsyncSub', false, 'test asynchronous sub')
+cmd:option('--testAsyncSample', false, 'test asynchronous sample')
+cmd:option('--nThread', 2, 'number of threads')
 cmd:text()
 opt = cmd:parse(arg or {})
 
@@ -21,6 +23,7 @@ ds = dp.ImageNet{
 }
 
 validSet = ds:loadValid()
+print"dataset loaded"
 batch = validSet:sample(128)
 --[[print(batch:inputs():view(), batch:inputs():input():size())
 
@@ -37,7 +40,7 @@ validSet:sub(batch, 200, 240)
 print("sub2", batch:inputs():view(), batch:inputs():input():size())--]]
 
 
-if opt.testAsync then
+if opt.testAsyncSub then
    samplerB = dp.Sampler{batch_size=math.floor(opt.batchSize/10), epoch_size=opt.epochSize}
       
    local isum2, tsum2 = 0, 0
@@ -59,7 +62,7 @@ if opt.testAsync then
    end
    print("sync", (a:time().real)/nBatch2)
    
-   validSet:multithread(4)
+   validSet:multithread(opt.nThread, opt.nThread*2)
    samplerA = dp.Sampler{batch_size=math.floor(opt.batchSize/10), epoch_size=opt.epochSize}
    samplerA:async()
    
@@ -91,11 +94,53 @@ if opt.testAsync then
 end
 
 
-os.exit()
+if opt.testAsyncSample then
+   validSet = ds:loadTrain()
+   samplerB = dp.RandomSampler{batch_size=math.floor(opt.batchSize), epoch_size=opt.epochSize}
+      
+   local isum2, tsum2 = 0, 0
+   local a = torch.Timer()
+   local nBatch2 = 0
+   for k=1,2 do
+      local batch2, i, n
+      local sampler2 = samplerB:sampleEpoch(validSet)
+      while true do
+         batch2, i, n = sampler2(batch2)
+         if not batch2 then
+            break
+         end
+         nBatch2 = nBatch2 + 1
+      end
+   end
+   print("sync", nBatch2, (a:time().real)/nBatch2)
+   
+   validSet:multithread(opt.nThread, opt.nThread*2)
+   samplerA = dp.RandomSampler{batch_size=math.floor(opt.batchSize), epoch_size=opt.epochSize}
+   samplerA:async()
+   
+   local a = torch.Timer()
+   local nBatch = 0
+   local isum, tsum = 0, 0
+   for k=1,2 do
+      local batch, i, n
+      local sampler = samplerA:sampleEpoch(validSet)
+      while true do
+         batch, i, n = sampler(batch)
+         if not batch then
+            break
+         end
+         assert(batch.isBatch)
+         nBatch = nBatch + 1
+      end
+   end
+   print("async", nBatch, (a:time().real)/nBatch)
+end
+
+validSet = ds:validSet() or ds:loadValid()
 
 --ppf = ds:normalizePPF()
 
-trainSet = ds:trainSet() or ds:loadTrain()
+trainSet = ds:validSet() or ds:loadValid()
 
 batch = trainSet:sample(batch,120,'sampleTrain')
 

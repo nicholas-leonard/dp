@@ -475,9 +475,6 @@ function ImageClassSet:sampleTrain(dst, path)
    return dst
 end
 
--- Create a test data loader (testLoader),
--- which can iterate over the test set and returns an image's
--- 10 crops (center + 4 corners) and their hflips]]--
 -- function to load the image, do 10 crops (center + 4 corners) and their hflips
 -- Works with the TopCrop feedback
 function ImageClassSet:sampleTest(dst, path)

@@ -15,9 +15,10 @@ One of the most important aspects of any machine learning problem is the data. T
     * [BillionWords](#dp.BillionWords) : the Google 1-Billion Words language model dataset;
     * [Svhn](#dp.Svhn) : the Google Street View House Numbers dataset;
     * [ImageNet](#dp.ImageNet) : the
-  * [Sampler](#dp.Sampler) : dataset iterator;
+  * [Sampler](#dp.Sampler) : ordered dataset iterator;
     * [ShuffleSampler](#dp.ShuffleSampler) : shuffled dataset iterator;
     * [SentenceSampler](#dp.SentenceSampler) : samples sentences for recurrent models;
+    * [RandomSampler](#dp.RandomSampler) : iterates through batches of random examples;
 
 <a name="dp.BaseSet"/>
 []()
@@ -131,7 +132,7 @@ ImageClassSet constructor. Arguments should be specified as key-value pairs.
   * `load_size` ia a table specifying the approximate size (`nChannel x Height x Width`) for which to load the images to, initially.
   * `sample_size` is a table specifying a consistent sample size to resize the images to (or crop them). Defaults to `load_size`.
   * `verbose` is a boolean specifying whether or not to display verbose messages. Defaults to true.
-  * `sample_func` is a string or function `f(self, dst, path)` that fills the `dst` Tensor with one or many images taken from the image located at `imgpath` Strings "sampleDefault",  "sampleTrain" or "sampleTest" can also be provided as they refer to existing methods. Defaults to [sampleDefault](dp.ImageClassSet.sampleDefault). 
+  * `sample_func` is a string or function `f(self, dst, path)` that fills the `dst` Tensor with one or many images taken from the image located at `imgpath` Strings "sampleDefault",  "sampleTrain" or "sampleTest" can also be provided as they refer to existing methods. Defaults to [sampleDefault](#dp.ImageClassSet.sampleDefault). 
   * `sort_func' is a comparison function used for sorting the class directories. The order is used to assign each class and index.  Defaults to the `<` operator.
   * `cache_mode` is a string with default value "writeonce". Valid options include:
    * "writeonce" : read from cache if exists, else write to cache.
@@ -150,12 +151,67 @@ function or string used for sampling patches from a loaded image
 (see [constructor](#dp.ImageClassSet.__init) for details). 
 Defaults to whatever was passed to the constructor. The  optional `batch` argument, a [Batch](#dp.Batch) instance,
 is recommended for minimizing memory allocations (see [sub](#dp.DataSet.sub) for details).
+This Batch factor is called by the [RandomSampler]
 
 Note that depending on the `sampleFunc`, the number of returned samples may 
 be greater than `nSample` (see [sampleTest](#dp.ImageClassSet.sampleTest) for an example).
 
-<a name="dp.Batch"/>
-[]()
+<a name="dp.ImageClassSet.sampleDefault"></a>
+### [dst] sampleDefault([dst,] path) ###
+Loads the image located at `path`. The returned `dst` Tensor will have 
+size `sample_size`.
+
+<a name="dp.ImageClassSet.sampleTrain"></a>
+### [dst] sampleTrain([dst,] path) ###
+Loads the image of size `load_size` located at `path`. Does a random crop
+of size `sample_size` from the loaded image and returns it as `dst`.
+
+<a name="dp.ImageClassSet.sampleTest"></a>
+### [dst] sampleTest([dst,] path) ###
+Loads the image of size `load_size` located at `path`. 
+Does 10 crops, (center + 4 corners) and their horizontal flips.
+Works with the [TopCrop](feedback.md#dp.TopCrop) feedback.
+
+<a name="dp.ImageClassSet.multithread"></a>
+### multithread([nThread, queueSize]) ###
+Uses [threads-ffi](https://github.com/torch/threads-ffi) to spawn a
+[Threads](https://github.com/torch/threads-ffi/blob/master/README.md#threads.main) 
+pool of `nThread` threads communicating with the current main thread through a
+[queue](https://github.com/torch/threads-ffi/blob/master/README.md#worker) of size
+`queueSize`. Each thread will load an ImageClassSet instance using the 
+image path index cached on disk. 
+
+A [Sampler](#dp.Sampler) or [RandomSampler](#dp.RandomSampler) can then 
+be set in [async](#dp.Sampler.async) mode to query the threads for [Batches](#dp.Batch)
+asynchronously. To do this, the Samplers begin by sending `queueSize` batch requests 
+to the Thread pool. After that, for each batch [requested](#dp.ImageClassSet.asyncGet) from the 
+dataset, another request is sent to the pool using either [subAsyncPut](#dp.ImageClassSet.subAsyncPut)
+or [sampleAsyncPut](#dp.ImageClassSet.sampleAsyncPut).
+
+<a name="dp.ImageClassSet.subAsyncPut"></a>
+### subAsyncPut(batch, start, stop, callback) ###
+Puts a [sub](#dp.DataSet.sub) request onto the queue such that it will be executed 
+by one of the threads in the Threads pool. The `callback` is 
+a function that will be executed on the resulting Batch once it returns to 
+the main thread.
+Must be preceeded by a call to [multithread](#dp.ImageClassSet.multithread).
+
+<a name="dp.ImageClassSet.sampleAsyncPut"></a>
+### sampleAsyncPut(batch, nSample, sampleFunc, callback) ###
+Same as [subAyncPut](#dp.ImageClassSet.subAsyncPut), but for sending a
+[sample](#dp.ImageClassSet.sample) request.
+
+<a name="dp.ImageClassSet.asyncGet"></a>
+### [batch] asyncGet() ###
+Retrives a Batch request from the queue and returns it to the caller. 
+The call must be preceded by a call to [subAyncPut](#dp.ImageClassSet.subAsyncPut)
+or [sampleAyncPut](#dp.ImageClassSet.sampleAsyncPut)
+
+<a name="dp.ImageClassSet.synchronize"></a>
+### synchronize() ###
+Empties the queue of asynchronous requests.
+
+<a name="dp.Batch"></a>
 ## Batch ##
 A subclass of [BaseSet](#dp.BaseSet). A mini-batch of input and target [Views](view.md#dp.View) 
 to be fed into a [Model](model.md#dp.Model) and [Loss](loss.md#dp.Loss). The batch of examples is usually sampled 

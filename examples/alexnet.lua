@@ -27,7 +27,7 @@ cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better l
 cmd:option('--accUpdate', false, 'accumulate gradients inplace')
 cmd:option('--verbose', false, 'print verbose messages')
 cmd:option('--progress', false, 'print progress bar')
-cmd:option('--nThread', 1, 'allocate threads for loading images from disk. Requires threads-ffi.')
+cmd:option('--nThread', 2, 'allocate threads for loading images from disk. Requires threads-ffi.')
 cmd:text()
 opt = cmd:parse(arg or {})
 
@@ -156,6 +156,13 @@ valid = dp.Evaluator{
       ppf=ppf
    }
 }
+
+--[[multithreading]]--
+if opt.nThread > 0 then
+   datasource:multithread(opt.nThread)
+   train:sampler():async()
+   valid:sampler():async()
+end
 
 --[[Experiment]]--
 xp = dp.Experiment{

@@ -620,7 +620,8 @@ function ImageClassSet:subAsyncPut(batch, start, stop, callback)
          
          callback(batch)
          
-         -- actually, this queue should contain at most one element
+         batch:targets():setClasses(self._classes)
+         batch:carry():putObj('nSample', input:size(1))
          self._recv_batches:put(batch)
       end
    )
@@ -675,7 +676,8 @@ function ImageClassSet:sampleAsyncPut(batch, nSample, sampleFunc, callback)
          
          callback(batch)
          
-         -- actually, this queue should contain at most one element
+         batch:targets():setClasses(self._classes)
+         batch:carry():putObj('nSample', input:size(1))
          self._recv_batches:put(batch)
       end
    )

@@ -35,7 +35,7 @@ function ImageClassSet:__init(config)
        'network during a propagation.'},
       {arg='verbose', type='boolean', default=true,
        help='display verbose messages'},
-      {arg='sort_func', type='boolean', 
+      {arg='sort_func', type='function', 
        help='comparison operator used for sorting class dir to get idx.'
        ..' Defaults to < operator'},
       {arg='cache_mode', type='string', default='writeonce',

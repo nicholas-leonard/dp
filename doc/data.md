@@ -4,6 +4,7 @@ One of the most important aspects of any machine learning problem is the data. T
   * [BaseSet](#dp.BaseSet) : abstract class;
      * [DataSet](#dp.DataSet) : a dataset for input and target [Views](view.md#dp.View);
        * [SentenceSet](#dp.SentenceSet) : container of sentences (used for language modeling);
+       * [ImageClassSet](#dp.ImageClassSet) : container for large-scale image-classification datasets;
      * [Batch](#dp.Batch) : a mini-batch of inputs and targets;
   * [Carry](#dp.Carry) : an object store passed around during propagation;
   * [DataSource](#dp.DataSource) : a container of train, valid and test DataSets;
@@ -110,6 +111,18 @@ disk into memory only when requested as a [Batch](#dp.Batch). It is
 used to wrap the training and validation sets of the [ImageNet](#dp.ImageNet)
 DataSource.
 
+When first initialized, the dataset needs to build an index of all image paths which it encapsulates 
+into torch.CharTensor for efficieny. The index is build using some heavy command-line
+magic, but this only needs to be executed once as the resulting index is cached to disk
+for the next time the dataset is used. 
+
+During queries of the dataset using [sample](#dp.ImageClassSet.sample) or [sub](#dp.DataSet.sub), 
+the index is used to retrieve images from disk. This can be a major bottleneck. 
+We strongly encourage storing your dataset on a Solid-State Drive (SSD). Furthermore,
+if [threads-ffi]() is installed, the dataset can be used for asynchronous batch requests.
+This is implemented using [multi-threading](#dp.ImageClassSet.multithread), 
+which is necessary to speed up reading all those files. 
+
 <a name="dp.ImageClassSet.__init"></a>
 ### dp.ImageClassSet{...} ###
 ImageClassSet constructor. Arguments should be specified as key-value pairs. 
@@ -118,8 +131,28 @@ ImageClassSet constructor. Arguments should be specified as key-value pairs.
   * `load_size` ia a table specifying the approximate size (`nChannel x Height x Width`) for which to load the images to, initially.
   * `sample_size` is a table specifying a consistent sample size to resize the images to (or crop them). Defaults to `load_size`.
   * `verbose` is a boolean specifying whether or not to display verbose messages. Defaults to true.
-  
+  * `sample_func` is a string or function `f(self, dst, path)` that fills the `dst` Tensor with one or many images taken from the image located at `imgpath` Strings "sampleDefault",  "sampleTrain" or "sampleTest" can also be provided as they refer to existing methods. Defaults to [sampleDefault](dp.ImageClassSet.sampleDefault). 
+  * `sort_func' is a comparison function used for sorting the class directories. The order is used to assign each class and index.  Defaults to the `<` operator.
+  * `cache_mode` is a string with default value "writeonce". Valid options include:
+   * "writeonce" : read from cache if exists, else write to cache.
+   * "overwrite" : write to cache, regardless if exists.
+   * "nocache" : dont read or write from cache.
+   * "readonly" : only read from cache, fail otherwise.
+  * `cache_path` is a string specifiying the path of a cache file. Defaults to `[data_path[1]]/cache.th7`.
+
 The DataSet constructor arguments also apply.
+
+<a name="dp.ImageClassSet.sample"></a>
+### [batch] sample([batch,] nSample, [sampleFunc]) ###
+For `nSample` examples, uniformly samples a class, and then uniformly samples example from that class.
+This keeps the class distribution balanced. Argument `sampleFunc` is a 
+function or string used for sampling patches from a loaded image
+(see [constructor](#dp.ImageClassSet.__init) for details). 
+Defaults to whatever was passed to the constructor. The  optional `batch` argument, a [Batch](#dp.Batch) instance,
+is recommended for minimizing memory allocations (see [sub](#dp.DataSet.sub) for details).
+
+Note that depending on the `sampleFunc`, the number of returned samples may 
+be greater than `nSample` (see [sampleTest](#dp.ImageClassSet.sampleTest) for an example).
 
 <a name="dp.Batch"/>
 []()
@@ -223,16 +256,19 @@ classification problem (see [MNIST](http://yann.lecun.com/exdb/mnist/)). The ima
 <a name="dp.NotMnist"/>
 []()
 ## NotMnist ##
-A [DataSource](#dp.DataSource) subclass wrapping the much larger alternative to MNIST: [NotMNIST](http://yaroslavvb.blogspot.ca/2011/09/notmnist-dataset.html). 
+A [DataSource](#dp.DataSource) subclass wrapping the much larger alternative to MNIST: 
+[NotMNIST](http://yaroslavvb.blogspot.ca/2011/09/notmnist-dataset.html). 
 If not found on the local machine, the object downloads the dataset from the 
 [original source](http://yaroslavvb.com/upload/notMNIST/). 
-It contains 500k+ examples of 10 charaters using unicode fonts: *A*,*B*,*C*,*D*,*E*,*F*,*G*,*H*,*I*,*J*. Like [Mnist](#dp.Mnist), the images are of size `28x28x1`.
+It contains 500k+ examples of 10 charaters using unicode fonts: *A*,*B*,*C*,*D*,*E*,*F*,*G*,*H*,*I*,*J*. 
+Like [Mnist](#dp.Mnist), the images are of size `28x28x1`.
 
 <a name="dp.Cifar10"/>
 []()
 ## Cifar10 ##
 A [DataSource](#dp.DataSource) subclass wrapping the [CIFAR-10](http://www.cs.toronto.edu/~kriz/cifar.html) dataset. 
-It is a `3x32x32` color-image set of 10 different objects. Small dataset size makes it hard to generalize from train to test set (Regime : overfitting).
+It is a `3x32x32` color-image set of 10 different objects. Small dataset size makes it hard to generalize 
+from train to test set (Regime : overfitting).
 
 <a name="dp.Cifar100"/>
 []()

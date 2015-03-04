@@ -12,7 +12,8 @@ function Node:__init(config)
    assert(torch.type(config) == 'table' and not config[1], 
       "Constructor requires key-value arguments")
    local default_type = torch.getdefaulttensortype()
-   local args, input_type, output_type, module_type = xlua.unpack(
+   local args, input_type, output_type, module_type, verbose 
+      = xlua.unpack(
       {config},
       'Node', 
       'Forward and backward propagates representations.',
@@ -21,13 +22,16 @@ function Node:__init(config)
       {arg='output_type', type='string', default=default_type,
        help='type of output activation and gradient tensors'},
       {arg='module_type', type='string', default=default_type,
-       help='type of modules used in this Node'}
+       help='type of modules used in this Node'},
+      {arg='verbose', type='boolean', default=true,
+       help='print verbose messages'}
    )
    self:inputType(input_type)
    self:outputType(output_type)
    self:moduleType(module_type)
    self:zeroStatistics()
    self:doneBatch()
+   self._verbose = verbose
 end
 
 function Node:setup(config)
@@ -145,6 +149,14 @@ end
 function Node:moduleType(module_type)
    self._module_type = module_type or self._module_type
    return self._module_type
+end
+
+function Node:verbose(verbose)
+   self._verbose = (verbose == nil) and true or verbose
+end
+
+function Node:silent()
+   self:verbose(false)
 end
 
 -- changes the type of internal variables inplace (same as nn)

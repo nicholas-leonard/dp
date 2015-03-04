@@ -51,3 +51,10 @@ function VisitorChain:setZeroGrads(zero_grads)
    end
    self._zero_grads = zero_grads
 end
+
+function VisitorChain:verbose(verbose)
+   self._verbose = (verbose == nil) and true or verbose
+   for k, v in pairs(self._visitors) do
+      v:verbose(self._verbose)
+   end
+end

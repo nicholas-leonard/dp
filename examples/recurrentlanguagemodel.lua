@@ -1,5 +1,7 @@
 require 'dp'
 
+version = 3
+
 --[[command line arguments]]--
 cmd = torch.CmdLine()
 cmd:text()
@@ -40,15 +42,14 @@ cmd:option('--trainEpochSize', 1000000, 'number of train examples seen between e
 cmd:option('--validEpochSize', 100000, 'number of valid examples used for early stopping and cross-validation') 
 cmd:option('--trainOnly', false, 'forget the validation and test sets, focus on the training set')
 cmd:option('--progress', false, 'print progress bar')
-
-version = 3
-
+cmd:option('--silent', false, 'dont print anything to stdout')
 cmd:option('--xpPath', '', 'path to a previously saved model')
-
 cmd:text()
 opt = cmd:parse(arg or {})
 opt.updateInterval = opt.updateInterval == -1 and opt.rho or opt.updateInterval
-table.print(opt)
+if not opt.silent then
+   table.print(opt)
+end
 
 opt.lrScales = table.fromString(opt.lrScales)
 
@@ -100,7 +101,6 @@ if opt.softmaxtree then
       dropout = opt.dropout and nn.Dropout() or nil,
       -- best we can do for now (yet, end of sentences will be under-represented in output updates)
       mvstate = {learn_scale = opt.lrScales[2]/opt.updateInterval},
-      --acc_update = opt.accUpdate
       sparse_init = opt.sparseInit
    }
 else
@@ -113,7 +113,6 @@ else
       transfer = nn.LogSoftMax(),
       dropout = opt.dropout and nn.Dropout() or nil,
       mvstate = {learn_scale = opt.lrScales[2]/opt.updateInterval},
-      --acc_update = opt.accUpdate
       sparse_init = opt.sparseInit
    }
 end
@@ -197,7 +196,10 @@ if opt.cuda then
    xp:cuda()
 end
 
-print"dp.Models :"
-print(mlp)
+xp:verbose(not opt.silent)
+if not opt.silent then
+   print"dp.Models :"
+   print(mlp)
+end
 
 xp:run(datasource)

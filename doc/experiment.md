@@ -49,3 +49,12 @@ of the Experiment. This report includes reports
 (in attributes of the same name) for the `optimizer`, 
 `validator`, `tester` and `model`. It also includes attributes for 
 the current `epoch`, `random_seed` and `id`.
+
+<a name="dp.Experiment.verbose"></a>
+## verbose([on]) ##
+Toggle the verbosity of all objects in the experiment. When `on` is 
+true (the default), objects will print messages.
+
+<a name="dp.Experiment.silent"></a>
+## silent() ##
+Calls `self:verbose(false)`.

@@ -53,14 +53,15 @@ cmd:option('--trainEpochSize', 1000000, 'number of train examples seen between e
 cmd:option('--validEpochSize', 100000, 'number of valid examples used for early stopping and cross-validation') 
 cmd:option('--trainOnly', false, 'forget the validation and test sets, focus on the training set')
 cmd:option('--progress', false, 'print progress bar')
-
+cmd:option('--silent', false, 'dont print anything to stdout')
 cmd:text()
 opt = cmd:parse(arg or {})
-table.print(opt)
+if not opt.silent then
+   table.print(opt)
+end
 
 opt.decayPoints = table.fromString(opt.decayPoints)
 opt.learningRates = table.fromString(opt.learningRates)
-
 
 --[[data]]--
 local train_file = 'train_data.th7' 
@@ -76,7 +77,7 @@ local datasource = dp.BillionWords{
 
 --[[Model]]--
 
-print("Input to first hidden layer has "..
+dp.vprint(not opt.silent, "Input to first hidden layer has "..
    opt.contextSize*opt.inputEmbeddingSize.." neurons.")
 
 local conditionalModel = dp.BlockSparse{
@@ -150,7 +151,9 @@ local schedule = {}
 for i,decayPoint in ipairs(opt.decayPoints) do
    schedule[decayPoint] = opt.learningRates[i]
 end
-print("schedule:", schedule)
+if not opt.silent then
+   print("schedule:", schedule)
+end
 
 --[[Propagators]]--
 train = dp.Optimizer{
@@ -201,8 +204,11 @@ xp = dp.Experiment{
 
 cutorch.setDevice(opt.useDevice)
 xp:cuda()
+xp:verbose(not opt.silent)
 
-print"dp.Models :"
-print(mlp)
+if not opt.silent then
+   print"dp.Models :"
+   print(mlp)
+end
 
 xp:run(datasource)

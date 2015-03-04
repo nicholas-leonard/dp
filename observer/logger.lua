@@ -2,7 +2,6 @@
 --[[ Logger ]]--
 -- Interface, Observer
 -- Simple logger that prints a report every epoch
--- TODO use TREPL to make nice reports
 ------------------------------------------------------------------------
 
 local Logger, parent = torch.class("dp.Logger", "dp.Observer")

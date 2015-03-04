@@ -12,14 +12,17 @@ Feedback.isFeedback = true
 
 function Feedback:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, name = xlua.unpack(
+   local args, verbose, name = xlua.unpack(
       {config},
       'Feedback', 
       'strategies for processing predictions and targets.',
+      {arg='verbose', type='boolean', default=true,
+       help='provide verbose outputs every epoch'},
       {arg='name', type='string', req=true,
        help='used to identify report'}
    )
    self._name = name
+   self._verbose = verbose
    self._n_sample = 0
 end
 
@@ -29,7 +32,8 @@ function Feedback:setup(config)
       {config},
       'Feedback:setup', 
       'setup the Feedback for mediation and such',
-      {arg='mediator', type='dp.Mediator'},
+      {arg='mediator', type='dp.Mediator', 
+       help='used for inter-object communication. defaults to dp.Mediator()'},
       {arg='propagator', type='dp.Propagator'},
       {arg='dataset', type='dp.DataSet', 
        help='This might be useful to determine the type of targets. ' ..
@@ -73,4 +77,12 @@ function Feedback:reset()
 end
 
 function Feedback:_reset()
+end
+
+function Feedback:verbose(verbose)
+   self._verbose = (verbose == nil) and true or verbose
+end
+
+function Feedback:silent()
+   self:verbose(false)
 end

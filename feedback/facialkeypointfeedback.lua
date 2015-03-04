@@ -95,7 +95,7 @@ function FacialKeypointFeedback:meanSquareError()
 end
 
 function FacialKeypointFeedback:doneEpoch(report)
-   if self._n_sample > 0 then
+   if self._n_sample > 0 and self._verbose then
       local msg = self._id:toString().." MSE = "..self:meanSquareError()
       if self._baselineMse then
          msg = msg.." vs "..self._baselineMse

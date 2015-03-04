@@ -6,7 +6,6 @@
 local RandomSampler, parent = torch.class("dp.RandomSampler", "dp.Sampler")
 
 --Returns an iterator over samples for one epoch
---Default is to iterate sequentially over all examples
 function RandomSampler:sampleEpoch(dataset)
    dataset = dp.RandomSampler.toDataset(dataset)
    local nSample = dataset:nSample()

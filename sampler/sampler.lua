@@ -84,8 +84,8 @@ function Sampler.toDataset(dataset)
    return dataset
 end
 
---Returns an iterator over samples for one epoch
---Default is to iterate sequentially over all examples
+-- Returns an iterator over samples for one epoch
+-- Default is to iterate sequentially over all examples
 function Sampler:sampleEpoch(dataset)
    dataset = dp.Sampler.toDataset(dataset)
    local nSample = dataset:nSample()

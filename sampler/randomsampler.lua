@@ -64,11 +64,7 @@ function RandomSampler:sampleEpochAsync(dataset)
             function(batch) 
                local indices = batch:indices() or torch.Tensor()
                -- metadata
-               batch:setup{
-                  batch_iter=uvstop, batch_size=uvbatchsize,
-                  n_sample=uvbatchsize, 
-                  indices=indices:range(uvstart,uvstart+uvbatchsize-1)
-               }
+               batch:setup{batch_iter=uvstop, batch_size=batch:nSample()}
                batch = self._ppf(batch)
             end)
          
@@ -81,7 +77,7 @@ function RandomSampler:sampleEpochAsync(dataset)
       
       if not putOnly then
          batch = dataset:asyncGet()
-         nSampledGet = nSampledGet + batch:nSample()
+         nSampledGet = nSampledGet + self._batch_size
          collectgarbage() 
          return batch, math.min(nSampledGet, epochSize), epochSize
       end

@@ -145,13 +145,8 @@ function Sampler:sampleEpochAsync(dataset)
          local uvstart = self._start
          dataset:subAsyncPut(batch, self._start, stop,
             function(batch) 
-               local indices = batch:indices() or torch.Tensor()
                -- metadata
-               batch:setup{
-                  batch_iter=uvstop, batch_size=uvbatchsize,
-                  n_sample=uvstop-uvstart+1, 
-                  indices=indices:range(uvstart,uvstop)
-               }
+               batch:setup{batch_iter=uvstop, batch_size=batch:nSample()}
                batch = self._ppf(batch)
             end)
          
@@ -164,7 +159,7 @@ function Sampler:sampleEpochAsync(dataset)
       
       if not putOnly then
          batch = dataset:asyncGet()
-         nSampledGet = nSampledGet + batch:nSample()
+         nSampledGet = nSampledGet + self._batch_size
          collectgarbage() 
          return batch, math.min(nSampledGet, epochSize), epochSize
       end

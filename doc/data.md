@@ -366,6 +366,8 @@ This DataSource wraps the Large Scale Visual Recognition Challenge 2014 (ILSVRC2
 image classification dataset (commonly known as ImageNet). 
 The dataset hasn't changed from 2012-2014.
 
+### Requirements ###
+
 Due to its size, the data first needs to be prepared offline.
 Use [downloadimagenet.lua](https://github.com/nicholas-leonard/dp/tree/master/scripts/downloadimagenet.lua) 
 to download and extract the data :
@@ -393,11 +395,21 @@ sudo luarocks install graphicsmagick
 sudo luarocks install torchx
 ```
 
+### Memory Efficiency ###
+
 Unlike most DataSources, ImageNet doesn't read all images into memory when it is first loaded.
-Instead it builds a list of all images and indexes them per class. In this way, 
-each [Batch](#dp.Batch) is only loaded from disk and created when requested from a Sampler,
-making it very memory efficient. This is also the reason why we recommend 
+Instead it uses [ImageClassSet](#dp.ImageClassSet) to encapslate the different datasets; in this case 
+the `train` and `valid` sets. The ImageClassSet builts a list of all images and indexes them per class. 
+In this way, each [Batch](#dp.Batch) is only loaded from disk and created when requested from a 
+[Sampler](#dp.Sampler), making it very memory efficient. This is also the reason why we recommend 
 storing the dataset on SSD.
+
+### Sampling ###
+As in the famous [(Krizhevsky et al. 2012)](https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=1&cad=rja&uact=8&ved=0CCMQFjAA&url=http%3A%2F%2Fwww.cs.toronto.edu%2F~fritz%2Fabsps%2Fimagenet.pdf&ei=k1j7VIOpNoyuggTbq4SQAQ&usg=AFQjCNGDafONr3DDGBbtw5AL9B_R8AeTCg)
+paper, the ImageNet training dataset samples images cropped from random 
+224x224 patches from the images resizes so that the smallest dimension has 
+size 256. As for the validation set, ten 224x224 patches are cropped per image,
+i.e. center, four corners and their horizontal flips, and their predictions are averaged. 
 
 <a name="dp.Sampler"/>
 []()
@@ -426,8 +438,7 @@ A constructor having the following arguments:
   * `batch_size` specifies the number of examples per sampled batches. The default is 128.
   * `random_seed` is a number used to initialize the shuffle generator.
 
-<a name="dp.SentenceSampler"/>
-[]()
+<a name="dp.SentenceSampler"></a>
 ## SentenceSampler ##
 A subclass of [Sampler](#dp.Sampler) which iterates over parallel 
 sentences of equal size one word at a time.
@@ -438,9 +449,26 @@ the recurrent [Models](model.md#dp.Model) to forget the previous sequence of inp
 Note that `epoch_size` only garantees the minimum number of samples per epoch (more could be sampled).
 Used for [Recurrent Neural Network Language Models](https://github.com/nicholas-leonard/dp/blob/master/examples/recurrentlanguagemodel.lua).
  
-<a name='dp.SentenceSampler.__init'/>
-[]()
+<a name='dp.SentenceSampler.__init'></a>
 ### dp.SentenceSampler{evaluate} ###
 In training mode (`evaluate=false`), the object publishes to the 
 `"doneSequence"` Channel to advise the [RecurrentVisitorChain](visitor.md#dp.RecurrentVisitorChain) 
 to visit the model after the current batch (the last of the sequence) is propagated.
+
+<a name="dp.RandomSampler"></a>
+## RandomSampler ##
+A subclass of [Sampler](#dp.Sampler) which iterates over parallel 
+sentences of equal size one word at a time.
+The sentences sizes are iterated through randomly.
+Publishes to the `"beginSequence"` [Mediator](mediator.md#dp.Mediator) 
+[Channel](mediator.md#dp.Channel) before each new Sequence, which prompts 
+the recurrent [Models](model.md#dp.Model) to forget the previous sequence of inputs.
+Note that `epoch_size` only garantees the minimum number of samples per epoch (more could be sampled).
+Used for [Recurrent Neural Network Language Models](https://github.com/nicholas-leonard/dp/blob/master/examples/recurrentlanguagemodel.lua).
+ 
+<a name='dp.RandomSampler.__init'></a>
+### dp.RandomSampler{} ###
+In training mode (`evaluate=false`), the object publishes to the 
+`"doneSequence"` Channel to advise the [RecurrentVisitorChain](visitor.md#dp.RecurrentVisitorChain) 
+to visit the model after the current batch (the last of the sequence) is propagated.
+

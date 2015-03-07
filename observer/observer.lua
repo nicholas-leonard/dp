@@ -59,4 +59,10 @@ function Observer:report()
    error"NotSupported : observers don't generate reports"
 end
 
+function Observer:verbose(verbose)
+   self._verbose = (verbose == nil) and true or verbose
+end
 
+function Observer:silent()
+   self:verbose(false)
+end

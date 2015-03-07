@@ -36,6 +36,7 @@ cmd:option('--validRatio', 1/6, 'proportion of train set used for cross-validati
 cmd:option('--progress', false, 'display progress bar')
 cmd:option('--pg', false, 'use postgresql')
 cmd:option('--minAccuracy', 0.1, 'minimum accuracy that must be maintained after 10 epochs')
+cmd:option('--silent', false, 'dont print anything to stdout')
 cmd:text()
 opt = cmd:parse(arg or {})
 

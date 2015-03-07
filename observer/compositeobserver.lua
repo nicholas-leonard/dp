@@ -19,8 +19,10 @@ function CompositeObserver:setup(config)
    assert(type(config) == 'table', "Setup requires key-value arguments")
    local args, mediator, subject = xlua.unpack(
       {config},
-      'Observer:setup', nil,
-      {arg='mediator', type='dp.Mediator', req=true},
+      'Observer:setup', 
+      'setub the observer with mediator and subject',
+      {arg='mediator', type='dp.Mediator', req=true,
+       help='used for inter-object communication. defaults to dp.Mediator()'},
       {arg='subject', type='dp.Experiment | dp.Propagator | ...',
       help='object being observed.'}
    )
@@ -29,5 +31,12 @@ function CompositeObserver:setup(config)
    self:setSubject(subject)
    for name, observer in pairs(self._observers) do
       observer:setup(config)
+   end
+end
+
+function CompositeObserver:verbose(verbose)
+   self._verbose = (verbose == nil) and true or verbose
+   for k, v in pairs(self._observers) do
+      v:verbose(self._verbose)
    end
 end

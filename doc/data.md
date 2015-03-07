@@ -347,8 +347,7 @@ The DataSource inclues data for building hierarchical softmaxes to accelerate tr
 As usual the actual data is downloaded automatically when not found on disk.
 It is stored as a serialized `torch.Tensor` (see code for details).
 
-<a name="dp.Svhn"/>
-[]()
+<a name="dp.Svhn"></a>
 ## Svhn ##
 The Google Street View House Numbers (SVHN) DataSource wraps 
 the [originalsource](http://ufldl.stanford.edu/housenumbers/). 
@@ -411,27 +410,41 @@ paper, the ImageNet training dataset samples images cropped from random
 size 256. As for the validation set, ten 224x224 patches are cropped per image,
 i.e. center, four corners and their horizontal flips, and their predictions are averaged. 
 
-<a name="dp.Sampler"/>
-[]()
+<a name="dp.Sampler"></a>
 ## Sampler ##
-A [DataSet](#dp.DataSet) iterator which qequentially samples [Batches](#dp.Batch) from a DataSet for a [Propagator](propagator.md#dp.Propagator).
+A [DataSet](#dp.DataSet) iterator which sequentially samples [Batches](#dp.Batch) 
+from a DataSet for a [Propagator](propagator.md#dp.Propagator).
+This iterator calls the [sub](#dp.DataSet.sub) Batch factory method.
 
-<a name="dp.Sampler.__init"/>
-[]()
+<a name="dp.Sampler.__init"></a>
 ### dp.Sampler{batch_size, epoch_size} ###
 A constructor having the following arguments:
- * `batch_size` type='number', default='1024',
-help='Number of examples per sampled batches'},
- * `epoch_size` specifies the number of examples presented per epoch. When `epoch_size` is less than the size of the dataset, the sampler remuses processing the dataset from its ending position the next time `Sampler:sampleEpoch()` is called. When `epoch_size` is greater, it loops through the dataset until enough samples are draw. The default (-1) is to use then entire dataset per epoch.
 
-<a name="dp.ShuffleSampler"/>
-[]()
+ * `batch_size`  is a number specifying the number of examples per batch. Defaults to 1024.
+ * `epoch_size` specifies the number of examples presented per epoch. When `epoch_size` is less than the size of the dataset, the sampler resumes processing the dataset from its ending position the next time [sampleEpoch](#dp.Sampler.sampleEpoch) is called. When `epoch_size` is greater, it loops through the dataset until enough samples are draw. The default (-1) is to use then entire dataset per epoch.
+ * `ppf` is an optional function that preprocesses a Batch into another Batch. 
+
+<a name="dp.Sampler.sampleEpoch"></a>
+### [sampleBatch] sampleEpoch(dataset) ###
+Returns an iterator over a `dataset` for one epoch. The 
+returned `sampleBatch` iterator is a function taking one optional argument : `batch`, 
+which is a [Batch](#dp.Batch). When this argument is provided, its encapsulated 
+memory will be reused. When called, the `sampleBatch` function returns 
+the next Batch of examples, until the dataset has been iterated through for the duration 
+of an epoch. This method is typically overwritten by sub-classes.
+
+<a name="dp.Sampler.async"></a>
+### async() ###
+Used in conjuction with a [multithreaded](#dp.ImageClassSet.multithread) dataset
+to iterate through Batches asynchronously.
+
+<a name="dp.ShuffleSampler"></a>
 ## ShuffleSampler ##
 A subclass of [Sampler](#dp.Sampler) which iterates over [Batches](#dp.Batch) in a dataset 
-by shuffling the example indices before each epoch.
+by shuffling the example indices before each epoch. 
+This iterator calls the [index](#dp.DataSet.index) Batch factory method.
 
-<a name="dp.ShuffleSample.__init"/>
-[]()
+<a name="dp.ShuffleSample.__init"></a>
 ### dp.ShuffleSampler{batch_size, random_seed} ###
 A constructor having the following arguments:
  
@@ -455,20 +468,9 @@ In training mode (`evaluate=false`), the object publishes to the
 `"doneSequence"` Channel to advise the [RecurrentVisitorChain](visitor.md#dp.RecurrentVisitorChain) 
 to visit the model after the current batch (the last of the sequence) is propagated.
 
-<a name="dp.RandomSampler"></a>
-## RandomSampler ##
-A subclass of [Sampler](#dp.Sampler) which iterates over parallel 
-sentences of equal size one word at a time.
-The sentences sizes are iterated through randomly.
-Publishes to the `"beginSequence"` [Mediator](mediator.md#dp.Mediator) 
-[Channel](mediator.md#dp.Channel) before each new Sequence, which prompts 
-the recurrent [Models](model.md#dp.Model) to forget the previous sequence of inputs.
-Note that `epoch_size` only garantees the minimum number of samples per epoch (more could be sampled).
-Used for [Recurrent Neural Network Language Models](https://github.com/nicholas-leonard/dp/blob/master/examples/recurrentlanguagemodel.lua).
- 
-<a name='dp.RandomSampler.__init'></a>
-### dp.RandomSampler{} ###
-In training mode (`evaluate=false`), the object publishes to the 
-`"doneSequence"` Channel to advise the [RecurrentVisitorChain](visitor.md#dp.RecurrentVisitorChain) 
-to visit the model after the current batch (the last of the sequence) is propagated.
-
+<a name='dp.RandomSampler'></a>
+### RandomSampler ###
+A [DataSet](#dp.DataSet) iterator which randomly samples batches from a dataset.
+This iterator calls the [sample](#dp.ImageClassSet.sample) Batch factory method.
+Unlike the [ShuffleSampler](#dp.ShuffleSampler), this iterator is not garanteed
+to sample each example in the dataset during a complete epoch.

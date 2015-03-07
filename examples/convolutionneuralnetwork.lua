@@ -33,9 +33,12 @@ cmd:option('--dropout', false, 'use dropout')
 cmd:option('--dropoutProb', '{0.2,0.5,0.5}', 'dropout probabilities')
 cmd:option('--accUpdate', false, 'accumulate gradients inplace')
 cmd:option('--progress', false, 'print progress bar')
+cmd:option('--silent', false, 'dont print anything to stdout')
 cmd:text()
 opt = cmd:parse(arg or {})
-table.print(opt)
+if not opt.silent then
+   table.print(opt)
+end
 
 if opt.activation == 'ReLU' and not opt.normalInit then
    print("Warning : you should probably use --normalInit with ReLUs for "..
@@ -110,7 +113,7 @@ for i=1,#opt.channelSize do
    depth = depth + 1
 end
 inputSize = inputSize*height*width
-print("input to first Neural layer has: "..inputSize.." neurons")
+dp.vprint(not opt.silent, "input to first Neural layer has: "..inputSize.." neurons")
 
 for i,hiddenSize in ipairs(opt.hiddenSize) do
    local dense = dp.Neural{
@@ -195,9 +198,12 @@ if opt.cuda then
    xp:cuda()
 end
 
-print"dp.Models :"
-print(cnn)
-print"nn.Modules :"
-print(cnn:toModule(datasource:trainSet():sub(1,32)))
+if not opt.silent then
+   print"dp.Models :"
+   print(cnn)
+   print"nn.Modules :"
+   print(cnn:toModule(datasource:trainSet():sub(1,32)))
+end
+xp:verbose(not opt.silent)
 
 xp:run(datasource)

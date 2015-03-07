@@ -31,7 +31,7 @@ function Confusion:setup(config)
 end
 
 function Confusion:doneEpoch(report)
-   if self._cm then
+   if self._cm and self._verbose then
       print(self._id:toString().." accuracy = "..self._cm.totalValid)
    end
 end

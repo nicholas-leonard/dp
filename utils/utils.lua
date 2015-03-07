@@ -168,6 +168,12 @@ function dp.returnString(str)
    return loadstring(" return "..str)()
 end
 
+function dp.vprint(verbose, str)
+   if verbose then
+      print(str)
+   end
+end
+
 ------------------------ Queue -----------------------------
 local Queue = torch.class("dp.Queue")
 function Queue:__init()
@@ -196,5 +202,3 @@ function Queue:get()
    self.last = last - 1
    return value
 end
-
-

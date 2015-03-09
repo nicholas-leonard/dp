@@ -81,7 +81,7 @@ function TopCrop:topstats(preds, targets, ns)
    end
 end
 
-function TopCrop:_add(batch, output, carry, report)
+function TopCrop:add(batch, output, carry, report)
    local preds = output:forward('bf', 'torch.FloatTensor')
    local labels = batch:targets():forward('b')
    assert(preds:isContiguous())
@@ -93,6 +93,9 @@ function TopCrop:_add(batch, output, carry, report)
    
    local predView = preds:view(preds:size(1)/self._n_crop, self._n_crop, preds:size(2))
    local labelView = labels:view(labels:size(1)/self._n_crop, self._n_crop)
+   
+   self._n_sample = self._n_sample + predView:size(1)
+   
    -- check that each images n_crops have the same label
    self._labels = self._labels or torch.FloatTensor()
    self._labels:resize(labelView:size()):copy(labelView)
@@ -111,7 +114,7 @@ function TopCrop:_add(batch, output, carry, report)
    self:topstats(self._sum:select(2,1), targets, 'center')
    -- all crops
    self._sum:sum(predView, 2)
-   self:topstats(self._sum:select(2,1), targets, 'all')   
+   self:topstats(self._sum:select(2,1), targets, 'all')
 end
 
 function TopCrop:_reset()

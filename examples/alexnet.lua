@@ -28,6 +28,7 @@ cmd:option('--accUpdate', false, 'accumulate gradients inplace')
 cmd:option('--verbose', false, 'print verbose messages')
 cmd:option('--progress', false, 'print progress bar')
 cmd:option('--nThread', 2, 'allocate threads for loading images from disk. Requires threads-ffi.')
+cmd:option('--LCN', false, 'use Local Constrast Normalization as in the original paper. Requires inn (imagine-nn)')
 cmd:text()
 opt = cmd:parse(arg or {})
 
@@ -35,6 +36,11 @@ opt.trainPath = (opt.trainPath == '') and paths.concat(opt.dataPath, 'ILSVRC2012
 opt.validPath = (opt.validPath == '') and paths.concat(opt.dataPath, 'ILSVRC2012_img_val') or opt.validPath
 opt.metaPath = (opt.metaPath == '') and paths.concat(opt.dataPath, 'metadata') or opt.metaPath
 table.print(opt)
+
+if opt.LCN then
+   assert(opt.cuda, "LCN only works with CUDA")
+   require "inn"
+end
 
 
 --[[data]]--
@@ -53,10 +59,16 @@ function createModel()
    local fb1 = nn.Sequential() -- branch 1
    fb1:add(nn.SpatialConvolutionMM(3,48,11,11,4,4,2,2))       -- 224 -> 55
    fb1:add(nn.ReLU())
+   if opt.LCN then
+      fb1:add(inn.SpatialCrossResponseNormalization(5, 0.0001, 0.75, 2))
+   end
    fb1:add(nn.SpatialMaxPooling(3,3,2,2))                   -- 55 ->  27
    
    fb1:add(nn.SpatialConvolutionMM(48,128,5,5,1,1,2,2))       --  27 -> 27
    fb1:add(nn.ReLU())
+   if opt.LCN then
+      fb1:add(inn.SpatialCrossResponseNormalization(5, 0.0001, 0.75, 2))
+   end
    fb1:add(nn.SpatialMaxPooling(3,3,2,2))                   --  27 ->  13
    
    fb1:add(nn.SpatialConvolutionMM(128,192,3,3,1,1,1,1))      --  13 ->  13

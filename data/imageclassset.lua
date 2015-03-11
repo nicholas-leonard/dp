@@ -518,9 +518,6 @@ end
 ------------------------ multithreading --------------------------------
 
 function ImageClassSet:multithread(nThread, queueSize)
-   -- https://github.com/torch/threads-ffi
-   local Threads = require 'threads'
-   
    nThread = nThread or 2
    queueSize = queueSize or nThread*2
    if not paths.filep(self._cache_path) then
@@ -533,7 +530,8 @@ function ImageClassSet:multithread(nThread, queueSize)
    config.cache_mode = 'readonly'
    config.verbose = self._verbose
    
-   self._threads = Threads(
+   -- utils/threads.lua
+   self._threads = dp.Threads(
       nThread, queueSize,
       function()
          gsdl = require 'sdl2'

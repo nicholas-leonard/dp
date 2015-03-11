@@ -120,7 +120,7 @@ for the next time the dataset is used.
 During queries of the dataset using [sample](#dp.ImageClassSet.sample) or [sub](#dp.DataSet.sub), 
 the index is used to retrieve images from disk. This can be a major bottleneck. 
 We strongly encourage storing your dataset on a Solid-State Drive (SSD). Furthermore,
-if [threads-ffi]() is installed, the dataset can be used for asynchronous batch requests.
+if [threads-ffi](https://github.com/torch/threads-ffi/blob/master/README.md) is installed, the dataset can be used for asynchronous batch requests.
 This is implemented using [multi-threading](#dp.ImageClassSet.multithread), 
 which is necessary to speed up reading all those files. 
 
@@ -174,7 +174,7 @@ Works with the [TopCrop](feedback.md#dp.TopCrop) feedback.
 
 <a name="dp.ImageClassSet.multithread"></a>
 ### multithread([nThread, queueSize]) ###
-Uses [threads-ffi](https://github.com/torch/threads-ffi) to spawn a
+Uses [threads-ffi](https://github.com/torch/threads-ffi/blob/master/README.md) to spawn a
 [Threads](https://github.com/torch/threads-ffi/blob/master/README.md#threads.main) 
 pool of `nThread` threads communicating with the current main thread through a
 [queue](https://github.com/torch/threads-ffi/blob/master/README.md#worker) of size

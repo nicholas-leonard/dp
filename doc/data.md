@@ -133,7 +133,7 @@ ImageClassSet constructor. Arguments should be specified as key-value pairs.
   * `sample_size` is a table specifying a consistent sample size to resize the images to (or crop them). Defaults to `load_size`.
   * `verbose` is a boolean specifying whether or not to display verbose messages. Defaults to true.
   * `sample_func` is a string or function `f(self, dst, path)` that fills the `dst` Tensor with one or many images taken from the image located at `imgpath` Strings "sampleDefault",  "sampleTrain" or "sampleTest" can also be provided as they refer to existing methods. Defaults to [sampleDefault](#dp.ImageClassSet.sampleDefault). 
-  * `sort_func' is a comparison function used for sorting the class directories. The order is used to assign each class and index.  Defaults to the `<` operator.
+  * `sort_func` is a comparison function used for sorting the class directories. The order is used to assign each class and index.  Defaults to the `<` operator.
   * `cache_mode` is a string with default value "writeonce". Valid options include:
    * "writeonce" : read from cache if exists, else write to cache.
    * "overwrite" : write to cache, regardless if exists.
@@ -410,6 +410,11 @@ paper, the ImageNet training dataset samples images cropped from random
 size 256. As for the validation set, ten 224x224 patches are cropped per image,
 i.e. center, four corners and their horizontal flips, and their predictions are averaged. 
 
+### Example ###
+You can test out your ImageNet datasource using the
+[alexnet.lua](https://github.com/nicholas-leonard/dp/blob/master/examples/alexnet.lua)
+training script.
+
 <a name="dp.Sampler"></a>
 ## Sampler ##
 A [DataSet](#dp.DataSet) iterator which sequentially samples [Batches](#dp.Batch) 
@@ -436,7 +441,9 @@ of an epoch. This method is typically overwritten by sub-classes.
 <a name="dp.Sampler.async"></a>
 ### async() ###
 Used in conjuction with a [multithreaded](#dp.ImageClassSet.multithread) dataset
-to iterate through Batches asynchronously.
+to iterate through Batches asynchronously. You can test the async functionality 
+via the [alexnet.lua](https://github.com/nicholas-leonard/dp/blob/master/examples/alexnet.lua)
+training script.
 
 <a name="dp.ShuffleSampler"></a>
 ## ShuffleSampler ##
@@ -474,3 +481,5 @@ A [DataSet](#dp.DataSet) iterator which randomly samples batches from a dataset.
 This iterator calls the [sample](#dp.ImageClassSet.sample) Batch factory method.
 Unlike the [ShuffleSampler](#dp.ShuffleSampler), this iterator is not garanteed
 to sample each example in the dataset during a complete epoch.
+You can see this Sampler in action via the [alexnet.lua](https://github.com/nicholas-leonard/dp/blob/master/examples/alexnet.lua)
+training script

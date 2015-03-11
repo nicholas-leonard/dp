@@ -4,6 +4,7 @@ One of the most important aspects of any machine learning problem is the data. T
   * [BaseSet](#dp.BaseSet) : abstract class;
      * [DataSet](#dp.DataSet) : a dataset for input and target [Views](view.md#dp.View);
        * [SentenceSet](#dp.SentenceSet) : container of sentences (used for language modeling);
+       * [ImageClassSet](#dp.ImageClassSet) : container for large-scale image-classification datasets;
      * [Batch](#dp.Batch) : a mini-batch of inputs and targets;
   * [Carry](#dp.Carry) : an object store passed around during propagation;
   * [DataSource](#dp.DataSource) : a container of train, valid and test DataSets;
@@ -13,9 +14,11 @@ One of the most important aspects of any machine learning problem is the data. T
     * [Cifar100](#dp.Cifar100) : the very difficult to generalize CIFAR-100 dataset;
     * [BillionWords](#dp.BillionWords) : the Google 1-Billion Words language model dataset;
     * [Svhn](#dp.Svhn) : the Google Street View House Numbers dataset;
-  * [Sampler](#dp.Sampler) : dataset iterator;
+    * [ImageNet](#dp.ImageNet) : the
+  * [Sampler](#dp.Sampler) : ordered dataset iterator;
     * [ShuffleSampler](#dp.ShuffleSampler) : shuffled dataset iterator;
     * [SentenceSampler](#dp.SentenceSampler) : samples sentences for recurrent models;
+    * [RandomSampler](#dp.RandomSampler) : iterates through batches of random examples;
 
 <a name="dp.BaseSet"/>
 []()
@@ -97,8 +100,118 @@ However, the outputs of factory methods [batch](#dp.DataSet.batch), [sub](#dp.Da
 [index](#dp.DataSet.index) are [Batches](#dp.Batch) containing input and target [ClassViews](view.md#dp.ClassView).
 The returned [batch:inputs()](#dp.BaseSet.inputs) are filled according to [Google 1-Billion Words guidelines](https://code.google.com/p/1-billion-word-language-modeling-benchmark/source/browse/trunk/README.perplexity_and_such).
 
-<a name="dp.Batch"/>
-[]()
+<a name="dp.ImageClassSet"></a>
+## ImageClassSet ##
+A DataSet for image classification tasked stored in a flat folder structure :
+```
+[data_path]/[class]/[imagename].[JPEG,png,...] 
+```
+Optimized for extremely large datasets (14 million images+). 
+This DataSet is very memory efficient in that the images are loaded from 
+disk into memory only when requested as a [Batch](#dp.Batch). It is 
+used to wrap the training and validation sets of the [ImageNet](#dp.ImageNet)
+DataSource.
+
+When first initialized, the dataset needs to build an index of all image paths which it encapsulates 
+into torch.CharTensor for efficieny. The index is build using some heavy command-line
+magic, but this only needs to be executed once as the resulting index is cached to disk
+for the next time the dataset is used. 
+
+During queries of the dataset using [sample](#dp.ImageClassSet.sample) or [sub](#dp.DataSet.sub), 
+the index is used to retrieve images from disk. This can be a major bottleneck. 
+We strongly encourage storing your dataset on a Solid-State Drive (SSD). Furthermore,
+if [threads-ffi](https://github.com/torch/threads-ffi/blob/master/README.md) is installed, the dataset can be used for asynchronous batch requests.
+This is implemented using [multi-threading](#dp.ImageClassSet.multithread), 
+which is necessary to speed up reading all those files. 
+
+<a name="dp.ImageClassSet.__init"></a>
+### dp.ImageClassSet{...} ###
+ImageClassSet constructor. Arguments should be specified as key-value pairs. 
+
+  * `data_path` is a string (or table thereof) specifying one or many paths to the data.
+  * `load_size` ia a table specifying the approximate size (`nChannel x Height x Width`) for which to load the images to, initially.
+  * `sample_size` is a table specifying a consistent sample size to resize the images to (or crop them). Defaults to `load_size`.
+  * `verbose` is a boolean specifying whether or not to display verbose messages. Defaults to true.
+  * `sample_func` is a string or function `f(self, dst, path)` that fills the `dst` Tensor with one or many images taken from the image located at `imgpath` Strings "sampleDefault",  "sampleTrain" or "sampleTest" can also be provided as they refer to existing methods. Defaults to [sampleDefault](#dp.ImageClassSet.sampleDefault). 
+  * `sort_func' is a comparison function used for sorting the class directories. The order is used to assign each class and index.  Defaults to the `<` operator.
+  * `cache_mode` is a string with default value "writeonce". Valid options include:
+   * "writeonce" : read from cache if exists, else write to cache.
+   * "overwrite" : write to cache, regardless if exists.
+   * "nocache" : dont read or write from cache.
+   * "readonly" : only read from cache, fail otherwise.
+  * `cache_path` is a string specifiying the path of a cache file. Defaults to `[data_path[1]]/cache.th7`.
+
+The DataSet constructor arguments also apply.
+
+<a name="dp.ImageClassSet.sample"></a>
+### [batch] sample([batch,] nSample, [sampleFunc]) ###
+For `nSample` examples, uniformly samples a class, and then uniformly samples example from that class.
+This keeps the class distribution balanced. Argument `sampleFunc` is a 
+function or string used for sampling patches from a loaded image
+(see [constructor](#dp.ImageClassSet.__init) for details). 
+Defaults to whatever was passed to the constructor. The  optional `batch` argument, a [Batch](#dp.Batch) instance,
+is recommended for minimizing memory allocations (see [sub](#dp.DataSet.sub) for details).
+This Batch factor is called by the [RandomSampler]
+
+Note that depending on the `sampleFunc`, the number of returned samples may 
+be greater than `nSample` (see [sampleTest](#dp.ImageClassSet.sampleTest) for an example).
+
+<a name="dp.ImageClassSet.sampleDefault"></a>
+### [dst] sampleDefault([dst,] path) ###
+Loads the image located at `path`. The returned `dst` Tensor will have 
+size `sample_size`.
+
+<a name="dp.ImageClassSet.sampleTrain"></a>
+### [dst] sampleTrain([dst,] path) ###
+Loads the image of size `load_size` located at `path`. Does a random crop
+of size `sample_size` from the loaded image and returns it as `dst`.
+
+<a name="dp.ImageClassSet.sampleTest"></a>
+### [dst] sampleTest([dst,] path) ###
+Loads the image of size `load_size` located at `path`. 
+Does 10 crops, (center + 4 corners) and their horizontal flips.
+Works with the [TopCrop](feedback.md#dp.TopCrop) feedback.
+
+<a name="dp.ImageClassSet.multithread"></a>
+### multithread([nThread, queueSize]) ###
+Uses [threads-ffi](https://github.com/torch/threads-ffi/blob/master/README.md) to spawn a
+[Threads](https://github.com/torch/threads-ffi/blob/master/README.md#threads.main) 
+pool of `nThread` threads communicating with the current main thread through a
+[queue](https://github.com/torch/threads-ffi/blob/master/README.md#worker) of size
+`queueSize`. Each thread will load an ImageClassSet instance using the 
+image path index cached on disk. 
+
+A [Sampler](#dp.Sampler) or [RandomSampler](#dp.RandomSampler) can then 
+be set in [async](#dp.Sampler.async) mode to query the threads for [Batches](#dp.Batch)
+asynchronously. To do this, the Samplers begin by sending `queueSize` batch requests 
+to the Thread pool. After that, for each batch [requested](#dp.ImageClassSet.asyncGet) from the 
+dataset, another request is sent to the pool using either [subAsyncPut](#dp.ImageClassSet.subAsyncPut)
+or [sampleAsyncPut](#dp.ImageClassSet.sampleAsyncPut).
+
+<a name="dp.ImageClassSet.subAsyncPut"></a>
+### subAsyncPut(batch, start, stop, callback) ###
+Puts a [sub](#dp.DataSet.sub) request onto the queue such that it will be executed 
+by one of the threads in the Threads pool. The `callback` is 
+a function that will be executed on the resulting Batch once it returns to 
+the main thread.
+Must be preceeded by a call to [multithread](#dp.ImageClassSet.multithread).
+
+<a name="dp.ImageClassSet.sampleAsyncPut"></a>
+### sampleAsyncPut(batch, nSample, sampleFunc, callback) ###
+Same as [subAyncPut](#dp.ImageClassSet.subAsyncPut), but for sending a
+[sample](#dp.ImageClassSet.sample) request.
+
+<a name="dp.ImageClassSet.asyncGet"></a>
+### [batch] asyncGet() ###
+Retrives a Batch request from the queue and returns it to the caller. 
+The call must be preceded by a call to [subAyncPut](#dp.ImageClassSet.subAsyncPut)
+or [sampleAyncPut](#dp.ImageClassSet.sampleAsyncPut)
+
+<a name="dp.ImageClassSet.synchronize"></a>
+### synchronize() ###
+Empties the queue of asynchronous requests.
+
+<a name="dp.Batch"></a>
 ## Batch ##
 A subclass of [BaseSet](#dp.BaseSet). A mini-batch of input and target [Views](view.md#dp.View) 
 to be fed into a [Model](model.md#dp.Model) and [Loss](loss.md#dp.Loss). The batch of examples is usually sampled 
@@ -199,16 +312,19 @@ classification problem (see [MNIST](http://yann.lecun.com/exdb/mnist/)). The ima
 <a name="dp.NotMnist"/>
 []()
 ## NotMnist ##
-A [DataSource](#dp.DataSource) subclass wrapping the much larger alternative to MNIST: [NotMNIST](http://yaroslavvb.blogspot.ca/2011/09/notmnist-dataset.html). 
+A [DataSource](#dp.DataSource) subclass wrapping the much larger alternative to MNIST: 
+[NotMNIST](http://yaroslavvb.blogspot.ca/2011/09/notmnist-dataset.html). 
 If not found on the local machine, the object downloads the dataset from the 
 [original source](http://yaroslavvb.com/upload/notMNIST/). 
-It contains 500k+ examples of 10 charaters using unicode fonts: *A*,*B*,*C*,*D*,*E*,*F*,*G*,*H*,*I*,*J*. Like [Mnist](#dp.Mnist), the images are of size `28x28x1`.
+It contains 500k+ examples of 10 charaters using unicode fonts: *A*,*B*,*C*,*D*,*E*,*F*,*G*,*H*,*I*,*J*. 
+Like [Mnist](#dp.Mnist), the images are of size `28x28x1`.
 
 <a name="dp.Cifar10"/>
 []()
 ## Cifar10 ##
 A [DataSource](#dp.DataSource) subclass wrapping the [CIFAR-10](http://www.cs.toronto.edu/~kriz/cifar.html) dataset. 
-It is a `3x32x32` color-image set of 10 different objects. Small dataset size makes it hard to generalize from train to test set (Regime : overfitting).
+It is a `3x32x32` color-image set of 10 different objects. Small dataset size makes it hard to generalize 
+from train to test set (Regime : overfitting).
 
 <a name="dp.Cifar100"/>
 []()
@@ -231,8 +347,7 @@ The DataSource inclues data for building hierarchical softmaxes to accelerate tr
 As usual the actual data is downloaded automatically when not found on disk.
 It is stored as a serialized `torch.Tensor` (see code for details).
 
-<a name="dp.Svhn"/>
-[]()
+<a name="dp.Svhn"></a>
 ## Svhn ##
 The Google Street View House Numbers (SVHN) DataSource wraps 
 the [originalsource](http://ufldl.stanford.edu/housenumbers/). 
@@ -242,35 +357,101 @@ It contains 73257 digits for training, 26032 digits for testing, and 531131 addi
 somewhat less difficult samples, to use as extra training data. 
 Like [CIFAR](#dp.Cifar10), the images are of size `3x32x32`.
 
-<a name="dp.Sampler"/>
-[]()
-## Sampler ##
-A [DataSet](#dp.DataSet) iterator which qequentially samples [Batches](#dp.Batch) from a DataSet for a [Propagator](propagator.md#dp.Propagator).
+<a name="dp.ImageNet"></a>
+## ImageNet ##
+Ref.: A. http://image-net.org/challenges/LSVRC/2014/download-images-5jj5.php
 
-<a name="dp.Sampler.__init"/>
-[]()
+This DataSource wraps the Large Scale Visual Recognition Challenge 2014 (ILSVRC2014)
+image classification dataset (commonly known as ImageNet). 
+The dataset hasn't changed from 2012-2014.
+
+### Requirements ###
+
+Due to its size, the data first needs to be prepared offline.
+Use [downloadimagenet.lua](https://github.com/nicholas-leonard/dp/tree/master/scripts/downloadimagenet.lua) 
+to download and extract the data :
+```bash
+th downloadimagenet.lua --savePath '/path/to/diskspace/ImageNet'
+```
+The entire process requires about 360 GB of disk space to complete the download and extraction process.
+This can be reduced to about 150GB if the training set is downloaded and extracted first, 
+and all the `.tar` files are manually deleted. Repeat for the validation set, devkit and metadata. 
+If you still don't have enough space in one partition, you can divide the data among different partitions.
+We recommend a good internet connection (>60Mbs download) and a good Solid-State Drives (SSD).
+
+Use [harmonizeimagenet.lua](https://github.com/nicholas-leonard/dp/tree/master/scripts/harmonizeimagenet.lua) 
+to harmonize the train and validation sets:
+```bash
+th scripts/harmonizeimagenet.lua --dataPath /path/to/diskspace/ImageNet --progress --forReal
+```
+The sets will then contain a directory of images for each class with name `class[id]`
+where `[id]` is a class index, between 1 and 1000, used for the ILVRC2014 competition.
+
+Then we need to install [graphicsmagick](https://github.com/clementfarabet/graphicsmagick/blob/master/README.md) 
+and [torchx](https://github.com/nicholas-leonard/torchx):
+```bash
+sudo luarocks install graphicsmagick
+sudo luarocks install torchx
+```
+
+### Memory Efficiency ###
+
+Unlike most DataSources, ImageNet doesn't read all images into memory when it is first loaded.
+Instead it uses [ImageClassSet](#dp.ImageClassSet) to encapslate the different datasets; in this case 
+the `train` and `valid` sets. The ImageClassSet builts a list of all images and indexes them per class. 
+In this way, each [Batch](#dp.Batch) is only loaded from disk and created when requested from a 
+[Sampler](#dp.Sampler), making it very memory efficient. This is also the reason why we recommend 
+storing the dataset on SSD.
+
+### Sampling ###
+As in the famous [(Krizhevsky et al. 2012)](https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=1&cad=rja&uact=8&ved=0CCMQFjAA&url=http%3A%2F%2Fwww.cs.toronto.edu%2F~fritz%2Fabsps%2Fimagenet.pdf&ei=k1j7VIOpNoyuggTbq4SQAQ&usg=AFQjCNGDafONr3DDGBbtw5AL9B_R8AeTCg)
+paper, the ImageNet training dataset samples images cropped from random 
+224x224 patches from the images resizes so that the smallest dimension has 
+size 256. As for the validation set, ten 224x224 patches are cropped per image,
+i.e. center, four corners and their horizontal flips, and their predictions are averaged. 
+
+<a name="dp.Sampler"></a>
+## Sampler ##
+A [DataSet](#dp.DataSet) iterator which sequentially samples [Batches](#dp.Batch) 
+from a DataSet for a [Propagator](propagator.md#dp.Propagator).
+This iterator calls the [sub](#dp.DataSet.sub) Batch factory method.
+
+<a name="dp.Sampler.__init"></a>
 ### dp.Sampler{batch_size, epoch_size} ###
 A constructor having the following arguments:
- * `batch_size` type='number', default='1024',
-help='Number of examples per sampled batches'},
- * `epoch_size` specifies the number of examples presented per epoch. When `epoch_size` is less than the size of the dataset, the sampler remuses processing the dataset from its ending position the next time `Sampler:sampleEpoch()` is called. When `epoch_size` is greater, it loops through the dataset until enough samples are draw. The default (-1) is to use then entire dataset per epoch.
 
-<a name="dp.ShuffleSampler"/>
-[]()
+ * `batch_size`  is a number specifying the number of examples per batch. Defaults to 1024.
+ * `epoch_size` specifies the number of examples presented per epoch. When `epoch_size` is less than the size of the dataset, the sampler resumes processing the dataset from its ending position the next time [sampleEpoch](#dp.Sampler.sampleEpoch) is called. When `epoch_size` is greater, it loops through the dataset until enough samples are draw. The default (-1) is to use then entire dataset per epoch.
+ * `ppf` is an optional function that preprocesses a Batch into another Batch. 
+
+<a name="dp.Sampler.sampleEpoch"></a>
+### [sampleBatch] sampleEpoch(dataset) ###
+Returns an iterator over a `dataset` for one epoch. The 
+returned `sampleBatch` iterator is a function taking one optional argument : `batch`, 
+which is a [Batch](#dp.Batch). When this argument is provided, its encapsulated 
+memory will be reused. When called, the `sampleBatch` function returns 
+the next Batch of examples, until the dataset has been iterated through for the duration 
+of an epoch. This method is typically overwritten by sub-classes.
+
+<a name="dp.Sampler.async"></a>
+### async() ###
+Used in conjuction with a [multithreaded](#dp.ImageClassSet.multithread) dataset
+to iterate through Batches asynchronously.
+
+<a name="dp.ShuffleSampler"></a>
 ## ShuffleSampler ##
 A subclass of [Sampler](#dp.Sampler) which iterates over [Batches](#dp.Batch) in a dataset 
-by shuffling the example indices before each epoch.
+by shuffling the example indices before each epoch. 
+This iterator calls the [index](#dp.DataSet.index) Batch factory method.
 
-<a name="dp.ShuffleSample.__init"/>
-[]()
+<a name="dp.ShuffleSample.__init"></a>
 ### dp.ShuffleSampler{batch_size, random_seed} ###
 A constructor having the following arguments:
  
   * `batch_size` specifies the number of examples per sampled batches. The default is 128.
   * `random_seed` is a number used to initialize the shuffle generator.
 
-<a name="dp.SentenceSampler"/>
-[]()
+<a name="dp.SentenceSampler"></a>
 ## SentenceSampler ##
 A subclass of [Sampler](#dp.Sampler) which iterates over parallel 
 sentences of equal size one word at a time.
@@ -281,9 +462,15 @@ the recurrent [Models](model.md#dp.Model) to forget the previous sequence of inp
 Note that `epoch_size` only garantees the minimum number of samples per epoch (more could be sampled).
 Used for [Recurrent Neural Network Language Models](https://github.com/nicholas-leonard/dp/blob/master/examples/recurrentlanguagemodel.lua).
  
-<a name='dp.SentenceSampler.__init'/>
-[]()
+<a name='dp.SentenceSampler.__init'></a>
 ### dp.SentenceSampler{evaluate} ###
 In training mode (`evaluate=false`), the object publishes to the 
 `"doneSequence"` Channel to advise the [RecurrentVisitorChain](visitor.md#dp.RecurrentVisitorChain) 
 to visit the model after the current batch (the last of the sequence) is propagated.
+
+<a name='dp.RandomSampler'></a>
+### RandomSampler ###
+A [DataSet](#dp.DataSet) iterator which randomly samples batches from a dataset.
+This iterator calls the [sample](#dp.ImageClassSet.sample) Batch factory method.
+Unlike the [ShuffleSampler](#dp.ShuffleSampler), this iterator is not garanteed
+to sample each example in the dataset during a complete epoch.

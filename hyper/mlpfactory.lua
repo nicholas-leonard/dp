@@ -136,7 +136,7 @@ function MLPFactory:buildVisitor(opt)
          }
       )
    end
-   if opt.weightdecay and opt.weightdecay > 0 then
+   if opt.weight_decay and opt.weight_decay > 0 then
       if opt.acc_update then
          print"Warning : weightdecay is ignored with acc_update = true"
       end

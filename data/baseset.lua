@@ -17,7 +17,7 @@ function BaseSet:__init(config)
       {arg='inputs', type='dp.View | table of dp.Views', 
        help='Sample inputs to a model. These can be Views or '..
        'a table of Views (in which case these are converted '..
-       'to a ListView', req=true},
+       'to a ListView'},
       {arg='targets', type='dp.View | table of dp.Views', 
        help='Sample targets to a model. These can be Views or '..
        'a table of Views (in which case these are converted '..
@@ -67,7 +67,9 @@ end
 
 -- Returns the number of samples in the BaseSet.
 function BaseSet:nSample()
-   if self._inputs then
+   if self._n_sample then
+      return self._n_sample
+   elseif self._inputs then
       return self._inputs:nSample()
    elseif self._targets then
       return self._targets:nSample()
@@ -76,7 +78,11 @@ function BaseSet:nSample()
    end
 end
 
-function BaseSet:carry()
+function BaseSet:carry(carry)
+   if carry then
+      self._carry = carry
+      return self
+   end
    return self._carry
 end
 

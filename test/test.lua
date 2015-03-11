@@ -1272,6 +1272,33 @@ function dptest.savetofile()
    mytester:assertTensorEq(subject.tensor, saved_subject.tensor, 0.000001, "tensor not re saved")
 end
 
+function dptest.topcrop()
+   local fb = dp.TopCrop{n_top={1,3}, n_crop=3,center=1}
+   fb._id = dp.ObjectID('topcrop')
+   local carry = dp.Carry{nSample=18}
+   local preds = {{1,0,0,0,0,0},{1,0,0,0,0,0},{1,0,0,0,0,0}, -- 1,1
+                   {0,1,0,0,0,0},{0,1,0,0,0,0},{0,1,0,0,0,0}, -- 1,1
+                   {0,1,0,0,0,0},{0,0,1,0,0,0},{0,0,1,0,0,0}, -- 1,1
+                   {1,0,0,2,0,0},{1,0,0,2,0,0},{1,0,0,2,0,0}, -- 0,1
+                   {0,0,0,0,2,0},{0,0,0,0,2,0},{0,0,0,0,2,0}, -- 0,0
+                   {0,0,0,0,0,1},{0,0,0,0,0,1},{0,0,0,0,0,1}} -- 0,0
+   preds = torch.FloatTensor(preds)
+   local targets = torch.IntTensor{1,1,1,2,2,2,3,3,3,1,1,1,2,2,2,3,3,3}
+   local inputs = torch.randn(18,1,5,5)
+   local outputView = dp.DataView('bf', preds)
+   local targetView = dp.ClassView('b', targets)
+   local inputView = dp.ImageView('bchw', inputs)
+   local batch = dp.Batch{inputs=inputView, targets=targetView, carry=carry}
+   fb:add(batch, outputView, carry, {epoch=1})
+   fb:add(batch, outputView, carry, {epoch=1})
+   fb:doneEpoch({epoch=1})
+   local report = fb:report()
+   mytester:assert(report.topcrop.all[1] == 50, "topcrop all 1 error")
+   mytester:assert(math.round(report.topcrop.all[3]) == 67, "topcrop all 3 error")
+   mytester:assert(math.round(report.topcrop.center[1]) == 33, "topcrop center 1 error")
+   mytester:assert(math.round(report.topcrop.center[3]) == 50, "topcrop center 3 error")
+end
+
 function dp.test(tests)
    math.randomseed(os.time())
    mytester = torch.Tester()

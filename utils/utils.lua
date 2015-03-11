@@ -17,7 +17,7 @@ end
 -- Check that a data directory exists, and create it if not.
 function dp.mkdir(dir)
    if not paths.dirp(dir) then
-      os.execute('mkdir -p '..dir)
+      paths.mkdir(dir)
    end
 end
 -- DEPRECATED : use dp.mkdir instead
@@ -44,8 +44,7 @@ function dp.do_with_cwd(path, fn)
 end
 
 
--- Check that a file exists at path, and if not downloads it from url
--- into directory of path
+-- If file doesn't exists at path, downloads it from url into path 
 function dp.check_and_download_file(path, url)
    if not paths.filep(path) then
       dp.do_with_cwd(
@@ -56,30 +55,39 @@ function dp.check_and_download_file(path, url)
    return path
 end
 
--- Decompress a .tgz or .tar.gz file.
-function dp.decompress_tarball(path)
-   os.execute('tar -xvzf ' .. path)
+-- Decompress a .tar, .tgz or .tar.gz file.
+function dp.decompress_tarball(srcPath, dstPath)
+   local dstPath = dstPath or '.'
+   paths.mkdir(dstPath)
+   if srcPath:match("%.tar$") then
+      os.execute('tar -xvf ' .. srcPath .. ' -C ' .. dstPath)
+   else
+      os.execute('tar -xvzf ' .. srcPath .. ' -C ' .. dstPath)
+   end
 end
 
 -- unzip a .zip file
-function dp.unzip(path)
-   os.execute('unzip ' .. path)
+function dp.unzip(srcPath, dstPath)
+   local dstPath = dstPath or '.'
+   paths.mkdir(dstPath)
+   os.execute('unzip ' .. srcPath .. ' -d ' .. dstPath)
 end
 
 -- gunzip a .gz file
-function dp.gunzip(path)
-   os.execute('gunzip ' .. path)
+function dp.gunzip(srcPath, dstPath)
+   assert(not dstPath, "destination path not supported with gunzip")
+   os.execute('gunzip ' .. srcPath)
 end
 
-function dp.decompress_file(path)
-    if string.find(path, ".zip") then
-        dp.unzip(path)
-    elseif string.find(path, ".tar.gz") or string.find(path, ".tgz") then
-        dp.decompress_tarball(path)
-    elseif string.find(path, ".gz") or string.find(path, ".gzip") then
-        dp.gunzip(path)
+function dp.decompress_file(srcPath, dstPath)
+    if string.find(srcPath, ".zip") then
+        dp.unzip(srcPath, dstPath)
+    elseif string.find(srcPath, ".tar") or string.find(srcPath, ".tgz") then
+        dp.decompress_tarball(srcPath, dstPath)
+    elseif string.find(srcPath, ".gz") or string.find(srcPath, ".gzip") then
+        dp.gunzip(srcPath, dstPath)
     else
-        print("Don't know how to decompress file: ", path)
+        print("Don't know how to decompress file: ", srcPath)
     end
 end
 
@@ -164,4 +172,33 @@ function dp.vprint(verbose, str)
    if verbose then
       print(str)
    end
+end
+
+------------------------ Queue -----------------------------
+local Queue = torch.class("dp.Queue")
+function Queue:__init()
+   self.first = 0
+   self.last = -1
+   self.list = {}
+end
+
+function Queue:put(value)
+   local first = self.first - 1
+   self.first = first
+   self.list[first] = value
+end
+
+function Queue:empty()
+   return self.first > self.last
+end
+ 
+function Queue:get()
+   local last = self.last
+   if self:empty() then 
+      error("Queue is empty")
+   end
+   local value = self.list[last]
+   self.list[last] = nil  
+   self.last = last - 1
+   return value
 end

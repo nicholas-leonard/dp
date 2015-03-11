@@ -35,7 +35,6 @@ function Module:__init(config)
    parent.__init(self, config)
    -- try to guess if module has parameters
    local params, gradParams = module:parameters() or {},{}
-   assert(not params or #params <= 2, "Error : unknown extra parameters")
    if self._tags.hasParams == nil then
       if (not params) or (#params == 0) then
          self._tags.hasParams = false

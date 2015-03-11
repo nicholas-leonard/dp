@@ -14,7 +14,7 @@ One of the most important aspects of any machine learning problem is the data. T
     * [Cifar100](#dp.Cifar100) : the very difficult to generalize CIFAR-100 dataset;
     * [BillionWords](#dp.BillionWords) : the Google 1-Billion Words language model dataset;
     * [Svhn](#dp.Svhn) : the Google Street View House Numbers dataset;
-    * [ImageNet](#dp.ImageNet) : the
+    * [ImageNet](#dp.ImageNet) : the Large Scale Visual Recognition Challenge 2014 (ILSVRC2014) dataset;
   * [Sampler](#dp.Sampler) : ordered dataset iterator;
     * [ShuffleSampler](#dp.ShuffleSampler) : shuffled dataset iterator;
     * [SentenceSampler](#dp.SentenceSampler) : samples sentences for recurrent models;

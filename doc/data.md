@@ -469,7 +469,7 @@ In training mode (`evaluate=false`), the object publishes to the
 to visit the model after the current batch (the last of the sequence) is propagated.
 
 <a name='dp.RandomSampler'></a>
-### RandomSampler ###
+## RandomSampler ##
 A [DataSet](#dp.DataSet) iterator which randomly samples batches from a dataset.
 This iterator calls the [sample](#dp.ImageClassSet.sample) Batch factory method.
 Unlike the [ShuffleSampler](#dp.ShuffleSampler), this iterator is not garanteed

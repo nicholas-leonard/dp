@@ -753,6 +753,7 @@ Next we build the [Model](model.md#dp.Model). The Model can be a
 Convolution Neural Network (CNN) or a Multi-Layer Neural Network (NN). 
 The CNN can be configured for one or many Convolution2D Layers 
 followed by two Neural Layers. The NN can have 2 or 3 Neural Layers:
+```
 --[[Model]]--
 
 cnn = dp.Sequential()

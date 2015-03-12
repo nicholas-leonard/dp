@@ -175,12 +175,11 @@ function dp.vprint(verbose, str)
 end
 
 -- count files in paths
-function dp.countFiles(paths)
-   paths = torch.type(paths) == 'string' and {paths} or paths
+function dp.countFiles(pathList)
+   pathList = (torch.type(pathList) == 'string') and {pathList} or pathList
    local nFile = 0
-   for path in ipairs(paths) do
+   for i,path in ipairs(pathList) do
       for imageFile in lfs.dir(path) do
-         local path = paths.concat(path, imageFile)
          if imageFile ~= '..' and imageFile ~= '.' then
             nFile = nFile + 1
          end

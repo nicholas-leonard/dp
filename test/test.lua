@@ -164,13 +164,18 @@ function dptest.listview()
    local list_v = dp.ListView({image_v,data_v})
    list_v:forward({'bhwc', 'bf'}, {image_data, data}) 
    local t = list_v:forward('bf', 'torch.FloatTensor')
-   local size = {8,(32*32*3)+4}
-   mytester:assertTableEq(t:size():totable(), size, 0.0001)
-   local c = torch.concat({
-      image_v:forward('bf', 'torch.FloatTensor'), 
-      data_v:forward('bf', 'torch.FloatTensor')
-   }, 2)
-   mytester:assertTensorEq(t, c, 0.00001)
+   mytester:assertTableEq(t[1]:size():totable(), feature_size, 0.0001)
+   local list_v = dp.ListView({dp.ImageView(), dp.ImageView()})
+   list_v:forward('bhwc', {image_data, image_data:clone():add(1)})
+   local t = list_v:forward('bchw')
+   mytester:assertTensorEq(t[1], image_data:transpose(4,2):transpose(3,4), 0.00001)
+   
+   local list = dp.ListView{dp.ImageView('bchw',torch.randn(1,2,3,4)), dp.ImageView('bchw',torch.randn(1,2,3,4))}
+   local t = list:forwardGet('bhwc')
+   mytester:assertTableEq(t[1]:size():totable(), {1,3,4,2}, 0.00001)
+   list:forwardPut('bhwc',{torch.randn(1,3,4,2),torch.randn(1,3,4,2)})
+   local t = list:forwardGet('bchw')
+   mytester:assertTableEq(t[1]:size():totable(), {1,2,3,4}, 0.00001)
 end
 function dptest.carry()
    local data = torch.rand(3,4)

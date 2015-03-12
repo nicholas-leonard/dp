@@ -27,6 +27,9 @@ function DataView:forwardPut(view, input)
    if input:dim() ~= self._dim then
       error("view has more axes than input has dims", 3)
    end
+   if self._view and (view ~= self._view) then
+      self._modules = nil
+   end
    self._view = view
    self._input = input
    -- since this method is called only once at beginning of batch,

@@ -1278,15 +1278,15 @@ function dptest.savetofile()
 end
 
 function dptest.topcrop()
-   local fb = dp.TopCrop{n_top={1,3}, n_crop=3,center=1}
+   local fb = dp.TopCrop{n_top={1,3}, n_crop=3,center=1,verbose=false}
    fb._id = dp.ObjectID('topcrop')
    local carry = dp.Carry{nSample=18}
    local preds = {{1,0,0,0,0,0},{1,0,0,0,0,0},{1,0,0,0,0,0}, -- 1,1
                    {0,1,0,0,0,0},{0,1,0,0,0,0},{0,1,0,0,0,0}, -- 1,1
                    {0,1,0,0,0,0},{0,0,1,0,0,0},{0,0,1,0,0,0}, -- 1,1
                    {1,0,0,2,0,0},{1,0,0,2,0,0},{1,0,0,2,0,0}, -- 0,1
-                   {0,0,0,0,2,0},{0,0,0,0,2,0},{0,0,0,0,2,0}, -- 0,0
-                   {0,0,0,0,0,1},{0,0,0,0,0,1},{0,0,0,0,0,1}} -- 0,0
+                   {0,-1,0,0,2,0},{0,0,0,0,2,0},{0,-1,0,0,2,0}, -- 0,0
+                   {0,0,-1,0,0,1},{0,0,-1,0,0,1},{0,0,-1,0,0,1}} -- 0,0
    preds = torch.FloatTensor(preds)
    local targets = torch.IntTensor{1,1,1,2,2,2,3,3,3,1,1,1,2,2,2,3,3,3}
    local inputs = torch.randn(18,1,5,5)
@@ -1301,7 +1301,7 @@ function dptest.topcrop()
    mytester:assert(report.topcrop.all[1] == 50, "topcrop all 1 error")
    mytester:assert(math.round(report.topcrop.all[3]) == 67, "topcrop all 3 error")
    mytester:assert(math.round(report.topcrop.center[1]) == 33, "topcrop center 1 error")
-   mytester:assert(math.round(report.topcrop.center[3]) == 50, "topcrop center 3 error")
+   mytester:assert(math.round(report.topcrop.center[3]) == 67, "topcrop center 3 error")
 end
 
 function dp.test(tests)

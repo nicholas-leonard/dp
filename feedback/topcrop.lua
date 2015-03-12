@@ -95,6 +95,7 @@ function TopCrop:add(batch, output, carry, report)
    local labelView = labels:view(labels:size(1)/self._n_crop, self._n_crop)
    
    self._n_sample = self._n_sample + predView:size(1)
+   print(self._n_sample, predView:size(1))
    
    -- check that each images n_crops have the same label
    self._labels = self._labels or torch.FloatTensor()
@@ -128,7 +129,7 @@ end
 function TopCrop:report()
    local centerTops = {}
    local allTops = {}
-   local nSample = self._n_sample / self._n_crop
+   local nSample = self._n_sample
    for i,top in ipairs(self._n_top) do
       centerTops[top] = self.topCounts.center[top]/nSample*100
       allTops[top] = self.topCounts.all[top]/nSample*100

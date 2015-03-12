@@ -114,7 +114,6 @@ function dp.Threads(...)
 		  assert(thread ~= nil, string.format('%d-th thread creation failed', i))
 		  table.insert(self.threads, {thread=thread, L=L})
 	   end
-      print"created"
 	   return self, initres
 	end
    

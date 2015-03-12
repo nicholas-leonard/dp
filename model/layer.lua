@@ -179,7 +179,7 @@ function Layer:share(layer, ...)
    local module = self._module
    for i,v in ipairs(arg) do
       if module[v] ~= nil then
-         module[v]:set(layer._module()[v])
+         module[v]:set(layer._module[v])
       end
    end
    return self      

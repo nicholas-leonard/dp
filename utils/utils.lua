@@ -174,6 +174,57 @@ function dp.vprint(verbose, str)
    end
 end
 
+-- count files in paths
+function dp.countFiles(paths)
+   paths = torch.type(paths) == 'string' and {paths} or paths
+   local nFile = 0
+   for path in ipairs(paths) do
+      for imageFile in lfs.dir(path) do
+         local path = paths.concat(path, imageFile)
+         if imageFile ~= '..' and imageFile ~= '.' then
+            nFile = nFile + 1
+         end
+      end
+   end
+   return nFile
+end
+
+-- takes paths to directories of images and tensorizes them;
+-- images will be resized to fit into tensor of shape 'bchw';
+-- images will be shuffled according to shuffle inputs tensor (if provided);
+-- targets tensor will be used to store index of paths used (if provided).
+function dp.images2tensor(inputs, targets, paths, shuffle, verbose)
+   if targets and not torch.isTensor(targets) then
+      verbose = shuffle
+      shuffle = paths
+      paths = targets
+      targets = nil
+   end
+   paths = torch.type(paths) == 'string' and {paths} or paths
+   local k = 1
+   local buffer = torch.DoubleTensor()
+   for i, path in ipairs(paths) do
+      for imageFile in lfs.dir(path) do
+         local img_path = paths.concat(path, imageFile)
+         if imageFile ~= '..' and imageFile ~= '.' then
+            local idx = shuffle and shuffle[k] or idx
+            local img = image.load(img_path)
+            buffer:resize(inputs:size(2), inputs:size(3), inputs:size(4))
+            image.scale(buffer, img, 'bilinear')
+            inputs[idx]:copy(buffer)
+            k = k + 1
+            if verbose then
+               xlua.progress(k, inputs:size(1))
+            end
+            if targets then
+               targets[idx] = i
+            end
+         end
+      end
+   end
+   return inputs, targets
+end
+
 ------------------------ Queue -----------------------------
 local Queue = torch.class("dp.Queue")
 function Queue:__init()

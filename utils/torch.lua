@@ -203,3 +203,20 @@ function torch.receiveTensor(tensor, pointer, size, ttype, free)
    end
    return buffer
 end
+
+-- creates or loads a checkpoint at path.
+-- factory is a function that returns an object. 
+-- If a file exists at location path, then it is loaded and returned.
+-- Otherwise, the factory is executed and its result is saved 
+-- at location path for later.
+-- This function is usuful for optimizing slow DataSource loadtimes by
+-- caching their results to disk for later.
+function torch.checkpoint(path, factory, overwrite, mode)
+   if paths.filep(path) and not overwrite then
+      return torch.load(path, mode)
+   end
+   local obj = factory()
+   paths.mkdir(paths.dirname(path))
+   torch.save(path, obj, mode)
+   return obj
+end

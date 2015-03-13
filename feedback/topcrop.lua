@@ -95,7 +95,6 @@ function TopCrop:add(batch, output, carry, report)
    local labelView = labels:view(labels:size(1)/self._n_crop, self._n_crop)
    
    self._n_sample = self._n_sample + predView:size(1)
-   print(self._n_sample, predView:size(1))
    
    -- check that each images n_crops have the same label
    self._labels = self._labels or torch.FloatTensor()

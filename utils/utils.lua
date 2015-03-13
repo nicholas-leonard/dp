@@ -219,6 +219,7 @@ function dp.images2tensor(inputs, targets, paths, shuffle, verbose)
                targets[idx] = i
             end
          end
+         collectgarbage()
       end
    end
    return inputs, targets

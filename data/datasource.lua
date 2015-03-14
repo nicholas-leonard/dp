@@ -118,10 +118,6 @@ function DataSource:set(which_set, attribute, view, tensor)
    return dataview, dataset
 end
 
-function DataSource:write(...)
-   error"DataSource Error: Shouldn't serialize DataSource"
-end
-
 function DataSource:setTrainSet(train_set)
    self._train_set = train_set
 end

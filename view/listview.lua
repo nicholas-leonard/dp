@@ -105,3 +105,9 @@ end
 function ListView:components()
    return self._components
 end
+
+function ListView:flush()
+   for i,component in self:pairs() do
+      component:flush()
+   end
+end

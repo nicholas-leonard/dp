@@ -7,13 +7,29 @@ end
 
 function PrintSize:updateOutput(input)
    self.output = input
-   print(self.prefix..":input\n", input:size())
+   local size
+   if torch.type(input) == 'table' then
+      size = input
+   elseif torch.type(input) == 'nil' then
+      size = 'missing size'
+   else
+      size = input:size()
+   end
+   print(self.prefix..":input\n", size)
    return self.output
 end
 
 
 function PrintSize:updateGradInput(input, gradOutput)
-   print(self.prefix.."gradOuput\n", gradOutput:size())
+   local size 
+   if torch.type(gradOutput) == 'table' then
+      size = gradOutput
+   elseif torch.type(gradOutput) == 'nil' then
+      size = 'missing size'
+   else
+      size = gradOutput:size()
+   end
+   print(self.prefix..":gradOuput\n", size)
    self.gradInput = gradOutput
    return self.gradInput
 end

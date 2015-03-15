@@ -19,7 +19,7 @@
 local Preprocess = torch.class("dp.Preprocess")
 Preprocess.isPreprocess = true
 
--- basetensor: The DataView to act upon. An instance of dp.DataView.
+-- view: The DataView to act upon. An instance of dp.DataView.
 -- can_fit: If True, the Preprocess can adapt internal parameters
 --    based on the contents of dataset.
 function Preprocess:apply(view, can_fit)

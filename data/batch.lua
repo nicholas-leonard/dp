@@ -23,9 +23,9 @@ end
 
 function Batch:setup(config)
    assert(type(config) == 'table', "Setup requires key-value arguments")
-   local args, epoch_size
+   local args
    args, self._batch_iter, self._batch_size, self._n_sample, 
-      self._grad_type, self._indices, epoch_size
+      self._indices, self._epoch_size
       = xlua.unpack(
       {config},
       'Batch:setup', 
@@ -35,14 +35,13 @@ function Batch:setup(config)
        'update progress bar. Shouldn\'t be larger than epoch_size.'}, 
       {arg='batch_size', type='number',
        help='Maximum number of examples in batch.'},
-      {arg='grad_type', type='string',
-       help='Type of output gradient : cuda | float | double'},
+      {arg='n_sample', type='number',
+       help='hardcode the number of examples'},
       {arg='indices', type='torch.Tensor', 
        help='indices of the examples in the original dataset.'},
-      {arg='epoch_size', type='number',
+      {arg='epoch_size', type='number', default=self._epoch_size,
        help='number of samples in epoch dataset.'}
    )
-   self._epoch_size = epoch_size or self._epoch_size
 end
 
 function Batch:batchSize()

@@ -164,13 +164,18 @@ function dptest.listview()
    local list_v = dp.ListView({image_v,data_v})
    list_v:forward({'bhwc', 'bf'}, {image_data, data}) 
    local t = list_v:forward('bf', 'torch.FloatTensor')
-   local size = {8,(32*32*3)+4}
-   mytester:assertTableEq(t:size():totable(), size, 0.0001)
-   local c = torch.concat({
-      image_v:forward('bf', 'torch.FloatTensor'), 
-      data_v:forward('bf', 'torch.FloatTensor')
-   }, 2)
-   mytester:assertTensorEq(t, c, 0.00001)
+   mytester:assertTableEq(t[1]:size():totable(), feature_size, 0.0001)
+   local list_v = dp.ListView({dp.ImageView(), dp.ImageView()})
+   list_v:forward('bhwc', {image_data, image_data:clone():add(1)})
+   local t = list_v:forward('bchw')
+   mytester:assertTensorEq(t[1], image_data:transpose(4,2):transpose(3,4), 0.00001)
+   
+   local list = dp.ListView{dp.ImageView('bchw',torch.randn(1,2,3,4)), dp.ImageView('bchw',torch.randn(1,2,3,4))}
+   local t = list:forwardGet('bhwc')
+   mytester:assertTableEq(t[1]:size():totable(), {1,3,4,2}, 0.00001)
+   list:forwardPut('bhwc',{torch.randn(1,3,4,2),torch.randn(1,3,4,2)})
+   local t = list:forwardGet('bchw')
+   mytester:assertTableEq(t[1]:size():totable(), {1,2,3,4}, 0.00001)
 end
 function dptest.carry()
    local data = torch.rand(3,4)
@@ -1270,6 +1275,33 @@ function dptest.savetofile()
    mediator:publish("doneExperiment")
    local saved_subject = torch.load(path)
    mytester:assertTensorEq(subject.tensor, saved_subject.tensor, 0.000001, "tensor not re saved")
+end
+
+function dptest.topcrop()
+   local fb = dp.TopCrop{n_top={1,3}, n_crop=3,center=1,verbose=false}
+   fb._id = dp.ObjectID('topcrop')
+   local carry = dp.Carry{nSample=18}
+   local preds = {{1,0,0,0,0,0},{1,0,0,0,0,0},{1,0,0,0,0,0}, -- 1,1
+                   {0,1,0,0,0,0},{0,1,0,0,0,0},{0,1,0,0,0,0}, -- 1,1
+                   {0,1,0,0,0,0},{0,0,1,0,0,0},{0,0,1,0,0,0}, -- 1,1
+                   {1,0,0,2,0,0},{1,0,0,2,0,0},{1,0,0,2,0,0}, -- 0,1
+                   {0,-1,0,0,2,0},{0,0,0,0,2,0},{0,-1,0,0,2,0}, -- 0,0
+                   {0,0,-1,0,0,1},{0,0,-1,0,0,1},{0,0,-1,0,0,1}} -- 0,0
+   preds = torch.FloatTensor(preds)
+   local targets = torch.IntTensor{1,1,1,2,2,2,3,3,3,1,1,1,2,2,2,3,3,3}
+   local inputs = torch.randn(18,1,5,5)
+   local outputView = dp.DataView('bf', preds)
+   local targetView = dp.ClassView('b', targets)
+   local inputView = dp.ImageView('bchw', inputs)
+   local batch = dp.Batch{inputs=inputView, targets=targetView, carry=carry}
+   fb:add(batch, outputView, carry, {epoch=1})
+   fb:add(batch, outputView, carry, {epoch=1})
+   fb:doneEpoch({epoch=1})
+   local report = fb:report()
+   mytester:assert(report.topcrop.all[1] == 50, "topcrop all 1 error")
+   mytester:assert(math.round(report.topcrop.all[3]) == 67, "topcrop all 3 error")
+   mytester:assert(math.round(report.topcrop.center[1]) == 33, "topcrop center 1 error")
+   mytester:assert(math.round(report.topcrop.center[3]) == 67, "topcrop center 3 error")
 end
 
 function dp.test(tests)

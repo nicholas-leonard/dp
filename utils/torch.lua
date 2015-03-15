@@ -145,3 +145,78 @@ end
 function torch.Tensor:dimshuffle(new_axes)
    return torch.swapaxes(self, new_axes)
 end
+
+
+----------- FFI stuff used to pass storages between threads ------------
+-- https://raw.githubusercontent.com/facebook/fbcunn/master/examples/imagenet/util.lua
+
+ffi.cdef[[
+void THFloatStorage_free(THFloatStorage *self);
+void THIntStorage_free(THIntStorage *self);
+]]
+
+function torch.setFloatStorage(tensor, storage_p, free)
+   assert(storage_p and storage_p ~= 0, "FloatStorage is NULL pointer");
+   if free then
+      local cstorage = ffi.cast('THFloatStorage*', torch.pointer(tensor:storage()))
+      if cstorage ~= nil then
+         ffi.C['THFloatStorage_free'](cstorage)
+      end
+   end
+   local storage = ffi.cast('THFloatStorage*', storage_p)
+   tensor:cdata().storage = storage
+end
+
+function torch.setIntStorage(tensor, storage_p, free)
+   assert(storage_p and storage_p ~= 0, "IntStorage is NULL pointer");
+   if free then 
+      local cstorage = ffi.cast('THIntStorage*', torch.pointer(tensor:storage()))
+      if cstorage ~= nil then
+         ffi.C['THIntStorage_free'](cstorage)
+      end
+   end
+   local storage = ffi.cast('THIntStorage*', storage_p)
+   tensor:cdata().storage = storage
+end
+
+function torch.sendTensor(tensor)
+   local size = tensor:size()
+   local ttype = tensor:type()
+   local storage =  tonumber(ffi.cast('intptr_t', torch.pointer(tensor:storage())))
+   tensor:cdata().storage = nil
+   return {storage, size, ttype}
+end
+
+function torch.receiveTensor(tensor, pointer, size, ttype, free)
+   if tensor then
+      tensor:resize(size)
+      assert(tensor:type() == ttype, 'Tensor is wrong type')
+   else
+      tensor = torch[ttype].new():resize(size)      
+   end
+   if ttype == 'torch.FloatTensor' then
+      torch.setFloatStorage(tensor, pointer, free)
+   elseif ttype == 'torch.IntTensor' then
+      torch.setIntStorage(tensor, pointer, free)
+   else
+      error('Unknown type')
+   end
+   return buffer
+end
+
+-- creates or loads a checkpoint at path.
+-- factory is a function that returns an object. 
+-- If a file exists at location path, then it is loaded and returned.
+-- Otherwise, the factory is executed and its result is saved 
+-- at location path for later.
+-- This function is usuful for optimizing slow DataSource loadtimes by
+-- caching their results to disk for later.
+function torch.checkpoint(path, factory, overwrite, mode)
+   if paths.filep(path) and not overwrite then
+      return torch.load(path, mode)
+   end
+   local obj = factory()
+   paths.mkdir(paths.dirname(path))
+   torch.save(path, obj, mode)
+   return obj
+end

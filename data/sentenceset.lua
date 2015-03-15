@@ -18,7 +18,7 @@ SentenceSet.isSentenceSet = true
 function SentenceSet:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, which_set, data, context_size, end_id, start_id, 
-      words = xlua.unpack(
+      words, carry = xlua.unpack(
       {config},
       'SentenceSet', 
       'Stores a sequence of sentences. Each sentence is a sequence '..
@@ -37,7 +37,10 @@ function SentenceSet:__init(config)
       {arg='start_id', type='number', req=true,
        help='word_id of the sentence start delimiter : "<S>"'},
       {arg='words', type='table',
-       help='A table mapping word_ids to the original word strings'}
+       help='A table mapping word_ids to the original word strings'},
+      {arg='carry', type='dp.Carry',
+       help='An object store that is carried (passed) around the '..
+       'network during a propagation.'} 
    )
    self:setWhichSet(which_set)
    self._data = data
@@ -46,7 +49,7 @@ function SentenceSet:__init(config)
    self._start_id = start_id
    self._end_id = end_id
    self._words = words
-   self._carry = dp.Carry()
+   self._carry = carry or dp.Carry()
 end
 
 function SentenceSet:startId()

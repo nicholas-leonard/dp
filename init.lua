@@ -9,6 +9,7 @@ require 'os'
 require 'sys'
 require 'image'
 require 'lfs'
+ffi = require 'ffi'
 
 ------------------------------------------------------------------------
 --[[ dp ]]--
@@ -24,6 +25,7 @@ torch.include('dp', 'utils/underscore.lua')
 torch.include('dp', 'utils/os.lua')
 torch.include('dp', 'utils/table.lua')
 torch.include('dp', 'utils/torch.lua')
+torch.include('dp', 'utils/threads.lua')
 
 --[[ directory structure ]]--
 dp.DATA_DIR = os.getenv('DEEP_DATA_PATH') 
@@ -61,18 +63,25 @@ torch.include('dp', 'view/listview.lua')
 torch.include('dp', 'data/baseset.lua')
 torch.include('dp', 'data/dataset.lua')
 torch.include('dp', 'data/sentenceset.lua')
+torch.include('dp', 'data/imageclassset.lua')
 torch.include('dp', 'data/batch.lua')
 torch.include('dp', 'data/carry.lua')
 
 torch.include('dp', 'data/datasource.lua')
 torch.include('dp', 'data/mnist.lua')
-torch.include('dp', 'data/sampler.lua')
 torch.include('dp', 'data/cifar10.lua')
 torch.include('dp', 'data/cifar100.lua')
 torch.include('dp', 'data/notmnist.lua')
 torch.include('dp', 'data/facialkeypoints.lua')
 torch.include('dp', 'data/billionwords.lua')
 torch.include('dp', 'data/svhn.lua')
+torch.include('dp', 'data/imagenet.lua')
+
+--[[ sampler ]]--
+torch.include('dp', 'sampler/sampler.lua')
+torch.include('dp', 'sampler/shufflesampler.lua')
+torch.include('dp', 'sampler/sentencesampler.lua')
+torch.include('dp', 'sampler/randomsampler.lua')
 
 --[[ preprocess ]]--
 torch.include('dp', 'preprocess/preprocess.lua')
@@ -95,6 +104,7 @@ torch.include('dp', 'feedback/feedback.lua')
 torch.include('dp', 'feedback/compositefeedback.lua')
 torch.include('dp', 'feedback/confusion.lua')
 torch.include('dp', 'feedback/perplexity.lua')
+torch.include('dp', 'feedback/topcrop.lua')
 torch.include('dp', 'feedback/fkdkaggle.lua')
 torch.include('dp', 'feedback/facialkeypointfeedback.lua')
 --torch.include('dp', 'feedback/criteria.lua')

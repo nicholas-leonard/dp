@@ -12,9 +12,18 @@ function View:__init()
    self._warn = false
 end
 
+local function getType(arg)
+   local arg_type = torch.type(arg)
+   if arg_type == 'table' then
+      return getType(arg[1])
+   end
+   return arg_type
+end
+
 -- view is a string or a table of strings
 function View:forward(view, inputORtype)
-   local arg_type = torch.type(inputORtype)
+   view = view or 'default'
+   local arg_type = getType(inputORtype)
    if arg_type == 'string' or arg_type == 'nil' then
       return self:forwardGet(view, inputORtype)
    end
@@ -38,7 +47,7 @@ end
 
 -- view is a string or a table of strings
 function View:backward(view, gradOutputORtype)
-   local arg_type = torch.type(gradOutputORtype)
+   local arg_type = getType(gradOutputORtype)
    if arg_type == 'string' or arg_type == 'nil' then
       return self:backwardGet(view, gradOutputORtype)
    end
@@ -114,6 +123,10 @@ end
 
 function View:toModule()
    error"Not Implemented"
+end
+
+function View:view()
+   return self._view or ''
 end
 
 ---- static methods ----

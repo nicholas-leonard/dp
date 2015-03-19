@@ -21,7 +21,7 @@ Among other things, this package includes :
 <a name="dp.tutorials"/>
 []()
 ## Tutorials and Examples ##
-In order to help you get up and running we provide a quick [neural network tutorial](neuralnetworktutorial.md) which explains step-by-step the contents of this [example script](examples/neuralnetwork_tutorial.lua). For a more flexible option that allows input from the command-line specifying different datasources and preprocesses, using dropout, running the code on a GPU/CPU, please consult this [script](examples/neuralnetwork.lua).
+In order to help you get up and running we provide a quick [neural network tutorial](neuralnetworktutorial.md) which explains step-by-step the contents of this [example script](https://github.com/nicholas-leonard/dp/blob/master/examples/neuralnetwork_tutorial.lua). For a more flexible option that allows input from the command-line specifying different datasources and preprocesses, using dropout, running the code on a GPU/CPU, please consult this [script](https://github.com/nicholas-leonard/dp/blob/master/examples/neuralnetwork.lua).
 
 A [Facial Keypoints tutorial](facialkeypointstutorial.md) involving the case study of a Kaggle Challenge is also available. It provides an overview of the steps required for extending and using  __dp__ in the context of the challenge. And even provides the script so that you can generate your own Kaggle submissions.
 

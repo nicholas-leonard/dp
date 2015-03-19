@@ -110,7 +110,8 @@ function DataView:backwardGet(view, tensor_type)
    if view and view ~= self._view then
       error(torch.type(self)..
          ": backwardGet should be called with same view used for "..
-         "last forward (or nil) i.e. ".. self._view .. " not " .. view)
+         "last forward (or nil) i.e. ".. (self._view or 'nil') .. 
+         " not " .. (view or 'nil'))
    end
    if tensor_type and self._type ~= tensor_type then
       error(torch.type(self)..

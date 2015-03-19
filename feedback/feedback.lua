@@ -57,6 +57,10 @@ function Feedback:name()
    return self._id:name()
 end
 
+function Feedback:savePath()
+   return self:id():toPath()
+end
+
 --accumulates information from the batch
 function Feedback:add(batch, output, carry, report)
    assert(batch.isBatch, "First argument should be Batch")

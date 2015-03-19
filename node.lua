@@ -122,32 +122,42 @@ function Node:coroutineClone()
 end
 
 function Node:inputView(input_view)
-   self._input_view = input_view or self._input_view
+   if input_view then
+      assert(torch.type(input_view) == 'string')
+      self._input_view = input_view
+   end
    return self._input_view
 end
 
 function Node:outputView(output_view)
-   self._output_view = output_view or self._output_view
+   if output_view then
+      assert(torch.type(output_view) == 'string')
+      self._output_view = output_view
+   end
    return self._output_view
 end
 
 function Node:outputType(output_type)
-   self._output_type = output_type or self._output_type
+   if output_type then
+      assert(torch.type(output_type) == 'string')
+      self._output_type = output_type 
+   end
    return self._output_type
 end
 
 function Node:inputType(input_type)
-   self._input_type = input_type or self._input_type
+   if input_type then
+      assert(torch.type(input_type) == 'string')
+      self._input_type = input_type
+   end
    return self._input_type
 end
 
-function Node:outputType(output_type)
-   self._output_type = output_type or self._output_type
-   return self._output_type
-end
-
 function Node:moduleType(module_type)
-   self._module_type = module_type or self._module_type
+   if module_type then
+      assert(torch.type(module_type) == 'string')
+      self._module_type = module_type
+   end
    return self._module_type
 end
 

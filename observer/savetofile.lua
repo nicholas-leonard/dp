@@ -43,6 +43,7 @@ function SaveToFile:save(subject)
    assert(subject, "SaveToFile not setup error")
    if self._in_memory then
       dp.vprint(self._verbose, 'SaveToFile: serializing subject to memory')
+      self._save_cache = nil
       self._save_cache = torch.serialize(subject)
    else
       dp.vprint(self._verbose, 'SaveToFile: saving to '.. self._filename)

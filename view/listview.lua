@@ -42,8 +42,8 @@ function ListView:backwardPut(views, gradOutputs)
    end
 end
 
-function ListView:backwardGet(view, tensor_type)
-   local gradInputs
+function ListView:backwardGet(views, tensor_type)
+   local gradInputs = {}
    for i=1,#self._components do
       local view = torch.type(views) == 'table' and views[i] or views
       local tensor_type = torch.type(tensor_types) == 'table' and tensor_types[i] or tensor_types

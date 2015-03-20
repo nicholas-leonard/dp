@@ -39,7 +39,11 @@ end
 function Confusion:_add(batch, output, carry, report)
    if not self._cm then
       require 'optim'
-      self._cm = optim.ConfusionMatrix(batch:targets():classes())
+      if self._bce then
+         self._cm = optim.ConfusionMatrix({0,1})
+      else
+         self._cm = optim.ConfusionMatrix(batch:targets():classes())
+      end
    end
    
    -- binary cross-entropy has one output

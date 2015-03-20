@@ -205,7 +205,11 @@ end
 function Layer:_type(type)
    self:inputType(type)
    self:outputType(type)
-   self._module:type(type)
+   if self._module.sharedType then
+      self._module:sharedType(type)
+   else
+      self._module:type(type)
+   end
 end
 
 -- takes the forward (next) modules from the output View

@@ -46,20 +46,12 @@ function BaseSet:isTrain()
 end
 
 function BaseSet:setInputs(inputs)
-   if not torch.typename(inputs) and type(inputs) == 'table' then
-      --if list, make CompositeTensor
-      inputs = dp.CompositeTensor{components=inputs}
-   end
    assert(inputs.isView, 
       "Error : invalid inputs. Expecting type dp.View")
    self._inputs = inputs
 end
 
 function BaseSet:setTargets(targets)
-   if not torch.typename(targets) and type(targets) == 'table' then
-      --if list, make CompositeTensor
-      targets = dp.CompositeTensor{components=targets}
-   end
    assert(targets.isView,
       "Error : invalid targets. Expecting type dp.View")
    self._targets = targets

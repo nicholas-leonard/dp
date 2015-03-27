@@ -176,6 +176,37 @@ function dptest.listview()
    list:forwardPut('bhwc',{torch.randn(1,3,4,2),torch.randn(1,3,4,2)})
    local t = list:forwardGet('bchw')
    mytester:assertTableEq(t[1]:size():totable(), {1,2,3,4}, 0.00001)
+   -- indexing
+   local data1, data2 = torch.randn(5,2,3,4), torch.randn(5,2,3,4)
+   local v = dp.ListView{dp.ImageView('bchw',data1), dp.ImageView('bchw',data2)}
+   local indices = torch.LongTensor{2,3}
+   local v2 = v:index(indices)
+   local tbl = v2:forward('bchw', 'torch.DoubleTensor')
+   local tbl2 = {data1, data2}
+   mytester:assert(#tbl == 2)
+   for i, d in ipairs(tbl) do
+      mytester:assertTensorEq(d, tbl2[i]:index(1, indices), 0.000001)
+   end
+   local v3 = dp.ListView{dp.ImageView('bchw',torch.randn(1,2,3,4)), dp.ImageView('bchw',torch.randn(1,2,3,4))}
+   local v4 = v:index(v3, indices)
+   local tbl = v4:forward('bchw', 'torch.DoubleTensor')
+   mytester:assert(#tbl == 2)
+   for i, d in ipairs(tbl) do
+      mytester:assertTensorEq(d, tbl2[i]:index(1, indices), 0.000001)
+   end
+   -- sub
+   local v5 = v:sub(2,3)
+   local tbl = v5:forward('bchw', 'torch.DoubleTensor')
+   mytester:assert(#tbl == 2)
+   for i, d in ipairs(tbl) do
+      mytester:assertTensorEq(d, tbl2[i]:index(1, indices), 0.000001)
+   end
+   local v6 = v:sub(nil, 2,3)
+   local tbl = v6:forward('bchw', 'torch.DoubleTensor')
+   mytester:assert(#tbl == 2)
+   for i, d in ipairs(tbl) do
+      mytester:assertTensorEq(d, tbl2[i]:index(1, indices), 0.000001)
+   end
 end
 function dptest.carry()
    local data = torch.rand(3,4)

@@ -140,7 +140,7 @@ function View.areInstances(obj_table)
    local map = _.values(
       _.map(obj_table, 
          function(key, obj)
-            return obj.isView
+            return torch.isTypeOf(obj, 'dp.View')
          end
       )
    )
@@ -151,5 +151,5 @@ function View.assertInstances(obj_table)
    local areInstances, index = View.areInstances(obj_table)
    index = index or 0
    assert(areInstances, "Error : object at index " .. index .. 
-      " is of wrong type. Expecting type dp.DataView.")
+      " is of wrong type. Expecting type dp.View.")
 end

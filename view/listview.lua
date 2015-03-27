@@ -8,8 +8,8 @@ local ListView, parent = torch.class("dp.ListView", "dp.View")
 ListView.isListView = true
 
 function ListView:__init(components)
-   parent.assertInstances(components)
-   self._components = components
+   self._components = components or {}
+   parent.assertInstances(self._components)
    self._modules = {}
    parent.__init(self)
 end
@@ -60,37 +60,59 @@ function ListView:nSample()
 end
 
 function ListView:index(v, indices)
-   error"Not Implemented"
    if indices then
-      assert(v.isListView, "Expecting ListView as first argument")
-      return torch.protoClone(self, 
+      if not torch.isTypeOf(v, self) then
+         error("Expecting "..torch.type(self).." at arg 1 "..
+               "got "..torch.type(v).." instead")
+      end
+      if v:size() ~= self:size() then
+         error("Expecting "..torch.type(self).." ar arg 1 " ..
+               "having same number of components as self")
+      end
+      for i, component in self:pairs() do
+         component:index(v:components()[i], indices)
+      end
+   else
+      indices = v
+      v = self.new(
          _.map(self._components, 
             function(key, component) 
-               return component:index(v, indices)
+               return component:index(indices)
             end
          )
       )
-   else
-      indices = v
    end
-   return torch.protoClone(self, 
-      _.map(self._components, 
-         function(key, component) 
-            return component:index(v, indices)
-         end
-      )
-   )
+   return v
 end
 
-function ListView:sub(start, stop)
-   error"Not Implemented"
-   return torch.protoClone(self,
-      _.map(self._components, 
-         function(key, component) 
-            return component:sub(start, stop)
-         end
+function ListView:sub(v, start, stop, inplace)
+   if v and stop then
+      if not torch.isTypeOf(v, self) then
+         error("Expecting "..torch.type(self).." at arg 1 "..
+               "got "..torch.type(v).." instead")
+      end
+      if v:size() ~= self:size() then
+         error("Expecting "..torch.type(self).." ar arg 1 " ..
+               "having same number of components as self")
+      end
+      for i, component in self:pairs() do
+         component:sub(v:components()[i], start, stop, inplace)
+      end
+   else
+      if v then
+         inplace = stop
+         stop = start
+         start = v
+      end
+      v = self.new(
+         _.map(self._components, 
+            function(key, component) 
+               return component:sub(start, stop, inplace)
+            end
+         )
       )
-   )
+   end
+   return v
 end
 
 function ListView:size()

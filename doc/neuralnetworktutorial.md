@@ -28,28 +28,28 @@ which we encapsulate in a [DataSource](data.md#dp.DataSource)
 object. __dp__ provides the option of training on different datasets, 
 notably [MNIST](data.md#dp.Mnist), [NotMNIST](data.md#dp.NotMnist), 
 [CIFAR-10](data.md#dp.Cifar10) or [CIFAR-100](data.md#dp.Cifar100), but for this
-tutorial we will be using the archtypical MNIST (don't leave home without it):
+tutorial we will be using the archetypal MNIST (don't leave home without it):
 ```lua
 --[[data]]--
 datasource = dp.Mnist{input_preprocess = dp.Standardize()}
 ```
 A DataSource contains up to three [DataSets](data.md#dp.DataSet): 
-`train`, `valid` and `test`. The first if for training the model. 
+`train`, `valid` and `test`. The first is for training the model. 
 The second is used for [early-stopping](observer.md#dp.EarlyStopper) and cross-validation.
-The third is used for publishing papers and comparing different models.
+The third is used for publishing papers and comparing results across different models.
   
 Although not really necessary, we [Standardize](preprocess.md#dp.Standardize) 
 the datasource, which subtracts the mean and divides 
 by the standard deviation. Both statistics (mean and standard deviation) are 
 measured on the `train` set only. This is a common pattern when preprocessing data. 
-When statistics need to be measured accross different examples 
+When statistics need to be measured across different examples 
 (as in [ZCA](preprocess.md#dp.ZCA) and [LecunLCN](preprocess.md#dp.LeCunLCN) preprocesses), 
 we fit the preprocessor on the `train` set and apply it to all sets (`train`, `valid` and `test`). 
 However, some preprocesses require that statistics be measured
 only on each example (as in [global constrast normalization](preprocess.md#dp.GCN)). 
 
 ## Model of Modules ##
-Ok so we have a DataSource, now we need a [Model](model.md#dp.Model). Lets build a 
+Ok so we have a DataSource, now we need a [Model](model.md#dp.Model). Let's build a 
 multi-layer perceptron (MLP) with two parameterized non-linear [Neural](model.md#dp.Neural) [Layers](model.md#dp.Layer):
 ```lua
 --[[Model]]--
@@ -90,7 +90,7 @@ If you construct it with argument `sparse_init=false`, it will delegate paramete
 which is what Neural uses internally for its parameters.
 
 These two Neural [Models](model.md#dp.Model) are combined to form an MLP using [Sequential](model.md#dp.Sequential), 
-which is not to be confused with (yet very similar to) the 
+which is not to be confused with the 
 [Sequential](https://github.com/torch/nn/blob/master/containers.md#nn.Sequential) Module. It differs in that
 it can be constructed from a list of [Models](model.md#dp.Model) instead of 
 [Modules](https://github.com/torch/nn/blob/master/doc/module.md#nn.Module). Models have extra 
@@ -148,21 +148,21 @@ which makes the training algorithm more stochastic.
 ### Loss ###
 Each Propagator must also specify a [Loss](loss.md#dp.Loss) for training or evaluation.
 If you have previously used the [nn](https://github.com/torch/nn/blob/master/README.md) package, 
-there is nothing new here, a [Loss](loss.md#dp.Loss) is simply an adapter of
+there is nothing new here. A [Loss](loss.md#dp.Loss) is simply an adapter of
 [Criterions](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.Criterion). 
 Each example has a single target class and our Model output is LogSoftMax so 
 we use a [NLL](loss.md#dp.NLL), which wraps a 
 [ClassNLLCriterion](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.ClassNLLCriterion).
 
 ### Feedback ###
-The `feedback` parameter is used to provide us with, you guessed it, feedback; like performance measures and
-statistics after each epoch. We use [Confusion](feedback.md#dp.Confusion), which is a wrapper 
+The `feedback` parameter is used to provide us with, you guessed it, feedback (like performance measures and
+statistics after each epoch). We use [Confusion](feedback.md#dp.Confusion), which is a wrapper 
 for the [optim](https://github.com/torch/optim/blob/master/README.md) package's 
 [ConfusionMatrix](https://github.com/torch/optim/blob/master/ConfusionMatrix.lua).
 While our Loss measures the Negative Log-Likelihood (NLL) of the Model 
 on different DataSets, our [Feedback](feedback.md#feedback) 
 measures classification accuracy (which is what we will use for 
-early-stopping and comparing our model to the state of the art).
+early-stopping and comparing our model to the state-of-the-art).
 
 ### Visitor ###
 Since the [Optimizer](propagator.md#dp.Optimizer) is used to train the Model on a DataSet, 
@@ -171,11 +171,11 @@ We want to update the Model by sequentially applying the following visitors:
 
   1. [Momentum](visitor.md#dp.Momentum) : updates parameter gradients using a factored mixture of current and previous gradients.
   2. [Learn](visitor.md#dp.Learn) : updates the parameters using the gradients and a learning rate.
-  3. [MaxNorm](visitor.md#dp.MaxNorm) : updates output or input neuron weights (in this case, output) so that they have a norm less or equal to a specified value.
+  3. [MaxNorm](visitor.md#dp.MaxNorm) : updates output or input neuron weights (in this case, output) so that they have a norm less than or equal to a specified value.
 
 The only mandatory Visitor is the second one (Learn), which does the actual parameter updates. 
-The first is the well known momentum. 
-The last is the lesser known hard constraint on the norm of output or input neuron weights 
+The first is the well-known Momentum. 
+The last (MaxNorm) is the lesser-known hard constraint on the norm of output or input neuron weights 
 (see [Hinton 2012](http://arxiv.org/pdf/1207.0580v1.pdf)), which acts as a regularizer. You could also
 replace it with a more classic regularizer like [WeightDecay](visitor.md#dp.WeightDecay), in which case you 
 would have to put it *before* the Learn visitor.
@@ -210,26 +210,26 @@ order is not important. Observers listen to mediator [Channels](mediator.md#dp.C
 calls them back when certain events occur. In particular, they may listen to the _doneEpoch_
 Channel to receive a report from the Experiment after each epoch. A report is nothing more than 
 a hierarchy of tables. After each epoch, the component objects of the Experiment (except Observers) 
-can submit a report to its composite parent thereby forming a tree of reports. The Observers can analyse 
-these and modify the component which they are assigned to (in this case, Experiment). 
+can each submit a report to its composite parent thereby forming a tree of reports. The Observers can analyse 
+these and modify the components which they are assigned to (in this case, Experiment). 
 Observers may be attached to Experiments, Propagators, Visitors, etc. 
 
 #### FileLogger ####
 Here we use a simple [FileLogger](observer.md#dp.FileLogger) which will 
-store serialized reports in a simple text file for later use. Each experiment has a unique ID which are 
-included in reports, thus allowing the FileLogger to name its file appropriately. 
+store serialized reports in a simple text file for later use. Each experiment has a unique ID which is 
+included in the corresponding reports, thus allowing the FileLogger to name its file appropriately. 
 
 #### EarlyStopper ####
 The [EarlyStopper](observer.md#dp.EarlyStopper) is used for stopping the Experiment when error has not decreased, or accuracy has not 
-be maximized. It also saves onto disk the best version of the Experiment when it finds a new one. 
-It is initialized with a channel to `maximize` or minimize (default is to minimize). In this case, we intend 
+been maximized. It also saves to disk the best version of the Experiment when it finds a new one. 
+It is initialized with a channel to `maximize` or minimize (the default is to minimize). In this case, we intend 
 to early-stop the experiment on a field of the report, in particular the _accuracy_ field of the 
 _confusion_ table of the _feedback_ table of the `validator`. 
 This `{'validator','feedback','confusion','accuracy'}` happens to measure the accuracy of the Model on the 
 validation DataSet after each training epoch. So by early-stopping on this measure, we hope to find a 
-Model that generalizes well. The parameter `max_epochs` indicates how much consecutive 
+Model that generalizes well. The parameter `max_epochs` indicates how many consecutive 
 epochs of training can occur without finding a new best model before the experiment is signaled to stop 
-on the _doneExperiment_ Mediator Channel.
+by the _doneExperiment_ Mediator Channel.
 
 ## Running the Experiment ##
 Once we have initialized the experiment, we need only run it on the `datasource` to begin training.
@@ -282,8 +282,8 @@ xps:25044:1398320864:1:tester:confusion accuracy = 0.92548076923077
 ## Hyperoptimizing ##
 
 Hyper-optimization is the hardest part of deep learning. 
-In many ways, it feels more like an art than a science. 
-[Momentum](visitor.md#dp.Momentum) can help convergence, but it requires so much more memory. 
+In many ways, it can feel more like an art than a science. 
+[Momentum](visitor.md#dp.Momentum) can help convergence, but it requires much more memory. 
 The same is true of weight decay, as both methods require a 
 copy of parameter gradients which often almost double the memory footprint of the model. 
 Using [MaxNorm](visitor.md#dp.MaxNorm) and [AdaptiveLearningRate](observer.md#dp.AdaptiveLearningRate) is often better as 
@@ -305,7 +305,7 @@ and only try 1000000000 when out of ideas.
 You can vary the epoch sizes to divide processing time 
 between evaluation and training. 
 It's often best to keep the evaluation sets small when you can 
-(like 10% of all data). The more training data the better. 
+(like 10% of all data). The more training data, the better. 
 
 But these are all arbitrary guidelines. No one can tell you how to hyper-optimize. 
 You need to try optimizing a dataset for yourself to find your own methodology and tricks. 

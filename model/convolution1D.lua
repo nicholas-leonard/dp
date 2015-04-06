@@ -80,7 +80,7 @@ function Convolution1D:outputSize(width, view)
    local input = torch.Tensor(2, width, self._input_size)
    local inputView = dp.SequenceView('bwc', input)
    -- just propagate this dummy input through to know the output size
-   local output = self:forward(input,{nSample=2}):forward(view or 'bwc')
+   local output = self:forward(inputView,dp.Carry{nSample=2}):forward(view or 'bwc')
    self:zeroStatistics()
    return output:size(2), output:size(3)
 end

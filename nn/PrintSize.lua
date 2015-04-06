@@ -29,7 +29,7 @@ function PrintSize:updateGradInput(input, gradOutput)
    else
       size = gradOutput:size()
    end
-   print(self.prefix..":gradOuput\n", size)
+   print(self.prefix..":gradOutput\n", size)
    self.gradInput = gradOutput
    return self.gradInput
 end

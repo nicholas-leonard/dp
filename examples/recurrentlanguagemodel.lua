@@ -33,6 +33,8 @@ cmd:option('--dropout', false, 'apply dropout on hidden neurons (not recommended
 
 --[[ output layer ]]--
 cmd:option('--softmaxtree', false, 'use SoftmaxTree instead of the inefficient (full) softmax')
+cmd:option('--softmaxforest', false, 'use SoftmaxForest instead of SoftmaxTree (uses more memory)')
+cmd:option('--forestGaterSize', '{}', 'size of hidden layers used for forest gater (trees are experts)')
 --cmd:option('--accUpdate', false, 'accumulate output layer updates inplace. Note that this will cause BPTT instability, but will cost less memory.')
 
 --[[ data ]]--
@@ -56,6 +58,10 @@ opt.lrScales = table.fromString(opt.lrScales)
 if opt.xpPath ~= '' then
    -- check that saved model exists
    assert(paths.filep(opt.xpPath), opt.xpPath..' does not exist')
+end
+
+if not opt.forceForget then
+   print"Warning : you should probably use --forceForget"
 end
 
 --[[data]]--
@@ -93,7 +99,22 @@ end
 
 -- build the last layer first:
 local softmax
-if opt.softmaxtree then
+if opt.softmaxforest then
+   softmax = dp.SoftmaxForest{
+      input_size = opt.hiddenSize, 
+      hierarchy = {  
+         datasource:hierarchy('word_tree1.th7'), 
+         datasource:hierarchy('word_tree2.th7'),
+         datasource:hierarchy('word_tree3.th7')
+      },
+      gater_size = table.fromString(opt.forestGaterSize),
+      gater_act = nn.Tanh(),
+      root_id = {880542,880542,880542},
+      dropout = opt.dropout and nn.Dropout() or nil,
+      acc_update = opt.accUpdate
+   }
+   opt.softmaxtree = true
+elseif opt.softmaxtree then
    softmax = dp.SoftmaxTree{
       input_size = opt.hiddenSize, 
       hierarchy = datasource:hierarchy(),

@@ -45,7 +45,6 @@ function MaxNorm:_visitModel(model)
    if self._iter == self._period then
       if model.maxNorm then
          model:maxNorm(self._max_out_norm, self._max_in_norm)
-         return
       else
          if not model.mvstate[self:id():name()].warned then
             print("Warning: MaxNorm not implemented for model " .. 

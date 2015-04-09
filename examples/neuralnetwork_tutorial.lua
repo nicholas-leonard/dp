@@ -15,26 +15,19 @@ opt = {
 datasource = dp.Mnist{input_preprocess = dp.Standardize()}
 
 --[[Model]]--
-model = dp.Sequential{
-   models = {
-      dp.Neural{
-         input_size = datasource:featureSize(), 
-         output_size = opt.nHidden, 
-         transfer = nn.Tanh(),
-         sparse_init = true
-      },
-      dp.Neural{
-         input_size = opt.nHidden, 
-         output_size = #(datasource:classes()),
-         transfer = nn.LogSoftMax(),
-         sparse_init = true
-      }
-   }
-}
+model = nn.Sequential()
+model:extend(
+   nn.Linear(datasource:featureSize(), opt.nHidden), 
+   nn.Tanh(),
+   nn.Linear(opt.nHidden, #(datasource:classes())),
+   nn.LogSoftMax()
+)
+-- set the input/output shapes (optional, but recommended)
+model:ioShape('bf', 'bt')
 
 --[[Propagators]]--
 train = dp.Optimizer{
-   loss = dp.NLL(),
+   loss = nn.ClassNLLCriterion(),
    visitor = { -- the ordering here is important:
       dp.Momentum{momentum_factor = opt.momentum},
       dp.Learn{learning_rate = opt.learningRate},
@@ -45,12 +38,10 @@ train = dp.Optimizer{
    progress = true
 }
 valid = dp.Evaluator{
-   loss = dp.NLL(),
    feedback = dp.Confusion(),  
    sampler = dp.Sampler()
 }
 test = dp.Evaluator{
-   loss = dp.NLL(),
    feedback = dp.Confusion(),
    sampler = dp.Sampler()
 }

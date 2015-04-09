@@ -180,6 +180,24 @@ function Layer:maxNorm(max_out_norm, max_in_norm)
    end
 end
 
+function Layer:gradClip(cutoff)
+   assert(self.backwarded, "Should call gradClip after a backward pass")
+   cutoff = self.mvstate.cutoff or cutoff
+   local params, gradParams = self:parameters()
+   local norm = 0
+   for k,gradParam in pairs(gradParams) do
+      norm = norm + math.pow(gradParam:norm(),2)
+   end
+   norm = math.sqrt(norm)
+   if norm > cutoff then
+      -- rescale gradParams to obtain desired norm
+      for k,gradParam in pairs(gradParams) do
+         gradParam:mul(cutoff/norm)
+      end
+   end
+   return norm
+end
+
 function Layer:share(layer, ...)
    assert(layer.isLayer)
    local arg = {...}

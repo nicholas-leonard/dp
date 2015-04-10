@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------
 --[[ Propagator ]]--
 -- Abstract Class for propagating a sampling distribution (Sampler) 
--- through a model in order to evaluate its Loss, train the model, etc.
+-- through a module in order to evaluate its criterion, train, etc.
 -- To make your own training algorithm, you can build your own 
 -- propagator. If you can reduce it to reusable components, you could 
 -- then refactor these into visitors, observers, etc.
@@ -18,8 +18,8 @@ function Propagator:__init(config)
       'Propagates Batches sampled from a DataSet using a Sampler '..
       'through a Model in order to evaluate a Loss, provide Feedback '.. 
       'or train the model',
-      {arg='loss', type='dp.Loss | nn.Criterion', req=true,
-       help='a neural network Loss to evaluate or minimize'},
+      {arg='loss', type='nn.Criterion', req=true,
+       help='a neural network Criterion to evaluate or minimize'},
       {arg='visitor', type='dp.Visitor',
        help='visits models at the end of each batch propagation to '.. 
        'perform parameter updates and/or gather statistics, etc.'},
@@ -38,11 +38,11 @@ function Propagator:__init(config)
        help='display performance statistics (speed, etc). '..
       'Only applies if verbose is true.'}
    )
-   self:setSampler(sampler or dp.Sampler())
-   self:setLoss(loss)
-   self:setObserver(observer)
-   self:setFeedback(feedback)
-   self:setVisitor(visitor)
+   self:sampler(sampler or dp.Sampler())
+   self:loss(loss)
+   self:observer(observer)
+   self:feedback(feedback)
+   self:visitor(visitor)
    self._progress = progress
    self._verbose = verbose
    self._stats = stats
@@ -71,9 +71,8 @@ function Propagator:setup(config)
    self._id = id
    assert(torch.isTypeOf(mediator, 'dp.Mediator'))
    self._mediator = mediator
-   self:setModel(model)
+   self:model(model)
    self._sampler:setup{mediator=mediator, model=model}
-   self._loss:setup{mediator=mediator, id=id:create("loss")}
    if self._observer then self._observer:setup{
       mediator=mediator, subject=self
    } end
@@ -139,11 +138,10 @@ function Propagator:propagateBatch(batch)
    error"NotImplementedError"
 end
 
-
-function Propagator:monitor(batch, report, carry)
+function Propagator:monitor(batch, report)
    -- monitor error and such
    if self._feedback then
-      self._feedback:add(batch, self.output, carry, report)
+      self._feedback:add(batch, self.output, report)
    end
    
    --publish report for this optimizer
@@ -151,13 +149,13 @@ function Propagator:monitor(batch, report, carry)
    return carry
 end
 
-function Propagator:doneBatch(report, carry)
+function Propagator:doneBatch(report)
    -- zero gradients, statistics, etc.
    self._model:doneBatch()
    self._loss:doneBatch()
    
    --publish report for this optimizer
-   self._mediator:publish(self:name()..':'.."doneBatch", report, carry)
+   self._mediator:publish(self:name()..':'.."doneBatch", report)
    self.output = {}
 end
 
@@ -170,7 +168,7 @@ end
 function Propagator:report()
    local report = {
       name = self:id():name(),      
-      loss = self._loss:report(),
+      loss = self._loss:report(), error"TODO"
       sampler = self._sampler:report(),
       epoch_duration = self._epoch_duration,
       batch_duration = self._batch_duration,
@@ -187,15 +185,19 @@ function Propagator:report()
    return report
 end
 
-function Propagator:setSampler(sampler)
-   self._sampler = sampler
-end
-
-function Propagator:sampler()
+function Propagator:sampler(sampler)
+   if sampler then
+      self._sampler = sampler
+      return
+   end
    return self._sampler
 end
 
-function Propagator:id()
+function Propagator:id(id)
+   if self._id then
+      self._id = id
+      return
+   end
    return self._id
 end
 
@@ -203,66 +205,58 @@ function Propagator:name()
    return self._id:name()
 end
 
-function Propagator:setModel(model)
-   self._model = model
-end
-
-function Propagator:model()
+function Propagator:model(model)
+   if model then
+      self._model = model
+      return
+   end
    return self._model
 end
 
-function Propagator:setObserver(observer)
-   if torch.type(observer) == 'table' then
-      --if list, make composite observer
-      observer = dp.CompositeObserver(observer)
+function Propagator:observer(observer)
+   if observer then
+      if torch.type(observer) == 'table' then
+         --if list, make composite observer
+         observer = dp.CompositeObserver(observer)
+      end
+      self._observer = observer
+      return
    end
-   self._observer = observer
-end
-
-function Propagator:observer()
    return self._observer
 end
 
-function Propagator:setVisitor(visitor)
-   if torch.type(visitor) == 'table' then
-      --if list, make visitor_chain
-      visitor = dp.VisitorChain{visitors=visitor}
+function Propagator:visitor(visitor)
+   if visitor then
+      if torch.type(visitor) == 'table' then
+         --if list, make visitor_chain
+         visitor = dp.VisitorChain{visitors=visitor}
+      end
+      self._visitor = visitor
+      return
    end
-   self._visitor = visitor
-end
-
-function Propagator:visitor()
    return self._visitor
 end
 
-function Propagator:setFeedback(feedback)
-   if torch.type(feedback) == 'table' then
-      --if list, make visitor_chain
-      feedback = dp.CompositeFeedback{feedbacks=feedback}
+function Propagator:feedback(feedback)
+   if feedback then
+      if torch.type(feedback) == 'table' then
+         --if list, make visitor_chain
+         feedback = dp.CompositeFeedback{feedbacks=feedback}
+      end
+      self._feedback = feedback
+      return
    end
-   self._feedback = feedback
-end
-
-function Propagator:feedback()
    return self._feedback
 end
 
-function Propagator:setLoss(loss)
-   if not loss.isLoss then
-      print("Propagator:setLoss Warning : "..
-         "'loss' argumetn isn't an instance of dp.Loss."..
-         "Assuming it's a nn.Criterion instance."..
-         "Wrapping it in dp.Criterion (this doesn't always work as-is)"
-      )
-      loss = dp.Criterion{criterion=loss}
+function Propagator:loss(loss)
+   if loss then
+      assert(torch.isTypeOf(loss, 'nn.Criterion'), "Expecting nn.Criterion instance")
+      self._loss = loss
+      return
    end
-   self._loss = loss
-end
-
-function Propagator:loss()
    return self._loss
 end
-
 function Propagator:verbose(verbose)
    self._verbose = (verbose == nil) and true or verbose
    if self._loss then

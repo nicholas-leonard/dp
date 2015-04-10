@@ -29,10 +29,11 @@ function Optimizer:__init(config)
    parent.__init(self, config)
 end
       
-function Optimizer:propagateBatch(batch, report) 
-   local carry = self:forward(batch)
-   carry = self:monitor(batch, report, carry) or carry
-   carry = self:backward(batch, carry) or carry
+function Optimizer:propagateBatch(batch, report)
+   self:training()
+   self:forward(batch)
+   self:monitor(batch, report)
+   self:backward(batch)
    if report.epoch % self._update_interval == 0 then
       self:update()
    end
@@ -40,24 +41,23 @@ function Optimizer:propagateBatch(batch, report)
 end
 
 function Optimizer:forward(batch)
-   --[[ feedforward ]]--
    -- evaluate function for complete mini batch
-   local carry = batch:carry()
-   self.output, carry = self._model:forward(batch:inputs(), carry)
+   local input = batch:inputs():input()
+   self.output = self._model:forward(input)
    
    -- measure loss and backprop gradients
-   self.loss, carry = self._loss:forward(self.output, batch:targets(), carry)
-   carry:putObj('loss', self.loss)
-   return carry
+   local target = batch:targets():input()
+   self.err = self._loss:forward(self.output, target)
 end
 
-function Optimizer:backward(batch, carry)
-   --[[ backpropagate ]]--
-   -- estimate gradient of loss w.r.t. outputs, a basetensor
-   self.output, carry = self._loss:backward(self.output, batch:targets(), carry)
+function Optimizer:backward(batch)
+   -- estimate gradient of loss w.r.t. outputs
+   local target = batch:targets():input()
+   self.gradOutput = self._loss:backward(self.output, target)
    
    -- backprop through model
-   self._model:backward(self.output, carry)
+   local input = batch:inputs():input()
+   self._model:backward(input, self.gradOutput)
 end
 
 function Optimizer:update()
@@ -67,3 +67,33 @@ function Optimizer:update()
 end
 
 
+function Layer:_forward(carry)
+   -- some modules like dropout have a different behavior during 
+   -- evaluation vs training :
+   if carry:getObj('evaluate') then 
+      self._module:evaluate()
+   else
+      self._module:training()
+   end
+   self:outputAct(self._module:forward(self:inputAct()))
+   return carry
+end
+
+function Layer:_backward(carry)
+   local input_grad
+   if self._acc_update then 
+      input_grad = self._module:updateGradInput(self:inputAct(), self:outputGrad())
+   else
+      input_grad = self._module:backward(self:inputAct(), self:outputGrad(), self._acc_scale)
+   end
+   self:inputGrad(input_grad)
+   return carry
+end
+
+function Layer:updateParameters(lr)
+   if self._acc_update then
+      self._module:accUpdateGradParameters(self:inputAct(), self:outputGrad(), lr*self._acc_scale)
+   else
+      self._module:updateParameters(lr)
+   end
+end

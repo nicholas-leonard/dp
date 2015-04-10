@@ -1,5 +1,4 @@
-require 'torch'
-require 'nn'
+require 'dpnn'
 require 'nnx'
 require 'string'
 _ = require 'moses'

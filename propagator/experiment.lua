@@ -18,8 +18,8 @@ Experiment.isExperiment = true
 
 function Experiment:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, id, model, optimizer, validator, tester, 
-         observer, random_seed, epoch, mediator, overwrite, max_epoch, description
+   local args, id, model, optimizer, validator, tester, observer, 
+      random_seed, epoch, mediator, max_epoch, description
       = xlua.unpack(
       {config},
       'Experiment', 
@@ -28,8 +28,8 @@ function Experiment:__init(config)
       {arg='id', type='dp.ObjectID',
        help='uniquely identifies the experiment. '..
        'Defaults to using dp.uniqueID() to initialize a dp.ObjectID'},
-      {arg='model', type='dp.Model | nn.Module', req=true,
-       help='Model instance shared by all Propagators.'},
+      {arg='model', type='nn.Module', req=true,
+       help='Module instance shared by all Propagators.'},
       {arg='optimizer', type='dp.Optimizer',
        help='Optimizer instance used for propagating the train set'},
       {arg='validator', type='dp.Evaluator', 
@@ -38,35 +38,29 @@ function Experiment:__init(config)
        help='Evaluator instance used for propagating the test set'},
       {arg='observer', type='dp.Observer', 
        help='Observer instance used for extending the Experiment'},
-      {arg='random_seed', type='number', default=7,
+      {arg='random_seed', type='number', default=os.time(),
        help='number used to initialize the random number generator'},
       {arg='epoch', type='number', default=0,
        help='Epoch at which to start the experiment.'},
       {arg='mediator', type='dp.Mediator', 
        help='used for inter-object communication. defaults to dp.Mediator()'},
-      {arg='overwrite', type='boolean', default=false,
-       help='Overwrite existing values. For example, if a ' ..
-       'datasource is provided, and optimizer is already ' ..
-       'initialized with a dataset, and overwrite is true, ' ..
-       'then optimizer would be setup with datasource:trainSet()'},
       {arg='max_epoch', type='number', default=1000, 
        help='Maximum number of epochs allocated to the experiment'},
       {arg='description', type='string', default='',
        help='A short description of the experiment'}
    )
    self:setRandomSeed(random_seed)
+   self:id(id or dp.ObjectID(dp.uniqueID()))
+   self:model(model)
+   self:epoch(epoch)
+   self:observer(observer)
+   self:optimizer(optimizer)
+   self:validator(validator)
+   self:tester(tester)
+   self:mediator(mediator or dp.Mediator())
+   self:maxEpoch(max_epoch)
    self._is_done_experiment = false
-   self._id = id or dp.ObjectID(dp.uniqueID())
-   assert(self._id.isObjectID)
-   self:setModel(model)
-   self._epoch = epoch
-   self:setObserver(observer)
-   self._optimizer = optimizer
-   self._validator = validator
-   self._tester = tester
-   self._mediator = mediator or dp.Mediator()
    self._description = description
-   self:setMaxEpoch(max_epoch)
 end
 
 function Experiment:setup(datasource)
@@ -135,38 +129,6 @@ function Experiment:isDoneExperiment()
    return self._is_done_experiment
 end
 
-function Experiment:id()
-   return self._id
-end
-
-function Experiment:name()
-   return self._id:name()
-end
-
-function Experiment:model()
-   return self._model
-end
-
-function Experiment:optimizer()
-   return self._optimizer
-end
-
-function Experiment:validator()
-   return self._validator
-end
-
-function Experiment:tester()
-   return self._tester
-end
-
-function Experiment:mediator()
-   return self._mediator
-end
-
-function Experiment:randomSeed()
-   return self._random_seed
-end
-
 function Experiment:report()
    local report = {
       optimizer = self:optimizer() and self:optimizer():report(),
@@ -181,42 +143,96 @@ function Experiment:report()
    return report
 end
 
-function Experiment:observers()
-   return self._observers
+function Experiment:id(id)
+   if id then
+      assert(torch.isTypeOf(id, 'dp.ObjectID'), "Expecting dp.ObjectID instance")
+      self._id = id
+      return
+   end
+   return self._id
 end
 
-function Experiment:epoch()
+function Experiment:name()
+   return self._id:name()
+end
+
+function Experiment:model(model)
+   if model then
+      assert(torch.isTypeOf(model, 'nn.Module'), "Expecting nn.Module instance")
+      self._model = model
+      return
+   end
+   return self._model
+end
+
+function Experiment:optimizer(optimizer)
+   if optimizer then
+      self._optimizer = optimizer
+      return
+   end
+   return self._optimizer
+end
+
+function Experiment:validator(validator)
+   if validator then
+      self._validator = validator
+      return
+   end
+   return self._validator
+end
+
+function Experiment:tester(tester)
+   if tester then
+      self._tester = tester
+      return
+   end
+   return self._tester
+end
+
+function Experiment:mediator(mediator)
+   if mediator then
+      self._mediator = mediator
+      return
+   end
+   return self._mediator
+end
+
+function Experiment:randomSeed(random_seed)
+   if random_seed then
+      torch.manualSeed(random_seed)
+      math.randomseed(random_seed)
+      self._random_seed = random_seed
+      return 
+   end
+   return self._random_seed
+end
+
+function Experiment:epoch(epoch)
+   if epoch then
+      self._epoch = epoch
+      return 
+   end
    return self._epoch
 end
 
-function Experiment:setMaxEpoch(max_epoch)
-   self._max_epoch = max_epoch
-end
-
-function Experiment:setObserver(observer)
-   if torch.type(observer) == 'table' then
-      -- if list, make composite observer
-      observer = dp.CompositeObserver(observer)
+function Experiment:maxEpoch(max_epoch)
+   if max_epoch then
+      self._max_epoch = max_epoch
+      return
    end
-   self._observer = observer
+   return self._max_epoch
 end
 
-function Experiment:setRandomSeed(random_seed)
-   torch.manualSeed(random_seed)
-   math.randomseed(random_seed)
-   self._random_seed = random_seed
-end
-
-function Experiment:setModel(model)
-   if not model.isModel then
-      print("Experiment:setModel Warning : "..
-         "'model' argument isn't an instance of dp.Model."..
-         "Assuming it's a nn.Module instance."..
-         "Wrapping it in dp.Module (this doesn't always work as-is)"
-      )
-      model = dp.Module{module=model}
+function Experiment:observer(observer)
+   if observer then
+      if torch.type(observer) == 'table' then
+         -- if list, make composite observer
+         observer = dp.CompositeObserver(observer)
+      end
+      self._observer = observer
+      return 
    end
-   self._model = model
+   return self._observer
 end
 
 function Experiment:verbose(verbose)

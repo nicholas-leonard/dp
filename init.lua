@@ -106,17 +106,6 @@ torch.include('dp', 'feedback/perplexity.lua')
 torch.include('dp', 'feedback/topcrop.lua')
 torch.include('dp', 'feedback/fkdkaggle.lua')
 torch.include('dp', 'feedback/facialkeypointfeedback.lua')
---torch.include('dp', 'feedback/criteria.lua')
-
---[[ visitor ]]--
-torch.include('dp', 'visitor/visitor.lua')
-torch.include('dp', 'visitor/visitorchain.lua')
-torch.include('dp', 'visitor/recurrentvisitorchain.lua')
-torch.include('dp', 'visitor/maxnorm.lua')
-torch.include('dp', 'visitor/weightdecay.lua')
-torch.include('dp', 'visitor/learn.lua')
-torch.include('dp', 'visitor/momentum.lua')
-torch.include('dp', 'visitor/gradclip.lua')
 
 --[[ observer ]]--
 torch.include('dp', 'observer/observer.lua')
@@ -125,8 +114,8 @@ torch.include('dp', 'observer/logger.lua')
 torch.include('dp', 'observer/errorminima.lua')
 torch.include('dp', 'observer/earlystopper.lua')
 torch.include('dp', 'observer/savetofile.lua') --not an observer
-torch.include('dp', 'observer/learningrateschedule.lua')
-torch.include('dp', 'observer/adaptivelearningrate.lua')
+--torch.include('dp', 'observer/learningrateschedule.lua')
+--torch.include('dp', 'observer/adaptivelearningrate.lua')
 torch.include('dp', 'observer/filelogger.lua')
 
 --[[ nn ]]--
@@ -134,30 +123,6 @@ torch.include('dp', 'nn/Print.lua')
 torch.include('dp', 'nn/PrintSize.lua')
 torch.include('dp', 'nn/FairLookupTable.lua')
 
---[[ model ]]--
-torch.include('dp', 'model/model.lua')
-torch.include('dp', 'model/container.lua')
-torch.include('dp', 'model/sequential.lua')
-torch.include('dp', 'model/layer.lua')
-torch.include('dp', 'model/neural.lua')
-torch.include('dp', 'model/module.lua')
-torch.include('dp', 'model/dictionary.lua')
-torch.include('dp', 'model/narrowdictionary.lua')
-torch.include('dp', 'model/recurrentdictionary.lua')
-torch.include('dp', 'model/softmaxtree.lua')
-torch.include('dp', 'model/softmaxforest.lua')
-torch.include('dp', 'model/mixtureofexperts.lua')
-torch.include('dp', 'model/convolution1D.lua')
-torch.include('dp', 'model/convolution2D.lua')
-torch.include('dp', 'model/inception.lua')
-
---[[ loss ]]--
-torch.include('dp', 'loss/loss.lua')
-torch.include('dp', 'loss/nll.lua')
-torch.include('dp', 'loss/kldivergence.lua')
-torch.include('dp', 'loss/treenll.lua')
-torch.include('dp', 'loss/null.lua')
-torch.include('dp', 'loss/criterion.lua')
 
 --[[ hyper ]]--
 torch.include('dp', 'hyper/hyperoptimizer.lua')

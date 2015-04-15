@@ -1,9 +1,8 @@
 ------------------------------------------------------------------------
 --[[ Visitor ]]--
--- Visits a composite struture of Models and modifies their states.
+-- Visits a composite struture of Modules and modifies their states.
 -- Visitors should try to access a model method assigned to 
--- each visitor (if itexists). This would allow models to implement
--- visitor specifics. (already started with dp.MaxNorm model)
+-- each visitor (if itexists). 
 ------------------------------------------------------------------------
 local Visitor = torch.class("dp.Visitor")
 Visitor.isVisitor = true

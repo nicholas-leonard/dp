@@ -8,7 +8,7 @@ Optimizer.isOptimizer = true
 
 function Optimizer:__init(config)
    config = config or {}
-   local args, sampler, acc_update, visitor, update_interval, stats = xlua.unpack(
+   local args, sampler, acc_update, callback, update_interval, stats = xlua.unpack(
       {config},
       'Optimizer', 
       'Optimizes a model on a training dataset',
@@ -20,9 +20,9 @@ function Optimizer:__init(config)
        'which performs an inplace update (no need for param gradients). '..
        'However, this also means that Momentum, WeightDecay and other '..
        'such gradient modifying Visitors cannot be used.'},
-      {arg='visitor', type='dp.Visitor', req=true,
-       help='visits models after forward-backward phase. ' .. 
-       'Performs the parameter updates.'},
+     {arg='callback', type='function', req=true,
+       help='function(model, report) that does things like'..
+       'update model, gather statistics, decay learning rate, etc.'},
       {arg='update_interval', type='number', default=1,
        help='update the model every update_interval'},
       {arg='stats', type='boolean', default=true,
@@ -30,6 +30,7 @@ function Optimizer:__init(config)
    )
    self._update_interval = update_interval
    self._acc_update = acc_update
+   config.callback = callback or function(model, report)
    config.sampler = sampler or dp.ShuffleSampler()
    config.stats = stats
    parent.__init(self, config)
@@ -41,19 +42,9 @@ function Optimizer:propagateBatch(batch, report)
    self:monitor(batch, report)
    self:backward(batch)
    if report.epoch % self._update_interval == 0 then
-      self:update()
+      self._callback(self._model, report)
    end
-   self:doneBatch(report, carry)
-end
-
-function Optimizer:forward(batch)
-   -- evaluate function for complete mini batch
-   local input = batch:inputs():input()
-   self.output = self._model:forward(input)
-   
-   -- measure loss and backprop gradients
-   local target = batch:targets():input()
-   self.err = self._loss:forward(self.output, target)
+   self:doneBatch(report)
 end
 
 function Optimizer:backward(batch)
@@ -70,10 +61,4 @@ function Optimizer:backward(batch)
    end
    -- so that visitors can known whether or not gradParams where updated
    self._model.dpnn_accGradParameters = not self._acc_update
-end
-
-function Optimizer:update()
-   --[[ update parameters ]]--
-   -- visits models to perform updates
-   self._model:accept(self._visitor)
 end

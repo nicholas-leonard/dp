@@ -15,8 +15,7 @@ opt = {
 datasource = dp.Mnist{input_preprocess = dp.Standardize()}
 
 --[[Model]]--
-model = nn.Sequential()
-model:extend(
+model = nn.Sequential():extend(
    nn.Convert(datasource:ioShapes(), 'bf'), -- to batchSize x nFeature
    nn.Linear(datasource:featureSize(), opt.nHidden), 
    nn.Tanh(),
@@ -27,11 +26,13 @@ model:extend(
 --[[Propagators]]--
 train = dp.Optimizer{
    loss = nn.ClassNLLCriterion(),
-   visitor = { -- the ordering here is important:
-      dp.Momentum{momentum_factor = opt.momentum},
-      dp.Learn{learning_rate = opt.learningRate},
-      dp.MaxNorm{max_out_norm = opt.maxOutNorm}
-   },
+   callback = function(model, report) 
+      -- the ordering here is important
+      model:updateGradParameters(opt.momentum) -- affects gradParams
+      model:updateParameters(opt.learningRate) -- affects params
+      model:maxParamNorm(opt.maxOutNorm) -- affects params
+      model:zeroGradParameters() -- affects gradParams 
+   end
    feedback = dp.Confusion(),
    sampler = dp.ShuffleSampler{batch_size = opt.batchSize},
    progress = true

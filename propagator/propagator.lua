@@ -11,7 +11,7 @@ Propagator.isPropagator = true
 
 function Propagator:__init(config)   
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, loss, visitor, sampler, observer, feedback, progress,
+   local args, loss, callback, sampler, observer, feedback, progress,
       verbose, stats = xlua.unpack(
       {config},
       'Propagator', 
@@ -20,9 +20,9 @@ function Propagator:__init(config)
       'or train the model',
       {arg='loss', type='nn.Criterion', req=true,
        help='a neural network Criterion to evaluate or minimize'},
-      {arg='visitor', type='dp.Visitor',
-       help='visits models at the end of each batch propagation to '.. 
-       'perform parameter updates and/or gather statistics, etc.'},
+      {arg='callback', type='function',
+       help='function(model, report) that does things like'..
+       'update model, gather statistics, decay learning rate, etc.'},
       {arg='sampler', type='dp.Sampler', 
        help='Iterates through a DataSet. [Default=dp.Sampler()]'},
       {arg='observer', type='dp.Observer', 
@@ -42,7 +42,7 @@ function Propagator:__init(config)
    self:loss(loss)
    self:observer(observer)
    self:feedback(feedback)
-   self:visitor(visitor)
+   self:callback(callback)
    self._progress = progress
    self._verbose = verbose
    self._stats = stats
@@ -138,6 +138,16 @@ function Propagator:propagateBatch(batch)
    error"NotImplementedError"
 end
 
+function Optimizer:forward(batch)
+   -- evaluate function for complete mini batch
+   local input = batch:inputs():input()
+   self.output = self._model:forward(input)
+   
+   -- measure loss and backprop gradients
+   local target = batch:targets():input()
+   self.err = self._loss:forward(self.output, target)
+end
+
 function Propagator:monitor(batch, report)
    -- monitor error and such
    if self._feedback then
@@ -146,17 +156,11 @@ function Propagator:monitor(batch, report)
    
    --publish report for this optimizer
    self._mediator:publish(self:name()..':'.."doneFeedback", report, batch)
-   return carry
 end
 
-function Propagator:doneBatch(report)
-   -- zero gradients, statistics, etc.
-   self._model:doneBatch()
-   self._loss:doneBatch()
-   
+function Propagator:doneBatch(report)   
    --publish report for this optimizer
    self._mediator:publish(self:name()..':'.."doneBatch", report)
-   self.output = {}
 end
 
 -- returns a log for the current epoch, in the format of a table
@@ -168,7 +172,7 @@ end
 function Propagator:report()
    local report = {
       name = self:id():name(),      
-      loss = self._loss:report(), error"TODO"
+      loss = self._loss:report(), error"TODO criterion:report()"
       sampler = self._sampler:report(),
       epoch_duration = self._epoch_duration,
       batch_duration = self._batch_duration,
@@ -178,9 +182,6 @@ function Propagator:report()
    }
    if self._feedback then
       report.feedback = self._feedback:report()
-   end
-   if self._visitor then
-      report.visitor = self._visitor:report()
    end
    return report
 end
@@ -225,16 +226,13 @@ function Propagator:observer(observer)
    return self._observer
 end
 
-function Propagator:visitor(visitor)
-   if visitor then
-      if torch.type(visitor) == 'table' then
-         --if list, make visitor_chain
-         visitor = dp.VisitorChain{visitors=visitor}
-      end
-      self._visitor = visitor
+function Propagator:callback(callback)
+   if callback then
+      assert(torch.type(callback) == 'function', "expecting function")
+      self._callback = callback
       return
    end
-   return self._visitor
+   return self._callback
 end
 
 function Propagator:feedback(feedback)
@@ -264,9 +262,6 @@ function Propagator:verbose(verbose)
    end
    if self._feedback then
       self._feedback:verbose(self._verbose)
-   end
-   if self._visitor then 
-      self._visitor:verbose(self._verbose)
    end
    if self._observer then
       self._observer:verbose(self._verbose)

@@ -40,17 +40,12 @@ function Learn:_visitModel(model)
    end
    
    if model.updateParameters then
-      model:updateParameters(learn_rate)
-      return
-   end
-   
-   local params, gradParams, scales = model:parameters()
-   for k, param in pairs(params) do
-      if scales and scales[k] then
-         -- parameters each have different scales
-         learn_rate = learn_rate * scales[k]
+      if model.dpnn_accGradParameters then
+         model:updateParameters(learn_rate)
+      else
+         model:accUpdateGradParameters(model.dpnn_input, model.dpnn_gradOutput, learn_rate)
       end
-      param:add(-learn_rate, gradParams[k])
+      return
    end
 end
 

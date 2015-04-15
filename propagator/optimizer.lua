@@ -8,13 +8,18 @@ Optimizer.isOptimizer = true
 
 function Optimizer:__init(config)
    config = config or {}
-   local args, sampler, visitor, update_interval, stats = xlua.unpack(
+   local args, sampler, acc_update, visitor, update_interval, stats = xlua.unpack(
       {config},
       'Optimizer', 
       'Optimizes a model on a training dataset',
       {arg='sampler', type='dp.Sampler', 
        help='used to iterate through the train set. ' ..
        'Defaults to dp.ShuffleSampler()'},
+      {arg='acc_update', type='boolean', default=false,
+       help='when true, uses the faster accUpdateGradParameters, '..
+       'which performs an inplace update (no need for param gradients). '..
+       'However, this also means that Momentum, WeightDecay and other '..
+       'such gradient modifying Visitors cannot be used.'},
       {arg='visitor', type='dp.Visitor', req=true,
        help='visits models after forward-backward phase. ' .. 
        'Performs the parameter updates.'},
@@ -24,13 +29,14 @@ function Optimizer:__init(config)
        help='display statistics'}
    )
    self._update_interval = update_interval
+   self._acc_update = acc_update
    config.sampler = sampler or dp.ShuffleSampler()
    config.stats = stats
    parent.__init(self, config)
 end
       
 function Optimizer:propagateBatch(batch, report)
-   self:training()
+   self._model:training()
    self:forward(batch)
    self:monitor(batch, report)
    self:backward(batch)
@@ -57,43 +63,17 @@ function Optimizer:backward(batch)
    
    -- backprop through model
    local input = batch:inputs():input()
-   self._model:backward(input, self.gradOutput)
+   if self._acc_update then 
+      self.gradInput = self._model:updateGradInput(input, self.gradOutput)
+   else
+      self.gradInput = self._model:backward(input, self.gradOutput)
+   end
+   -- so that visitors can known whether or not gradParams where updated
+   self._model.dpnn_accGradParameters = not self._acc_update
 end
 
 function Optimizer:update()
    --[[ update parameters ]]--
    -- visits models to perform updates
    self._model:accept(self._visitor)
-end
-
-
-function Layer:_forward(carry)
-   -- some modules like dropout have a different behavior during 
-   -- evaluation vs training :
-   if carry:getObj('evaluate') then 
-      self._module:evaluate()
-   else
-      self._module:training()
-   end
-   self:outputAct(self._module:forward(self:inputAct()))
-   return carry
-end
-
-function Layer:_backward(carry)
-   local input_grad
-   if self._acc_update then 
-      input_grad = self._module:updateGradInput(self:inputAct(), self:outputGrad())
-   else
-      input_grad = self._module:backward(self:inputAct(), self:outputGrad(), self._acc_scale)
-   end
-   self:inputGrad(input_grad)
-   return carry
-end
-
-function Layer:updateParameters(lr)
-   if self._acc_update then
-      self._module:accUpdateGradParameters(self:inputAct(), self:outputGrad(), lr*self._acc_scale)
-   else
-      self._module:updateParameters(lr)
-   end
 end

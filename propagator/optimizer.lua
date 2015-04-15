@@ -20,7 +20,7 @@ function Optimizer:__init(config)
        'which performs an inplace update (no need for param gradients). '..
        'However, this also means that Momentum, WeightDecay and other '..
        'such gradient modifying Visitors cannot be used.'},
-     {arg='callback', type='function', req=true,
+      {arg='callback', type='function', req=true,
        help='function(model, report) that does things like'..
        'update model, gather statistics, decay learning rate, etc.'},
       {arg='update_interval', type='number', default=1,
@@ -30,7 +30,7 @@ function Optimizer:__init(config)
    )
    self._update_interval = update_interval
    self._acc_update = acc_update
-   config.callback = callback or function(model, report)
+   config.callback = callback
    config.sampler = sampler or dp.ShuffleSampler()
    config.stats = stats
    parent.__init(self, config)

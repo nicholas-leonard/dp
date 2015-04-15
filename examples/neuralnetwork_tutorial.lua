@@ -32,7 +32,7 @@ train = dp.Optimizer{
       model:updateParameters(opt.learningRate) -- affects params
       model:maxParamNorm(opt.maxOutNorm) -- affects params
       model:zeroGradParameters() -- affects gradParams 
-   end
+   end,
    feedback = dp.Confusion(),
    sampler = dp.ShuffleSampler{batch_size = opt.batchSize},
    progress = true

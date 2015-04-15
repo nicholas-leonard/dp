@@ -62,7 +62,7 @@ function FKDKaggle:setup(config)
    self._mediator:subscribe("errorMinima", self, "errorMinima")
 end
 
-function FKDKaggle:_add(batch, output, carry, report)
+function FKDKaggle:_add(batch, output, report)
    local target = batch:targets():forward('b')
    local act = output:forward('bwc', 'torch.FloatTensor')
    local pixels = self._pixels:expandAs(act)

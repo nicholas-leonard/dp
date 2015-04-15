@@ -118,6 +118,11 @@ function DataSource:set(which_set, attribute, view, tensor)
    return dataview, dataset
 end
 
+function DataSource:ioShapes()
+   local ds = self:trainSet() or self:validSet() or self:testSet()
+   ds:
+end
+
 function DataSource:setTrainSet(train_set)
    self._train_set = train_set
 end

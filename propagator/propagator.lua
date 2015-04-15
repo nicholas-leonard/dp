@@ -51,8 +51,7 @@ end
 
 function Propagator:setup(config)
    assert(type(config) == 'table', "Setup requires key-value arguments")
-   local args, id, model, mediator, mem_type, dataset, overwrite
-      = xlua.unpack(
+   local args, id, model, mediator = xlua.unpack(
       {config},
       'Propagator:setup', 
       'Post-initialization setup of the Propagator',
@@ -61,11 +60,7 @@ function Propagator:setup(config)
       {arg='model', type='nn.Module',
        help='the model that is to be trained or tested',},
       {arg='mediator', type='dp.Mediator', req=true,
-       help='used for inter-object communication.'},
-      {arg='dataset', type='dp.DataSet', 
-       help='This might be useful to determine the type of targets. ' ..
-       'Propagator should not hold a reference to a dataset due to ' ..
-       'the propagator\'s possible serialization.'}
+       help='used for inter-object communication.'}
    )
    assert(torch.isTypeOf(id, 'dp.ObjectID'))
    self._id = id
@@ -85,6 +80,7 @@ function Propagator:setup(config)
 end
 
 function Propagator:propagateEpoch(dataset, report)
+   self.sumErr = 0
    if self._feedback then
       self._feedback:reset()
    end
@@ -98,6 +94,7 @@ function Propagator:propagateEpoch(dataset, report)
       print('==> epoch # '..(report.epoch + 1)..' for '..self:name()..' :')
    end
    
+   self._n_sample = 0
    local sampler = self._sampler:sampleEpoch(dataset)
    while true do
       -- reuse the batch object
@@ -114,6 +111,7 @@ function Propagator:propagateEpoch(dataset, report)
          break 
       end
       
+      self.nSample = i
       self:propagateBatch(batch, report)
       
       if self._progress then
@@ -138,7 +136,7 @@ function Propagator:propagateBatch(batch)
    error"NotImplementedError"
 end
 
-function Optimizer:forward(batch)
+function Propagator:forward(batch)
    -- evaluate function for complete mini batch
    local input = batch:inputs():input()
    self.output = self._model:forward(input)
@@ -149,6 +147,7 @@ function Optimizer:forward(batch)
 end
 
 function Propagator:monitor(batch, report)
+   self.sumErr = self.sumErr + (self.err or 0)
    -- monitor error and such
    if self._feedback then
       self._feedback:add(batch, self.output, report)
@@ -170,9 +169,16 @@ end
 -- channel names and values. Furthermore, values can be anything 
 -- serializable.
 function Propagator:report()
+   local avgErr
+   if self.sumErr and self.nSample > 0 then
+      avgErr = self.sumErr/self.nSample
+      if self._verbose then
+         print(self:id():toString()..':loss avgErr '..avgErr)
+      end
+   end
    local report = {
       name = self:id():name(),      
-      loss = self._loss:report(), error"TODO criterion:report()"
+      loss = self._loss.report and self._loss:report() or avgErr,
       sampler = self._sampler:report(),
       epoch_duration = self._epoch_duration,
       batch_duration = self._batch_duration,

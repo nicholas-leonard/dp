@@ -48,7 +48,6 @@ torch.include('dp', 'choose.lua')
 torch.include('dp', 'xplog.lua')
 torch.include('dp', 'mediator.lua')
 torch.include('dp', 'objectid.lua')
-torch.include('dp', 'node.lua')
 
 --[[ view ]]--
 torch.include('dp', 'view/view.lua')

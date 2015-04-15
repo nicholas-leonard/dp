@@ -39,10 +39,10 @@ function Perplexity:doneEpoch(report)
    end
 end
 
-function Perplexity:_add(batch, output, carry, report)
-   if output:input():dim() == 2 then
+function Perplexity:_add(batch, output, report)
+   if output:dim() == 2 then
       -- assume output originates from LogSoftMax
-      local act = output:forward('bf')
+      local act = output
       if act ~= 'torch.DoubleTensor' and act ~= 'torch.FloatTensor' then
          act = output:forward('bf', 'torch.FloatTensor')
       end

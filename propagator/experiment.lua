@@ -49,7 +49,7 @@ function Experiment:__init(config)
       {arg='description', type='string', default='',
        help='A short description of the experiment'}
    )
-   self:setRandomSeed(random_seed)
+   self:randomSeed(random_seed)
    self:id(id or dp.ObjectID(dp.uniqueID()))
    self:model(model)
    self:epoch(epoch)
@@ -66,10 +66,6 @@ end
 function Experiment:setup(datasource)
    --publishing to this channel will terminate the experimental loop
    self._mediator:subscribe("doneExperiment", self, "doneExperiment")
-   -- Even though the model is used by different propagators, the 
-   -- model uses the experiment's namespace:
-   self._model:setup{mediator=self._mediator, 
-                     id=self:id():create('model')}
    if self._optimizer then
       self._optimizer:setup{mediator=self._mediator, model=self._model,
                             id=self:id():create('optimizer'),

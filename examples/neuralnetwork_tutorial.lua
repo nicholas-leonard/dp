@@ -16,7 +16,7 @@ datasource = dp.Mnist{input_preprocess = dp.Standardize()}
 
 --[[Model]]--
 model = nn.Sequential():extend(
-   nn.Convert(datasource:ioShapes(), 'bf'), -- to batchSize x nFeature
+   nn.Convert(datasource:ioShapes(), 'bf'), -- to batchSize x nFeature (also type converts)
    nn.Linear(datasource:featureSize(), opt.nHidden), 
    nn.Tanh(),
    nn.Linear(opt.nHidden, #(datasource:classes())),

@@ -18,7 +18,7 @@ function Propagator:__init(config)
       'Propagates Batches sampled from a DataSet using a Sampler '..
       'through a Model in order to evaluate a Loss, provide Feedback '.. 
       'or train the model',
-      {arg='loss', type='nn.Criterion', req=true,
+      {arg='loss', type='nn.Criterion',
        help='a neural network Criterion to evaluate or minimize'},
       {arg='callback', type='function',
        help='function(model, report) that does things like'..
@@ -141,6 +141,9 @@ function Propagator:forward(batch)
    local input = batch:inputs():input()
    self.output = self._model:forward(input)
    
+   if not self._loss then
+      return
+   end
    -- measure loss and backprop gradients
    local target = batch:targets():input()
    self.err = self._loss:forward(self.output, target)
@@ -170,7 +173,7 @@ end
 -- serializable.
 function Propagator:report()
    local avgErr
-   if self.sumErr and self.nSample > 0 then
+   if self._loss and self.sumErr and self.nSample > 0 then
       avgErr = self.sumErr/self.nSample
       if self._verbose then
          print(self:id():toString()..':loss avgErr '..avgErr)
@@ -178,7 +181,7 @@ function Propagator:report()
    end
    local report = {
       name = self:id():name(),      
-      loss = self._loss.report and self._loss:report() or avgErr,
+      loss = self._loss and self._loss.report and self._loss:report() or avgErr,
       sampler = self._sampler:report(),
       epoch_duration = self._epoch_duration,
       batch_duration = self._batch_duration,
@@ -201,7 +204,7 @@ function Propagator:sampler(sampler)
 end
 
 function Propagator:id(id)
-   if self._id then
+   if id then
       self._id = id
       return
    end

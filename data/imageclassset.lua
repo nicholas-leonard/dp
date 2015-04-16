@@ -9,6 +9,9 @@
 ------------------------------------------------------------------------
 local ImageClassSet, parent = torch.class("dp.ImageClassSet", "dp.DataSet")
 
+ImageClassSet._input_shape = 'bchw'
+ImageClassSet._output_shape = 'b'
+
 function ImageClassSet:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, data_path, load_size, sample_size, sample_func, which_set,  

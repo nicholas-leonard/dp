@@ -19,6 +19,15 @@
 local DataSet, parent = torch.class("dp.DataSet", "dp.BaseSet")
 DataSet.isDataSet = true
 
+function DataSet:ioShapes(input_shape, output_shape)
+   if input_shape or output_shape then
+      self._input_shape = input_shape or self._input_shape
+      self._output_shape = output_shape or self._output_shape
+      return
+   end
+   return self._input_shape, self._output_shape
+end
+
 -- builds a batch (factory method)
 -- reuses the inputs and targets (so don't modify them)
 function DataSet:batch(batch_size)

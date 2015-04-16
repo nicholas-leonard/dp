@@ -109,8 +109,10 @@ function FacialKeypoints:loadTest()
    local input_v, target_v = dp.ImageView(), dp.ClassView()
    input_v:forward(self._image_axes, inputs)
    target_v:forward('b', targets)
-   self:setTestSet(dp.DataSet{inputs=input_v,targets=target_v,which_set=which_set})
-   return self:testSet()
+   local ds = dp.DataSet{inputs=input_v,targets=target_v,which_set=which_set}
+   ds:ioShapes('bchw', 'b')
+   self:setTestSet(ds)
+   return ds
 end
 
 function FacialKeypoints:createTrainSet(data, which_set)
@@ -129,7 +131,9 @@ function FacialKeypoints:createTrainSet(data, which_set)
    input_v:forward(self._image_axes, inputs)
    target_v:forward(self._target_axes, targets)
    -- construct dataset
-   return dp.DataSet{inputs=input_v,targets=target_v,which_set=which_set}
+   local ds = dp.DataSet{inputs=input_v,targets=target_v,which_set=which_set}
+   ds:ioShapes('bchw', 'bwc')
+   return ds
 end
 
 function FacialKeypoints:makeTargets(y)

@@ -118,11 +118,6 @@ function DataSource:set(which_set, attribute, view, tensor)
    return dataview, dataset
 end
 
-function DataSource:ioShapes()
-   local ds = self:trainSet() or self:validSet() or self:testSet()
-   ds:
-end
-
 function DataSource:setTrainSet(train_set)
    self._train_set = train_set
 end
@@ -226,6 +221,11 @@ end
 
 function DataSource:imageAxes(idx)
    return idx and self._image_axes[idx] or self._image_axes
+end
+
+function DataSource:ioShapes()
+   local set = self:trainSet() or self:validSet() or self:testSet()
+   return set:ioShapes()
 end
 -- end access static attributes
 

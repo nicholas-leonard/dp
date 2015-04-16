@@ -15,6 +15,9 @@
 local SentenceSet, parent = torch.class("dp.SentenceSet", "dp.DataSet")
 SentenceSet.isSentenceSet = true
 
+SentenceSet._input_shape = 'bt'
+SentenceSet._output_shape = 'b'
+
 function SentenceSet:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, which_set, data, context_size, end_id, start_id, 

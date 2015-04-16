@@ -81,8 +81,14 @@ function TopCrop:topstats(preds, targets, ns)
    end
 end
 
-function TopCrop:add(batch, output, carry, report)
-   local preds = output:forward('bf', 'torch.FloatTensor')
+function TopCrop:add(batch, output, report)
+   assert(output:dim() == 2)
+   local preds = output
+   if torch.type(output) ~= torch.FloatTensor() then
+      self._act = self._act or torch.FloatTensor()
+      self._act:resize(output:size()):copy(output)
+      preds = self._act
+   end
    local labels = batch:targets():forward('b')
    assert(preds:isContiguous())
    assert(labels:isContiguous())

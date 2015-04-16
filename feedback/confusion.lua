@@ -61,9 +61,9 @@ function Confusion:_add(batch, output, report)
    end
    
    if not (torch.isTypeOf(act,'torch.FloatTensor') or torch.isTypeOf(act, 'torch.DoubleTensor')) then
-      self._fact = self.fact or torch.FloatTensor()
-      self._fact:resize(act:size()):copy(act)
-      act = self._fact
+      self._actf = self.actf or torch.FloatTensor()
+      self._actf:resize(act:size()):copy(act)
+      act = self._actf
    end
    self._cm:batchAdd(act, tgt)
 end

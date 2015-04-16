@@ -51,7 +51,13 @@ end
 function FacialKeypointFeedback:_add(batch, output, report)
    -- batchSize x (nKeypoint*2) x precision
    local target = batch:targets():forward('bwc')
+   assert(output:dim() == 3)
    local act = output
+   if torch.type(output) ~= torch.FloatTensor() then
+      self._act = self._act or torch.FloatTensor()
+      self._act:resize(output:size()):copy(output)
+      act = self._act
+   end
    if not self._isSetup then
       self._sum:resize(act:size(2)):zero()
       self._count:resize(act:size(2)):zero()

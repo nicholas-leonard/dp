@@ -40,12 +40,14 @@ function Perplexity:doneEpoch(report)
 end
 
 function Perplexity:_add(batch, output, report)
+   local act = output
+   if torch.type(output) ~= torch.FloatTensor() then
+      self._act = self._act or torch.FloatTensor()
+      self._act:resize(output:size()):copy(output)
+      act = self._act
+   end
    if output:dim() == 2 then
       -- assume output originates from LogSoftMax
-      local act = output
-      if act ~= 'torch.DoubleTensor' and act ~= 'torch.FloatTensor' then
-         act = output:forward('bf', 'torch.FloatTensor')
-      end
       local targets = batch:targets():forward('b')
       local sum = 0
       for i=1,targets:size(1) do
@@ -55,10 +57,7 @@ function Perplexity:_add(batch, output, report)
       self._nll = self._nll - sum
    else
       -- assume output originates from SoftMaxTree
-      local act = output:forward('b')
-      if act ~= 'torch.DoubleTensor' and act ~= 'torch.FloatTensor' then
-         act = output:forward('b', 'torch.FloatTensor')
-      end
+      act = act:view(-1)
       -- accumulate the sum of negative log likelihoods
       self._nll = self._nll - act:sum()
    end

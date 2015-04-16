@@ -39,6 +39,11 @@ function Optimizer:__init(config)
    config.stats = stats
    parent.__init(self, config)
 end
+
+function Optimizer:setup(config)
+   parent.setup(self, config)
+   self._model:zeroGradParameters() -- don't forget this, else NaN errors
+end
       
 function Optimizer:propagateBatch(batch, report)
    self._model:training()

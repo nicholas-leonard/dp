@@ -22,6 +22,7 @@ model = nn.Sequential():extend(
    nn.Linear(opt.nHidden, #(datasource:classes())),
    nn.LogSoftMax()
 )
+model:zeroGradParameters() -- don't forget this, else NaN errors
 
 --[[Propagators]]--
 train = dp.Optimizer{

@@ -55,7 +55,6 @@ function Optimizer:backward(batch)
    -- estimate gradient of loss w.r.t. outputs
    local target = batch:targets():input()
    self.gradOutput = self._loss:backward(self.output, target)
-   
    -- backprop through model
    local input = batch:inputs():input()
    if self._acc_update then 

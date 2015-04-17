@@ -117,6 +117,7 @@ torch.include('dp', 'visitor/maxnorm.lua')
 torch.include('dp', 'visitor/weightdecay.lua')
 torch.include('dp', 'visitor/learn.lua')
 torch.include('dp', 'visitor/momentum.lua')
+torch.include('dp', 'visitor/gradclip.lua')
 
 --[[ observer ]]--
 torch.include('dp', 'observer/observer.lua')

@@ -82,17 +82,3 @@ function Sequential:_toModule()
       self._models[i]:_toModule()
    end
 end
-
---[[
--- experimental
-function Sequential:flux(state)
-   local output = self.output
-   -- setup
-   for i=1,#self._models-1 do
-      self._models[i]:setSuccessor(self._models[i+1])
-   end
-   return self._model[1]:flux()
-   self.input = output
-   return carry
-end
---]]

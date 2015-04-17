@@ -9,7 +9,7 @@ Layer.isLayer = true
 function Layer:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, input_view, output_view, output, dropout, sparse_init,
-      acc_update = xlua.unpack(
+      acc_update, maxnorm_all = xlua.unpack(
       {config},
       'Layer', 
       'An abstract parameterized layer.',
@@ -28,7 +28,9 @@ function Layer:__init(config)
        help='when true, uses the faster accUpdateGradParameters, '..
        'which performs an inplace update (no need for param gradients). '..
        'However, this also means that Momentum, WeightDecay and other '..
-       'such gradient modifying Visitors cannot be used.'}
+       'such gradient modifying Visitors cannot be used.'},
+      {arg='maxnorm_all', type='boolean', default=false,
+       help='renormalize all parameters with 2D or more. Else, just 2D'}
    )
    if not (self._module and self._module.forward) then
       error"self._module (a nn.Module) should be set by child"
@@ -49,6 +51,7 @@ function Layer:__init(config)
    if acc_update then
       self._tags.accUpdate = true
    end
+   self._maxnorm_all = maxnorm_all
    self:zeroGradParameters()
    self:checkParams()
 end
@@ -152,18 +155,22 @@ function Layer:parameters()
    return param, gradParam
 end
 
--- Only affects 2D parameters.
--- Assumes that 2D parameters are arranged (output_dim x input_dim)
+-- Only affects 2D parameters (unless maxnorm_all is true).
+-- Assumes that parameters are arranged (output_dim x input_dim)
 function Layer:maxNorm(max_out_norm, max_in_norm)
    assert(self.backwarded, "Should call maxNorm after a backward pass")
    max_out_norm = self.mvstate.max_out_norm or max_out_norm
    max_in_norm = self.mvstate.max_in_norm or max_in_norm
    local params, gradParams = self:parameters()
    for k,param in pairs(params) do
+      if param:dim() > 2 and self._maxnorm_all then
+         -- make 2D (output_dim x input_dim)
+         param = param:view(param:size(1), -1)
+      end
       if param:dim() == 2 then
          if max_out_norm then
             -- rows feed into output neurons 
-            param:renorm(1, 2, max_out_norm)
+            param:renorm(2, 1, max_out_norm)
          end
          if max_in_norm then
             -- cols feed out from input neurons
@@ -171,6 +178,24 @@ function Layer:maxNorm(max_out_norm, max_in_norm)
          end
       end
    end
+end
+
+function Layer:gradClip(cutoff)
+   assert(self.backwarded, "Should call gradClip after a backward pass")
+   cutoff = self.mvstate.cutoff or cutoff
+   local params, gradParams = self:parameters()
+   local norm = 0
+   for k,gradParam in pairs(gradParams) do
+      norm = norm + math.pow(gradParam:norm(),2)
+   end
+   norm = math.sqrt(norm)
+   if norm > cutoff then
+      -- rescale gradParams to obtain desired norm
+      for k,gradParam in pairs(gradParams) do
+         gradParam:mul(cutoff/norm)
+      end
+   end
+   return norm
 end
 
 function Layer:share(layer, ...)

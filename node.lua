@@ -210,13 +210,3 @@ end
 function Node:_evaluate(carry)
    return self:_forward(carry)
 end
-
---[[
--- experimental (would allow for one chained RPC call for both backward forward)
-function Node:flux(carry)
-   local output, carry = self:forward()
-   local input, carry = self._successor:flux{output, carry}
-   local input, carry = self:backward{input, carry}
-   return input, carry
-end
---]]

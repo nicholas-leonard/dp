@@ -112,7 +112,7 @@ function BillionWords:vocabularySize()
    return table.length(self._classes)
 end
 
--- this can be used to initialize a softmaxTree
+-- this can be used to initialize a SoftMaxTree (optional)
 function BillionWords:hierarchy(file_name)
    file_name = file_name or 'word_tree1.th7'
    local hierarchy = torch.load(

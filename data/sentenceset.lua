@@ -21,7 +21,7 @@ SentenceSet._output_shape = 'b'
 function SentenceSet:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, which_set, data, context_size, end_id, start_id, 
-      words, carry = xlua.unpack(
+      words = xlua.unpack(
       {config},
       'SentenceSet', 
       'Stores a sequence of sentences. Each sentence is a sequence '..
@@ -40,10 +40,7 @@ function SentenceSet:__init(config)
       {arg='start_id', type='number', req=true,
        help='word_id of the sentence start delimiter : "<S>"'},
       {arg='words', type='table',
-       help='A table mapping word_ids to the original word strings'},
-      {arg='carry', type='dp.Carry',
-       help='An object store that is carried (passed) around the '..
-       'network during a propagation.'} 
+       help='A table mapping word_ids to the original word strings'}
    )
    self:setWhichSet(which_set)
    self._data = data
@@ -52,7 +49,6 @@ function SentenceSet:__init(config)
    self._start_id = start_id
    self._end_id = end_id
    self._words = words
-   self._carry = carry or dp.Carry()
 end
 
 function SentenceSet:startId()
@@ -92,8 +88,10 @@ function SentenceSet:batch(batch_size)
    return self:sub(1, batch_size)
 end
 
+-- not recommended for training (use for evaluation)
+-- used for NNLMs (not recurrent models)
 function SentenceSet:sub(batch, start, stop)
-   local input_v, inputs, target_v, targets, carry
+   local input_v, inputs, target_v, targets
    if (not batch) or (not stop) then 
       if batch then
          stop = start
@@ -104,13 +102,11 @@ function SentenceSet:sub(batch, start, stop)
       targets = torch.IntTensor()
       input_v = dp.ClassView()
       target_v = dp.ClassView()
-      carry = dp.Carry()
   else
       input_v = batch:inputs()
       inputs = input_v:input()
       target_v = batch:targets()
       targets = target_v:input()
-      carry = batch:carry()
    end  
    local data = self._data:sub(start, stop)
    inputs:resize(data:size(1), self._context_size)
@@ -146,16 +142,25 @@ function SentenceSet:sub(batch, start, stop)
    target_v:forward('b', targets)
    target_v:setClasses(self._words)
    
-   -- carry
-   self:carry():sub(carry, start, stop)
    return batch or dp.Batch{
       which_set=self:whichSet(), epoch_size=self:nSample(),
-      inputs=input_v, targets=target_v, carry=carry
+      inputs=input_v, targets=target_v
    }   
 end
 
+-- used for training NNLM on large datasets
+-- gets a random sample
+function SentenceSet:sample(batch, batchSize)
+   batchSize = batchSize or batch
+   self._indices = self._indices or torch.IntTensor()
+   self._indices:resize(batchSize)
+   self._indices:random(self._data:size(1)-(self._context_size+1))
+   return self:index(batch, self._indices)
+end
+
+-- used for training NNLM on small datasets
 function SentenceSet:index(batch, indices)
-   local inputs, targets, input_v, target_v, carry
+   local inputs, targets, input_v, target_v
    if (not batch) or (not indices) then 
       indices = indices or batch
       batch = nil
@@ -163,7 +168,6 @@ function SentenceSet:index(batch, indices)
       targets = torch.IntTensor(indices:size(1))
       input_v = dp.ClassView()
       target_v = dp.ClassView()
-      carry = dp.Carry()
    else
       input_v = batch:inputs()
       inputs = input_v:input()
@@ -171,7 +175,6 @@ function SentenceSet:index(batch, indices)
       target_v = batch:targets()
       targets = target_v:input()
       targets:resize(indices:size(1))
-      carry = batch:carry()
    end
    -- fill tensor with sentence end tags : <S>
    inputs:fill(self._end_id)
@@ -208,11 +211,9 @@ function SentenceSet:index(batch, indices)
    target_v:forward('b', targets)
    target_v:setClasses(self._words)
    
-   -- carry
-   self:carry():sub(carry, start, stop)
    return batch or dp.Batch{
       which_set=self:whichSet(), epoch_size=self:nSample(),
-      inputs=input_v, targets=target_v, carry=carry
+      inputs=input_v, targets=target_v
    }  
 end
 

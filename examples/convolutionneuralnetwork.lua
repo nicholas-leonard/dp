@@ -149,7 +149,7 @@ train = dp.Optimizer{
    callback = function(model, report) 
       -- the ordering here is important
       if opt.accUpdate then
-          model:accUpdateGradParameters(model.dpnn_input, model.output, opt.learningRate)
+         model:accUpdateGradParameters(model.dpnn_input, model.output, opt.learningRate)
       else
          model:updateGradParameters(opt.momentum) -- affects gradParams
          model:updateParameters(opt.learningRate) -- affects params

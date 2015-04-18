@@ -242,9 +242,6 @@ function Experiment:verbose(verbose)
    if self._tester then 
       self._tester:verbose(self._verbose)
    end
-   if self._model then
-      self._model:verbose(self._verbose)
-   end
    if self._observer then
       self._observer:verbose(self._verbose)
    end

@@ -16,7 +16,7 @@ cmd:option('--kernelStride', '{1,1,1,1}', 'kernel stride of each convolution lay
 cmd:option('--poolSize', '{2,2,2,2}', 'size of the max pooling of each convolution layer. Height = Width')
 cmd:option('--poolStride', '{2,2,2,2}', 'stride of the max pooling of each convolution layer. Height = Width')
 cmd:option('--padding', false, 'add math.floor(kernelSize/2) padding to the input of each convolution') 
-cmd:option('--batchSize', 128, 'number of examples per batch')
+cmd:option('--batchSize', 64, 'number of examples per batch')
 cmd:option('--cuda', false, 'use CUDA')
 cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
 cmd:option('--maxEpoch', 100, 'maximum number of epochs to run')
@@ -27,6 +27,7 @@ cmd:option('--zca', false, 'apply Zero-Component Analysis whitening')
 cmd:option('--lecunlcn', false, 'apply Yann LeCun Local Contrast Normalization (recommended)')
 cmd:option('--activation', 'Tanh', 'transfer function like ReLU, Tanh, Sigmoid')
 cmd:option('--hiddenSize', '{}', 'size of the dense hidden layers after the convolution')
+cmd:option('--batchNorm', false, 'use batch normalization. dropout is mostly redundant with this')
 cmd:option('--dropout', false, 'use dropout')
 cmd:option('--dropoutProb', '{0.2,0.5,0.5}', 'dropout probabilities')
 cmd:option('--accUpdate', false, 'accumulate gradients inplace')
@@ -39,7 +40,6 @@ if not opt.silent then
 end
 
 opt.channelSize = table.fromString(opt.channelSize)
-opt.padding = table.fromString(opt.padding)
 opt.kernelSize = table.fromString(opt.kernelSize)
 opt.kernelStride = table.fromString(opt.kernelStride)
 opt.poolSize = table.fromString(opt.poolSize)
@@ -82,16 +82,14 @@ function dropout(depth)
 end
 
 --[[Model]]--
-
--- conversion
-cnn = nn.Sequential():add(nn.Convert(ds:ioShapes(), 'bchw'))
+cnn = nn.Sequential()
 
 -- convolutional and pooling layers
 inputSize = ds:imageSize('c')
 depth = 1
 for i=1,#opt.channelSize do
-   -- dropout can be useful for regularization
    if opt.dropout and (opt.dropoutProb[depth] or 0) > 0 then
+      -- dropout can be useful for regularization
       cnn:add(nn.SpatialDropout(opt.dropoutProb[depth]))
    end
    cnn:add(nn.SpatialConvolution(
@@ -100,7 +98,12 @@ for i=1,#opt.channelSize do
       opt.kernelStride[i], opt.kernelStride[i],
       opt.padding and math.floor(opt.kernelSize[i]/2) or 0
    ))
-   if opt.poolSize[i] and opt.poolSize > 0 then
+   if opt.batchNorm then
+      -- batch normalization can be awesome
+      cnn:add(nn.SpatialBatchNormalization(opt.channelSize[i]))
+   end
+   cnn:add(nn[opt.activation]())
+   if opt.poolSize[i] and opt.poolSize[i] > 0 then
       cnn:add(nn.SpatialMaxPooling(
          opt.poolSize[i], opt.poolSize[i], 
          opt.poolStride[i] or opt.poolSize[i], 
@@ -111,17 +114,22 @@ for i=1,#opt.channelSize do
    depth = depth + 1
 end
 -- get output size of convolutional layers
-outsize = cnn:outside(ds:imageSize())
-inputSize = outsize[1]*outsize[2]*outsize[3]
-
+outsize = cnn:outside{1,ds:imageSize('c'),ds:imageSize('h'),ds:imageSize('w')}
+inputSize = outsize[2]*outsize[3]*outsize[4]
 dp.vprint(not opt.silent, "input to dense layers has: "..inputSize.." neurons")
 
+cnn:insert(nn.Convert(ds:ioShapes(), 'bchw'), 1)
+
 -- dense hidden layers
+cnn:add(nn.Collapse(3))
 for i,hiddenSize in ipairs(opt.hiddenSize) do
    if opt.dropout and (opt.dropoutProb[depth] or 0) > 0 then
       cnn:add(nn.Dropout(opt.dropoutProb[depth]))
    end
    cnn:add(nn.Linear(inputSize, hiddenSize))
+   if opt.batchNorm then
+      cnn:add(nn.BatchNormalization(hiddenSize))
+   end
    cnn:add(nn[opt.activation]())
    inputSize = hiddenSize
    depth = depth + 1
@@ -189,7 +197,7 @@ if opt.cuda then
 end
 
 if not opt.silent then
-   print"nn.Modules :"
+   print"Model:"
    print(cnn)
 end
 xp:verbose(not opt.silent)

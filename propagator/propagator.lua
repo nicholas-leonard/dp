@@ -266,16 +266,12 @@ function Propagator:loss(loss)
 end
 function Propagator:verbose(verbose)
    self._verbose = (verbose == nil) and true or verbose
-   if self._loss then
-      self._loss:verbose(self._verbose)
-   end
    if self._feedback then
       self._feedback:verbose(self._verbose)
    end
    if self._observer then
       self._observer:verbose(self._verbose)
    end
-   --TODO self._sampler:verbose()
 end
 
 function Propagator:silent()

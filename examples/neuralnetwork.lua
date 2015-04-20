@@ -87,7 +87,7 @@ train = dp.Optimizer{
    end,
    feedback = dp.Confusion(),
    sampler = dp.ShuffleSampler{batch_size = opt.batchSize},
-   progress = opt.progress
+   progress = opt.progress,
 }
 valid = dp.Evaluator{
    feedback = dp.Confusion(),  

@@ -57,11 +57,14 @@ function Optimizer:propagateBatch(batch, report)
 end
 
 function Optimizer:backward(batch)
-   -- estimate gradient of loss w.r.t. outputs
+   local input = batch:inputs():input()
    local target = batch:targets():input()
+   -- estimate gradient of loss w.r.t. outputs
    self.gradOutput = self._loss:backward(self.output, target)
    -- backprop through model
-   local input = batch:inputs():input()
+   if self._include_target then
+      input = {input, target}
+   end
    if self._acc_update then 
       self.gradInput = self._model:updateGradInput(input, self.gradOutput)
    else

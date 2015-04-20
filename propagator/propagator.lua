@@ -12,7 +12,7 @@ Propagator.isPropagator = true
 function Propagator:__init(config)   
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, loss, callback, sampler, observer, feedback, progress,
-      verbose, stats = xlua.unpack(
+      verbose, stats, include_target = xlua.unpack(
       {config},
       'Propagator', 
       'Propagates Batches sampled from a DataSet using a Sampler '..
@@ -46,7 +46,6 @@ function Propagator:__init(config)
    self._progress = progress
    self._verbose = verbose
    self._stats = stats
-   self.output = {}
 end
 
 function Propagator:setup(config)
@@ -137,15 +136,21 @@ function Propagator:propagateBatch(batch)
 end
 
 function Propagator:forward(batch)
-   -- evaluate function for complete mini batch
    local input = batch:inputs():input()
+   local target = batch:targets():input()
+   if self._include_target then
+      input = {input, target}
+   end
+   -- useful for calling accUpdateGradParameters in callback function
+   self._model.dpnn_input = input
+   
+   -- forward propagate through model
    self.output = self._model:forward(input)
    
    if not self._loss then
       return
    end
-   -- measure loss and backprop gradients
-   local target = batch:targets():input()
+   -- measure loss
    self.err = self._loss:forward(self.output, target)
 end
 
@@ -264,6 +269,12 @@ function Propagator:loss(loss)
    end
    return self._loss
 end
+
+function Propagator:includeTarget(mode)
+   -- forward propagates {input, target} instead of just input
+   self._include_target = (mode == nil) and true or false
+end
+
 function Propagator:verbose(verbose)
    self._verbose = (verbose == nil) and true or verbose
    if self._feedback then

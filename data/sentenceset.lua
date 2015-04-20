@@ -152,7 +152,7 @@ end
 -- gets a random sample
 function SentenceSet:sample(batch, batchSize)
    batchSize = batchSize or batch
-   self._indices = self._indices or torch.IntTensor()
+   self._indices = self._indices or torch.LongTensor()
    self._indices:resize(batchSize)
    self._indices:random(self._data:size(1)-(self._context_size+1))
    return self:index(batch, self._indices)

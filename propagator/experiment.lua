@@ -156,6 +156,7 @@ function Experiment:model(model)
    if model then
       assert(torch.isTypeOf(model, 'nn.Module'), "Expecting nn.Module instance")
       self._model = model
+      self._model:serial('light', 'double')
       return
    end
    return self._model
@@ -231,6 +232,18 @@ function Experiment:observer(observer)
    return self._observer
 end
 
+function Experiment:includeTarget(mode)
+   if self._optimizer then
+      self._optimizer:includeTarget(mode)
+   end
+   if self._validator then
+      self._validator:includeTarget(mode)
+   end
+   if self._tester then
+      self._tester:includeTarget(mode)
+   end
+end
+
 function Experiment:verbose(verbose)
    self._verbose = (verbose == nil) and true or verbose
    if self._optimizer then
@@ -267,21 +280,22 @@ function Experiment:type(new_type)
 end
 
 function Experiment:float()
+   if self._model then
+      self._model:serial('light', 'float')
+   end
    return self:type('torch.FloatTensor')
 end
 
 function Experiment:double()
+   if self._model then
+      self._model:serial('light', 'double')
+   end
    return self:type('torch.DoubleTensor')
 end
 
 function Experiment:cuda()
+   if self._model then
+      self._model:serial('light', 'float')
+   end
    return self:type('torch.CudaTensor')
-end
-
-function Experiment:int()
-   return self:type('torch.IntTensor')
-end
-
-function Experiment:long()
-   return self:type('torch.LongTensor')
 end

@@ -1,4 +1,3 @@
--- WORK IN PROGRESS : (only works for forward('bf')
 -----------------------------------------------------------------------
 --[[ ListView ]]-- 
 -- Composite (design pattern) of component Views

@@ -22,7 +22,7 @@ function BillionWords:__init(config)
    local args, load_all
    args, self._context_size, self._train_file, self._valid_file, 
          self._test_file, self._word_file, self._data_path, 
-         self._download_url, load_all 
+         self._recurrent, self._download_url, load_all 
       = xlua.unpack(
       {config},
       'BillionWords', 
@@ -39,6 +39,9 @@ function BillionWords:__init(config)
        help='name of file containing mapping of word_ids to word strings.'},
       {arg='data_path', type='string', default=dp.DATA_DIR,
        help='path to data repository'},
+      {arg='recurrent', type='number', default=false,
+       help='For RNN training, set this to true. In which case, '..
+       'outputs a target word for each input word'},
       {arg='download_url', type='string',
        default='http://lisaweb.iro.umontreal.ca/transfert/lisa/users/leonardn/billionwords.tar.gz',
        help='URL from which to download dataset if not found on disk.'},
@@ -81,7 +84,7 @@ function BillionWords:createSentenceSet(data, which_set)
    return dp.SentenceSet{
       data=data, which_set=which_set, context_size=self._context_size,
       end_id=self._sentence_end, start_id=self._sentence_start, 
-      words=self._classes
+      words=self._classes, recurrent=self._recurrent
    }
 end
 

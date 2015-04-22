@@ -59,6 +59,7 @@ end
 function Optimizer:backward(batch)
    local input = batch:inputs():input()
    local target = batch:targets():input()
+   target = self._target_module:forward(target)
    -- estimate gradient of loss w.r.t. outputs
    self.gradOutput = self._loss:backward(self.output, target)
    -- backprop through model

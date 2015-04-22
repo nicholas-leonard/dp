@@ -1,6 +1,7 @@
 require 'dp'
+require 'rnn'
 
-version = 3
+version = 4
 
 --[[command line arguments]]--
 cmd = torch.CmdLine()
@@ -12,7 +13,8 @@ cmd:text('$> th recurrentlanguagemodel.lua --tiny --batchSize 64 ')
 cmd:text('$> th recurrentlanguagemodel.lua --tiny --batchSize 64 --rho 5 --validEpochSize 10000 --trainEpochSize 100000 --softmaxtree')
 cmd:text('Options:')
 cmd:option('--learningRate', 0.1, 'learning rate at t=0')
-cmd:option('--lrScales', '{1,1}', 'layer-wise learning rate scales : learningRate*lrScale')
+cmd:option('--schedule', '{[250]=0.01, [350]=0.001}', 'learning rate schedule')
+cmd:option('--momentum', 0, 'momentum')
 cmd:option('--maxWait', 4, 'maximum number of epochs to wait for a new minima to be found. After that, the learning rate is decayed by decayFactor.')
 cmd:option('--decayFactor', 0.1, 'factor by which learning rate is decayed.')
 cmd:option('--maxOutNorm', 2, 'max norm each layers output neuron weights')
@@ -22,20 +24,17 @@ cmd:option('--cuda', false, 'use CUDA')
 cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
 cmd:option('--maxEpoch', 400, 'maximum number of epochs to run')
 cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better local minima for early-stopping')
-cmd:option('--sparseInit', false, 'initialize inputs using a sparse initialization (as opposed to the default normal initialization)')
+cmd:option('--accUpdate', false, 'accumulate updates inplace using accUpdateGradParameters')
 
 --[[ recurrent layer ]]--
 cmd:option('--rho', 5, 'back-propagate through time (BPTT) for rho time-steps')
-cmd:option('--updateInterval', -1, 'BPTT every updateInterval steps (and implicitly, at the end of each sentence). Defaults to --rho')
-cmd:option('--forceForget', false, 'force the recurrent layer to forget its past activations after each update')
 cmd:option('--hiddenSize', 200, 'number of hidden units used in Simple RNN')
 cmd:option('--dropout', false, 'apply dropout on hidden neurons (not recommended)')
 
 --[[ output layer ]]--
 cmd:option('--softmaxtree', false, 'use SoftmaxTree instead of the inefficient (full) softmax')
 cmd:option('--softmaxforest', false, 'use SoftmaxForest instead of SoftmaxTree (uses more memory)')
-cmd:option('--forestGaterSize', '{}', 'size of hidden layers used for forest gater (trees are experts)')
---cmd:option('--accUpdate', false, 'accumulate output layer updates inplace. Note that this will cause BPTT instability, but will cost less memory.')
+cmd:option('--forestGaterSize', '{}', 'size of hidden layers used for forest gater (trees are experts)') 
 
 --[[ data ]]--
 cmd:option('--small', false, 'use a small (1/30th) subset of the training set')
@@ -48,20 +47,14 @@ cmd:option('--silent', false, 'dont print anything to stdout')
 cmd:option('--xpPath', '', 'path to a previously saved model')
 cmd:text()
 opt = cmd:parse(arg or {})
-opt.updateInterval = opt.updateInterval == -1 and opt.rho or opt.updateInterval
+opt.schedule = dp.returnString(opt.schedule)
 if not opt.silent then
    table.print(opt)
 end
 
-opt.lrScales = table.fromString(opt.lrScales)
-
 if opt.xpPath ~= '' then
    -- check that saved model exists
    assert(paths.filep(opt.xpPath), opt.xpPath..' does not exist')
-end
-
-if not opt.forceForget then
-   print"Warning : you should probably use --forceForget"
 end
 
 --[[data]]--
@@ -72,18 +65,19 @@ elseif opt.tiny then
    train_file = 'train_tiny.th7'
 end
 
-local datasource = dp.BillionWords{train_file = train_file, load_all=false}
+datasource = dp.BillionWords{
+   train_file=train_file, load_all=false, 
+   context_size=opt.rho, recurrent=true
+}
 datasource:loadTrain()
 if not opt.trainOnly then
-   datasource:loadValid()
+   --datasource:loadValid()
    datasource:loadTest()
 end
 
 --[[Saved experiment]]--
 if opt.xpPath ~= '' then
    if opt.cuda then
-      require 'cutorch'
-      require 'cunn'
       require 'cunnx'
       cutorch.setDevice(opt.useDevice)
    end
@@ -97,104 +91,83 @@ end
 
 --[[Model]]--
 
--- build the last layer first:
-local softmax
-if opt.softmaxforest then
-   softmax = dp.SoftmaxForest{
-      input_size = opt.hiddenSize, 
-      hierarchy = {  
-         datasource:hierarchy('word_tree1.th7'), 
-         datasource:hierarchy('word_tree2.th7'),
-         datasource:hierarchy('word_tree3.th7')
-      },
-      gater_size = table.fromString(opt.forestGaterSize),
-      gater_act = nn.Tanh(),
-      root_id = {880542,880542,880542},
-      dropout = opt.dropout and nn.Dropout() or nil,
-      acc_update = opt.accUpdate
-   }
-   opt.softmaxtree = true
-elseif opt.softmaxtree then
-   softmax = dp.SoftmaxTree{
-      input_size = opt.hiddenSize, 
-      hierarchy = datasource:hierarchy(),
-      root_id = 880542,
-      dropout = opt.dropout and nn.Dropout() or nil,
-      -- best we can do for now (yet, end of sentences will be under-represented in output updates)
-      mvstate = {learn_scale = opt.lrScales[2]/opt.updateInterval},
-      sparse_init = opt.sparseInit
-   }
+-- language model
+lm = nn.Sequential()
+lm:add(nn.DontCast(nn.SplitTable(1,1):dontBackward():int())) -- tensor to table of tensors
+
+-- simple recurrent neural network
+rnn = nn.Recurrent(
+   opt.hiddenSize, 
+   nn.Dictionary(datasource:vocabularySize(), opt.hiddenSize, opt.accUpdate),
+   nn.Linear(opt.hiddenSize, opt.hiddenSize), nn.Sigmoid(), 99999
+)
+lm:add(nn.Sequencer(rnn))
+
+-- output layer
+if opt.softmaxforest or opt.softmaxtree then
+   -- input to nnlm is {inputs, targets} for nn.SoftMaxTree
+   local para = nn.ParallelTable()
+   para:add(lm):add(nn.Identity()) 
+   lm = nn.Sequential()
+   lm:add(para)
+   lm:add(nn.ZipTable())
+   if opt.softmaxforest then -- requires a lot more memory
+      local trees = {datasource:hierarchy('word_tree1.th7'), datasource:hierarchy('word_tree2.th7'), datasource:hierarchy('word_tree3.th7')}
+      local rootIds = {880542,880542,880542}
+      softmax = nn.SoftMaxForest(opt.hiddenSize, trees, rootIds, opt.forestGaterSize, nn.Tanh(), opt.accUpdate)
+      opt.softmaxtree = true
+   elseif opt.softmaxtree then
+      softmax = nn.SoftMaxTree(opt.hiddenSize, datasource:hierarchy(), 880542, opt.accUpdate)
+   end
 else
    print("Warning: you are using full LogSoftMax for last layer, which "..
-      "is really slow (800,000 x hiddenSize multiply adds "..
+      "is really slow (800,000 x outputEmbeddingSize multiply adds "..
       "per example. Try --softmaxtree instead.")
-   softmax = dp.Neural{
-      input_size = opt.hiddenSize,
-      output_size = table.length(datasource:classes()),
-      transfer = nn.LogSoftMax(),
-      dropout = opt.dropout and nn.Dropout() or nil,
-      mvstate = {learn_scale = opt.lrScales[2]/opt.updateInterval},
-      sparse_init = opt.sparseInit
-   }
+   softmax = nn.Sequential()
+   softmax:add(nn.Linear(opt.hiddenSize, datasource:vocabularySize()))
+   softmax:add(nn.LogSoftMax())
 end
-
-mlp = dp.Sequential{
-   models = {
-      dp.RecurrentDictionary{
-         dict_size = datasource:vocabularySize(),
-         output_size = opt.hiddenSize, rho = opt.rho,
-         mvstate = {learn_scale = opt.lrScales[2]}
-      },
-      softmax
-   }
-}
+lm:add(nn.Sequencer(softmax))
 
 --[[Propagators]]--
 train = dp.Optimizer{
-   loss = opt.softmaxtree and dp.TreeNLL() or dp.NLL(),
-   visitor = dp.RecurrentVisitorChain{ -- RNN visitors should be wrapped by this VisitorChain
-      visit_interval = opt.updateInterval,
-      force_forget = opt.forceForget,
-      visitors = {
-         dp.Learn{ -- will call nn.Recurrent:updateParameters, which calls nn.Recurrent:backwardThroughTime()
-            learning_rate = opt.learningRate, 
-            observer = dp.AdaptiveLearningRate{decay_factor=opt.decayFactor, max_wait=opt.maxWait}
-         },
-         dp.MaxNorm{max_out_norm=opt.maxOutNorm, period=opt.maxNormPeriod}
-      }
-   },
+   loss = nn.SequencerCriterion(opt.softmaxtree and nn.TreeNLLCriterion() or nn.ClassNLLCriterion()),
+   callback = function(model, report) 
+      opt.learningRate = opt.schedule[report.epoch] or opt.learningRate
+      if opt.accUpdate then
+         model:accUpdateGradParameters(model.dpnn_input, model.output, opt.learningRate)
+      else
+         model:updateGradParameters(opt.momentum) -- affects gradParams
+         model:updateParameters(opt.learningRate) -- affects params
+      end
+      model:maxParamNorm(opt.maxOutNorm) -- affects params
+      model:zeroGradParameters() -- affects gradParams 
+   end,
    feedback = dp.Perplexity(),  
-   sampler = dp.SentenceSampler{ 
-      evaluate = false,
+   sampler = dp.RandomSampler{
       epoch_size = opt.trainEpochSize, batch_size = opt.batchSize
    },
+   acc_update = opt.accUpdate,
    progress = opt.progress
 }
 
 if not opt.trainOnly then
-   valid = dp.Evaluator{
-      loss = opt.softmaxtree and dp.TreeNLL() or dp.NLL(),
+   --[[valid = dp.Evaluator{
       feedback = dp.Perplexity(),  
       sampler = dp.SentenceSampler{
-         evaluate = true,
-         epoch_size = opt.validEpochSize, 
-         batch_size = opt.batchSize
+         epoch_size = opt.validEpochSize, batch_size = opt.batchSize
       },
       progress = opt.progress
-   }
+   }--]]
    tester = dp.Evaluator{
-      loss = opt.softmaxtree and dp.TreeNLL() or dp.NLL(),
       feedback = dp.Perplexity(),  
-      sampler = dp.SentenceSampler{
-         evaluate = true,
-         batch_size = opt.batchSize
-      }
+      sampler = dp.SentenceSampler{batch_size = opt.batchSize}
    }
 end
 
 --[[Experiment]]--
 xp = dp.Experiment{
-   model = mlp,
+   model = lm,
    optimizer = train,
    validator = valid,
    tester = tester,
@@ -203,8 +176,13 @@ xp = dp.Experiment{
       dp.EarlyStopper{max_epochs = opt.maxTries}
    } or nil,
    random_seed = os.time(),
-   max_epoch = opt.maxEpoch
+   max_epoch = opt.maxEpoch,
+   target_module = nn.SplitTable(1,1):int()
 }
+if opt.softmaxtree then
+   -- makes it forward {input, target} instead of just input
+   xp:includeTarget()
+end
 
 --[[GPU or CPU]]--
 if opt.cuda then
@@ -219,8 +197,8 @@ end
 
 xp:verbose(not opt.silent)
 if not opt.silent then
-   print"dp.Models :"
-   print(mlp)
+   print"Language Model :"
+   print(lm)
 end
 
 xp:run(datasource)

@@ -19,7 +19,7 @@ function RandomSampler:sampleEpoch(dataset)
       if nSampled >= epochSize then
          return
       end
-      batch = batch or dataset:batch(self._batch_size)
+      batch = batch or dataset:sample(self._batch_size)
       -- inputs and targets
       dataset:sample(batch, self._batch_size)
       local indices = batch:indices() or torch.Tensor()

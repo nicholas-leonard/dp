@@ -50,7 +50,7 @@ end
 
 function Propagator:setup(config)
    assert(type(config) == 'table', "Setup requires key-value arguments")
-   local args, id, model, mediator = xlua.unpack(
+   local args, id, model, mediator, target_module = xlua.unpack(
       {config},
       'Propagator:setup', 
       'Post-initialization setup of the Propagator',
@@ -59,13 +59,16 @@ function Propagator:setup(config)
       {arg='model', type='nn.Module',
        help='the model that is to be trained or tested',},
       {arg='mediator', type='dp.Mediator', req=true,
-       help='used for inter-object communication.'}
+       help='used for inter-object communication.'},
+      {arg='target_module', type='nn.Module', 
+       help='Optional module through which targets can be forwarded'}
    )
    assert(torch.isTypeOf(id, 'dp.ObjectID'))
    self._id = id
    assert(torch.isTypeOf(mediator, 'dp.Mediator'))
    self._mediator = mediator
    self:model(model)
+   self._target_module = target_module or nn.Identity()
    self._sampler:setup{mediator=mediator, model=model}
    if self._observer then self._observer:setup{
       mediator=mediator, subject=self
@@ -138,6 +141,7 @@ end
 function Propagator:forward(batch)
    local input = batch:inputs():input()
    local target = batch:targets():input()
+   target = self._target_module:forward(target)
    if self._include_target then
       input = {input, target}
    end

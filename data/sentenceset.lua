@@ -20,8 +20,8 @@ SentenceSet._output_shape = 'b'
 
 function SentenceSet:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, which_set, data, context_size, end_id, start_id, 
-      words = xlua.unpack(
+   local args, which_set, data, context_size, recurrent, 
+      end_id, start_id, words = xlua.unpack(
       {config},
       'SentenceSet', 
       'Stores a sequence of sentences. Each sentence is a sequence '..
@@ -33,8 +33,11 @@ function SentenceSet:__init(config)
        'start indices of sentences. Second col is for storing the '..
        'sequence of words as shuffled sentences. Sentences are '..
        'only seperated by the sentence_end delimiter.', req=true},
-      {arg='context_size', type='number', default=1,
+      {arg='context_size', type='number', default=5,
        help='number of previous words to be used to predict the next.'},
+      {arg='recurrent', type='number', default=false,
+       help='For RNN training, set this to true. In which case, '..
+       'outputs a target word for each input word'},
       {arg='end_id', type='number', req=true,
        help='word_id of the sentence end delimiter : "</S>"'},
       {arg='start_id', type='number', req=true,
@@ -46,6 +49,7 @@ function SentenceSet:__init(config)
    self._data = data
    assert(data[data:size(1)][2] == end_id ,"data should be terminated with end_id")
    self._context_size = context_size
+   self._recurrent = recurrent
    self._start_id = start_id
    self._end_id = end_id
    self._words = words
@@ -91,6 +95,7 @@ end
 -- not recommended for training (use for evaluation)
 -- used for NNLMs (not recurrent models)
 function SentenceSet:sub(batch, start, stop)
+   assert(not self._recurrent, "SentenceSet:sub not supported with self._recurrent")
    local input_v, inputs, target_v, targets
    if (not batch) or (not stop) then 
       if batch then
@@ -151,29 +156,36 @@ end
 -- used for training NNLM on large datasets
 -- gets a random sample
 function SentenceSet:sample(batch, batchSize)
-   batchSize = batchSize or batch
+   if not batchSize then
+      batchSize = batch
+      batch = nil
+   end
    self._indices = self._indices or torch.LongTensor()
    self._indices:resize(batchSize)
    self._indices:random(self._data:size(1)-(self._context_size+1))
    return self:index(batch, self._indices)
 end
 
--- used for training NNLM on small datasets
+-- used for training NNLM or RNNs on small datasets
 function SentenceSet:index(batch, indices)
    local inputs, targets, input_v, target_v
    if (not batch) or (not indices) then 
       indices = indices or batch
       batch = nil
-      inputs = torch.IntTensor(indices:size(1), self._context_size)
-      targets = torch.IntTensor(indices:size(1))
+      inputs = torch.IntTensor()
+      targets = torch.IntTensor()
       input_v = dp.ClassView()
       target_v = dp.ClassView()
    else
       input_v = batch:inputs()
       inputs = input_v:input()
-      inputs:resize(indices:size(1), self._context_size)
       target_v = batch:targets()
       targets = target_v:input()
+   end
+   if self._recurrent then
+      inputs:resize(indices:size(1), self._context_size+1)
+   else
+      inputs:resize(indices:size(1), self._context_size)
       targets:resize(indices:size(1))
    end
    -- fill tensor with sentence end tags : <S>
@@ -184,9 +196,8 @@ function SentenceSet:index(batch, indices)
    local data = self.__index_mem
    local words = self._data:select(2, 2)
    for i=1,data:size(1) do
-      local sample = data:select(1, i)
-      -- add input
-      local sample_stop = indices[i]-1
+      local sample = data:select(1, i) -- sentence start index
+      local sample_stop = indices[i]-1 -- indices[i] is target index
       local sentence_start = self._context_size
       if sample[1] <= sample_stop then
          local sample_start = math.max(sample[1], sample_stop-self._context_size+1)
@@ -202,13 +213,18 @@ function SentenceSet:index(batch, indices)
       end
    end   
    -- targets
-   targets:copy(data:select(2,2))
+   if self._recurrent then
+      inputs:select(2,self._context_size+1):copy(data:select(2,2))
+      targets:set(inputs:narrow(2,2,self._context_size))
+      target_v:forward('bt', targets)
+      inputs = inputs:narrow(2,1,self._context_size)
+   else
+      targets:copy(data:select(2,2))
+      target_v:forward('b', targets)
+   end
    
-   -- encapsulate in dp.Views
    input_v:forward('bt', inputs)
    input_v:setClasses(self._words)
-   
-   target_v:forward('b', targets)
    target_v:setClasses(self._words)
    
    return batch or dp.Batch{

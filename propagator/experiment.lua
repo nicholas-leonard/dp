@@ -18,8 +18,8 @@ Experiment.isExperiment = true
 
 function Experiment:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, id, model, optimizer, validator, tester, observer, 
-      random_seed, epoch, mediator, max_epoch, description
+   local args, id, model, target_module, optimizer, validator, tester, 
+      observer, random_seed, epoch, mediator, max_epoch, description
       = xlua.unpack(
       {config},
       'Experiment', 
@@ -30,6 +30,8 @@ function Experiment:__init(config)
        'Defaults to using dp.uniqueID() to initialize a dp.ObjectID'},
       {arg='model', type='nn.Module', req=true,
        help='Module instance shared by all Propagators.'},
+      {arg='target_module', type='nn.Module', 
+       help='Optional module through which targets can be forwarded'},
       {arg='optimizer', type='dp.Optimizer',
        help='Optimizer instance used for propagating the train set'},
       {arg='validator', type='dp.Evaluator', 
@@ -59,6 +61,7 @@ function Experiment:__init(config)
    self:tester(tester)
    self:mediator(mediator or dp.Mediator())
    self:maxEpoch(max_epoch)
+   self._target_module = target_module
    self._is_done_experiment = false
    self._description = description
 end
@@ -67,19 +70,22 @@ function Experiment:setup(datasource)
    --publishing to this channel will terminate the experimental loop
    self._mediator:subscribe("doneExperiment", self, "doneExperiment")
    if self._optimizer then
-      self._optimizer:setup{mediator=self._mediator, model=self._model,
-                            id=self:id():create('optimizer'),
-                            dataset=datasource:trainSet()}
+      self._optimizer:setup{
+         mediator=self._mediator, id=self:id():create('optimizer'),
+         model=self._model, target_module=self._target_module
+      }
    end
    if self._validator then
-      self._validator:setup{mediator=self._mediator, model=self._model,
-                            id=self:id():create('validator'),
-                            dataset=datasource:validSet()}
+      self._validator:setup{
+         mediator=self._mediator, id=self:id():create('validator'),
+         model=self._model, target_module=self._target_module
+      }
    end
    if self._tester then
-      self._tester:setup{mediator=self._mediator, model=self._model,
-                            id=self:id():create('tester'),
-                            dataset=datasource:testSet()}
+      self._tester:setup{
+         mediator=self._mediator, id=self:id():create('tester'),
+         model=self._model, target_module=self._target_module
+      }
    end
    if self._observer then
       self._observer:setup{mediator=self._mediator, subject=self}
@@ -132,7 +138,6 @@ function Experiment:report()
       tester = self:tester() and self:tester():report(),
       epoch = self:epoch(),
       random_seed = self:randomSeed(),
-      model = self._model:report(),
       id = self._id:toString(),
       description = self._description
    }

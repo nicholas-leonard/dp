@@ -40,6 +40,7 @@ cmd:text()
 opt = cmd:parse(arg or {})
 opt.hiddenSize = dp.returnString(opt.hiddenSize)
 opt.forestGaterSize = dp.returnString(opt.forestGaterSize)
+opt.schedule = dp.returnString(opt.schedule)
 if not opt.silent then
    table.print(opt)
 end
@@ -140,7 +141,7 @@ if not opt.trainOnly then
    valid = dp.Evaluator{
       feedback = dp.Perplexity(),  
       sampler = dp.Sampler{
-         epoch_size = opt.validEpochSize, batch_size = pt.batchSize
+         epoch_size = opt.validEpochSize, batch_size = opt.batchSize
       },
       progress = opt.progress
    }

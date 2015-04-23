@@ -6,7 +6,7 @@ function dp.Threads(...)
 
   -- tell you if the queues are empty.
   function Threads:isEmpty()
-    return not (self.mainqueue.isempty > 0 or   self.threadqueue.isempty > 0 or self.endcallbacks.n > 0)
+    return not (self.mainqueue.head ~= self.mainqueue.tail or self.threadqueue.head ~= self.threadqueue.tail or self.endcallbacks.n > 0)
   end
 
   return Threads(unpack(args))

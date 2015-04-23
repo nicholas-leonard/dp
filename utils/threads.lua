@@ -6,7 +6,7 @@ function dp.Threads(...)
    
    local ffi = require 'ffi'
    local sdl = require 'sdl2'
-   local Worker = require 'threads.worker'
+   local Worker = require 'threads.queue'
    local C = ffi.C
    local serialize = require 'threads.serialize'
    

@@ -45,8 +45,7 @@ function Perplexity:add(batch, output, report)
    if torch.type(output) == 'table' then
       -- targets aren't a table
       local targets = batch:targets():forward('bt')
-      self._n_sample = self._n_sample + (batch:nSample()*targets:size(1))
-      assert(batch:nSample() == targets:size(1))
+      self._n_sample = self._n_sample + targets:nElement()
       local sum = 0
       for i=1,#output do
          local target = targets:select(2,i)

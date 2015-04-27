@@ -10,12 +10,11 @@ cmd:text('Options:')
 -- fundamentals 
 cmd:option('--learningRate', 0.1, 'learning rate at t=0')
 cmd:option('--momentum', 0, 'momentum')
-cmd:option('--activation', 'Tanh', 'transfer function like ReLU, Tanh, Sigmoid')
+cmd:option('--activation', 'ReLU', 'transfer function like ReLU, Tanh, Sigmoid')
 cmd:option('--batchSize', 32, 'number of examples per batch')
 cmd:option('--dontPad', false, 'dont add math.floor(kernelSize/2) padding to the input of each convolution') 
 -- regularization (and dropout or batchNorm)
 cmd:option('--maxOutNorm', 1, 'max norm each layers output neuron weights')
-cmd:option('--maxNormPeriod', 1, 'Applies MaxNorm Visitor every maxNormPeriod batches')
 cmd:option('--batchNorm', false, 'use batch normalization. dropout is mostly redundant with this')
 cmd:option('--dropout', false, 'use dropout')
 cmd:option('--dropoutProb', '{0.2,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5}', 'dropout probabilities')
@@ -194,7 +193,7 @@ cnn:add(nn.LogSoftMax())
 --[[Propagators]]--
 train = dp.Optimizer{
    acc_update = opt.accUpdate,
-   loss = nn.ClassNLLCriterion(),
+   loss = nn.ModuleCriterion(nn.ClassNLLCriterion(), nil, nn.Convert()),
    callback = function(model, report) 
       -- the ordering here is important
       if opt.accUpdate then
@@ -207,12 +206,12 @@ train = dp.Optimizer{
       model:zeroGradParameters() -- affects gradParams 
    end,
    feedback = dp.Confusion(),
-   sampler = dp.ShuffleSampler{batch_size = opt.batchSize, epoch_size = 500},
+   sampler = dp.ShuffleSampler{batch_size = opt.batchSize},
    progress = true
 }
 valid = dp.Evaluator{
    feedback = dp.Confusion(),  
-   sampler = dp.Sampler{batch_size = opt.batchSize, epoch_size = 500}
+   sampler = dp.Sampler{batch_size = opt.batchSize}
 }
 test = dp.Evaluator{
    feedback = dp.Confusion(),
@@ -222,7 +221,7 @@ test = dp.Evaluator{
 --[[Experiment]]--
 xp = dp.Experiment{
    model = cnn,
-   --optimizer = train,
+   optimizer = train,
    validator = valid,
    tester = test,
    observer = {

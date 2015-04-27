@@ -12,6 +12,7 @@ cmd:option('--learningRate', 0.1, 'learning rate at t=0')
 cmd:option('--momentum', 0, 'momentum')
 cmd:option('--activation', 'Tanh', 'transfer function like ReLU, Tanh, Sigmoid')
 cmd:option('--batchSize', 32, 'number of examples per batch')
+cmd:option('--dontPad', false, 'dont add math.floor(kernelSize/2) padding to the input of each convolution') 
 -- regularization (and dropout or batchNorm)
 cmd:option('--maxOutNorm', 1, 'max norm each layers output neuron weights')
 cmd:option('--maxNormPeriod', 1, 'Applies MaxNorm Visitor every maxNormPeriod batches')
@@ -55,6 +56,7 @@ opt = cmd:parse(arg or {})
 if not opt.silent then
    table.print(opt)
 end
+
 
 -- convolution layers
 opt.convChannelSize = table.fromString(opt.convChannelSize)
@@ -104,10 +106,8 @@ else
 end
 
 --[[Model]]--
-
-function dropout(depth)
-   return opt.dropout and (opt.dropoutProb[depth] or 0) > 0 and nn.Dropout(opt.dropoutProb[depth])
-end
+insize = {1,ds:imageSize('c'),ds:imageSize('h'),ds:imageSize('w')}
+cnn = nn.Sequential()
 
 -- convolutional and pooling layers
 inputSize = ds:imageSize('c')
@@ -121,14 +121,14 @@ for i=1,#opt.convChannelSize do
       inputSize, opt.convChannelSize[i], 
       opt.convKernelSize[i], opt.convKernelSize[i], 
       opt.convKernelStride[i], opt.convKernelStride[i],
-      opt.padding and math.floor(opt.convKernelSize[i]/2) or 0
+      (not opt.dontPad) and math.floor(opt.convKernelSize[i]/2) or 0
    ))
    if opt.batchNorm then
       -- batch normalization can be awesome
       cnn:add(nn.SpatialBatchNormalization(opt.convChannelSize[i]))
    end
    cnn:add(nn[opt.activation]())
-   if opt.poolSize[i] and opt.poolSize[i] > 0 then
+   if opt.convPoolSize[i] and opt.convPoolSize[i] > 0 then
       cnn:add(nn.SpatialMaxPooling(
          opt.convPoolSize[i], opt.convPoolSize[i], 
          opt.convPoolStride[i] or opt.convPoolSize[i], 
@@ -145,7 +145,7 @@ for i=1,#opt.incepChannelSize do
       -- dropout can be useful for regularization
       cnn:add(nn.SpatialDropout(opt.dropoutProb[depth]))
    end
-   local incep = nn.Inception{
+   cnn:add(nn.Inception{
       inputSize = inputSize,
       outputSize = opt.incepChannelSize[i],
       reduceSize = opt.incepReduceSize[i],
@@ -155,16 +155,15 @@ for i=1,#opt.incepChannelSize do
       poolSize = opt.incepPoolSize[i],
       poolStride =  opt.incepPoolStride[i],
       transfer = nn[opt.activation](),
-      batchNorm = opt.batchNorm, 
-      dropout = dropout(depth)
-   }
-   cnn:add(incep)
-   inputSize, height, width = incep:outside(height, width, 'bchw')
+      batchNorm = opt.batchNorm,
+      padding = not opt.dontPad
+   })
+   inputSize = cnn:outside(insize)[2]
    depth = depth + 1
 end
 
 -- get output size of convolutional layers
-outsize = cnn:outside{1,ds:imageSize('c'),ds:imageSize('h'),ds:imageSize('w')}
+outsize = cnn:outside(insize)
 inputSize = outsize[2]*outsize[3]*outsize[4]
 dp.vprint(not opt.silent, "input to dense layers has: "..inputSize.." neurons")
 
@@ -208,12 +207,12 @@ train = dp.Optimizer{
       model:zeroGradParameters() -- affects gradParams 
    end,
    feedback = dp.Confusion(),
-   sampler = dp.ShuffleSampler{batch_size = opt.batchSize},
+   sampler = dp.ShuffleSampler{batch_size = opt.batchSize, epoch_size = 500},
    progress = true
 }
 valid = dp.Evaluator{
    feedback = dp.Confusion(),  
-   sampler = dp.Sampler{batch_size = opt.batchSize}
+   sampler = dp.Sampler{batch_size = opt.batchSize, epoch_size = 500}
 }
 test = dp.Evaluator{
    feedback = dp.Confusion(),
@@ -223,7 +222,7 @@ test = dp.Evaluator{
 --[[Experiment]]--
 xp = dp.Experiment{
    model = cnn,
-   optimizer = train,
+   --optimizer = train,
    validator = valid,
    tester = test,
    observer = {

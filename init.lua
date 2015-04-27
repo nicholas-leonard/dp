@@ -119,7 +119,6 @@ torch.include('dp', 'observer/filelogger.lua')
 
 --[[ nn ]]--
 torch.include('dp', 'nn/Print.lua')
-torch.include('dp', 'nn/PrintSize.lua')
 torch.include('dp', 'nn/FairLookupTable.lua')
 
 

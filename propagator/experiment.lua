@@ -161,7 +161,7 @@ function Experiment:model(model)
    if model then
       assert(torch.isTypeOf(model, 'nn.Module'), "Expecting nn.Module instance")
       self._model = model
-      self._model:serial('light', 'double')
+      -- disabled for now : self._model:serial('light', 'double')
       return
    end
    return self._model

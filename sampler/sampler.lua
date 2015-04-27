@@ -98,8 +98,8 @@ function Sampler:sampleEpoch(dataset)
       if nSampled >= epochSize then
          return
       end
-      batch = batch or dataset:batch(self._batch_size)
       stop = math.min(self._start+self._batch_size-1,nSample)
+      batch = batch or dataset:batch(stop-self._start+1)
       -- inputs and targets
       dataset:sub(batch, self._start, stop)
       local indices = batch:indices() or torch.Tensor()

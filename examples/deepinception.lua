@@ -3,7 +3,7 @@ require 'dp'
 --[[command line arguments]]--
 cmd = torch.CmdLine()
 cmd:text()
-cmd:text('Image Classification using Inception Models Training/Optimization')
+cmd:text('Image Classification using Inception Modules Training/Optimization')
 cmd:text('Example:')
 cmd:text('$> th deepinception.lua --lecunlcn --batchSize 128 --accUpdate --cuda')
 cmd:text('Options:')
@@ -12,9 +12,10 @@ cmd:option('--learningRate', 0.1, 'learning rate at t=0')
 cmd:option('--momentum', 0, 'momentum')
 cmd:option('--activation', 'Tanh', 'transfer function like ReLU, Tanh, Sigmoid')
 cmd:option('--batchSize', 32, 'number of examples per batch')
--- regularization (and dropout)
+-- regularization (and dropout or batchNorm)
 cmd:option('--maxOutNorm', 1, 'max norm each layers output neuron weights')
 cmd:option('--maxNormPeriod', 1, 'Applies MaxNorm Visitor every maxNormPeriod batches')
+cmd:option('--batchNorm', false, 'use batch normalization. dropout is mostly redundant with this')
 cmd:option('--dropout', false, 'use dropout')
 cmd:option('--dropoutProb', '{0.2,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5}', 'dropout probabilities')
 -- data and preprocessing
@@ -22,7 +23,7 @@ cmd:option('--dataset', 'Svhn', 'which dataset to use : Svhn | Mnist | NotMnist 
 cmd:option('--standardize', false, 'apply Standardize preprocessing')
 cmd:option('--zca', false, 'apply Zero-Component Analysis whitening')
 cmd:option('--lecunlcn', false, 'apply Yann LeCun Local Contrast Normalization (recommended)')
--- convolution layers
+-- convolution layers (before Inception layers, 2 or 3 should do)
 cmd:option('--convChannelSize', '{64,128}', 'Number of output channels (number of filters) for each convolution layer.')
 cmd:option('--convKernelSize', '{5,5}', 'kernel size of each convolution layer. Height = Width')
 cmd:option('--convKernelStride', '{1,1}', 'kernel stride of each convolution layer. Height = Width')
@@ -42,7 +43,6 @@ cmd:option('--incepPoolStride', '{}', 'The stride (height=width) of the spatial 
 -- dense layers
 cmd:option('--hiddenSize', '{}', 'size of the dense hidden layers after the convolution')
 -- misc
-cmd:option('--normalInit', false, 'initialize inputs using a normal distribution (as opposed to sparse initialization)')
 cmd:option('--cuda', false, 'use CUDA')
 cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
 cmd:option('--maxEpoch', 1000, 'maximum number of epochs to run')
@@ -54,11 +54,6 @@ cmd:text()
 opt = cmd:parse(arg or {})
 if not opt.silent then
    table.print(opt)
-end
-
-if opt.activation == 'ReLU' and not opt.normalInit then
-   print("Warning : you should probably use --normalInit with ReLUs for "..
-      "this script if you don't want to get NaN errors")
 end
 
 -- convolution layers
@@ -93,17 +88,17 @@ if opt.lecunlcn then
 end
 
 --[[data]]--
-local datasource
+local ds
 if opt.dataset == 'Svhn' then
-   datasource = dp.Svhn{input_preprocess = input_preprocess}
+   ds = dp.Svhn{input_preprocess = input_preprocess}
 elseif opt.dataset == 'Mnist' then
-   datasource = dp.Mnist{input_preprocess = input_preprocess}
+   ds = dp.Mnist{input_preprocess = input_preprocess}
 elseif opt.dataset == 'NotMnist' then
-   datasource = dp.NotMnist{input_preprocess = input_preprocess}
+   ds = dp.NotMnist{input_preprocess = input_preprocess}
 elseif opt.dataset == 'Cifar10' then
-   datasource = dp.Cifar10{input_preprocess = input_preprocess}
+   ds = dp.Cifar10{input_preprocess = input_preprocess}
 elseif opt.dataset == 'Cifar100' then
-   datasource = dp.Cifar100{input_preprocess = input_preprocess}
+   ds = dp.Cifar100{input_preprocess = input_preprocess}
 else
     error("Unknown Dataset")
 end
@@ -114,106 +109,113 @@ function dropout(depth)
    return opt.dropout and (opt.dropoutProb[depth] or 0) > 0 and nn.Dropout(opt.dropoutProb[depth])
 end
 
-cnn = dp.Sequential()
-inputSize = datasource:imageSize('c')
-height, width = datasource:imageSize('h'), datasource:imageSize('w')
-depth = 0
+-- convolutional and pooling layers
+inputSize = ds:imageSize('c')
+depth = 1
 for i=1,#opt.convChannelSize do
-   local conv = dp.Convolution2D{
-      input_size = inputSize, 
-      kernel_size = {opt.convKernelSize[i], opt.convKernelSize[i]},
-      kernel_stride = {opt.convKernelStride[i], opt.convKernelStride[i]},
-      pool_size = {opt.convPoolSize[i], opt.convPoolSize[i]},
-      pool_stride = {opt.convPoolStride[i], opt.convPoolStride[i]},
-      output_size = opt.convChannelSize[i], 
-      transfer = nn[opt.activation](),
-      dropout = dropout(depth),
-      acc_update = opt.accUpdate,
-      sparse_init = not opt.normalInit
-   }
-   cnn:add(conv)
-   inputSize, height, width = conv:outputSize(height, width, 'bchw')
+   if opt.dropout and (opt.dropoutProb[depth] or 0) > 0 then
+      -- dropout can be useful for regularization
+      cnn:add(nn.SpatialDropout(opt.dropoutProb[depth]))
+   end
+   cnn:add(nn.SpatialConvolution(
+      inputSize, opt.convChannelSize[i], 
+      opt.convKernelSize[i], opt.convKernelSize[i], 
+      opt.convKernelStride[i], opt.convKernelStride[i],
+      opt.padding and math.floor(opt.convKernelSize[i]/2) or 0
+   ))
+   if opt.batchNorm then
+      -- batch normalization can be awesome
+      cnn:add(nn.SpatialBatchNormalization(opt.convChannelSize[i]))
+   end
+   cnn:add(nn[opt.activation]())
+   if opt.poolSize[i] and opt.poolSize[i] > 0 then
+      cnn:add(nn.SpatialMaxPooling(
+         opt.convPoolSize[i], opt.convPoolSize[i], 
+         opt.convPoolStride[i] or opt.convPoolSize[i], 
+         opt.convPoolStride[i] or opt.convPoolSize[i]
+      ))
+   end
+   inputSize = opt.convChannelSize[i]
    depth = depth + 1
 end
 
 -- Inception layers
-for i=1,#opt.incepChannelSize do   
-   local incep = dp.Inception{
-      input_size = inputSize,
-      output_size = opt.incepChannelSize[i],
-      reduce_size = opt.incepReduceSize[i],
-      reduce_stride = opt.incepReduceStride[i],
-      kernel_size = opt.incepKernelSize[i],
-      kernel_stride = opt.incepKernelStride[i],
-      pool_size = opt.incepPoolSize[i],
-      pool_stride =  opt.incepPoolStride[i],
+for i=1,#opt.incepChannelSize do
+   if opt.dropout and (opt.dropoutProb[depth] or 0) > 0 then
+      -- dropout can be useful for regularization
+      cnn:add(nn.SpatialDropout(opt.dropoutProb[depth]))
+   end
+   local incep = nn.Inception{
+      inputSize = inputSize,
+      outputSize = opt.incepChannelSize[i],
+      reduceSize = opt.incepReduceSize[i],
+      reduceStride = opt.incepReduceStride[i],
+      kernelSize = opt.incepKernelSize[i],
+      kernelStride = opt.incepKernelStride[i],
+      poolSize = opt.incepPoolSize[i],
+      poolStride =  opt.incepPoolStride[i],
       transfer = nn[opt.activation](),
-      dropout = dropout(depth),
-      acc_update = opt.accUpdate,
-      sparse_init = not opt.normalInit,
-      typename = 'inception'..i
+      batchNorm = opt.batchNorm, 
+      dropout = dropout(depth)
    }
    cnn:add(incep)
-   inputSize, height, width = incep:outputSize(height, width, 'bchw')
+   inputSize, height, width = incep:outside(height, width, 'bchw')
    depth = depth + 1
 end
 
-inputSize = inputSize*height*width
-dp.vprint(not opt.silent, "input to first Neural layer has: "..inputSize.." neurons")
+-- get output size of convolutional layers
+outsize = cnn:outside{1,ds:imageSize('c'),ds:imageSize('h'),ds:imageSize('w')}
+inputSize = outsize[2]*outsize[3]*outsize[4]
+dp.vprint(not opt.silent, "input to dense layers has: "..inputSize.." neurons")
 
+cnn:insert(nn.Convert(ds:ioShapes(), 'bchw'), 1)
+
+-- dense layers
+cnn:add(nn.Collapse(3))
 for i,hiddenSize in ipairs(opt.hiddenSize) do
-   local dense = dp.Neural{
-      input_size = inputSize, 
-      output_size = hiddenSize,
-      transfer = nn[opt.activation](),
-      dropout = dropout(depth),
-      acc_update = opt.accUpdate,
-      sparse_init = not opt.normalInit
-   }
-   cnn:add(dense)
+   if opt.dropout and (opt.dropoutProb[depth] or 0) > 0 then
+      cnn:add(nn.Dropout(opt.dropoutProb[depth]))
+   end
+   cnn:add(nn.Linear(inputSize, hiddenSize))
+   if opt.batchNorm then
+      cnn:add(nn.BatchNormalization(hiddenSize))
+   end
+   cnn:add(nn[opt.activation]())
    inputSize = hiddenSize
    depth = depth + 1
 end
 
-cnn:add(
-   dp.Neural{
-      input_size = inputSize, 
-      output_size = #(datasource:classes()),
-      transfer = nn.LogSoftMax(),
-      dropout = dropout(depth),
-      acc_update = opt.accUpdate,
-      sparse_init = not opt.normalInit
-   }
-)
-
-local visitor = {}
--- the ordering here is important:
-if opt.momentum > 0 then
-   if opt.accUpdate then
-      error"momentum doesn't work with --accUpdate"
-   end
-   table.insert(visitor, dp.Momentum{momentum_factor = opt.momentum})
+-- output layer
+if opt.dropout and (opt.dropoutProb[depth] or 0) > 0 then
+   cnn:add(nn.Dropout(opt.dropoutProb[depth]))
 end
-table.insert(visitor, dp.Learn{learning_rate = opt.learningRate})
-table.insert(visitor, dp.MaxNorm{
-   max_out_norm = opt.maxOutNorm, period=opt.maxNormPeriod
-})
+cnn:add(nn.Linear(inputSize, #(ds:classes())))
+cnn:add(nn.LogSoftMax())
 
 --[[Propagators]]--
 train = dp.Optimizer{
-   loss = dp.NLL(),
-   visitor = visitor,
+   acc_update = opt.accUpdate,
+   loss = nn.ClassNLLCriterion(),
+   callback = function(model, report) 
+      -- the ordering here is important
+      if opt.accUpdate then
+         model:accUpdateGradParameters(model.dpnn_input, model.output, opt.learningRate)
+      else
+         model:updateGradParameters(opt.momentum) -- affects gradParams
+         model:updateParameters(opt.learningRate) -- affects params
+      end
+      model:maxParamNorm(opt.maxOutNorm) -- affects params
+      model:zeroGradParameters() -- affects gradParams 
+   end,
    feedback = dp.Confusion(),
    sampler = dp.ShuffleSampler{batch_size = opt.batchSize},
-   progress = opt.progress
+   progress = true
 }
 valid = dp.Evaluator{
-   loss = dp.NLL(),
    feedback = dp.Confusion(),  
    sampler = dp.Sampler{batch_size = opt.batchSize}
 }
 test = dp.Evaluator{
-   loss = dp.NLL(),
    feedback = dp.Confusion(),
    sampler = dp.Sampler{batch_size = opt.batchSize}
 }
@@ -246,10 +248,8 @@ end
 
 xp:verbose(not opt.silent)
 if not opt.silent then
-   print"dp.Models :"
+   print"Model :"
    print(cnn)
-   print"nn.Modules :"
-   print(cnn:toModule(datasource:trainSet():sub(1,32)))
 end
 
-xp:run(datasource)
+xp:run(ds)

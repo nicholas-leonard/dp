@@ -39,6 +39,7 @@ cmd:option('--dropoutProb', '{0.2,0.5,0.5}', 'dropout probabilities')
 cmd:option('--accUpdate', false, 'accumulate gradients inplace')
 cmd:option('--progress', false, 'print progress bar')
 cmd:option('--silent', false, 'dont print anything to stdout')
+cmd:option('--saveModel', '', 'Filename for saving the trained model')
 cmd:text()
 opt = cmd:parse(arg or {})
 if not opt.silent then
@@ -219,5 +220,7 @@ if not opt.silent then
    print(cnn:toModule(datasource:trainSet():sub(1,32)))
 end
 xp:verbose(not opt.silent)
-
 xp:run(datasource)
+if opt.saveModel ~= '' then
+   torch.save(opt.saveModel, cnn)
+end

@@ -22,7 +22,12 @@ cmd:option('--cuda', false, 'use CUDA')
 cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
 cmd:option('--maxEpoch', 100, 'maximum number of epochs to run')
 cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better local minima for early-stopping')
-cmd:option('--dataset', 'Mnist', 'which dataset to use : Mnist | NotMnist | Cifar10 | Cifar100 | Svhn')
+cmd:option('--dataset', 'Mnist', 'which dataset to use : Mnist | NotMnist | Cifar10 | Cifar100 | Svhn | ImageSource')
+cmd:option('--trainPath', '.', 'Where to look for training images')
+cmd:option('--validPath', '.', 'Where to look for validation images')
+cmd:option('--metaPath', '.', 'Where to cache meta data')
+cmd:option('--loadSize', '.', 'Image size')
+cmd:option('--sampleSize', '.', 'The size to use for cropped images')
 cmd:option('--standardize', false, 'apply Standardize preprocessing')
 cmd:option('--zca', false, 'apply Zero-Component Analysis whitening')
 cmd:option('--lecunlcn', false, 'apply Yann LeCun Local Contrast Normalization (recommended)')
@@ -34,6 +39,7 @@ cmd:option('--dropoutProb', '{0.2,0.5,0.5}', 'dropout probabilities')
 cmd:option('--accUpdate', false, 'accumulate gradients inplace')
 cmd:option('--progress', false, 'print progress bar')
 cmd:option('--silent', false, 'dont print anything to stdout')
+cmd:option('--saveModel', '', 'Filename for saving the trained model')
 cmd:text()
 opt = cmd:parse(arg or {})
 if not opt.silent then
@@ -53,7 +59,14 @@ opt.poolSize = table.fromString(opt.poolSize)
 opt.poolStride = table.fromString(opt.poolStride)
 opt.dropoutProb = table.fromString(opt.dropoutProb)
 opt.hiddenSize = table.fromString(opt.hiddenSize)
-
+opt.loadSize = opt.loadSize:split(',')
+for i = 1, #opt.loadSize do
+   opt.loadSize[i] = tonumber(opt.loadSize[i])
+end
+opt.sampleSize = opt.sampleSize:split(',')
+for i = 1, #opt.sampleSize do
+   opt.sampleSize[i] = tonumber(opt.sampleSize[i])
+end
 
 --[[preprocessing]]--
 local input_preprocess = {}
@@ -80,6 +93,8 @@ elseif opt.dataset == 'Cifar100' then
    datasource = dp.Cifar100{input_preprocess = input_preprocess}
 elseif opt.dataset == 'Svhn' then
    datasource = dp.Svhn{input_preprocess = input_preprocess}
+elseif opt.dataset == 'ImageSource' then
+   datasource = dp.ImageSource{load_size = opt.loadSize, sample_size = opt.sampleSize, train_path = opt.trainPath, valid_path = opt.validPath, meta_path = opt.metaPath, verbose = not opt.silent}
 else
     error("Unknown Dataset")
 end
@@ -89,10 +104,10 @@ function dropout(depth)
 end
 
 --[[Model]]--
-
 cnn = dp.Sequential()
-inputSize = datasource:imageSize('c')
-height, width = datasource:imageSize('h'), datasource:imageSize('w')
+inputSize = datasource.imageSize ~= nil and datasource:imageSize('c') or opt.loadSize[1]
+height = datasource.imageSize ~= nil and datasource:imageSize('h') or opt.loadSize[2]
+width = datasource.imageSize ~= nil and datasource:imageSize('w') or opt.loadSize[3]
 depth = 1
 for i=1,#opt.channelSize do
    local conv = dp.Convolution2D{
@@ -205,5 +220,7 @@ if not opt.silent then
    print(cnn:toModule(datasource:trainSet():sub(1,32)))
 end
 xp:verbose(not opt.silent)
-
 xp:run(datasource)
+if opt.saveModel ~= '' then
+   torch.save(opt.saveModel, cnn)
+end

@@ -22,7 +22,7 @@ cmd:option('--cuda', false, 'use CUDA')
 cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
 cmd:option('--maxEpoch', 100, 'maximum number of epochs to run')
 cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better local minima for early-stopping')
-cmd:option('--dataset', 'Mnist', 'which dataset to use : Mnist | NotMnist | Cifar10 | Cifar100 | Svhn | ImageClassSet')
+cmd:option('--dataset', 'Mnist', 'which dataset to use : Mnist | NotMnist | Cifar10 | Cifar100 | Svhn | ImageSource')
 cmd:option('--trainPath', '.', 'Where to look for training images')
 cmd:option('--validPath', '.', 'Where to look for validation images')
 cmd:option('--metaPath', '.', 'Where to cache meta data')
@@ -93,8 +93,8 @@ elseif opt.dataset == 'Cifar100' then
    datasource = dp.Cifar100{input_preprocess = input_preprocess}
 elseif opt.dataset == 'Svhn' then
    datasource = dp.Svhn{input_preprocess = input_preprocess}
-elseif opt.dataset == 'ImageClassSet' then
-   datasource = dp.ImageDataSource{load_size = opt.loadSize, sample_size = opt.sampleSize, train_path = opt.trainPath, valid_path = opt.validPath, meta_path = opt.metaPath, verbose = not opt.silent}
+elseif opt.dataset == 'ImageSource' then
+   datasource = dp.ImageSource{load_size = opt.loadSize, sample_size = opt.sampleSize, train_path = opt.trainPath, valid_path = opt.validPath, meta_path = opt.metaPath, verbose = not opt.silent}
 else
     error("Unknown Dataset")
 end

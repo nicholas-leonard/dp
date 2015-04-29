@@ -76,6 +76,7 @@ torch.include('dp', 'data/facialkeypoints.lua')
 torch.include('dp', 'data/billionwords.lua')
 torch.include('dp', 'data/svhn.lua')
 torch.include('dp', 'data/imagenet.lua')
+torch.include('dp', 'data/imagesource.lua')
 
 --[[ sampler ]]--
 torch.include('dp', 'sampler/sampler.lua')

@@ -535,7 +535,7 @@ function ImageClassSet:multithread(nThread, queueSize)
    
    -- utils/threads.lua
    self._threads = dp.Threads(
-      nThread, queueSize,
+      nThread,
       function()
          gsdl = require 'sdl2'
          require 'torch'

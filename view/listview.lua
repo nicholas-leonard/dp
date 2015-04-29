@@ -132,3 +132,11 @@ function ListView:flush()
       component:flush()
    end
 end
+
+function ListView:input()
+   local input = {}
+   for i,component in ipairs(self._components) do
+      input[i] = component:input()
+   end
+   return input
+end

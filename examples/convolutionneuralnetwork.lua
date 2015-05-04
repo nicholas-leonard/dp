@@ -145,7 +145,7 @@ cnn:add(nn.LogSoftMax())
 --[[Propagators]]--
 train = dp.Optimizer{
    acc_update = opt.accUpdate,
-   loss = nn.ClassNLLCriterion(),
+   loss = nn.ModuleCriterion(nn.ClassNLLCriterion(), nil, nn.Convert()),
    callback = function(model, report) 
       -- the ordering here is important
       if opt.accUpdate then

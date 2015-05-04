@@ -520,9 +520,8 @@ end
 
 ------------------------ multithreading --------------------------------
 
-function ImageClassSet:multithread(nThread, queueSize)
+function ImageClassSet:multithread(nThread)
    nThread = nThread or 2
-   queueSize = queueSize or nThread*2
    if not paths.filep(self._cache_path) then
       -- workers will read a serialized index to speed things up
       self:saveIndex()
@@ -533,8 +532,10 @@ function ImageClassSet:multithread(nThread, queueSize)
    config.cache_mode = 'readonly'
    config.verbose = self._verbose
    
+   require 'threads.sharedserialize'
+   local Threads = require "threads"
    -- utils/threads.lua
-   self._threads = dp.Threads(
+   self._threads = Threads(
       nThread,
       function()
          gsdl = require 'sdl2'
@@ -562,7 +563,6 @@ function ImageClassSet:multithread(nThread, queueSize)
    
    -- public variables
    self.nThread = nThread
-   self.queueSize = queueSize
    self.isAsync = true
 end
 
@@ -580,46 +580,29 @@ function ImageClassSet:subAsyncPut(batch, start, stop, callback)
    end
    local input = batch:inputs():input()
    local target = batch:targets():input()
-   assert(input and target)
-   
-   -- transfer the storage pointer over to a thread
-   local inputPointer = tonumber(ffi.cast('intptr_t', torch.pointer(input:storage())))
-   local targetPointer = tonumber(ffi.cast('intptr_t', torch.pointer(target:storage())))
-   input:cdata().storage = nil
-   target:cdata().storage = nil
+   assert(batch:inputs():input() and batch:targets():input())
    
    self._send_batches:put(batch)
    
    self._threads:addjob(
       -- the job callback (runs in data-worker thread)
       function()
-         -- set the transfered storage
-         torch.setFloatStorage(input, inputPointer)
-         torch.setIntStorage(target, targetPointer)
          tbatch:inputs():forward('bchw', input)
          tbatch:targets():forward('b', target)
          
          dataset:sub(tbatch, start, stop)
          
-         -- transfer it back to the main thread
-         local istg = tonumber(ffi.cast('intptr_t', torch.pointer(input:storage())))
-         local tstg = tonumber(ffi.cast('intptr_t', torch.pointer(target:storage())))
-         input:cdata().storage = nil
-         target:cdata().storage = nil
-         return input, target, istg, tstg
+         return input, target
       end,
       -- the endcallback (runs in the main thread)
-      function(input, target, istg, tstg)
+      function(input, target)
          local batch = self._send_batches:get()
-         torch.setFloatStorage(input, istg)
-         torch.setIntStorage(target, tstg)
          batch:inputs():forward('bchw', input)
          batch:targets():forward('b', target)
          
          callback(batch)
          
          batch:targets():setClasses(self._classes)
-         batch:carry():putObj('nSample', input:size(1))
          self._recv_batches:put(batch)
       end
    )
@@ -646,6 +629,7 @@ function ImageClassSet:sampleAsyncPut(batch, nSample, sampleFunc, callback)
    
    self._send_batches:put(batch)
    
+   assert(self._threads:acceptsjob())
    self._threads:addjob(
       -- the job callback (runs in data-worker thread)
       function()
@@ -684,7 +668,7 @@ end
 -- recv results from worker : get results from queue
 function ImageClassSet:asyncGet()
    -- necessary because Threads:addjob sometimes calls dojob...
-   if self._recv_batches:empty() and not self._threads:isEmpty() then
+   if self._recv_batches:empty() then
       self._threads:dojob()
    end
    

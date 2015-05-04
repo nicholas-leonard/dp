@@ -24,7 +24,6 @@ torch.include('dp', 'utils/underscore.lua')
 torch.include('dp', 'utils/os.lua')
 torch.include('dp', 'utils/table.lua')
 torch.include('dp', 'utils/torch.lua')
-torch.include('dp', 'utils/threads.lua')
 
 --[[ directory structure ]]--
 dp.DATA_DIR = os.getenv('DEEP_DATA_PATH') 

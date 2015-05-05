@@ -62,7 +62,6 @@ torch.include('dp', 'data/dataset.lua')
 torch.include('dp', 'data/sentenceset.lua')
 torch.include('dp', 'data/imageclassset.lua')
 torch.include('dp', 'data/batch.lua')
-torch.include('dp', 'data/carry.lua')
 
 torch.include('dp', 'data/datasource.lua')
 torch.include('dp', 'data/mnist.lua')

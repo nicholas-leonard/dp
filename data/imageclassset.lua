@@ -15,7 +15,7 @@ ImageClassSet._output_shape = 'b'
 function ImageClassSet:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, data_path, load_size, sample_size, sample_func, which_set,  
-      carry, verbose, sort_func, cache_mode, cache_path = xlua.unpack(
+      verbose, sort_func, cache_mode, cache_path = xlua.unpack(
       {config},
       'ImageClassSet', 
       'A DataSet for images in a flat folder structure',
@@ -33,9 +33,6 @@ function ImageClassSet:__init(config)
        'refer to existing functions'},
       {arg='which_set', type='string', default='train',
        help='"train", "valid" or "test" set'},
-      {arg='carry', type='dp.Carry',
-       help='An object store that is carried (passed) around the '..
-       'network during a propagation.'},
       {arg='verbose', type='boolean', default=true,
        help='display verbose messages'},
       {arg='sort_func', type='function', 
@@ -58,7 +55,6 @@ function ImageClassSet:__init(config)
    assert(self._load_size[1] == 3, "ImageClassSet doesn't yet support greyscaling : load_size")
    self._sample_size = sample_size or self._load_size
    assert(self._sample_size[1] == 3, "ImageClassSet doesn't yet support greyscaling : sample_size")
-   self._carry = carry or dp.Carry()
    self._verbose = verbose   
    self._data_path = type(data_path) == 'string' and {data_path} or data_path
    self._sample_func = sample_func
@@ -334,7 +330,6 @@ function ImageClassSet:sub(batch, start, stop)
    targetView:setClasses(self._classes)
    batch:setInputs(inputView)
    batch:setTargets(targetView)  
-   batch:carry():putObj('nSample', targetTensor:size(1))
 
    return batch
 end
@@ -397,12 +392,12 @@ function ImageClassSet:sample(batch, nSample, sampleFunc)
       end
       batch = batch or dp.Batch{which_set=self:whichSet(), epoch_size=self:nSample()}   
    end
-   
+   print"11"
    sampleFunc = sampleFunc or self._sample_func
    if torch.type(sampleFunc) == 'string' then
       sampleFunc = self[sampleFunc]
    end
-
+   print"12"
    nSample = nSample or 1
    local inputTable = {}
    local targetTable = {}   
@@ -659,7 +654,6 @@ function ImageClassSet:sampleAsyncPut(batch, nSample, sampleFunc, callback)
          callback(batch)
          
          batch:targets():setClasses(self._classes)
-         batch:carry():putObj('nSample', input:size(1))
          self._recv_batches:put(batch)
       end
    )

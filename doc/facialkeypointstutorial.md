@@ -377,7 +377,7 @@ will be passed through a softmax to obtain multinomial probabilities.
 This method also prepares a table of submissions in a format 
 that package `csvigo` understands. 
 ```lua
-function FKDKaggle:_add(batch, output, carry, report)
+function FKDKaggle:_add(batch, output, report)
    local target = batch:targets():forward('b')
    local act = output:forward('bwc', 'torch.FloatTensor')
    local pixels = self._pixels:expandAs(act)
@@ -490,7 +490,7 @@ coordinates are obtained from the `output`. The mean square error (MSE)
 of both the baseline and the predictions w.r.t. targets is accumulated
 using `self._sum` (or `self._baselineSum`) and `self._count`:
 ```lua
-function FacialKeypointFeedback:_add(batch, output, carry, report)
+function FacialKeypointFeedback:_add(batch, output, report)
    local target = batch:targets():forward('bwc')
    local act = output:forward('bwc', 'torch.FloatTensor')
    if not self._isSetup then

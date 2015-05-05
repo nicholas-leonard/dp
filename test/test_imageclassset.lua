@@ -25,6 +25,7 @@ ds = dp.ImageNet{
 validSet = ds:loadValid()
 print"dataset loaded"
 batch = validSet:sample(128)
+print"batch"
 --[[print(batch:inputs():view(), batch:inputs():input():size())
 
 batch = validSet:sample(128, 'sampleTest')
@@ -41,8 +42,9 @@ print("sub2", batch:inputs():view(), batch:inputs():input():size())--]]
 
 
 if opt.testAsyncSub then
+   print"1"
    samplerB = dp.Sampler{batch_size=math.floor(opt.batchSize/10), epoch_size=opt.epochSize}
-      
+   print"2"
    local isum2, tsum2 = 0, 0
    local a = torch.Timer()
    local nBatch2 = 0
@@ -58,6 +60,7 @@ if opt.testAsyncSub then
          isum2 = isum2 + sumi2
          tsum2 = tsum2 + sumt2
          nBatch2 = nBatch2 + 1
+         print(nBatch2)
       end
    end
    print("sync", (a:time().real)/nBatch2)
@@ -252,7 +255,6 @@ for j=1,10 do
    targetView:setClasses(trainSet._classes)
    batch:setInputs(inputView)
    batch:setTargets(targetView)  
-   batch:carry():putObj('nSample', targetTensor:size(1))
    collectgarbage()
 end
 print("loadImage+scale+tableToTensor", (a:time().real)/10)

@@ -1000,7 +1000,6 @@ end
 function dptest.topcrop()
    local fb = dp.TopCrop{n_top={1,3}, n_crop=3,center=1,verbose=false}
    fb._id = dp.ObjectID('topcrop')
-   local carry = dp.Carry{nSample=18}
    local preds = {{1,0,0,0,0,0},{1,0,0,0,0,0},{1,0,0,0,0,0}, -- 1,1
                    {0,1,0,0,0,0},{0,1,0,0,0,0},{0,1,0,0,0,0}, -- 1,1
                    {0,1,0,0,0,0},{0,0,1,0,0,0},{0,0,1,0,0,0}, -- 1,1
@@ -1012,7 +1011,7 @@ function dptest.topcrop()
    local inputs = torch.randn(18,1,5,5)
    local targetView = dp.ClassView('b', targets)
    local inputView = dp.ImageView('bchw', inputs)
-   local batch = dp.Batch{inputs=inputView, targets=targetView, carry=carry}
+   local batch = dp.Batch{inputs=inputView, targets=targetView}
    fb:add(batch, preds, {epoch=1})
    fb:add(batch, preds, {epoch=1})
    fb:doneEpoch({epoch=1})

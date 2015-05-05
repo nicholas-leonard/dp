@@ -47,9 +47,13 @@ end
       
 function Optimizer:propagateBatch(batch, report)
    self._model:training()
+   print("forward")
    self:forward(batch)
+   print("monitor")
    self:monitor(batch, report)
+   print("backward")
    self:backward(batch)
+   print("doneBatch")
    if report.epoch % self._update_interval == 0 then
       self._callback(self._model, report)
    end

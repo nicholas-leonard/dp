@@ -86,7 +86,7 @@ function RandomSampler:sampleEpochAsync(dataset)
    -- empty the async queue
    dataset:synchronize()
    -- fill task queue with some batch requests
-   for tidx=1,dataset.queueSize do
+   for tidx=1,dataset.nThread do
       sampleBatch(nil, true)
    end
    

@@ -392,12 +392,12 @@ function ImageClassSet:sample(batch, nSample, sampleFunc)
       end
       batch = batch or dp.Batch{which_set=self:whichSet(), epoch_size=self:nSample()}   
    end
-   print"11"
+   
    sampleFunc = sampleFunc or self._sample_func
    if torch.type(sampleFunc) == 'string' then
       sampleFunc = self[sampleFunc]
    end
-   print"12"
+  
    nSample = nSample or 1
    local inputTable = {}
    local targetTable = {}   
@@ -405,7 +405,7 @@ function ImageClassSet:sample(batch, nSample, sampleFunc)
       -- sample class
       local class = torch.random(1, #self._classes)
       -- sample image from class
-      local index = math.ceil(torch.uniform() * self.classListSample[class]:nElement())
+      local index = torch.random(1, self.classListSample[class]:nElement())
       local imgPath = ffi.string(torch.data(self.imagePath[self.classListSample[class][index]]))
       local dst = self:getImageBuffer(i)
       dst = sampleFunc(self, dst, imgPath)
@@ -426,7 +426,6 @@ function ImageClassSet:sample(batch, nSample, sampleFunc)
    targetView:setClasses(self._classes)
    batch:setInputs(inputView)
    batch:setTargets(targetView)  
-   batch:carry():putObj('nSample', targetTensor:size(1))
    
    collectgarbage()
    return batch
@@ -527,14 +526,11 @@ function ImageClassSet:multithread(nThread)
    config.cache_mode = 'readonly'
    config.verbose = self._verbose
    
-   require 'threads.sharedserialize'
-   local Threads = require "threads"
-   -- utils/threads.lua
-   self._threads = Threads(
+   local threads = require "threads"
+   threads.Threads.serialization('threads.sharedserialize')
+   self._threads = threads.Threads(
       nThread,
       function()
-         gsdl = require 'sdl2'
-         require 'torch'
          require 'dp'
       end,
       function(idx)

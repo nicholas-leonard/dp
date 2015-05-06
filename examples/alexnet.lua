@@ -133,8 +133,7 @@ train = dp.Optimizer{
 valid = dp.Evaluator{
    feedback = dp.TopCrop{n_top={1,5,10},n_crop=10,center=2},  
    sampler = dp.Sampler{
-      batch_size=math.round(opt.batchSize/10),
-      ppf=ppf
+      batch_size=math.round(opt.batchSize/10), ppf=ppf
    }
 }
 

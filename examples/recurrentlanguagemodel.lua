@@ -15,10 +15,9 @@ cmd:text('Options:')
 cmd:option('--learningRate', 0.1, 'learning rate at t=0')
 cmd:option('--schedule', '{[250]=0.01, [350]=0.001}', 'learning rate schedule')
 cmd:option('--momentum', 0, 'momentum')
-cmd:option('--maxWait', 4, 'maximum number of epochs to wait for a new minima to be found. After that, the learning rate is decayed by decayFactor.')
-cmd:option('--decayFactor', 0.1, 'factor by which learning rate is decayed.')
+--cmd:option('--maxWait', 4, 'maximum number of epochs to wait for a new minima to be found. After that, the learning rate is decayed by decayFactor.')
+--cmd:option('--decayFactor', 0.1, 'factor by which learning rate is decayed.')
 cmd:option('--maxOutNorm', 2, 'max norm each layers output neuron weights')
-cmd:option('--maxNormPeriod', 1, 'Applies MaxNorm Visitor every maxNormPeriod batches')
 cmd:option('--batchSize', 64, 'number of examples per batch')
 cmd:option('--cuda', false, 'use CUDA')
 cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
@@ -93,7 +92,7 @@ end
 
 -- language model
 lm = nn.Sequential()
-lm:add(nn.DontCast(nn.SplitTable(1,1):dontBackward():int())) -- tensor to table of tensors
+lm:add(nn.DontCast(nn.SplitTable(1,1):dontBackward():type('torch.IntTensor'))) -- tensor to table of tensors
 
 -- simple recurrent neural network
 rnn = nn.Recurrent(
@@ -107,7 +106,7 @@ lm:add(nn.Sequencer(rnn))
 if opt.softmaxforest or opt.softmaxtree then
    -- input to nnlm is {inputs, targets} for nn.SoftMaxTree
    local para = nn.ParallelTable()
-   para:add(lm):add(nn.Identity()) 
+   para:add(lm):add(nn.Sequencer(nn.Convert())) 
    lm = nn.Sequential()
    lm:add(para)
    lm:add(nn.ZipTable())
@@ -152,13 +151,13 @@ train = dp.Optimizer{
 }
 
 if not opt.trainOnly then
-   --[[valid = dp.Evaluator{
+   valid = dp.Evaluator{
       feedback = dp.Perplexity(),  
       sampler = dp.SentenceSampler{
          epoch_size = opt.validEpochSize, batch_size = opt.batchSize
       },
       progress = opt.progress
-   }--]]
+   }
    tester = dp.Evaluator{
       feedback = dp.Perplexity(),  
       sampler = dp.SentenceSampler{batch_size = opt.batchSize}
@@ -177,7 +176,7 @@ xp = dp.Experiment{
    } or nil,
    random_seed = os.time(),
    max_epoch = opt.maxEpoch,
-   target_module = nn.SplitTable(1,1):int()
+   target_module = nn.SplitTable(1,1):type('torch.IntTensor')
 }
 if opt.softmaxtree then
    -- makes it forward {input, target} instead of just input

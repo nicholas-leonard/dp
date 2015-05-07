@@ -96,7 +96,7 @@ end
 if opt.softmaxforest or opt.softmaxtree then
    -- input to nnlm is {inputs, targets} for nn.SoftMaxTree
    local para = nn.ParallelTable()
-   para:add(nnlm):add(nn.Identity()) 
+   para:add(nnlm):add(nn.Convert()) 
    nnlm = nn.Sequential()
    nnlm:add(para)
    if opt.softmaxforest then -- requires a lot more memory

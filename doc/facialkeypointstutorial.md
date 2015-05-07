@@ -7,7 +7,6 @@ objects and the Mediator. To make things more spicy, we consider
 a case study involving its practical application to a 
 [Kaggle](https://www.kaggle.com) challenge provided by the University of Montreal: 
 [Facial Keypoints Detection](https://www.kaggle.com/c/facial-keypoints-detection).
-We will attempt to keep this tutorial as complete yet concise as possible.
 
 ## Planning and Analysis ##
 The first step is to determine how to approach the problem and outline the 

@@ -9,21 +9,21 @@ cmd:text('$> th facialkeypointdetector.lua --batchSize 128 --momentum 0.5')
 cmd:text('Options:')
 cmd:option('--learningRate', 0.1, 'learning rate at t=0')
 cmd:option('--maxOutNorm', 1, 'max norm each layers output neuron weights')
-cmd:option('--maxNormPeriod', 2, 'Applies MaxNorm Visitor every maxNormPeriod batches')
 cmd:option('--momentum', 0, 'momentum')
-cmd:option('--channelSize', '{64,128}', 'Number of output channels for each convolution layer.')
-cmd:option('--kernelSize', '{5,5}', 'kernel size of each convolution layer. Height = Width')
-cmd:option('--kernelStride', '{1,1}', 'kernel stride of each convolution layer. Height = Width')
-cmd:option('--poolSize', '{2,2}', 'size of the max pooling of each convolution layer. Height = Width')
-cmd:option('--poolStride', '{2,2}', 'stride of the max pooling of each convolution layer. Height = Width')
-cmd:option('--hiddenSize', 1000, 'size of the dense hidden layer (after convolutions, before output)')
-cmd:option('--batchSize', 128, 'number of examples per batch')
+cmd:option('--padding', false, 'add math.floor(kernelSize/2) padding to the input of each convolution') 
+cmd:option('--channelSize', '{64,96,96}', 'Number of output channels for each convolution layer.')
+cmd:option('--kernelSize', '{5,5,5}', 'kernel size of each convolution layer. Height = Width')
+cmd:option('--kernelStride', '{1,1,1}', 'kernel stride of each convolution layer. Height = Width')
+cmd:option('--poolSize', '{2,2,2}', 'size of the max pooling of each convolution layer. Height = Width')
+cmd:option('--poolStride', '{2,2,2}', 'stride of the max pooling of each convolution layer. Height = Width')
+cmd:option('--hiddenSize', '{1000}', 'size of the dense hidden layers (after convolutions, before output)')
+cmd:option('--batchSize', 64, 'number of examples per batch')
 cmd:option('--cuda', false, 'use CUDA')
 cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
 cmd:option('--maxEpoch', 100, 'maximum number of epochs to run')
 cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better local minima for early-stopping')
-cmd:option('--dropout', false, 'apply dropout on hidden neurons, requires "nnx" luarock')
-cmd:option('--dataset', 'FacialKeypoints', 'which dataset to use : Mnist | NotMnist | Cifar10 | Cifar100')
+cmd:option('--dropout', false, 'apply dropout on hidden neurons')
+cmd:option('--batchNorm', false, 'use batch normalization. dropout is mostly redundant with this')
 cmd:option('--standardize', false, 'apply Standardize preprocessing')
 cmd:option('--zca', false, 'apply Zero-Component Analysis whitening')
 cmd:option('--activation', 'ReLU', 'transfer function like ReLU, Tanh, Sigmoid')
@@ -32,10 +32,7 @@ cmd:option('--dropoutProb', '{0.2,0.5,0.5}', 'dropout probabilities')
 cmd:option('--accUpdate', false, 'accumulate gradients inplace')
 cmd:option('--submissionFile', '', 'Kaggle submission will be saved to a file with this name')
 cmd:option('--progress', false, 'print progress bar')
-cmd:option('--normalInit', false, 'initialize inputs using a normal distribution (as opposed to sparse initialization)')
 cmd:option('--validRatio', 1/10, 'proportion of dataset used for cross-validation')
-cmd:option('--neuralSize', 1000, 'Size of first neural layer in 3 Neural Layer MLP.')
-cmd:option('--mlp', false, 'use multi-layer perceptron, as opposed to convolution neural network')
 cmd:option('--silent', false, 'dont print anything to stdout')
 cmd:text()
 opt = cmd:parse(arg or {})
@@ -51,6 +48,7 @@ opt.kernelStride = table.fromString(opt.kernelStride)
 opt.poolSize = table.fromString(opt.poolSize)
 opt.poolStride = table.fromString(opt.poolStride)
 opt.dropoutProb = table.fromString(opt.dropoutProb)
+opt.hiddenSize = table.fromString(opt.hiddenSize)
 
 --[[preprocessing]]--
 local input_preprocess = {}
@@ -62,121 +60,103 @@ if opt.zca then
 end
 
 --[[data]]--
-local datasource
-if opt.dataset == 'FacialKeypoints' then
-   datasource = dp.FacialKeypoints{
-      input_preprocess = input_preprocess, valid_ratio = opt.validRatio
-   }
-else
-    error("Unknown Dataset")
-end
+ds = dp.FacialKeypoints{input_preprocess = input_preprocess, valid_ratio = opt.validRatio}
 
 --[[Model]]--
+cnn = nn.Sequential()
 
-cnn = dp.Sequential()
+-- convolutional and pooling layers
+inputSize = ds:imageSize('c')
+depth = 1
+for i=1,#opt.channelSize do
+   if opt.dropout and (opt.dropoutProb[depth] or 0) > 0 then
+      -- dropout can be useful for regularization
+      cnn:add(nn.SpatialDropout(opt.dropoutProb[depth]))
+   end
+   cnn:add(nn.SpatialConvolution(
+      inputSize, opt.channelSize[i], 
+      opt.kernelSize[i], opt.kernelSize[i], 
+      opt.kernelStride[i], opt.kernelStride[i],
+      opt.padding and math.floor(opt.kernelSize[i]/2) or 0
+   ))
+   if opt.batchNorm then
+      -- batch normalization can be awesome
+      cnn:add(nn.SpatialBatchNormalization(opt.channelSize[i]))
+   end
+   cnn:add(nn[opt.activation]())
+   if opt.poolSize[i] and opt.poolSize[i] > 0 then
+      cnn:add(nn.SpatialMaxPooling(
+         opt.poolSize[i], opt.poolSize[i], 
+         opt.poolStride[i] or opt.poolSize[i], 
+         opt.poolStride[i] or opt.poolSize[i]
+      ))
+   end
+   inputSize = opt.channelSize[i]
+   depth = depth + 1
+end
+-- get output size of convolutional layers
+outsize = cnn:outside{1,ds:imageSize('c'),ds:imageSize('h'),ds:imageSize('w')}
+inputSize = outsize[2]*outsize[3]*outsize[4]
+dp.vprint(not opt.silent, "input to dense layers has: "..inputSize.." neurons")
 
-local inputSize
-if not opt.mlp then
-   inputSize = datasource:imageSize('c')
-   height, width = datasource:imageSize('h'), datasource:imageSize('w')
-   for i=1,#opt.channelSize do
-      local conv = dp.Convolution2D{
-         input_size = inputSize, 
-         kernel_size = {opt.kernelSize[i], opt.kernelSize[i]},
-         kernel_stride = {opt.kernelStride[i], opt.kernelStride[i]},
-         pool_size = {opt.poolSize[i], opt.poolSize[i]},
-         pool_stride = {opt.poolStride[i], opt.poolStride[i]},
-         output_size = opt.channelSize[i], 
-         transfer = nn[opt.activation](),
-         dropout = opt.dropout and nn.Dropout(opt.dropoutProb[i]),
-         acc_update = opt.accUpdate,
-         sparse_init = not opt.normalInit
-      }
-      cnn:add(conv)
-      inputSize, height, width = conv:outputSize(height, width, 'bchw')
+cnn:insert(nn.Convert(ds:ioShapes(), 'bchw'), 1)
+
+-- dense hidden layers
+cnn:add(nn.Collapse(3))
+for i,hiddenSize in ipairs(opt.hiddenSize) do
+   if opt.dropout and (opt.dropoutProb[depth] or 0) > 0 then
+      cnn:add(nn.Dropout(opt.dropoutProb[depth]))
    end
-   inputSize = inputSize*height*width
-   dp.vprint(not opt.silent, "input to first Neural layer has: "..inputSize.." neurons")
-else
-   inputSize = datasource:featureSize()
-   if opt.neuralSize > 0 then
-      cnn:add(
-         dp.Neural{
-            input_size = inputSize, 
-            output_size = opt.neuralSize,
-            transfer = nn[opt.activation](),
-            dropout = opt.dropout and nn.Dropout(opt.dropoutProb[#opt.channelSize]),
-            acc_update = opt.accUpdate,
-            sparse_init = not opt.normalInit
-         }
-      )
-      inputSize = opt.neuralSize
+   cnn:add(nn.Linear(inputSize, hiddenSize))
+   if opt.batchNorm then
+      cnn:add(nn.BatchNormalization(hiddenSize))
    end
+   cnn:add(nn[opt.activation]())
+   inputSize = hiddenSize
+   depth = depth + 1
 end
 
-cnn:add(
-   dp.Neural{
-      input_size = inputSize, 
-      output_size = opt.hiddenSize,
-      transfer = nn[opt.activation](),
-      dropout = opt.dropout and nn.Dropout(opt.dropoutProb[#opt.channelSize]),
-      acc_update = opt.accUpdate,
-      sparse_init = not opt.normalInit
-   }
-)
-
--- we use a special nn.MultiSoftMax() Module for detecting coordinates :
-local multisoftmax = nn.Sequential()
-multisoftmax:add(nn.Reshape(30,98))
-multisoftmax:add(nn.MultiSoftMax())
-cnn:add(
-   dp.Neural{
-      input_size = opt.hiddenSize, 
-      output_size = 30*98,
-      transfer = multisoftmax,
-      dropout = opt.dropout and nn.Dropout(opt.dropoutProb[#opt.channelSize]),
-      acc_update = opt.accUpdate,
-      sparse_init = not opt.normalInit,
-      output_view = 'bwc', -- because of the multisoftmax,
-      output = dp.SequenceView() --same
-   }
-)
-
-local visitor = {}
--- the ordering here is important:
-if opt.momentum > 0 then
-   if opt.accUpdate then
-      error"momentum doesn't work with --accUpdate"
-   end
-   table.insert(visitor, dp.Momentum{momentum_factor = opt.momentum})
+-- output layer
+if opt.dropout and (opt.dropoutProb[depth] or 0) > 0 then
+   cnn:add(nn.Dropout(opt.dropoutProb[depth]))
 end
-table.insert(visitor, dp.Learn{learning_rate = opt.learningRate})
-table.insert(visitor, dp.MaxNorm{
-   max_out_norm = opt.maxOutNorm, period = opt.maxNormPeriod
-})
+cnn:add(nn.Linear(inputSize, 30*98))
+-- we use nn.MultiSoftMax() Module for detecting coordinates :
+cnn:add(nn.Reshape(30,98))
+cnn:add(nn.MultiSoftMax())
 
-local baseline = datasource:loadBaseline()
-local logModule = nn.Sequential()
+--[[Propagators]]--
+baseline = ds:loadBaseline()
+
+logModule = nn.Sequential()
 logModule:add(nn.AddConstant(0.00000001)) -- fixes log(0)=NaN errors
 logModule:add(nn.Log())
 
---[[Propagators]]--
 train = dp.Optimizer{
-   loss = dp.KLDivergence{input_module=logModule:clone()},
-   visitor = visitor,
+   acc_update = opt.accUpdate,
+   loss = nn.ModuleCriterion(nn.DistKLDivCriterion(), logModule, nn.Convert()),
+   callback = function(model, report) 
+      -- the ordering here is important
+      if opt.accUpdate then
+         model:accUpdateGradParameters(model.dpnn_input, model.output, opt.learningRate)
+      else
+         model:updateGradParameters(opt.momentum) -- affects gradParams
+         model:updateParameters(opt.learningRate) -- affects params
+      end
+      model:maxParamNorm(opt.maxOutNorm) -- affects params
+      model:zeroGradParameters() -- affects gradParams 
+   end,
    sampler = dp.ShuffleSampler{batch_size = opt.batchSize},
    progress = opt.progress,
    feedback = dp.FacialKeypointFeedback{baseline=baseline, precision=98}
 }
 valid = dp.Evaluator{
-   loss = dp.KLDivergence{input_module=logModule:clone()},
    sampler = dp.Sampler{batch_size = opt.batchSize},
    feedback = dp.FacialKeypointFeedback{baseline=baseline, precision=98}
 }
 test = dp.Evaluator{
-   loss = dp.Null(), -- because we don't have targets for the test set
    feedback = dp.FKDKaggle{
-      submission = datasource:loadSubmission(), 
+      submission = ds:loadSubmission(), 
       file_name = opt.submissionFile
    },
    sampler = dp.Sampler{batch_size = opt.batchSize}
@@ -209,10 +189,9 @@ end
 
 xp:verbose(not opt.silent)
 if not opt.silent then
-   print"dp.Models :"
+   print"Models :"
    print(cnn)
-   print"nn.Modules :"
-   print(cnn:toModule(datasource:trainSet():sub(1,32)))
 end
 
-xp:run(datasource)
+print(ds)
+xp:run(ds)

@@ -119,6 +119,7 @@ train = dp.Optimizer{
          model:accUpdateGradParameters(model.dpnn_input, model.output, opt.learningRate)
       else
          model:updateGradParameters(opt.momentum) -- affects gradParams
+         model:weightDecay(opt.weightDecay) --affects gradParams
          model:updateParameters(opt.learningRate) -- affects params
       end
       model:maxParamNorm(opt.maxOutNorm) -- affects params

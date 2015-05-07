@@ -151,16 +151,18 @@ train = dp.Optimizer{
 }
 
 if not opt.trainOnly then
+   local batchSize = math.min(math.max(1, opt.batchSize*opt.rho/25), opt.batchSize)
+   print("evaluation batchSize", batchSize)
    valid = dp.Evaluator{
       feedback = dp.Perplexity(),  
       sampler = dp.SentenceSampler{
-         epoch_size = opt.validEpochSize, batch_size = opt.batchSize
+         epoch_size = opt.validEpochSize, batch_size = batchSize
       },
       progress = opt.progress
    }
    tester = dp.Evaluator{
       feedback = dp.Perplexity(),  
-      sampler = dp.SentenceSampler{batch_size = opt.batchSize}
+      sampler = dp.SentenceSampler{batch_size = batchSize}
    }
 end
 

@@ -99,6 +99,7 @@ function Propagator:propagateEpoch(dataset, report)
    self._n_sample = 0
    local sampler = self._sampler:sampleEpoch(dataset)
    while true do
+      local start = os.clock()
       -- reuse the batch object
       if batch then
          assert(torch.type(batch) == 'dp.Batch')
@@ -122,6 +123,7 @@ function Propagator:propagateEpoch(dataset, report)
       end
       last_n = n
       n_batch = n_batch + 1
+      print("total time ", os.clock() - start)
    end
    
    -- time taken
@@ -139,6 +141,7 @@ function Propagator:propagateBatch(batch)
 end
 
 function Propagator:forward(batch)
+   local start = os.clock()
    local input = batch:inputs():input()
    local target = batch:targets():input()
    target = self._target_module:forward(target)
@@ -156,6 +159,7 @@ function Propagator:forward(batch)
    end
    -- measure loss
    self.err = self._loss:forward(self.output, target)
+   print("forward time ", os.clock() - start)
 end
 
 function Propagator:monitor(batch, report)

@@ -132,6 +132,7 @@ lm:add(nn.Sequencer(softmax))
 train = dp.Optimizer{
    loss = nn.SequencerCriterion(opt.softmaxtree and nn.TreeNLLCriterion() or nn.ClassNLLCriterion()),
    callback = function(model, report) 
+      local start = os.clock()
       opt.learningRate = opt.schedule[report.epoch] or opt.learningRate
       if opt.accUpdate then
          model:accUpdateGradParameters(model.dpnn_input, model.output, opt.learningRate)
@@ -141,6 +142,7 @@ train = dp.Optimizer{
       end
       model:maxParamNorm(opt.maxOutNorm) -- affects params
       model:zeroGradParameters() -- affects gradParams 
+      print("update time ", os.clock() - start)
    end,
    feedback = dp.Perplexity(),  
    sampler = dp.RandomSampler{

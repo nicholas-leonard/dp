@@ -8,7 +8,7 @@ cmd:text('Example:')
 cmd:text('$> th facialkeypointdetector.lua --batchSize 128 --momentum 0.5')
 cmd:text('Options:')
 cmd:option('--learningRate', 0.1, 'learning rate at t=0')
-cmd:option('--maxOutNorm', 1, 'max norm each layers output neuron weights')
+cmd:option('--maxOutNorm', 2, 'max norm each layers output neuron weights')
 cmd:option('--momentum', 0, 'momentum')
 cmd:option('--padding', false, 'add math.floor(kernelSize/2) padding to the input of each convolution') 
 cmd:option('--channelSize', '{64,96,96}', 'Number of output channels for each convolution layer.')
@@ -16,7 +16,7 @@ cmd:option('--kernelSize', '{5,5,5}', 'kernel size of each convolution layer. He
 cmd:option('--kernelStride', '{1,1,1}', 'kernel stride of each convolution layer. Height = Width')
 cmd:option('--poolSize', '{2,2,2}', 'size of the max pooling of each convolution layer. Height = Width')
 cmd:option('--poolStride', '{2,2,2}', 'stride of the max pooling of each convolution layer. Height = Width')
-cmd:option('--hiddenSize', '{1000}', 'size of the dense hidden layers (after convolutions, before output)')
+cmd:option('--hiddenSize', '{3000}', 'size of the dense hidden layers (after convolutions, before output)')
 cmd:option('--batchSize', 64, 'number of examples per batch')
 cmd:option('--cuda', false, 'use CUDA')
 cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
@@ -147,8 +147,8 @@ train = dp.Optimizer{
       model:zeroGradParameters() -- affects gradParams 
    end,
    sampler = dp.ShuffleSampler{batch_size = opt.batchSize},
-   progress = opt.progress,
    feedback = dp.FacialKeypointFeedback{baseline=baseline, precision=98}
+   progress = opt.progress,
 }
 valid = dp.Evaluator{
    sampler = dp.Sampler{batch_size = opt.batchSize},

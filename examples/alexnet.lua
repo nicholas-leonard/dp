@@ -108,7 +108,6 @@ model = nn.Sequential()
 model:add(nn.Convert(),1)
 model:add(features):add(classifier)
 
-
 --[[Propagators]]--
 train = dp.Optimizer{
    acc_update = opt.accUpdate,

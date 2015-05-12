@@ -96,7 +96,7 @@ end
 if opt.softmaxforest or opt.softmaxtree then
    -- input to nnlm is {inputs, targets} for nn.SoftMaxTree
    local para = nn.ParallelTable()
-   para:add(nnlm):add(nn.Convert()) 
+   para:add(nnlm):add(opt.cuda and nn.Convert() or nn.Identity()) 
    nnlm = nn.Sequential()
    nnlm:add(para)
    if opt.softmaxforest then -- requires a lot more memory
@@ -105,7 +105,8 @@ if opt.softmaxforest or opt.softmaxtree then
       nnlm:add(nn.SoftMaxForest(inputSize, trees, rootIds, opt.forestGaterSize, nn.Tanh(), opt.accUpdate))
       opt.softmaxtree = true
    elseif opt.softmaxtree then
-      nnlm:add(nn.SoftMaxTree(inputSize, datasource:hierarchy(), 880542, opt.accUpdate))
+      local tree, root = datasource:frequencyTree()
+      nnlm:add(nn.SoftMaxTree(inputSize, tree, root, opt.accUpdate))
    end
 else
    print("Warning: you are using full LogSoftMax for last layer, which "..
@@ -117,7 +118,7 @@ end
 
 --[[Propagators]]--
 train = dp.Optimizer{
-   loss = opt.softmaxtree and nn.TreeNLLCriterion() or nn.ClassNLLCriterion(),
+   loss = opt.softmaxtree and nn.TreeNLLCriterion() or nn.ModuleCriterion(nn.ClassNLLCriterion(), nil, nn.Convert()),
    callback = function(model, report) 
       opt.learningRate = opt.schedule[report.epoch] or opt.learningRate
       if opt.accUpdate then

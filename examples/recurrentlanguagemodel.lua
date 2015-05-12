@@ -70,7 +70,7 @@ datasource = dp.BillionWords{
 }
 datasource:loadTrain()
 if not opt.trainOnly then
-   --datasource:loadValid()
+   datasource:loadValid()
    datasource:loadTest()
 end
 
@@ -115,8 +115,9 @@ if opt.softmaxforest or opt.softmaxtree then
       local rootIds = {880542,880542,880542}
       softmax = nn.SoftMaxForest(opt.hiddenSize, trees, rootIds, opt.forestGaterSize, nn.Tanh(), opt.accUpdate)
       opt.softmaxtree = true
-   elseif opt.softmaxtree then
-      softmax = nn.SoftMaxTree(opt.hiddenSize, datasource:hierarchy(), 880542, opt.accUpdate)
+   elseif opt.softmaxtree then -- uses frequency based tree
+      local tree, root = datasource:frequencyTree()
+      softmax = nn.SoftMaxTree(opt.hiddenSize, tree, root, opt.accUpdate)
    end
 else
    print("Warning: you are using full LogSoftMax for last layer, which "..
@@ -130,9 +131,12 @@ lm:add(nn.Sequencer(softmax))
 
 --[[Propagators]]--
 train = dp.Optimizer{
-   loss = nn.SequencerCriterion(opt.softmaxtree and nn.TreeNLLCriterion() or nn.ClassNLLCriterion()),
+   loss = nn.SequencerCriterion(
+      opt.softmaxtree and nn.TreeNLLCriterion() or nn.ModuleCriterion(nn.ClassNLLCriterion(), 
+      nn.Identity(), 
+      opt.cuda and nn.Convert() or nn.Identity())
+   ),
    callback = function(model, report) 
-      local start = os.clock()
       opt.learningRate = opt.schedule[report.epoch] or opt.learningRate
       if opt.accUpdate then
          model:accUpdateGradParameters(model.dpnn_input, model.output, opt.learningRate)
@@ -142,7 +146,6 @@ train = dp.Optimizer{
       end
       model:maxParamNorm(opt.maxOutNorm) -- affects params
       model:zeroGradParameters() -- affects gradParams 
-      print("update time ", os.clock() - start)
    end,
    feedback = dp.Perplexity(),  
    sampler = dp.RandomSampler{

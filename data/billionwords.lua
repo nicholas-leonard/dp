@@ -118,9 +118,7 @@ end
 -- this can be used to initialize a SoftMaxTree (optional)
 function BillionWords:hierarchy(file_name)
    file_name = file_name or 'word_tree1.th7'
-   local hierarchy = torch.load(
-      paths.concat(self._data_path, self._name, file_name)
-   )
+   local hierarchy = torch.load(paths.concat(self._data_path, self._name, file_name))
    _.map(hierarchy, function(k,v) 
       assert(torch.type(k) == 'number', 
          "Hierarchy keys should be numbers")
@@ -128,6 +126,35 @@ function BillionWords:hierarchy(file_name)
          "Hierarchy values should be torch.IntTensors")
    end)
    return hierarchy
+end
+
+-- this can be used to initialize a SoftMaxTree
+function BillionWords:frequencyTree(file_name, binSize)
+   file_name = file_name or 'word_freq.th7'
+   binSize = binSize or 100
+   local wf = torch.load(paths.concat(self._data_path, self._name, file_name))
+   local vals, indices = wf:sort()
+   local tree = {}
+   local id = indices:size(1)
+   function recursiveTree(indices)
+      if indices:size(1) < binSize then
+         id = id + 1
+         tree[id] = indices
+         return
+      end
+      local parents = {}
+      for start=1,indices:size(1),binSize do
+         local stop = math.min(indices:size(1), start+binSize-1)
+         local bin = indices:narrow(1, start, stop-start+1)
+         assert(bin:size(1) <= binSize)
+         id = id + 1
+         table.insert(parents, id)
+         tree[id] = bin
+      end
+      recursiveTree(indices.new(parents))
+   end
+   recursiveTree(indices)
+   return tree, id
 end
 
 function BillionWords:rootId()

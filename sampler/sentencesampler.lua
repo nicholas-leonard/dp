@@ -136,7 +136,7 @@ function SentenceSampler:_sampleEpoch(dataset)
             
          end
          
-         collectgarbage()
+         self:collectgarbage()
           
       end
    end

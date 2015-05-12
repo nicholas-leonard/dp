@@ -1,5 +1,5 @@
-require 'dpnn'
 require 'nnx'
+require 'dpnn'
 require 'string'
 _ = require 'moses'
 require 'xlua'

@@ -84,7 +84,7 @@ function ShuffleSampler:sampleEpoch(dataset)
          self._start = 1
          dataset_indices = torch.randperm(nSample):long()
       end
-      collectgarbage() 
+      self:collectgarbage() 
       return batch, math.min(nSampled, epochSize), epochSize
    end
 end

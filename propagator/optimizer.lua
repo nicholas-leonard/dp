@@ -57,7 +57,6 @@ function Optimizer:propagateBatch(batch, report)
 end
 
 function Optimizer:backward(batch)
-   local start = os.clock()
    local input = batch:inputs():input()
    local target = batch:targets():input()
    target = self._target_module:forward(target)
@@ -74,5 +73,4 @@ function Optimizer:backward(batch)
    end
    -- so that visitors can known whether or not gradParams where updated
    self._model.dpnn_accGradParameters = not self._acc_update
-   print("backward time ", os.clock() - start)
 end

@@ -163,7 +163,8 @@ function SentenceSet:sample(batch, batchSize)
    self._indices = self._indices or torch.LongTensor()
    self._indices:resize(batchSize)
    self._indices:random(self._data:size(1)-(self._context_size+1))
-   return self:index(batch, self._indices)
+   local batch = self:index(batch, self._indices)
+   return batch
 end
 
 -- used for training NNLM or RNNs on small datasets
@@ -195,6 +196,7 @@ function SentenceSet:index(batch, indices)
    self.__index_mem:index(self._data, 1, indices)
    local data = self.__index_mem
    local words = self._data:select(2, 2)
+   
    for i=1,data:size(1) do
       local sample = data:select(1, i) -- sentence start index
       local sample_stop = indices[i]-1 -- indices[i] is target index
@@ -211,7 +213,8 @@ function SentenceSet:index(batch, indices)
       if sentence_start > 0 then
          inputs:select(1,i):narrow(1, sentence_start, 1):fill(self._start_id)
       end
-   end   
+   end
+   
    -- targets
    if self._recurrent then
       inputs:select(2,self._context_size+1):copy(data:select(2,2))

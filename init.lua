@@ -118,29 +118,6 @@ torch.include('dp', 'observer/filelogger.lua')
 torch.include('dp', 'nn/Print.lua')
 torch.include('dp', 'nn/FairLookupTable.lua')
 
-
---[[ hyper ]]--
-torch.include('dp', 'hyper/hyperoptimizer.lua')
-torch.include('dp', 'hyper/hyperparamsampler.lua')
-torch.include('dp', 'hyper/datasourcefactory.lua')
-torch.include('dp', 'hyper/experimentfactory.lua')
-torch.include('dp', 'hyper/priorsampler.lua')
-torch.include('dp', 'hyper/imageclassfactory.lua')
-torch.include('dp', 'hyper/mlpfactory.lua')
-torch.include('dp', 'hyper/contextwordfactory.lua')
-torch.include('dp', 'hyper/lmfactory.lua')
-
---[[ postgres ]]--
-torch.include('dp', 'postgres/postgres.lua')
-torch.include('dp', 'postgres/logger.lua')
-torch.include('dp', 'postgres/xplog.lua')
-torch.include('dp', 'postgres/savetofile.lua')
-torch.include('dp', 'postgres/earlystopper.lua')
-torch.include('dp', 'postgres/done.lua')
-torch.include('dp', 'postgres/mlpfactory.lua')
-torch.include('dp', 'postgres/lmfactory.lua')
-torch.include('dp', 'postgres/hyperoptimizer.lua')
-
 --[[ test ]]--
 torch.include('dp', 'test/test.lua')
 torch.include('dp', 'test/test-cuda.lua')

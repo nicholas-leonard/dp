@@ -45,7 +45,6 @@ function SentenceSampler:_sampleEpoch(dataset)
    for size, s in pairs(sentenceTable_) do
       nSample = nSample + s.count
    end
-   print("SentenceSampler: nSample ="..nSample.." (i.e. nSentence)")
       
    local epochSize = self._epoch_size or nSample
    local nSampled = 0
@@ -53,8 +52,8 @@ function SentenceSampler:_sampleEpoch(dataset)
    local function newBatch()
       return batch or dp.Batch{
          which_set=dataset:whichSet(), epoch_size=epochSize,
-         inputs=dp.ClassView('bt', torch.IntTensor{1}), 
-         targets=dp.ClassView('bt', torch.IntTensor{1})
+         inputs=dp.ClassView('bt', torch.IntTensor{{1}}), 
+         targets=dp.ClassView('bt', torch.IntTensor{{1}})
       } 
    end
    
@@ -83,15 +82,13 @@ function SentenceSampler:_sampleEpoch(dataset)
             
             batch = batch or newBatch()
             local input_v = batch:inputs()
-            assert(torch.isType(input_v, 'dp.ClassView'))
+            assert(torch.isTypeOf(input_v, 'dp.ClassView'))
             local inputs = input_v:input() or torch.IntTensor()
             inputs:resize(textIndices:size(1), sentenceSize+1)
-            
             local target_v = batch:targets()
-            assert(torch.isType(target_v, 'dp.ClassView'))
+            assert(torch.isTypeOf(target_v, 'dp.ClassView'))
             local targets = target_v:input() or torch.IntTensor()
             targets:set(inputs:narrow(2,2,inputs:size(2)-1))
-            
             -- metadata
             batch:setup{
                batch_iter=(nSampled + textIndices:size(1) - 1), 

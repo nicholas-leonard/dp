@@ -1,7 +1,7 @@
 local mytester 
 local dptest = {}
 
-function dptest.uid()
+function dptest.uniqueID()
    local uid1 = dp.uniqueID()
    mytester:asserteq(type(uid1), 'string', 'type(uid1) == string')
    local uid2 = dp.uniqueID()
@@ -9,7 +9,7 @@ function dptest.uid()
    mytester:assertne(uid1, uid2, 'uid1 ~= uid2')
    mytester:assertne(uid2, uid3, 'uid2 ~= uid3')
 end
-function dptest.dataview()
+function dptest.DataView()
    local data = torch.rand(3,4)
    local sizes = {3, 4}
    local v = dp.DataView()
@@ -51,7 +51,7 @@ function dptest.dataview()
    v:sub(v6, 1, 2)
    mytester:assertTensorEq(v6:forward('bf', 'torch.DoubleTensor'), data:sub(1,2), 0.000001)
 end
-function dptest.imageview()
+function dptest.ImageView()
    local size = {8,32,32,3}
    local feature_size = {8,32*32*3}
    local data = torch.rand(unpack(size))
@@ -95,7 +95,7 @@ function dptest.imageview()
    local v5 = v:index(nil, indices)
    mytester:assertTensorEq(v5:forward('bhwc', 'torch.DoubleTensor'), v._input:index(1, indices), 0.0000001)
 end
-function dptest.sequenceview()
+function dptest.SequenceView()
    local size = {8,10,50}
    local feature_size = {8,10*50}
    local data = torch.rand(unpack(size))
@@ -125,7 +125,7 @@ function dptest.sequenceview()
    local v5 = v:index(nil, indices)
    mytester:assertTensorEq(v4:forward('bf', 'torch.DoubleTensor'), v5:forward('bf', 'torch.DoubleTensor'), 0.0000001)
 end
-function dptest.classview()
+function dptest.ClassView()
    local size = {48,4}
    local data = torch.rand(unpack(size))
    local v = dp.ClassView()
@@ -151,7 +151,7 @@ function dptest.classview()
    mytester:assertTensorEq(v5:forward('bt', 'torch.DoubleTensor'), v2:forward('bt', 'torch.DoubleTensor'), 0.0000001)
    mytester:assertTableEq(v:classes(), v5:classes())
 end
-function dptest.listview()
+function dptest.ListView()
    -- image tensor
    local image_size = {8,32,32,3}
    local feature_size = {8,32*32*3}
@@ -209,7 +209,7 @@ function dptest.listview()
    end
 end
 
-function dptest.dataset()
+function dptest.DataSet()
    -- class tensor
    local class_data = torch.randperm(8)
    local classes = {1,2,3,4,5,6,7,8,9,10}
@@ -237,7 +237,7 @@ function dptest.dataset()
    mytester:assertTensorEq(batch3:inputs():forward('bhwc'), batch:inputs():forward('bhwc'), 0.00001)
    mytester:assertTensorEq(batch3:targets():forward('bt'), batch:targets():forward('bt'), 0.00001)
 end
-function dptest.sentenceset()
+function dptest.SentenceSet()
    local tensor = torch.IntTensor(80, 2):zero()
    for i=1,8 do
       -- one sentence
@@ -268,7 +268,7 @@ function dptest.sentenceset()
    mytester:assertTensorEq(batch3:inputs():forward('bt'), batch:inputs():forward('bt'), 0.00001)
    mytester:assertTensorEq(batch3:targets():forward('b'), batch:targets():forward('b'), 0.00001)
 end 
-function dptest.gcn()
+function dptest.GCN()
    --[[ zero_vector ]]--
    -- Global Contrast Normalization
    -- Test that passing in the zero vector does not result in
@@ -300,7 +300,7 @@ function dptest.gcn()
    local max_norm_error = torch.abs(norms:add(-1)):max()
    mytester:assert(max_norm_error < 3e-5)
 end
-function dptest.zca()
+function dptest.ZCA()
    -- Confirm that ZCA.inv_P_ is the correct inverse of ZCA._P.
    local dv = dp.DataView('bf', torch.randn(15,10))
    local dataset = dp.DataSet{which_set='train', inputs=dv}
@@ -316,7 +316,7 @@ function dptest.zca()
    mytester:assert(not is_identity(preprocess._P))
    mytester:assert(is_identity(preprocess._P*preprocess._inv_P))
 end
-function dptest.lecunlcn()
+function dptest.LeCunLCN()
    -- Test on a random image to confirm that it loads without error
    -- and it doesn't result in any NaN or Inf values
    local input_tensor = torch.randn(16, 3, 32, 32)
@@ -359,7 +359,7 @@ function dptest.lecunlcn()
    image.savePNG(paths.concat(dp.UNIT_DIR, 'lecunlcn.png'), input:forward('default')[1]) 
 end
 
-function dptest.mixtureofexperts()
+function dptest.MixtureOfExperts()
    local input_tensor = torch.randn(5,10)
    local grad_tensor = torch.randn(5,6)
    -- dp
@@ -385,9 +385,9 @@ function dptest.mixtureofexperts()
       mytester:assertTensorNe(t[k], v, 0.00001)
    end)
 end
-function dptest.sentencesampler()
+function dptest.SentenceSampler()
    local nIndice = 1000
-   local batchSize = 10
+   local batchSize = 3
    
    -- create dummy sentence dataset
    local data = torch.IntTensor(nIndice, 2):zero()
@@ -409,7 +409,7 @@ function dptest.sentencesampler()
    end
    data[nIndice][2] = end_id
    
-   local epochSize = nIndice / 10
+   local epochSize = nSentence - 3
    local dataset = dp.SentenceSet{data=data,which_set='train',start_id=start_id,end_id=end_id}
    local nWord = 0
    for sentenceSize,s in pairs(dataset:groupBySize()) do
@@ -427,25 +427,27 @@ function dptest.sentencesampler()
       if not batch then
          break
       end
-      mytester:assert(batch.isBatch)
+      mytester:assert(torch.isTypeOf(batch, 'dp.Batch'))
       local inputs = batch:inputs():input()
       local targets = batch:targets():input()
-      mytester:assert(inputs:dim() == 1)
-      mytester:assert(targets:dim() == 1)
-      mytester:assert(inputs:size(1) == targets:size(1))
+      mytester:assert(inputs:dim() == 2)
+      mytester:assert(targets:dim() == 2)
+      mytester:assert(inputs:isSameSizeAs(targets))
       for i=1,inputs:size(1) do
-         local wordIdx = inputs[i]
-         if wordIdx ~= start_id and wordIdx ~= end_id then
-            local exists = sampled[wordIdx]
-            mytester:assert(not exists, 'word sampled twice '..wordIdx)
-            sampled[wordIdx] = true
+         for j=1,inputs:size(2) do
+            local wordIdx = inputs[{i,j}]
+            if wordIdx ~= start_id and wordIdx ~= end_id then
+               local exists = sampled[wordIdx]
+               mytester:assert(not exists, 'word sampled twice '..wordIdx)
+               sampled[wordIdx] = true
+            end
          end
       end
       nSampled = nSampled + inputs:size(1)
    end 
    mytester:assert(nSampled < epochSize + maxSize * batchSize, "iterator not stoping")
    
-   local epochSize = nIndice
+   local epochSize = nSentence
    local dataset = dp.SentenceSet{data=data,which_set='train',start_id=start_id,end_id=end_id}
    local sampler = dp.SentenceSampler{batch_size=batchSize,epoch_size=-1,evaluate=false}
    local batchSampler = sampler:sampleEpoch(dataset)
@@ -454,19 +456,21 @@ function dptest.sentencesampler()
    local sampledTwice = 0
    while nSampled < epochSize do
       batch = batchSampler(batch)
-      mytester:assert(batch.isBatch)
+      mytester:assert(torch.isTypeOf(batch, 'dp.Batch'))
       local inputs = batch:inputs():input()
       local targets = batch:targets():input()
-      mytester:assert(inputs:dim() == 1)
-      mytester:assert(targets:dim() == 1)
-      mytester:assert(inputs:size(1) == targets:size(1))
+      mytester:assert(inputs:dim() == 2)
+      mytester:assert(targets:dim() == 2)
+      mytester:assert(inputs:isSameSizeAs(targets))
       for i=1,inputs:size(1) do
-         local wordIdx = inputs[i]
-         if wordIdx ~= start_id and wordIdx ~= end_id then
-            if sampled[wordIdx] then
-               sampledTwice = sampledTwice + 1
+         for j=1,inputs:size(2) do
+            local wordIdx = inputs[{i,j}]
+            if wordIdx ~= start_id and wordIdx ~= end_id then
+               if sampled[wordIdx] then
+                  sampledTwice = sampledTwice + 1
+               end
+               sampled[wordIdx] = true
             end
-            sampled[wordIdx] = true
          end
       end
       nSampled = nSampled + inputs:size(1)
@@ -484,16 +488,18 @@ function dptest.sentencesampler()
       mytester:assert(batch.isBatch)
       local inputs = batch:inputs():input()
       local targets = batch:targets():input()
-      mytester:assert(inputs:dim() == 1)
-      mytester:assert(targets:dim() == 1)
-      mytester:assert(inputs:size(1) == targets:size(1))
+      mytester:assert(inputs:dim() == 2)
+      mytester:assert(targets:dim() == 2)
+      mytester:assert(inputs:isSameSizeAs(targets))
       for i=1,inputs:size(1) do
-         local wordIdx = inputs[i]
-         if wordIdx ~= start_id and wordIdx ~= end_id then
-            if sampled[wordIdx] then
-               sampledTwice = sampledTwice + 1
+         for j=1,inputs:size(2) do
+            local wordIdx = inputs[{i,j}]
+            if wordIdx ~= start_id and wordIdx ~= end_id then
+               if sampled[wordIdx] then
+                  sampledTwice = sampledTwice + 1
+               end
+               sampled[wordIdx] = true
             end
-            sampled[wordIdx] = true
          end
       end
       nSampled = nSampled + inputs:size(1)
@@ -503,7 +509,7 @@ function dptest.sentencesampler()
    mytester:assert(table.length(sampled) == nIndice-nSentence, "not all words were sampled")
 end
 
-function dptest.errorminima()
+function dptest.ErrorMinima()
    local report={validator={loss={avgError=11}},epoch=1}
    local mediator = dp.Mediator()
    local m = dp.ErrorMinima{start_epoch=5}
@@ -551,7 +557,7 @@ function dptest.errorminima()
    mytester:assert(minima_epoch == 15, "ErrorMinima epoch error")
 end
 
-function dptest.adaptivelearningrate()
+function dptest.AdaptiveLearningRate()
    local lr = 20
    local mediator = dp.Mediator()
    local m = dp.AdaptiveLearningRate{max_wait=1,decay_factor=0.1}
@@ -576,7 +582,7 @@ function dptest.adaptivelearningrate()
    mytester:assert(math.abs(visitor:learningRate() - lr*(0.1^5)) < 0.00001, "AdaptiveLearningRate learningRate error 3")
 end
 
-function dptest.savetofile()
+function dptest.SaveToFile()
    local mediator = dp.Mediator()
    local stf = dp.SaveToFile{in_memory=true,verbose=false}
    local subject = {
@@ -605,7 +611,7 @@ function dptest.savetofile()
    mytester:assertTensorEq(subject.tensor, saved_subject.tensor, 0.000001, "tensor not re saved")
 end
 
-function dptest.topcrop()
+function dptest.TopCrop()
    local fb = dp.TopCrop{n_top={1,3}, n_crop=3,center=1,verbose=false}
    fb._id = dp.ObjectID('topcrop')
    local preds = {{1,0,0,0,0,0},{1,0,0,0,0,0},{1,0,0,0,0,0}, -- 1,1

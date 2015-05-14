@@ -28,7 +28,7 @@ function SentenceSampler:sampleEpoch(dataset)
          batch = self._ppf(batch)
          return batch, batchIter, epochSize
       elseif not code then
-         print(batch, dataset:whichSet())
+         print(batch, "on dataset :", dataset:whichSet())
          error("corountine error")
       end
    end

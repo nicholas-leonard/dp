@@ -43,7 +43,6 @@ dp.UNIT_DIR = os.getenv('DEEP_UNIT_PATH')
 dp.check_and_mkdir(dp.UNIT_DIR)
    
 --[[ misc ]]--
-torch.include('dp', 'choose.lua')
 torch.include('dp', 'xplog.lua')
 torch.include('dp', 'mediator.lua')
 torch.include('dp', 'objectid.lua')

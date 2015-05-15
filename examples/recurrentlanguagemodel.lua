@@ -156,20 +156,17 @@ train = dp.Optimizer{
 }
 
 if not opt.trainOnly then
-   local batchSize = math.min(math.max(1, opt.batchSize*opt.rho/25), opt.batchSize)
-   if not opt.silent then
-      print("evaluation batchSize", batchSize)
-   end
    valid = dp.Evaluator{
       feedback = dp.Perplexity(),  
       sampler = dp.SentenceSampler{
-         epoch_size = opt.validEpochSize, batch_size = batchSize
+         epoch_size = opt.validEpochSize, batch_size = 1, max_size = 100
       },
       progress = opt.progress
    }
    tester = dp.Evaluator{
       feedback = dp.Perplexity(),  
-      sampler = dp.SentenceSampler{batch_size = batchSize}
+      -- Note : remove max_size for exact test set perplexity (will cost more memory)
+      sampler = dp.SentenceSampler{batch_size = 1, max_size = 100} 
    }
 end
 
@@ -181,7 +178,10 @@ xp = dp.Experiment{
    tester = tester,
    observer = (not opt.trainOnly) and {
       dp.FileLogger(),
-      dp.EarlyStopper{max_epochs = opt.maxTries}
+      dp.EarlyStopper{
+         max_epochs = opt.maxTries, 
+         error_report={'validator','feedback','perplexity','ppl'}
+      }
    } or nil,
    random_seed = os.time(),
    max_epoch = opt.maxEpoch,

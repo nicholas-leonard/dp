@@ -41,7 +41,7 @@ function ErrorMinima:__init(config)
    self._sign = self._maximize and -1 or 1
    assert(not(self._error_report and self._error_channel))
    if not (self._error_report or self._error_channel) then
-      self._error_report = {'validator','loss','avgError'}
+      self._error_report = {'validator','loss'}
    end
    parent.__init(self, "doneEpoch")
 end

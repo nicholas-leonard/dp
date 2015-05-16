@@ -98,7 +98,7 @@ end
 function Perplexity:report()
    return {
       [self:name()] = {
-         perplexity = self._n_sample > 0 and self:perplexity() or 0
+         ppl = self._n_sample > 0 and self:perplexity() or 0
       },
       n_sample = self._n_sample
    }

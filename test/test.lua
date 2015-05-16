@@ -531,29 +531,27 @@ function dptest.ErrorMinima()
    mytester:assert(minima_epoch == 15, "ErrorMinima epoch error")
 end
 
-function dptest.AdaptiveLearningRate()
+function dptest.AdaptiveDecay()
    local lr = 20
-   local mediator = dp.Mediator()
-   local m = dp.AdaptiveLearningRate{max_wait=1,decay_factor=0.1}
-   local visitor = dp.Learn{learning_rate=lr, verbose=false, observer=m}
-   visitor:setup{mediator=mediator, id=dp.ObjectID('learn')}
+   local m = dp.AdaptiveDecay{max_wait=1,decay_factor=0.1}
    
+   local lr2 = 20
    for epoch=1,10 do
       if epoch % 3 == 0 then
-         mediator:publish('errorMinima', true)
+         m:errorMinima(true)
       else
-         mediator:publish('errorMinima', false)
+         m:errorMinima(false)
       end
+      lr2 = lr2*m.decay
    end
    lr = lr*(0.1^3)
-   mytester:assert(visitor:learningRate() == lr, "AdaptiveLearningRate learningRate error 1")
+   mytester:assert(lr2 == lr, "AdaptiveDecay learningRate error 1")
    
-   mediator:publish('errorMinima', true)
-   mytester:assert(visitor:learningRate() == lr, "AdaptiveLearningRate learningRate error 2")
    for epoch=1,10 do
-      mediator:publish('errorMinima', false)
+      m:errorMinima(false)
+      lr2 = lr2*m.decay
    end
-   mytester:assert(math.abs(visitor:learningRate() - lr*(0.1^5)) < 0.00001, "AdaptiveLearningRate learningRate error 3")
+   mytester:assert(math.abs(lr2 - lr*(0.1^5)) < 0.00001, "AdaptiveDecay learningRate error 3")
 end
 
 function dptest.SaveToFile()
@@ -590,10 +588,11 @@ function dptest.TopCrop()
    fb._id = dp.ObjectID('topcrop')
    local preds = {{1,0,0,0,0,0},{1,0,0,0,0,0},{1,0,0,0,0,0}, -- 1,1
                    {0,1,0,0,0,0},{0,1,0,0,0,0},{0,1,0,0,0,0}, -- 1,1
-                   {0,1,0,0,0,0},{0,0,1,0,0,0},{0,0,1,0,0,0}, -- 1,1
+                   {0,1,-3,0,0,0},{0,0,1,0,0,0},{0,0,1,0,0,0}, -- 0,1
                    {1,0,0,2,0,0},{1,0,0,2,0,0},{1,0,0,2,0,0}, -- 0,1
-                   {0,-1,0,0,2,0},{0,0,0,0,2,0},{0,-1,0,0,2,0}, -- 0,0
+                   {0,-1,0,0,2,0},{0,-1,0,0,2,0},{0,-1,0,0,2,0}, -- 0,0
                    {0,0,-1,0,0,1},{0,0,-1,0,0,1},{0,0,-1,0,0,1}} -- 0,0
+
    preds = torch.FloatTensor(preds)
    local targets = torch.IntTensor{1,1,1,2,2,2,3,3,3,1,1,1,2,2,2,3,3,3}
    local inputs = torch.randn(18,1,5,5)
@@ -602,12 +601,13 @@ function dptest.TopCrop()
    local batch = dp.Batch{inputs=inputView, targets=targetView}
    fb:add(batch, preds, {epoch=1})
    fb:add(batch, preds, {epoch=1})
+   fb:silent()
    fb:doneEpoch({epoch=1})
    local report = fb:report()
-   mytester:assert(report.topcrop.all[1] == 50, "topcrop all 1 error")
-   mytester:assert(math.round(report.topcrop.all[3]) == 67, "topcrop all 3 error")
+   mytester:assert(math.round(report.topcrop.all[1]) == 33, "topcrop all 1 error")
+   mytester:assert(math.round(report.topcrop.all[3]) == 50, "topcrop all 3 error")
    mytester:assert(math.round(report.topcrop.center[1]) == 33, "topcrop center 1 error")
-   mytester:assert(math.round(report.topcrop.center[3]) == 67, "topcrop center 3 error")
+   mytester:assert(math.round(report.topcrop.center[3]) == 50, "topcrop center 3 error")
 end
 
 function dp.test(tests)

@@ -109,9 +109,8 @@ torch.include('dp', 'observer/compositeobserver.lua')
 torch.include('dp', 'observer/logger.lua')
 torch.include('dp', 'observer/errorminima.lua')
 torch.include('dp', 'observer/earlystopper.lua')
-torch.include('dp', 'observer/savetofile.lua') --not an observer
---torch.include('dp', 'observer/learningrateschedule.lua')
---torch.include('dp', 'observer/adaptivelearningrate.lua')
+torch.include('dp', 'observer/savetofile.lua') --not an observer (but used in one)
+torch.include('dp', 'observer/adaptivedecay.lua')
 torch.include('dp', 'observer/filelogger.lua')
 
 --[[ nn ]]--

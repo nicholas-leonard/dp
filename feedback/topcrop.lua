@@ -55,9 +55,11 @@ function TopCrop:doneEpoch(report)
          table.insert(centerTops, string.format("%g", self.topCounts.center[top]/nSample*100))
          table.insert(allTops, string.format("%g", self.topCounts.all[top]/nSample*100))
       end
-      msg = msg .. "center ("..table.concat(centerTops, ",").."); "
-      msg = msg .. "all ("..table.concat(allTops,",")..")"
-      print(msg)
+      if self._verbose then
+         msg = msg .. "center ("..table.concat(centerTops, ",").."); "
+         msg = msg .. "all ("..table.concat(allTops,",")..")"
+         print(msg)
+      end
    end
 end
 

@@ -15,8 +15,9 @@ cmd:text('Options:')
 cmd:option('--learningRate', 0.1, 'learning rate at t=0')
 cmd:option('--schedule', '{[250]=0.01, [350]=0.001}', 'learning rate schedule')
 cmd:option('--momentum', 0, 'momentum')
---cmd:option('--maxWait', 4, 'maximum number of epochs to wait for a new minima to be found. After that, the learning rate is decayed by decayFactor.')
---cmd:option('--decayFactor', 0.1, 'factor by which learning rate is decayed.')
+cmd:option('--adaptivedecay', false, 'use adaptive learning rate')
+cmd:option('--maxWait', 4, 'maximum number of epochs to wait for a new minima to be found. After that, the learning rate is decayed by decayFactor.')
+cmd:option('--decayFactor', 0.1, 'factor by which learning rate is decayed.')
 cmd:option('--maxOutNorm', 2, 'max norm each layers output neuron weights')
 cmd:option('--batchSize', 64, 'number of examples per batch')
 cmd:option('--cuda', false, 'use CUDA')
@@ -130,6 +131,9 @@ end
 lm:add(nn.Sequencer(softmax))
 
 --[[Propagators]]--
+if opt.adaptiveDecay then
+   ad = dp.AdaptiveDecay{max_wait = opt.maxWait, decay_factor=opt.decayFactor}
+end
 train = dp.Optimizer{
    loss = nn.SequencerCriterion(
       opt.softmaxtree and nn.TreeNLLCriterion() or nn.ModuleCriterion(nn.ClassNLLCriterion(), 
@@ -137,7 +141,13 @@ train = dp.Optimizer{
       opt.cuda and nn.Convert() or nn.Identity())
    ),
    callback = function(model, report) 
-      opt.learningRate = opt.schedule[report.epoch] or opt.learningRate
+      -- learning rate decay
+      if ad and ad.decay ~= 1 or opt.schedule[report.epoch] then
+         opt.learningRate = ad and opt.learningRate*ad.decay or opt.schedule[report.epoch]
+         if not opt.silent then
+            print("learningRate", opt.learningRate)
+         end
+      end
       if opt.accUpdate then
          model:accUpdateGradParameters(model.dpnn_input, model.output, opt.learningRate)
       else
@@ -180,9 +190,10 @@ xp = dp.Experiment{
    validator = valid,
    tester = tester,
    observer = (not opt.trainOnly) and {
+      ad,
       dp.FileLogger(),
       dp.EarlyStopper{max_epochs = opt.maxTries}
-   } or nil,
+   } or ad,
    random_seed = os.time(),
    max_epoch = opt.maxEpoch,
    target_module = nn.SplitTable(1,1):type('torch.IntTensor')

@@ -1,20 +1,20 @@
 ------------------------------------------------------------------------
---[[ AdaptiveLearningRate ]]--
--- Observer that only works on dp.Learn subject
--- Decays learning rate when error on validation doesn't reach a new 
+--[[ AdaptiveDecay ]]--
+-- Observer used by optimizer callbacks.
+-- Decays decay attribute when error on validation doesn't reach a new 
 -- minima for max_wait epochs.
 -- Should observe in conjuction with a dp.ErrorMinima instance (such as 
 -- EarlyStopper)
 ------------------------------------------------------------------------
-local AdaptiveLearningRate, parent = torch.class("dp.AdaptiveLearningRate", "dp.Observer")
+local AdaptiveDecay, parent = torch.class("dp.AdaptiveDecay", "dp.Observer")
 
-function AdaptiveLearningRate:__init(config)
+function AdaptiveDecay:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args
    args, self._max_wait, self._decay_factor 
       = xlua.unpack(
       {config},
-      'AdaptiveLearningRate', 
+      'AdaptiveDecay', 
       'Decays learning rate when validation set does not reach '..
       'a new minima for max_wait epochs',
       {arg='max_wait', type='number', default=2,
@@ -26,19 +26,18 @@ function AdaptiveLearningRate:__init(config)
    )
    parent.__init(self, "errorMinima")
    self._wait = 0
+   -- public attribute
+   self.decay = 1
 end
 
-function AdaptiveLearningRate:setSubject(subject)
-   assert(torch.isTypeOf(subject, 'dp.Learn'))
-   self._subject = subject
-end
-
-function AdaptiveLearningRate:errorMinima(found_minima)
+function AdaptiveDecay:errorMinima(found_minima)
    self._wait = found_minima and 0 or self._wait + 1
    
    if self._max_wait < self._wait then
-      self._subject:scaleLearningRate(self._decay_factor) 
       self._wait = 0  
+      self.decay = self._decay_factor
+   else
+      self.decay = 1
    end
 end
 

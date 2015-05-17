@@ -25,7 +25,7 @@ function ImageNet:__init(config)
    local load_all, input_preprocess, target_preprocess
    self._args, self._load_size, self._sample_size, 
       self._train_path, self._valid_path, self._meta_path, 
-      self._verbose, load_all
+      self._verbose, load_all, self._cache_mode
       = xlua.unpack(
       {config},
       'ImageNet',
@@ -45,7 +45,12 @@ function ImageNet:__init(config)
       {arg='verbose', type='boolean', default=true,
        help='Verbose mode during initialization'},
       {arg='load_all', type='boolean', 
-       help='Load all datasets : train and valid', default=true}
+       help='Load all datasets : train and valid', default=true},
+      {arg='cache_mode', type='string', default='writeonce',
+       help='writeonce : read from cache if exists, else write to cache. '..
+       'overwrite : write to cache, regardless if exists. '..
+       'nocache : dont read or write from cache. '..
+       'readonly : only read from cache, fail otherwise.'}
    )
    self._load_size = self._load_size or {3, 256, 256}
    self._sample_size = self._sample_size or {3, 224, 224}
@@ -64,7 +69,10 @@ function ImageNet:loadTrain()
    local dataset = dp.ImageClassSet{
       data_path=self._train_path, load_size=self._load_size,
       which_set='train', sample_size=self._sample_size,
-      verbose=self._verbose, sample_func='sampleTrain'
+      verbose=self._verbose, sample_func='sampleTrain',
+      sort_func=function(x,y)
+         return tonumber(x:match('[0-9]+')) < tonumber(y:match('[0-9]+'))
+      end, cache_mode=self._cache_mode
    }
    self:setTrainSet(dataset)
    return dataset
@@ -77,7 +85,7 @@ function ImageNet:loadValid()
       verbose=self._verbose, sample_func='sampleTest',
       sort_func=function(x,y)
          return tonumber(x:match('[0-9]+')) < tonumber(y:match('[0-9]+'))
-      end
+      end, cache_mode=self._cache_mode
    }
    self:setValidSet(dataset)
    return dataset

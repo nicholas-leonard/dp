@@ -13,6 +13,7 @@ cmd:option('--dataPath', paths.concat(dp.DATA_DIR, 'ImageNet'), 'path to ImageNe
 cmd:option('--trainPath', '', 'Path to train set. Defaults to --dataPath/ILSVRC2012_img_train')
 cmd:option('--validPath', '', 'Path to valid set. Defaults to --dataPath/ILSVRC2012_img_val')
 cmd:option('--metaPath', '', 'Path to metadata. Defaults to --dataPath/metadata')
+cmd:option('--overwrite', false, 'overwrite the cache (useful for debugging the ImageNet DataSource')
 cmd:option('--learningRate', 0.01, 'learning rate at t=0')
 cmd:option('--schedule', '{[1]=1e-2,[19]=5e-3,[30]=1e-3,[44]=5e-4,[53]=1e-4}', 'learning rate schedule')
 cmd:option('--maxOutNorm', -1, 'max norm each layers output neuron weights')
@@ -44,45 +45,46 @@ end
 
 
 --[[data]]--
-datasource = dp.ImageNet{
+ds = dp.ImageNet{
    train_path=opt.trainPath, valid_path=opt.validPath, 
-   meta_path=opt.metaPath, verbose=opt.verbose
+   meta_path=opt.metaPath, verbose=opt.verbose,
+   cache_mode = opt.overwrite and 'overwrite' or nil
 }
 
 -- preprocessing function 
-ppf = datasource:normalizePPF()
+ppf = ds:normalizePPF()
 
 --[[Model]]--
+
 local features = nn.Concat(2)
 local fb1 = nn.Sequential() -- branch 1
-fb1:add(nn.SpatialConvolutionMM(3,48,11,11,4,4,2,2))       -- 224 -> 55
+fb1:add(nn.SpatialConvolution(3,48,11,11,4,4,2,2))       -- 224 -> 55
 fb1:add(nn.ReLU())
 if opt.LCN then
    fb1:add(inn.SpatialCrossResponseNormalization(5, 0.0001, 0.75, 2))
 end
 fb1:add(nn.SpatialMaxPooling(3,3,2,2))                   -- 55 ->  27
 
-fb1:add(nn.SpatialConvolutionMM(48,128,5,5,1,1,2,2))       --  27 -> 27
+fb1:add(nn.SpatialConvolution(48,128,5,5,1,1,2,2))       --  27 -> 27
 fb1:add(nn.ReLU())
 if opt.LCN then
    fb1:add(inn.SpatialCrossResponseNormalization(5, 0.0001, 0.75, 2))
 end
 fb1:add(nn.SpatialMaxPooling(3,3,2,2))                   --  27 ->  13
 
-fb1:add(nn.SpatialConvolutionMM(128,192,3,3,1,1,1,1))      --  13 ->  13
+fb1:add(nn.SpatialConvolution(128,192,3,3,1,1,1,1))      --  13 ->  13
 fb1:add(nn.ReLU())
 
-fb1:add(nn.SpatialConvolutionMM(192,192,3,3,1,1,1,1))      --  13 ->  13
+fb1:add(nn.SpatialConvolution(192,192,3,3,1,1,1,1))      --  13 ->  13
 fb1:add(nn.ReLU())
 
-fb1:add(nn.SpatialConvolutionMM(192,128,3,3,1,1,1,1))      --  13 ->  13
+fb1:add(nn.SpatialConvolution(192,128,3,3,1,1,1,1))      --  13 ->  13
 fb1:add(nn.ReLU())
 
 fb1:add(nn.SpatialMaxPooling(3,3,2,2))                   -- 13 -> 6
-fb1:add(nn.Copy(nil, nil, true)) -- prevents a newContiguous in SpatialMaxPooling:backward()
 
 local fb2 = fb1:clone() -- branch 2
-for k,v in ipairs(fb2:findModules('nn.SpatialConvolutionMM')) do
+for k,v in ipairs(fb2:findModules('nn.SpatialConvolution')) do
    v:reset() -- reset branch 2's weights
 end
 
@@ -91,6 +93,7 @@ features:add(fb2)
 
 -- 1.3. Create Classifier (fully connected layers)
 local classifier = nn.Sequential()
+classifier:add(nn.Copy(nil, nil, true)) -- prevents a newContiguous in SpatialMaxPooling:backward()
 classifier:add(nn.View(256*6*6))
 classifier:add(nn.Dropout(0.5))
 classifier:add(nn.Linear(256*6*6, 4096))
@@ -106,7 +109,8 @@ classifier:add(nn.LogSoftMax())
 -- 1.4. Combine 1.1 and 1.3 to produce final model
 model = nn.Sequential()
 model:add(nn.Convert(),1)
-model:add(features):add(classifier)
+model:add(features)
+model:add(classifier)
 
 --[[Propagators]]--
 train = dp.Optimizer{
@@ -139,7 +143,7 @@ valid = dp.Evaluator{
 
 --[[multithreading]]--
 if opt.nThread > 0 then
-   datasource:multithread(opt.nThread)
+   ds:multithread(opt.nThread)
    train:sampler():async()
    valid:sampler():async()
 end
@@ -172,4 +176,4 @@ end
 print"Model :"
 print(model)
 
-xp:run(datasource)
+xp:run(ds)

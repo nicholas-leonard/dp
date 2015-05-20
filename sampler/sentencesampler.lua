@@ -48,6 +48,9 @@ function SentenceSampler:_sampleEpoch(dataset)
    local sentenceTable_, corpus = dataset:groupBySize()
    local text = corpus:select(2,2) -- second column is the text
    
+   -- remove sentences of size > self._max_size
+   sentenceTable_ = _.select(sentenceTable_, function(k,v) return k <= self._max_size end)
+   
    local nSample = 0
    for size, s in pairs(sentenceTable_) do
       nSample = nSample + s.count
@@ -76,69 +79,65 @@ function SentenceSampler:_sampleEpoch(dataset)
       while nSizes > 0 do
          
          for i,sentenceSize in pairs(sentenceSizes) do
+            local s = sentenceTable[sentenceSize]
+            local start = s.sampleIdx
+            local stop = math.min(start + self._batch_size - 1, s.indices:size(1))
+            -- batch of word indices, each at same position in different sentence
+            local textIndices = s.indices:narrow(1, start, stop - start + 1)
+            self._text_indices = self._text_indices or torch.LongTensor()
+            self._text_indices:resize(textIndices:size(1))
+            self._text_indices:copy(textIndices)
+            textIndices = self._text_indices
             
-            if sentenceSize <= self._max_size then
+            batch = batch or newBatch()
+            local input_v = batch:inputs()
+            assert(torch.isTypeOf(input_v, 'dp.ClassView'))
+            local inputs = input_v:input() or torch.IntTensor()
+            inputs:resize(textIndices:size(1), sentenceSize+1)
+            local target_v = batch:targets()
+            assert(torch.isTypeOf(target_v, 'dp.ClassView'))
+            local targets = target_v:input() or torch.IntTensor()
+            targets:set(inputs:narrow(2,2,inputs:size(2)-1))
+            -- metadata
+            batch:setup{
+               batch_iter=(nSampled + textIndices:size(1) - 1), 
+               batch_size=self._batch_size,
+               n_sample=textIndices:size(1)
+            }
             
-               local s = sentenceTable[sentenceSize]
-               local start = s.sampleIdx
-               local stop = math.min(start + self._batch_size - 1, s.indices:size(1))
-               -- batch of word indices, each at same position in different sentence
-               local textIndices = s.indices:narrow(1, start, stop - start + 1)
-               self._text_indices = self._text_indices or torch.LongTensor()
-               self._text_indices:resize(textIndices:size(1))
-               self._text_indices:copy(textIndices)
-               textIndices = self._text_indices
-               
-               batch = batch or newBatch()
-               local input_v = batch:inputs()
-               assert(torch.isTypeOf(input_v, 'dp.ClassView'))
-               local inputs = input_v:input() or torch.IntTensor()
-               inputs:resize(textIndices:size(1), sentenceSize+1)
-               local target_v = batch:targets()
-               assert(torch.isTypeOf(target_v, 'dp.ClassView'))
-               local targets = target_v:input() or torch.IntTensor()
-               targets:set(inputs:narrow(2,2,inputs:size(2)-1))
-               -- metadata
-               batch:setup{
-                  batch_iter=(nSampled + textIndices:size(1) - 1), 
-                  batch_size=self._batch_size,
-                  n_sample=textIndices:size(1)
-               }
-               
-               for wordOffset=1,sentenceSize do
-                  if wordOffset == 1 then
-                     inputs:select(2,1):fill(sentenceStartId)
-                  end
-                  
-                  local target = inputs:select(2,wordOffset+1)
-                  target:index(text, 1, textIndices)         
-                  
-                  -- move to next word in each sentence
-                  textIndices:add(1)
+            for wordOffset=1,sentenceSize do
+               if wordOffset == 1 then
+                  inputs:select(2,1):fill(sentenceStartId)
                end
                
-               inputs = inputs:narrow(2, 1, sentenceSize)
+               local target = inputs:select(2,wordOffset+1)
+               target:index(text, 1, textIndices)         
                
-               -- re-encapsulate in dp.Views
-               input_v:forward('bt', inputs)
-               input_v:setClasses(dataset:vocabulary())
-               target_v:forward('bt', targets)
-               target_v:setClasses(dataset:vocabulary())
-               
-               nSampled = nSampled + textIndices:size(1)
-               
-               coroutine.yield(batch, math.min(nSampled, epochSize), epochSize)
-               
-               if nSampled >= epochSize then
-                  batch = coroutine.yield(false)
-                  nSampled = 0
-               end
-               
-               s.sampleIdx = s.sampleIdx + textIndices:size(1)
-               if s.sampleIdx > s.indices:size(1) then
-                  sentenceSizes[i] = nil
-                  nSizes = nSizes - 1
-               end
+               -- move to next word in each sentence
+               textIndices:add(1)
+            end
+            
+            inputs = inputs:narrow(2, 1, sentenceSize)
+            
+            -- re-encapsulate in dp.Views
+            input_v:forward('bt', inputs)
+            input_v:setClasses(dataset:vocabulary())
+            target_v:forward('bt', targets)
+            target_v:setClasses(dataset:vocabulary())
+            
+            nSampled = nSampled + textIndices:size(1)
+            
+            coroutine.yield(batch, math.min(nSampled, epochSize), epochSize)
+            
+            if nSampled >= epochSize then
+               batch = coroutine.yield(false)
+               nSampled = 0
+            end
+            
+            s.sampleIdx = s.sampleIdx + textIndices:size(1)
+            if s.sampleIdx > s.indices:size(1) then
+               sentenceSizes[i] = nil
+               nSizes = nSizes - 1
             end
          end
          

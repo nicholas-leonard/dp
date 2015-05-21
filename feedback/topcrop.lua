@@ -50,7 +50,7 @@ function TopCrop:doneEpoch(report)
       local msg = self._id:toString().." accuracy top ("..table.concat(self._n_top,",")..") :"
       local centerTops = {}
       local allTops = {}
-      local nSample = self._n_sample / self._n_crop
+      local nSample = self._n_sample
       for i,top in ipairs(self._n_top) do
          table.insert(centerTops, string.format("%g", self.topCounts.center[top]/nSample*100))
          table.insert(allTops, string.format("%g", self.topCounts.all[top]/nSample*100))

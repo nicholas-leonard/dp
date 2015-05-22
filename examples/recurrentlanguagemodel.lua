@@ -39,9 +39,9 @@ cmd:option('--forestGaterSize', '{}', 'size of hidden layers used for forest gat
 --[[ data ]]--
 cmd:option('--small', false, 'use a small (1/30th) subset of the training set')
 cmd:option('--tiny', false, 'use a tiny (1/100th) subset of the training set')
-cmd:option('--trainEpochSize', 1000000, 'number of train examples seen between each epoch')
-cmd:option('--validEpochSize', 100000, 'number of valid examples used for early stopping and cross-validation') 
-cmd:option('--trainOnly', false, 'forget the validation and test sets, focus on the training set')
+cmd:option('--trainEpochSize', 400000, 'number of train examples seen between each epoch')
+cmd:option('--validEpochSize', 24000, 'number of valid examples used for early stopping and cross-validation') 
+cmd:option('--trainOnly', false, 'forget the validation and test sets, focus on the training set (wont save any models though)')
 cmd:option('--progress', false, 'print progress bar')
 cmd:option('--silent', false, 'dont print anything to stdout')
 cmd:option('--xpPath', '', 'path to a previously saved model')

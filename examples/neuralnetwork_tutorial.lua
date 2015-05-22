@@ -12,20 +12,20 @@ opt = {
 }
 
 --[[data]]--
-datasource = dp.Mnist{input_preprocess = dp.Standardize()}
+ds = dp.Mnist{input_preprocess = dp.Standardize()}
 
 --[[Model]]--
 model = nn.Sequential():extend(
-   nn.Convert(datasource:ioShapes(), 'bf'), -- to batchSize x nFeature (also type converts)
-   nn.Linear(datasource:featureSize(), opt.nHidden), 
+   nn.Convert(ds:ioShapes(), 'bf'), -- to batchSize x nFeature (also type converts)
+   nn.Linear(ds:featureSize(), opt.nHidden), 
    nn.Tanh(),
-   nn.Linear(opt.nHidden, #(datasource:classes())),
+   nn.Linear(opt.nHidden, #(ds:classes())),
    nn.LogSoftMax()
 )
 
 --[[Propagators]]--
 train = dp.Optimizer{
-   loss = nn.ClassNLLCriterion(),
+   loss = nn.ModuleCriterion(nn.ClassNLLCriterion(), nn.Convert()),
    callback = function(model, report) 
       -- the ordering here is important
       model:updateGradParameters(opt.momentum) -- affects gradParams
@@ -64,4 +64,4 @@ xp = dp.Experiment{
    max_epoch = opt.maxEpoch
 }
 
-xp:run(datasource)
+xp:run(ds)

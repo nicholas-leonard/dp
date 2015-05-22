@@ -1,13 +1,14 @@
 <a name="NeuralNetworkTutorial"/>
 []()
 # Neural Network Tutorial #
+
 We begin with a simple [neural network example](https://github.com/nicholas-leonard/dp/blob/master/examples/neuralnetwork_tutorial.lua). The first line loads 
 the __dp__ package, whose first matter of business is to load its dependencies (see [init.lua](https://github.com/nicholas-leonard/dp/blob/master/init.lua)):
 ```lua
 require 'dp'
 ```
-Note : package [Moses](https://github.com/Yonaba/Moses/blob/master/docs/moses.md) is imported as `_`. So `_` shouldn't be used for dummy variables, instead 
-use the much more annoying `__`, or whatnot. 
+Note : package [Moses](https://github.com/Yonaba/Moses/blob/master/docs/moses.md) is imported as `_`. So `_` shouldn't be used for dummy variables. 
+Instead use the much more annoying `__`, or whatnot. 
 
 Lets define some hyper-parameters and store them into a table. We will need them later:
 ```lua
@@ -49,88 +50,76 @@ However, some preprocesses require that statistics be measured
 only on each example (as in [global constrast normalization](preprocess.md#dp.GCN)). 
 
 ## Model of Modules ##
-Ok so we have a DataSource, now we need a [Model](model.md#dp.Model). Let's build a 
-multi-layer perceptron (MLP) with two parameterized non-linear [Neural](model.md#dp.Neural) [Layers](model.md#dp.Layer):
+
+Ok so we have a DataSource, now we need a model. Let's build a 
+multi-layer perceptron (MLP) with two parameterized non-linear layers:
 ```lua
 --[[Model]]--
-model = dp.Sequential{
-   models = {
-      dp.Neural{
-         input_size = datasource:featureSize(), 
-         output_size = opt.nHidden, 
-         transfer = nn.Tanh(),
-         sparse_init = true
-      },
-      dp.Neural{
-         input_size = opt.nHidden, 
-         output_size = #(datasource:classes()),
-         transfer = nn.LogSoftMax(),
-         sparse_init = true
-      }
-   }
-}
+
+model = nn.Sequential():extend(
+   nn.Convert(ds:ioShapes(), 'bf'), -- to batchSize x nFeature (also type converts)
+   nn.Linear(ds:featureSize(), opt.nHidden), 
+   nn.Tanh(),
+   nn.Linear(opt.nHidden, #(ds:classes())),
+   nn.LogSoftMax()
+)
 ```
-Both layers are defined using [Neural](model.md#dp.Neural), which require an `input_size` 
-(number of input neurons), an `output_size` (number of output neurons) and a 
-[Transfer](https://github.com/torch/nn/blob/master/doc/transfer.md) Module.
-We use the `datasource:featureSize()` and `datasource:classes()` methods to access the
-number of input features and output classes, respectively. As for the number of 
-hidden neurons, we use our `opt` table of hyper-parameters. The Transfer
-[Modules](https://github.com/torch/nn/blob/master/doc/module.md#nn.Module) 
-used are the [Tanh](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Tanh) (for the hidden neurons) 
+Both layers are defined using a [Linear](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Linear),
+which contains the parameters that will be learned, followed by a non-linear transfer function like 
+[Tanh](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Tanh) (for the hidden neurons) 
 and [LogSoftMax](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.LogSoftMax) (for the output neurons).
 The latter might seem odd (why not use [SoftMax](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.SoftMax) instead?), 
 but the [ClassNLLCriterion](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.ClassNLLCriterion) only works 
 with LogSoftMax (or with SoftMax + [Log](https://github.com/torch/nn/blob/master/Log.lua)).
 
-Both models initialize parameters using the sparse initialization 
-(see [Martens 2010](http://machinelearning.wustl.edu/mlpapers/paper_files/icml2010_Martens10.pdf)). 
-If you construct it with argument `sparse_init=false`, it will delegate parameter initialization to 
-[Linear](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Linear), 
-which is what Neural uses internally for its parameters.
+The Linear modules are constructed using 2 arguments, `inputSize` (number of input units) and `outputSize` (number of output units).
+For the first layer, the `inputSize` is the number of features in the input image. 
+In our case, that is `1x28x28=784`, which is what `ds:featureSize()` will return.
 
-These two Neural [Models](model.md#dp.Model) are combined to form an MLP using [Sequential](model.md#dp.Sequential), 
-which is not to be confused with the 
-[Sequential](https://github.com/torch/nn/blob/master/containers.md#nn.Sequential) Module. It differs in that
-it can be constructed from a list of [Models](model.md#dp.Model) instead of 
-[Modules](https://github.com/torch/nn/blob/master/doc/module.md#nn.Module). Models have extra 
-methods, allowing them to [accept](model.md#dp.Model.accept) 
-[Visitors](visitor.md#dp.Visitor), to communicate with 
-other components through a [Mediator](mediator.md#dp.Mediator), 
-or [setup](node.md#dp.Node.setup) with variables after initialization.
-Model instances also differ from Modules in their ability to [forward](model.md#dp.Model.forward) 
-and [backward](model.md#dp.Model.backward) using [Views](view.md#dp.View). 
-Nevertheless, all Models encapsulate Modules. __dp__ is not intent on replacing any potential
-nn.Modules with dp.Models.
+Now for the odd looking `nn.Convert` Module. It has two purposes. First, 
+whatever type of Tensor received, it will output the type of Tensor used by the Module.
+Second, it can convert from different Tensor shapes. The input shape of a typical image is 
+*bchw*, short for  *batch*, *color/channel*, *height*, *width*. Modules like 
+[SpatialConvolution]() and [SpatialMaxPooling]() expect this type of input. Our MLP, on the other 
+hand, expects an input of shape *bf*, short for *batch*, *feature*. Its a pretty simple conversion 
+actually, all you need to do is flatten the *chw* dimensions to a single *f* dimension (in this case, of size 784). 
+
+For those not familiar with the nn package, all the `nn.*` in the above snippet of code 
+are [Module](https://github.com/torch/nn/blob/master/doc/module.md#nn.Module) subclasses. 
+This is true even for the [Sequential](https://github.com/torch/nn/blob/master/containers.md#nn.Sequential).
+Although the latter is special as it is a [Container](https://github.com/torch/nn/blob/master/containers.md#nn.Container) of other Modules.
 
 ## Propagator ##
+
 Next we initialize some [Propagators](propagator.md#dp.Propagator). 
 Each such Propagator will propagate examples from a different [DataSet](data.md#dp.DataSet).
 [Samplers](data.md#dp.Sampler) iterate over DataSets to 
 generate [Batches](data.md#dp.Batch) of examples (inputs and targets) to propagate through the `model`:
 ```lua
 --[[Propagators]]--
+
 train = dp.Optimizer{
-   loss = dp.NLL(),
-   visitor = { -- the ordering here is important:
-      dp.Momentum{momentum_factor = opt.momentum},
-      dp.Learn{learning_rate = opt.learningRate},
-      dp.MaxNorm{max_out_norm = opt.maxOutNorm}
-   },
+   loss = nn.ModuleCriterion(nn.ClassNLLCriterion(), nn.Convert()),
+   callback = function(model, report) 
+      -- the ordering here is important
+      model:updateGradParameters(opt.momentum) -- affects gradParams
+      model:updateParameters(opt.learningRate) -- affects params
+      model:maxParamNorm(opt.maxOutNorm) -- affects params
+      model:zeroGradParameters() -- affects gradParams 
+   end,
    feedback = dp.Confusion(),
    sampler = dp.ShuffleSampler{batch_size = opt.batchSize},
    progress = true
 }
 valid = dp.Evaluator{
-   loss = dp.NLL(),
    feedback = dp.Confusion(),  
-   sampler = dp.Sampler{}
+   sampler = dp.Sampler()
 }
 test = dp.Evaluator{
-   loss = dp.NLL(),
    feedback = dp.Confusion(),
-   sampler = dp.Sampler{}
+   sampler = dp.Sampler()
 }
+
 ```
 For this example, we use an [Optimizer](propagator.md#dp.Optimizer) for the training DataSet,
 and two [Evaluators](propagator.md#dp.Evaluator), one for cross-validation 
@@ -139,20 +128,22 @@ and another for testing.
 ### Sampler ###
 The Evaluators use a simple Sampler which 
 iterates sequentially through the DataSet. On the other hand, the Optimizer 
-uses a [ShuffleSampler](data.md#dp.SuffleSampler) to iterate through the DataSet. This Sampler
+uses a [ShuffleSampler](data.md#dp.SuffleSampler). This Sampler
 shuffles the (indices of a) DataSet before each pass over all examples in a DataSet. 
 This shuffling is useful for training since the model 
 must learn from varying sequences of batches through the DataSet, 
-which makes the training algorithm more stochastic.
+which makes the training algorithm more stochastic (subject to the constraint that 
+each example is presented once and only once per epoch).
 
 ### Loss ###
-Each Propagator must also specify a [Loss](loss.md#dp.Loss) for training or evaluation.
+Each Propagator can also specify a `loss` for training or evaluation. This argument is 
+only mandatory for the Optimizer, as it is required for [backpropagation](http://en.wikipedia.org/wiki/Backpropagation).
 If you have previously used the [nn](https://github.com/torch/nn/blob/master/README.md) package, 
-there is nothing new here. A [Loss](loss.md#dp.Loss) is simply an adapter of
-[Criterions](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.Criterion). 
+there is nothing new here. The loss is a [Criterion](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.Criterion). 
 Each example has a single target class and our Model output is LogSoftMax so 
-we use a [NLL](loss.md#dp.NLL), which wraps a 
-[ClassNLLCriterion](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.ClassNLLCriterion).
+we use a [ClassNLLCriterion](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.ClassNLLCriterion).
+The criterion is wrapped in [ModuleCriterion](https://github.com/nicholas-leonard/dpnn/blob/master/README.md#nn.ModuleCriterion).
+This isn't really useful to this particular script as it is never cast to a different type
 
 ### Feedback ###
 The `feedback` parameter is used to provide us with, you guessed it, feedback (like performance measures and

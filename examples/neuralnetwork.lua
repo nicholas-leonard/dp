@@ -73,7 +73,7 @@ model:add(nn.LogSoftMax())
 --[[Propagators]]--
 train = dp.Optimizer{
    acc_update = opt.accUpdate,
-   loss = nn.ClassNLLCriterion(),
+   loss = nn.ModuleCriterion(nn.ClassNLLCriterion(), nn.Convert()),
    callback = function(model, report) 
       opt.learningRate = opt.schedule[report.epoch] or opt.learningRate
       if opt.accUpdate then

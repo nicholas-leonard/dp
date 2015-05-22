@@ -22,6 +22,7 @@ cmd:option('--batchNorm', false, 'use batch normalization. dropout is mostly red
 cmd:option('--dataset', 'Mnist', 'which dataset to use : Mnist | NotMnist | Cifar10 | Cifar100')
 cmd:option('--standardize', false, 'apply Standardize preprocessing')
 cmd:option('--zca', false, 'apply Zero-Component Analysis whitening')
+cmd:option('--lecunlcn', false, 'apply Yann LeCun Local Contrast Normalization')
 cmd:option('--progress', false, 'display progress bar')
 cmd:option('--silent', false, 'dont print anything to stdout')
 cmd:text()
@@ -38,6 +39,10 @@ if opt.standardize then
 end
 if opt.zca then
    table.insert(input_preprocess, dp.ZCA())
+end
+if opt.lecunlcn then
+   table.insert(input_preprocess, dp.GCN())
+   table.insert(input_preprocess, dp.LeCunLCN{progress=true})
 end
 
 --[[data]]--

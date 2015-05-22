@@ -9,36 +9,63 @@ require 'dp'
 Note : package [Moses](https://github.com/Yonaba/Moses/blob/master/docs/moses.md) is imported as `_`. So `_` shouldn't be used for dummy variables, instead 
 use the much more annoying `__`, or whatnot. 
 
-Lets define some hyper-parameters and store them into a table. We will need them later:
+Lets define some command-line arguments. 
+These will be stored into table `opt`, which will be printed when the script is launched.
+This makes it easy to control the experiment and to try out different hyper-parameters 
+
 ```lua
---[[hyperparameters]]--
-opt = {
-   nHidden = 100, --number of hidden units
-   learningRate = 0.1, --training learning rate
-   momentum = 0.9, --momentum factor to use for training
-   maxOutNorm = 1, --maximum norm allowed for output neuron weights
-   batchSize = 128, --number of examples per mini-batch
-   maxTries = 100, --maximum number of epochs without reduction in validation error.
-   maxEpoch = 1000 --maximum number of epochs of training
-}
+--[[command line arguments]]--
+cmd = torch.CmdLine()
+cmd:text()
+cmd:text('Image Classification using MLP Training/Optimization')
+cmd:text('Example:')
+cmd:text('$> th neuralnetwork.lua --batchSize 128 --momentum 0.5')
+cmd:text('Options:')
+cmd:option('--learningRate', 0.1, 'learning rate at t=0')
+cmd:option('--schedule', '{[200]=0.01, [400]=0.001}', 'learning rate schedule')
+cmd:option('--maxOutNorm', 1, 'max norm each layers output neuron weights')
+cmd:option('--momentum', 0, 'momentum')
+cmd:option('--nHidden', 200, 'number of hidden units')
+cmd:option('--batchSize', 32, 'number of examples per batch')
+cmd:option('--cuda', false, 'use CUDA')
+cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
+cmd:option('--maxEpoch', 100, 'maximum number of epochs to run')
+cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better local minima for early-stopping')
+cmd:option('--dropout', false, 'apply dropout on hidden neurons')
+cmd:option('--batchNorm', false, 'use batch normalization. dropout is mostly redundant with this')
+cmd:option('--dataset', 'Mnist', 'which dataset to use : Mnist | NotMnist | Cifar10 | Cifar100')
+cmd:option('--standardize', false, 'apply Standardize preprocessing')
+cmd:option('--zca', false, 'apply Zero-Component Analysis whitening')
+cmd:option('--progress', false, 'display progress bar')
+cmd:option('--silent', false, 'dont print anything to stdout')
+cmd:text()
+opt = cmd:parse(arg or {})
+opt.schedule = dp.returnString(opt.schedule)
+if not opt.silent then
+   table.print(opt)
+end
 ```
-## DataSource and Preprocess ##
-We intend to build and train a neural network so we need some data, 
-which we encapsulate in a [DataSource](data.md#dp.DataSource)
-object. __dp__ provides the option of training on different datasets, 
-notably [MNIST](data.md#dp.Mnist), [NotMNIST](data.md#dp.NotMnist), 
-[CIFAR-10](data.md#dp.Cifar10) or [CIFAR-100](data.md#dp.Cifar100), but for this
-tutorial we will be using the archetypal MNIST (don't leave home without it):
+
+## Preprocess ##
+
+The `--standardize` and `--zca` cmd-line arguments can be toggled on
+to perform some preprocessing on the data. 
 ```lua
---[[data]]--
-datasource = dp.Mnist{input_preprocess = dp.Standardize()}
+--[[preprocessing]]--
+local input_preprocess = {}
+if opt.standardize then
+   table.insert(input_preprocess, dp.Standardize())
+end
+if opt.zca then
+   table.insert(input_preprocess, dp.ZCA())
+end
+if opt.lecunlcn then
+   table.insert(input_preprocess, dp.GCN())
+   table.insert(input_preprocess, dp.LeCunLCN{progress=true})
+end
 ```
-A DataSource contains up to three [DataSets](data.md#dp.DataSet): 
-`train`, `valid` and `test`. The first is for training the model. 
-The second is used for [early-stopping](observer.md#dp.EarlyStopper) and cross-validation.
-The third is used for publishing papers and comparing results across different models.
-  
-Although not really necessary, we [Standardize](preprocess.md#dp.Standardize) 
+
+A very common and easy preprocessing technique is to [Standardize](preprocess.md#dp.Standardize) 
 the datasource, which subtracts the mean and divides 
 by the standard deviation. Both statistics (mean and standard deviation) are 
 measured on the `train` set only. This is a common pattern when preprocessing data. 
@@ -46,9 +73,42 @@ When statistics need to be measured across different examples
 (as in [ZCA](preprocess.md#dp.ZCA) and [LecunLCN](preprocess.md#dp.LeCunLCN) preprocesses), 
 we fit the preprocessor on the `train` set and apply it to all sets (`train`, `valid` and `test`). 
 However, some preprocesses require that statistics be measured
-only on each example (as in [global constrast normalization](preprocess.md#dp.GCN)). 
+only on each example, as is the case for global constrast normalization ([GCN]](preprocess.md#dp.GCN)). 
+
+## DataSource ##
+
+We intend to build and train a neural network so we need some data, 
+which we encapsulate in a [DataSource](data.md#dp.DataSource)
+object. __dp__ provides the option of training on different datasets, 
+notably [MNIST](data.md#dp.Mnist), [NotMNIST](data.md#dp.NotMnist), 
+[CIFAR-10](data.md#dp.Cifar10) or [CIFAR-100](data.md#dp.Cifar100). 
+The default for this script is the archetypal MNIST (don't leave home without it).
+However, you can use the `--dataset` argument to specify a different image classification
+dataset.
+
+```lua
+--[[data]]--
+local datasource
+if opt.dataset == 'Mnist' then
+   datasource = dp.Mnist{input_preprocess = input_preprocess}
+elseif opt.dataset == 'NotMnist' then
+   datasource = dp.NotMnist{input_preprocess = input_preprocess}
+elseif opt.dataset == 'Cifar10' then
+   datasource = dp.Cifar10{input_preprocess = input_preprocess}
+elseif opt.dataset == 'Cifar100' then
+   datasource = dp.Cifar100{input_preprocess = input_preprocess}
+else
+    error("Unknown Dataset")
+end
+```
+
+A DataSource contains up to three [DataSets](data.md#dp.DataSet): 
+`train`, `valid` and `test`. The first is for training the model. 
+The second is used for [early-stopping](observer.md#dp.EarlyStopper) and cross-validation.
+The third is used for publishing papers and comparing results across different models.
 
 ## Model of Modules ##
+
 Ok so we have a DataSource, now we need a [Model](model.md#dp.Model). Let's build a 
 multi-layer perceptron (MLP) with two parameterized non-linear [Neural](model.md#dp.Neural) [Layers](model.md#dp.Layer):
 ```lua

@@ -297,7 +297,7 @@ function ImageClassSet:sub(batch, start, stop)
       start = batch
       batch = nil
    end
-   batch = batch or dp.Batch{which_set=self:whichSet(), epoch_size=self:nSample()}   
+   batch = batch or dp.Batch{which_set=self:whichSet(), epoch_size=self:nSample()}
    
    local sampleFunc = self._sample_func
    if torch.type(sampleFunc) == 'string' then
@@ -314,16 +314,16 @@ function ImageClassSet:sub(batch, start, stop)
       dst = sampleFunc(self, dst, imgpath)
       table.insert(inputTable, dst)
       table.insert(targetTable, self.imageClass[idx])     
-      i = i + 1 
+      i = i + 1
    end
-   
+
    local inputView = batch and batch:inputs() or dp.ImageView()
    local targetView = batch and batch:targets() or dp.ClassView()
    local inputTensor = inputView:input() or torch.FloatTensor()
    local targetTensor = targetView:input() or torch.IntTensor()
-   
+
    self:tableToTensor(inputTable, targetTable, inputTensor, targetTensor)
-   
+
    assert(inputTensor:size(2) == 3)
    inputView:forward('bchw', inputTensor)
    targetView:forward('b', targetTensor)
@@ -335,7 +335,45 @@ function ImageClassSet:sub(batch, start, stop)
 end
 
 function ImageClassSet:index(batch, indices)
-   error"notImplemented"
+   if not indices then
+      indices = batch
+      batch = nil
+   end
+   batch = batch or dp.Batch{which_set=self:whichSet(), epoch_size=self:nSample()}
+
+   local sampleFunc = self._sample_func
+   if torch.type(sampleFunc) == 'string' then
+      sampleFunc = self[sampleFunc]
+   end
+
+   local inputTable = {}
+   local targetTable = {}
+   for i = 1, indices:size(1) do
+      idx = indices[i]
+      -- load the sample
+      local imgpath = ffi.string(torch.data(self.imagePath[idx]))
+      local dst = self:getImageBuffer(i)
+      dst = sampleFunc(self, dst, imgpath)
+      table.insert(inputTable, dst)
+      table.insert(targetTable, self.imageClass[idx])
+   end
+
+   local inputView = batch and batch:inputs() or dp.ImageView()
+   local targetView = batch and batch:targets() or dp.ClassView()
+   local inputTensor = inputView:input() or torch.FloatTensor()
+   local targetTensor = targetView:input() or torch.IntTensor()
+
+   self:tableToTensor(inputTable, targetTable, inputTensor, targetTensor)
+
+   assert(inputTensor:size(2) == 3)
+   inputView:forward('bchw', inputTensor)
+   targetView:forward('b', targetTensor)
+   targetView:setClasses(self._classes)
+   batch:setInputs(inputView)
+   batch:setTargets(targetView)
+   batch:carry():putObj('nSample', targetTensor:size(1))
+
+   return batch
 end
 
 -- converts a table of samples (and corresponding labels) to tensors
@@ -343,8 +381,8 @@ function ImageClassSet:tableToTensor(inputTable, targetTable, inputTensor, targe
    inputTensor = inputTensor or torch.FloatTensor()
    targetTensor = targetTensor or torch.IntTensor()
    local n = #targetTable
-   local samplesPerDraw = inputTable[1]:dim() == 3 and 1 or inputTable[1]:size(1) 
 
+   local samplesPerDraw = inputTable[1]:dim() == 3 and 1 or inputTable[1]:size(1)
    inputTensor:resize(n, samplesPerDraw, unpack(self._sample_size))
    targetTensor:resize(n, samplesPerDraw)
    
@@ -512,6 +550,9 @@ function ImageClassSet:sampleTest(dst, path)
    return dst
 end
 
+function ImageClassSet:classes()
+   return self._classes
+end
 ------------------------ multithreading --------------------------------
 
 function ImageClassSet:multithread(nThread)

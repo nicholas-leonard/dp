@@ -21,7 +21,12 @@ cmd:option('--cuda', false, 'use CUDA')
 cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
 cmd:option('--maxEpoch', 100, 'maximum number of epochs to run')
 cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better local minima for early-stopping')
-cmd:option('--dataset', 'Mnist', 'which dataset to use : Mnist | NotMnist | Cifar10 | Cifar100 | Svhn')
+cmd:option('--dataset', 'Mnist', 'which dataset to use : Mnist | NotMnist | Cifar10 | Cifar100 | Svhn | ImageSource')
+cmd:option('--trainPath', '.', 'Where to look for training images')
+cmd:option('--validPath', '.', 'Where to look for validation images')
+cmd:option('--metaPath', '.', 'Where to cache meta data')
+cmd:option('--loadSize', '', 'Image size')
+cmd:option('--sampleSize', '.', 'The size to use for cropped images')
 cmd:option('--standardize', false, 'apply Standardize preprocessing')
 cmd:option('--zca', false, 'apply Zero-Component Analysis whitening')
 cmd:option('--lecunlcn', false, 'apply Yann LeCun Local Contrast Normalization (recommended)')
@@ -46,7 +51,14 @@ opt.poolSize = table.fromString(opt.poolSize)
 opt.poolStride = table.fromString(opt.poolStride)
 opt.dropoutProb = table.fromString(opt.dropoutProb)
 opt.hiddenSize = table.fromString(opt.hiddenSize)
-
+opt.loadSize = opt.loadSize:split(',')
+for i = 1, #opt.loadSize do
+   opt.loadSize[i] = tonumber(opt.loadSize[i])
+end
+opt.sampleSize = opt.sampleSize:split(',')
+for i = 1, #opt.sampleSize do
+   opt.sampleSize[i] = tonumber(opt.sampleSize[i])
+end
 
 --[[preprocessing]]--
 local input_preprocess = {}
@@ -73,6 +85,8 @@ elseif opt.dataset == 'Cifar100' then
    ds = dp.Cifar100{input_preprocess = input_preprocess}
 elseif opt.dataset == 'Svhn' then
    ds = dp.Svhn{input_preprocess = input_preprocess}
+elseif opt.dataset == 'ImageSource' then
+   ds = dp.ImageSource{load_size = opt.loadSize, sample_size = opt.sampleSize, train_path = opt.trainPath, valid_path = opt.validPath, meta_path = opt.metaPath, verbose = not opt.silent}
 else
     error("Unknown Dataset")
 end
@@ -82,11 +96,12 @@ function dropout(depth)
 end
 
 --[[Model]]--
+
 cnn = nn.Sequential()
 
 -- convolutional and pooling layers
-inputSize = ds:imageSize('c')
 depth = 1
+inputSize = ds:imageSize('c') or opt.loadSize[1]
 for i=1,#opt.channelSize do
    if opt.dropout and (opt.dropoutProb[depth] or 0) > 0 then
       -- dropout can be useful for regularization

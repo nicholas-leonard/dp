@@ -286,7 +286,7 @@ This means that no `gradParameters` are actually used internally. The default va
 Some methods do not work with `acc_update` as they require the the `gradParameters` tensors be populated before being 
 added to the `parameters`. This is the case for `updateGradParameters` (momentum learning) and `weightDecay`.
 
-### progress ###
+### `progress` ###
 
 Finally, we allow for the Optimizer's `progress` bar to be switched on so that we 
 can monitor training progress. 
@@ -463,8 +463,10 @@ The first part of that string (`xps:1432747515:1`) is the unique id of the exper
 It concatenates the hostname of the computer (`xps` in this case) and a time-stamp.
 
 ## Loading the saved Experiment ##
+
 The experiment is saved at `/home/nicholas/save/xps:1432747515:1.dat`. You can 
-load it and access the `model` with 
+load it and access the `model` with  :
+
 ```lua
 require 'dp'
 require 'cuda' -- if you used cmd-line argument --cuda
@@ -474,8 +476,10 @@ model = xp:model()
 print(torch.type(model))
 nn.Serial
 ```
+
 For efficiency, the `model` here is decorated with a [nn.Serial](https://github.com/nicholas-leonard/dpnn#nn.Serial).
 You can access the `model` you passed to the experiment by adding :
+
 ```lua
 model = model.module
 print(torch.type(model))
@@ -505,13 +509,13 @@ This is what I answered :
 > Also, the most important hyper-parameter is the learning rate. 
 > Find the highest value that doesn't make the training diverge. 
 > That way your experiments will converge faster.
-> You can also decay it towards the end to get little accuracy boost (not always).
+> You can also decay it towards the end to get a little accuracy boost (not always).
 
 
-But I could have said more like : regularize with `maxParamNorm`. 
+I could have said more. For one, I recommend regularizing with `maxParamNorm`. 
 A `max_out_norm` around 2 is usually a good starting point, continuing with 1, 10, 
 and only try -1 when out of ideas. 
-You can vary the epoch sizes to divide processing time between evaluation and training. 
+Second, you can vary the epoch sizes to better divide processing time between evaluation and training. 
 It's often best to keep the evaluation sets small when you can 
 (like less than 10% of all data). Also, the more training data, the better. 
 
@@ -526,8 +530,8 @@ Finally, it is easier to hyper-optimize as a team than alone.
 Everyone has a piece of the puzzle. For example, not too long ago I was 
 reminded the importance of a good spreadsheet for keeping track of what 
 experiments were tried. This guy would have a column for each hyper-parameter 
-in the cmd-line arguments, and columns for error/accuracy and observations.
+in the cmd-line arguments, columns for error/accuracy and observations, and a row for each experiment.
 For me, I was too lazy to make this nice spreadsheet on my own, I just used paper and pen...
 But then I noticed how easy it was for him to find the best hyper-parameter configurations.
-Anyway, the point is, I learned from this guy who had this part all figured out.
+Anyway, the point is, I learned from this guy who had this part of the puzzle all figured out.
 So keep your eyes peeled for such lessons in the art of hyper-optimization.

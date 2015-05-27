@@ -2,17 +2,24 @@
 []()
 # Neural Network Tutorial #
 
-We begin with a simple [neural network example](https://github.com/nicholas-leonard/dp/blob/master/examples/neuralnetwork_tutorial.lua). The first line loads 
-the __dp__ package, whose first matter of business is to load its dependencies (see [init.lua](https://github.com/nicholas-leonard/dp/blob/master/init.lua)):
+We begin with a simple [neural network example](https://github.com/nicholas-leonard/dp/blob/master/examples/neuralnetwork.lua). 
+The first line loads the __dp__ package, whose first matter of business is to load its dependencies 
+(see [init.lua](https://github.com/nicholas-leonard/dp/blob/master/init.lua)):
+
 ```lua
 require 'dp'
 ```
-Note : package [Moses](https://github.com/Yonaba/Moses/blob/master/docs/moses.md) is imported as `_`. So `_` shouldn't be used for dummy variables. 
+
+Note : package [Moses](https://github.com/Yonaba/Moses/blob/master/docs/moses.md) is imported as `_`. 
+So `_` shouldn't be used for dummy variables. 
 Instead use the much more annoying `__`, or whatnot. 
+
+## Command-line Arguments ##
 
 Lets define some command-line arguments. 
 These will be stored into table `opt`, which will be printed when the script is launched.
-This makes it easy to control the experiment and to try out different hyper-parameters 
+Command-line arguments make it easy to control the experiment and 
+try out different hyper-parameters without needing to modify any code.
 
 ```lua
 --[[command line arguments]]--
@@ -26,7 +33,7 @@ cmd:option('--learningRate', 0.1, 'learning rate at t=0')
 cmd:option('--schedule', '{[200]=0.01, [400]=0.001}', 'learning rate schedule')
 cmd:option('--maxOutNorm', 1, 'max norm each layers output neuron weights')
 cmd:option('--momentum', 0, 'momentum')
-cmd:option('--nHidden', 200, 'number of hidden units')
+cmd:option('--hiddenSize', '{200,200}', 'number of hidden units per layer')
 cmd:option('--batchSize', 32, 'number of examples per batch')
 cmd:option('--cuda', false, 'use CUDA')
 cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
@@ -42,6 +49,7 @@ cmd:option('--silent', false, 'dont print anything to stdout')
 cmd:text()
 opt = cmd:parse(arg or {})
 opt.schedule = dp.returnString(opt.schedule)
+opt.hiddenSize = dp.returnString(opt.hiddenSize)
 if not opt.silent then
    table.print(opt)
 end
@@ -74,7 +82,8 @@ When statistics need to be measured across different examples
 (as in [ZCA](preprocess.md#dp.ZCA) and [LecunLCN](preprocess.md#dp.LeCunLCN) preprocesses), 
 we fit the preprocessor on the `train` set and apply it to all sets (`train`, `valid` and `test`). 
 However, some preprocesses require that statistics be measured
-only on each example, as is the case for global constrast normalization ([GCN]](preprocess.md#dp.GCN)). 
+only on each example, as is the case for global constrast normalization ([GCN]](preprocess.md#dp.GCN)),
+such that there is no fitting. 
 
 ## DataSource ##
 
@@ -89,15 +98,15 @@ dataset.
 
 ```lua
 --[[data]]--
-local datasource
+
 if opt.dataset == 'Mnist' then
-   datasource = dp.Mnist{input_preprocess = input_preprocess}
+   ds = dp.Mnist{input_preprocess = input_preprocess}
 elseif opt.dataset == 'NotMnist' then
-   datasource = dp.NotMnist{input_preprocess = input_preprocess}
+   ds = dp.NotMnist{input_preprocess = input_preprocess}
 elseif opt.dataset == 'Cifar10' then
-   datasource = dp.Cifar10{input_preprocess = input_preprocess}
+   ds = dp.Cifar10{input_preprocess = input_preprocess}
 elseif opt.dataset == 'Cifar100' then
-   datasource = dp.Cifar100{input_preprocess = input_preprocess}
+   ds = dp.Cifar100{input_preprocess = input_preprocess}
 else
     error("Unknown Dataset")
 end
@@ -110,45 +119,64 @@ The third is used for publishing papers and comparing results across different m
 
 ## Model of Modules ##
 
-
 Ok so we have a DataSource, now we need a model. Let's build a 
-multi-layer perceptron (MLP) with two parameterized non-linear layers:
-```
-lua
+multi-layer perceptron (MLP) with on or more parameterized non-linear layers
+(note that in the case of hidden layers being ommitted (`--hiddenSize '{}'`), 
+the model is just a linear classifier):
+
+```lua
 --[[Model]]--
 
-model = nn.Sequential():extend(
-   nn.Convert(ds:ioShapes(), 'bf'), -- to batchSize x nFeature (also type converts)
-   nn.Linear(ds:featureSize(), opt.nHidden), 
-   nn.Tanh(),
-   nn.Linear(opt.nHidden, #(ds:classes())),
-   nn.LogSoftMax()
-)
+model = nn.Sequential()
+model:add(nn.Convert(ds:ioShapes(), 'bf')) -- to batchSize x nFeature (also type converts)
+
+-- hidden layers
+inputSize = ds:featureSize()
+for i,hiddenSize in ipairs(opt.hiddenSize) do
+   model:add(nn.Linear(inputSize, hiddenSize)) -- parameters
+   if opt.batchNorm then
+      model:add(nn.BatchNormalization(hiddenSize))
+   end
+   model:add(nn.Tanh())
+   if opt.dropout then
+      model:add(nn.Dropout())
+   end
+   inputSize = hiddenSize
+end
+
+-- output layer
+model:add(nn.Linear(inputSize, #(ds:classes())))
+model:add(nn.LogSoftMax())
 ```
-Both layers are defined using a [Linear](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Linear),
+
+Output and hidden layers are defined using a [Linear](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Linear),
 which contains the parameters that will be learned, followed by a non-linear transfer function like 
 [Tanh](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Tanh) (for the hidden neurons) 
-and [LogSoftMax](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.LogSoftMax) (for the output neurons).
+and [LogSoftMax](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.LogSoftMax) (for the output layer).
 The latter might seem odd (why not use [SoftMax](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.SoftMax) instead?), 
 but the [ClassNLLCriterion](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.ClassNLLCriterion) only works 
 with LogSoftMax (or with SoftMax + [Log](https://github.com/torch/nn/blob/master/Log.lua)).
 
-The Linear modules are constructed using 2 arguments, `inputSize` (number of input units) and `outputSize` (number of output units).
+The Linear modules are constructed using 2 arguments, 
+`inputSize` (number of input units) and `outputSize` (number of output units).
 For the first layer, the `inputSize` is the number of features in the input image. 
 In our case, that is `1x28x28=784`, which is what `ds:featureSize()` will return.
 
-Now for the odd looking `nn.Convert` Module. It has two purposes. First, 
+Now for the odd looking [nn.Convert](https://github.com/nicholas-leonard/dpnn#nn.Convert) Module. It has two purposes. First, 
 whatever type of Tensor received, it will output the type of Tensor used by the Module.
-Second, it can convert from different Tensor shapes. The input shape of a typical image is 
-*bchw*, short for  *batch*, *color/channel*, *height*, *width*. Modules like 
-[SpatialConvolution]() and [SpatialMaxPooling]() expect this type of input. Our MLP, on the other 
-hand, expects an input of shape *bf*, short for *batch*, *feature*. Its a pretty simple conversion 
-actually, all you need to do is flatten the *chw* dimensions to a single *f* dimension (in this case, of size 784). 
+Second, it can convert from different Tensor `shapes`. The `shape` of a typical image is 
+*bchw*, short for  *batch*, *color/channel*, *height* and *width*. Modules like 
+[SpatialConvolution](https://github.com/torch/nn/blob/master/doc/convolution.md#nn.SpatialConvolution) 
+and [SpatialMaxPooling](https://github.com/torch/nn/blob/master/doc/convolution.md#nn.SpatialMaxPooling) 
+expect this type of input. Our MLP, on the other hand, expects an input of shape *bf*, short for *batch*, *feature*. 
+Its a pretty simple conversion actually, all you need to do is flatten the *chw* 
+dimensions to a single *f* dimension (in this case, of size 784). 
 
 For those not familiar with the nn package, all the `nn.*` in the above snippet of code 
 are [Module](https://github.com/torch/nn/blob/master/doc/module.md#nn.Module) subclasses. 
 This is true even for the [Sequential](https://github.com/torch/nn/blob/master/containers.md#nn.Sequential).
-Although the latter is special as it is a [Container](https://github.com/torch/nn/blob/master/containers.md#nn.Container) of other Modules.
+Although the latter is special. It is a [Container](https://github.com/torch/nn/blob/master/containers.md#nn.Container) 
+of other Modules, i.e. a [composite](http://en.wikipedia.org/wiki/Composite_pattern).
 
 ## Propagator ##
 
@@ -160,85 +188,115 @@ generate [Batches](data.md#dp.Batch) of examples (inputs and targets) to propaga
 --[[Propagators]]--
 
 train = dp.Optimizer{
+   acc_update = opt.accUpdate,
    loss = nn.ModuleCriterion(nn.ClassNLLCriterion(), nn.Convert()),
    callback = function(model, report) 
-      -- the ordering here is important
-      model:updateGradParameters(opt.momentum) -- affects gradParams
-      model:updateParameters(opt.learningRate) -- affects params
+      opt.learningRate = opt.schedule[report.epoch] or opt.learningRate
+      if opt.accUpdate then
+         model:accUpdateGradParameters(model.dpnn_input, model.output, opt.learningRate)
+      else
+         model:updateGradParameters(opt.momentum) -- affects gradParams
+         model:updateParameters(opt.learningRate) -- affects params
+      end
       model:maxParamNorm(opt.maxOutNorm) -- affects params
       model:zeroGradParameters() -- affects gradParams 
    end,
    feedback = dp.Confusion(),
    sampler = dp.ShuffleSampler{batch_size = opt.batchSize},
-   progress = true
+   progress = opt.progress
 }
 valid = dp.Evaluator{
    feedback = dp.Confusion(),  
-   sampler = dp.Sampler()
+   sampler = dp.Sampler{batch_size = opt.batchSize}
 }
 test = dp.Evaluator{
    feedback = dp.Confusion(),
-   sampler = dp.Sampler()
+   sampler = dp.Sampler{batch_size = opt.batchSize}
 }
 
 ```
+
 For this example, we use an [Optimizer](propagator.md#dp.Optimizer) for the training DataSet,
 and two [Evaluators](propagator.md#dp.Evaluator), one for cross-validation 
-and another for testing. 
+and another for testing. Now lets explore the different constructor arguments.
 
-### Sampler ###
-The Evaluators use a simple Sampler which 
-iterates sequentially through the DataSet. On the other hand, the Optimizer 
-uses a [ShuffleSampler](data.md#dp.SuffleSampler). This Sampler
-shuffles the (indices of a) DataSet before each pass over all examples in a DataSet. 
-This shuffling is useful for training since the model 
-must learn from varying sequences of batches through the DataSet, 
-which makes the training algorithm more stochastic (subject to the constraint that 
-each example is presented once and only once per epoch).
+### `sampler` ###
 
-### Loss ###
+The Evaluators use a simple Sampler which iterates sequentially through the DataSet. 
+On the other hand, the Optimizer uses a [ShuffleSampler](data.md#dp.SuffleSampler). 
+This Sampler shuffles the (indices of a) DataSet before each pass over all examples in a DataSet. 
+This shuffling is useful for training since the model must learn from varying sequences of batches through the DataSet.
+Which makes the training algorithm more stochastic (subject to the constraint that each example is presented once and only once per epoch).
+
+### `loss` ###
+
 Each Propagator can also specify a `loss` for training or evaluation. This argument is 
 only mandatory for the Optimizer, as it is required for [backpropagation](http://en.wikipedia.org/wiki/Backpropagation).
 If you have previously used the [nn](https://github.com/torch/nn/blob/master/README.md) package, 
-there is nothing new here. The loss is a [Criterion](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.Criterion). 
+there is nothing new here. The `loss` is a [Criterion](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.Criterion). 
 Each example has a single target class and our Model output is LogSoftMax so 
 we use a [ClassNLLCriterion](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.ClassNLLCriterion).
-The criterion is wrapped in [ModuleCriterion](https://github.com/nicholas-leonard/dpnn/blob/master/README.md#nn.ModuleCriterion).
-This isn't really useful to this particular script as it is never cast to a different type
+The criterion is wrapped in [ModuleCriterion](https://github.com/nicholas-leonard/dpnn/blob/master/README.md#nn.ModuleCriterion),
+which is a [decorator](http://en.wikipedia.org/wiki/Decorator_pattern) that allows us to pass 
+each `input` and `target` through a module before it is passed on to the decorated `criterion`. 
+In our case, we want to make sure each `target` gets converted to the type of the `loss`. 
 
-### Feedback ###
+### `feedback` ###
+
 The `feedback` parameter is used to provide us with, you guessed it, feedback (like performance measures and
 statistics after each epoch). We use [Confusion](feedback.md#dp.Confusion), which is a wrapper 
 for the [optim](https://github.com/torch/optim/blob/master/README.md) package's 
 [ConfusionMatrix](https://github.com/torch/optim/blob/master/ConfusionMatrix.lua).
-While our Loss measures the Negative Log-Likelihood (NLL) of the Model 
-on different DataSets, our [Feedback](feedback.md#feedback) 
+While our Loss measures the Negative Log-Likelihood (NLL) of the `model` 
+on different datasets, our [Feedback](feedback.md#feedback) 
 measures classification accuracy (which is what we will use for 
 early-stopping and comparing our model to the state-of-the-art).
 
-### Visitor ###
-Since the [Optimizer](propagator.md#dp.Optimizer) is used to train the Model on a DataSet, 
-we need to specify some Visitors to update its [parameters](model.md#dp.Model.parameters). 
-We want to update the Model by sequentially applying the following visitors: 
+### `callback` ###
 
-  1. [Momentum](visitor.md#dp.Momentum) : updates parameter gradients using a factored mixture of current and previous gradients.
-  2. [Learn](visitor.md#dp.Learn) : updates the parameters using the gradients and a learning rate.
-  3. [MaxNorm](visitor.md#dp.MaxNorm) : updates output or input neuron weights (in this case, output) so that they have a norm less than or equal to a specified value.
+Since the [Optimizer](propagator.md#dp.Optimizer) is used to train the `model` on a DataSet, 
+we need to specify a `callback` function that will be called after successive `forward/backward` calls.
+Among other things, the callback should either 
+[updateParameters](https://github.com/nicholas-leonard/dpnn#nn.Module.updateParameters) 
+or [accUpdateGradParameters](https://github.com/nicholas-leonard/dpnn#nn.Module.accUpdateGradParameters). 
+Depending on what is specified in the command-line, it can also be used to 
+[updateGradParameters](https://github.com/nicholas-leonard/dpnn#nn.Module.updateGradParameters) 
+(commonly known as momentum learning). You can also choose to regularize it with 
+[weightDecay](https://github.com/nicholas-leonard/dpnn#nn.Module.weightDecay) or 
+[maxParamNorm](https://github.com/nicholas-leonard/dpnn#nn.Module.maxParamNorm), (personally, I prefer the latter to the former). 
+In any case, the `callback` is a function that you can define to fit your needs.
 
-The only mandatory Visitor is the second one (Learn), which does the actual parameter updates. 
-The first is the well-known Momentum. 
-The last (MaxNorm) is the lesser-known hard constraint on the norm of output or input neuron weights 
-(see [Hinton 2012](http://arxiv.org/pdf/1207.0580v1.pdf)), which acts as a regularizer. You could also
-replace it with a more classic regularizer like [WeightDecay](visitor.md#dp.WeightDecay), in which case you 
-would have to put it *before* the Learn visitor.
+### `acc_update` ###
 
-Finally, we have the Optimizer switch on its `progress` bar so we 
-can monitor its progress during training. 
+When set to true, the gradients w.r.t. parameters (a.k.a. `gradParameters`) 
+are accumulated directly into the parameters (a.k.a. `parameters`) to produce
+an update after the `forward` and `backward` pass. 
+In other words, for `acc_update=true`, the sequence for propagating a batch is essentially:
+ 1. `updateOutput`
+ 2. `updateGradInput`
+ 3. `accUpdateGradParameters`
+ 
+Instead of the more common: 
+ 1. `updateOutput`
+ 2. `updateGradInput`
+ 3. `accGradParameters`
+ 4. `updateParameters`
+ 
+This means that no `gradParameters` are actually used internally. The default value if false.
+Some methods do not work with `acc_update` as they require the the `gradParameters` tensors be populated before being 
+added to the `parameters`. This is the case for `updateGradParameters` (momentum learning) and `weightDecay`.
+
+### progress ###
+
+Finally, we allow for the Optimizer's `progress` bar to be switched on so that we 
+can monitor training progress. 
 
 ## Experiment ##
-Now its time to put this all togetherto form an [Experiment](experiment.md):
+
+Now its time to put this all together to form an [Experiment](experiment.md):
 ```lua
 --[[Experiment]]--
+
 xp = dp.Experiment{
    model = model,
    optimizer = train,
@@ -256,108 +314,206 @@ xp = dp.Experiment{
    max_epoch = opt.maxEpoch
 }
 ```
+
 ### Observer ###
-The Experiment can be initialized with a list of [Observers](observer.md#dp.Observer). The 
+
+The Experiment can be initialized using a list of [Observers](observer.md#dp.Observer). The 
 order is not important. Observers listen to mediator [Channels](mediator.md#dp.Channel). The Mediator 
 calls them back when certain events occur. In particular, they may listen to the _doneEpoch_
 Channel to receive a report from the Experiment after each epoch. A report is nothing more than 
-a hierarchy of tables. After each epoch, the component objects of the Experiment (except Observers) 
+a bunch of nested tables matching the object structure of the experiment. 
+After each epoch, the component objects of the Experiment (except Observers) 
 can each submit a report to its composite parent thereby forming a tree of reports. The Observers can analyse 
 these and modify the components which they are assigned to (in this case, Experiment). 
 Observers may be attached to Experiments, Propagators, Visitors, etc. 
 
 #### FileLogger ####
+
 Here we use a simple [FileLogger](observer.md#dp.FileLogger) which will 
 store serialized reports in a simple text file for later use. Each experiment has a unique ID which is 
-included in the corresponding reports, thus allowing the FileLogger to name its file appropriately. 
+included in the corresponding reports, thus allowing the FileLogger to name its file appropriately.
 
 #### EarlyStopper ####
-The [EarlyStopper](observer.md#dp.EarlyStopper) is used for stopping the Experiment when error has not decreased, or accuracy has not 
-been maximized. It also saves to disk the best version of the Experiment when it finds a new one. 
+
+The [EarlyStopper](observer.md#dp.EarlyStopper) is used for stopping the Experiment 
+when the error has not decreased, or accuracy has not been maximized. 
+It also saves to disk the best version of the Experiment when it finds a new one. 
 It is initialized with a channel to `maximize` or minimize (the default is to minimize). In this case, we intend 
 to early-stop the experiment on a field of the report, in particular the _accuracy_ field of the 
 _confusion_ table of the _feedback_ table of the `validator`. 
 This `{'validator','feedback','confusion','accuracy'}` happens to measure the accuracy of the Model on the 
 validation DataSet after each training epoch. So by early-stopping on this measure, we hope to find a 
-Model that generalizes well. The parameter `max_epochs` indicates how many consecutive 
-epochs of training can occur without finding a new best model before the experiment is signaled to stop 
+Model that [generalizes](http://en.wikipedia.org/wiki/Generalization_error) well. 
+The parameter `max_epochs` indicates how many consecutive epochs of training can occur 
+without finding a new best model before the experiment is signaled to stop 
 by the _doneExperiment_ Mediator Channel.
 
 ## Running the Experiment ##
+
 Once we have initialized the experiment, we need only run it on the `datasource` to begin training.
+
 ```lua
-xp:run(datasource)
+xp:run(ds)
 ```
+
 We don't initialize the Experiment with the DataSource so that we may easily 
 save it to disk, thereby keeping this snapshot separate from its data 
 (which shouldn't be modified by the experiment).
 
-Let's run the [script](https://github.com/nicholas-leonard/dp/blob/master/examples/neuralnetwork_tutorial.lua) from the cmd-line:
+Let's run the [script](https://github.com/nicholas-leonard/dp/blob/master/examples/neuralnetwork_tutorial.lua) 
+from the cmd-line (with default arguments):
+
+```bash
+nicholas@xps:~/projects/dp$ th examples/neuralnetwork.lua 
 ```
-nicholas@xps:~/projects/dp$ th examples/neuralnetwork_tutorial.lua 
-FileLogger: log will be written to /home/nicholas/save/xps:25044:1398320864:1/log	
-xps:25044:1398320864:1:optimizer:loss avgError 0	
-xps:25044:1398320864:1:validator:loss avgError 0	
-xps:25044:1398320864:1:tester:loss avgError 0	
-==> epoch # 1 for optimizer	
- [================================ 50000/50000 ===============================>] ETA: 0ms | Step: 0ms                              
+First it prints the command-line arguments stored in `opt`:
+```bash
+{
+   batchNorm : false
+   batchSize : 32
+   cuda : false
+   dataset : "Mnist"
+   dropout : false
+   hiddenSize : {200,200}
+   learningRate : 0.1
+   lecunlcn : false
+   maxEpoch : 100
+   maxOutNorm : 1
+   maxTries : 30
+   momentum : 0
+   progress : false
+   schedule : {[200]=0.01,[400]=0.001}
+   silent : false
+   standardize : false
+   useDevice : 1
+   zca : false
+}	
+```
+After that it prints the model.
+```bash
+Model :	
+nn.Sequential {
+  [input -> (1) -> (2) -> (3) -> (4) -> (5) -> (6) -> (7) -> output]
+  (1): nn.Convert
+  (2): nn.Linear(784 -> 200)
+  (3): nn.Tanh
+  (4): nn.Linear(200 -> 200)
+  (5): nn.Tanh
+  (6): nn.Linear(200 -> 10)
+  (7): nn.LogSoftMax
+}
+```
+The `FileLogger` then prints where the epoch logs will be saved. This
+can be controlled with the `$TORCH_DATA_PATH` or `$DEEP_SAVE_PATH` 
+environment variables. It defaults to `$HOME/save`.
+```bash
+FileLogger: log will be written to /home/nicholas/save/xps:1432747515:1/log	
+```
+Finally, we get to the fun part : the actual training. Every epoch, 
+some performance data gets printed to `stdout`:
+```bash
+==> epoch # 1 for optimizer :	
+==> example speed = 4508.3691689025 examples/s	
+xps:1432747515:1:optimizer:loss avgErr 0.012714211946021	
+xps:1432747515:1:optimizer:confusion accuracy = 0.8877	
+xps:1432747515:1:validator:confusion accuracy = 0.9211	
+xps:1432747515:1:tester:confusion accuracy = 0.9292	
+==> epoch # 2 for optimizer :	
+==> example speed = 4526.7213369494 examples/s	
+xps:1432747515:1:optimizer:loss avgErr 0.0072034133582363	
+xps:1432747515:1:optimizer:confusion accuracy = 0.93302	
+xps:1432747515:1:validator:confusion accuracy = 0.9405	
+xps:1432747515:1:tester:confusion accuracy = 0.9428	
+==> epoch # 3 for optimizer :	
+==> example speed = 4486.8207535058 examples/s	
+xps:1432747515:1:optimizer:loss avgErr 0.0056732489919492	
+xps:1432747515:1:optimizer:confusion accuracy = 0.94704	
+xps:1432747515:1:validator:confusion accuracy = 0.9512	
+xps:1432747515:1:tester:confusion accuracy = 0.9518	
+==> epoch # 4 for optimizer :	
+==> example speed = 4524.4831336064 examples/s	
+xps:1432747515:1:optimizer:loss avgErr 0.0047361240094285	
+xps:1432747515:1:optimizer:confusion accuracy = 0.95672	
+xps:1432747515:1:validator:confusion accuracy = 0.9565	
+xps:1432747515:1:tester:confusion accuracy = 0.9584	
+==> epoch # 5 for optimizer :	
+==> example speed = 4527.7260154406 examples/s	
+xps:1432747515:1:optimizer:loss avgErr 0.0041567858616232	
+xps:1432747515:1:optimizer:confusion accuracy = 0.96188	
+xps:1432747515:1:validator:confusion accuracy = 0.9603	
+xps:1432747515:1:tester:confusion accuracy = 0.9613	
+SaveToFile: saving to /home/nicholas/save/xps:1432747515:1.dat	
+==> epoch # 6 for optimizer :	
+==> example speed = 4519.2735741475 examples/s	
+xps:1432747515:1:optimizer:loss avgErr 0.0037086909102431	
+xps:1432747515:1:optimizer:confusion accuracy = 0.9665	
+xps:1432747515:1:validator:confusion accuracy = 0.9602	
+xps:1432747515:1:tester:confusion accuracy = 0.9629	
+==> epoch # 7 for optimizer :	
+==> example speed = 4528.1356378239 examples/s	
+xps:1432747515:1:optimizer:loss avgErr 0.0033203622647625	
+xps:1432747515:1:optimizer:confusion accuracy = 0.97062	
+xps:1432747515:1:validator:confusion accuracy = 0.966	
+xps:1432747515:1:tester:confusion accuracy = 0.9665	
+SaveToFile: saving to /home/nicholas/save/xps:1432747515:1.dat	
+```
+After 5 epochs, the experiment starts early-stopping by saving to disk
+the version of the model with the lowest `xps:1432747515:1:validator:confusion accuracy`.
+The first part of that string (`xps:1432747515:1`) is the unique id of the experiment.
+It concatenates the hostname of the computer (`xps` in this case) and a time-stamp.
 
-==> epoch size = 50000 examples	
-==> batch duration = 0.10882427692413 ms	
-==> epoch duration = 5.4412138462067 s	
-==> example speed = 9189.1260687829 examples/s	
-==> batch speed = 71.790047412366 batches/s	
-xps:25044:1398320864:1:optimizer:loss avgError 0.0037200363330228	
-xps:25044:1398320864:1:validator:loss avgError 0.004545687570244	
-xps:25044:1398320864:1:tester:loss avgError 0.0047699521407681	
-xps:25044:1398320864:1:optimizer:confusion accuracy = 0.88723958333333	
-xps:25044:1398320864:1:validator:confusion accuracy = 0.92788461538462	
-xps:25044:1398320864:1:tester:confusion accuracy = 0.92027243589744	
-==> epoch # 2 for optimizer	
- [================================ 50000/50000 ===============================>] ETA: 0ms | Step: 0ms                              
+## Loading the saved Experiment ##
+The experiment is saved at `/home/nicholas/save/xps:1432747515:1.dat`. You can 
+load it and access the `model` with 
+```lua
+require 'dp'
+require 'cuda' -- if you used cmd-line argument --cuda
 
-==> epoch size = 50000 examples	
-==> batch duration = 0.10537392139435 ms	
-==> epoch duration = 5.2686960697174 s	
-==> example speed = 9490.0141018538 examples/s	
-==> batch speed = 74.140735170733 batches/s	
-xps:25044:1398320864:1:optimizer:loss avgError 0.0023303674656008	
-xps:25044:1398320864:1:validator:loss avgError 0.0044356466501897	
-xps:25044:1398320864:1:tester:loss avgError 0.0046304688698266	
-xps:25044:1398320864:1:optimizer:confusion accuracy = 0.92375801282051	
-xps:25044:1398320864:1:validator:confusion accuracy = 0.93129006410256	
-xps:25044:1398320864:1:tester:confusion accuracy = 0.92548076923077	
-==> epoch # 3 for optimizer	
- [===============................ 10112/50000 ................................] ETA: 8s540ms | Step: 0ms  
+xp = torch.load("/home/nicholas/save/xps:1432747515:1.dat")
+model = xp:model()
+print(torch.type(model))
+nn.Serial
+```
+For efficiency, the `model` here is decorated with a [nn.Serial](https://github.com/nicholas-leonard/dpnn#nn.Serial).
+You can access the `model` you passed to the experiment by adding :
+```lua
+model = model.module
+print(torch.type(model))
+nn.Sequential
 ```
 
-## Hyperoptimizing ##
+## Hyper-optimization ##
 
 Hyper-optimization is the hardest part of deep learning. 
 In many ways, it can feel more like an art than a science. 
-[Momentum](visitor.md#dp.Momentum) can help convergence, but it requires much more memory. 
-The same is true of weight decay, as both methods require a 
-copy of parameter gradients which often almost double the memory footprint of the model. 
-Using [MaxNorm](visitor.md#dp.MaxNorm) and [AdaptiveLearningRate](observer.md#dp.AdaptiveLearningRate) is often better as 
-experiments can gain more from the extra memory when it 
-is used instead for more modeling capacity (more parameters). 
-But this may be mostly applicable to large datasets like the [BillionWords](data.md#dp.BillionWords) dataset. 
-The models it requires are proportionally heavy to the vocabulary size, which is `~800,000` unique words.
 
-Anyway, rule of thumb, always start hyper-optimizing 
-by seeking the highest learning rate you can afford. 
-You will need to try many different experiments (hyper-parameter configurations), 
-so you need them to converge fast. 
-If you are worried about controlling the decay of the learning rate, 
-try out the AdaptiveLearningRate Observer. 
+A got this question from a dp user : 
+> If I am attempting to train a NN with a custom dataset - how do I optimize the parameters ? 
+> I mean, if the NN takes about 3-5 days to train completely.. 
+>  How do you do small experiments / tuning ( learning rate, nodes in each layer )
+> - so that you dont spend 5 days with each - 
+> Basically what is the quickest way to find the best parameters ?
 
-Regularize with MaxNorm Visitor. 
+This is what I answered :
+> In my opinion it is a mix of experience and computing resources. 
+> The first comes from playing around with different combinations of datasets and models. 
+> Eventually, you just know what kind of regime work well. 
+> As for the second, it lets you try different hyper-parameters at the same time. 
+> If you have access to 4-8 GPUs, that is 4-8 experiments to try at once in parallel. 
+> You can also quickly see that some of those experiments are mush slower to converge than the others.
+> In which case you can kill them and try something similar to the ones that work. 
+> Also, the most important hyper-parameter is the learning rate. 
+> Find the highest value that doesn't make the training diverge. 
+> That way your experiments will converge faster.
+> You can also decay it towards the end to get little accuracy boost (not always).
+
+
+But I could have said more like : regularize with `maxParamNorm`. 
 A `max_out_norm` around 2 is usually a good starting point, continuing with 1, 10, 
-and only try 1000000000 when out of ideas. 
-You can vary the epoch sizes to divide processing time 
-between evaluation and training. 
+and only try -1 when out of ideas. 
+You can vary the epoch sizes to divide processing time between evaluation and training. 
 It's often best to keep the evaluation sets small when you can 
-(like 10% of all data). The more training data, the better. 
+(like less than 10% of all data). Also, the more training data, the better. 
 
 But these are all arbitrary guidelines. No one can tell you how to hyper-optimize. 
 You need to try optimizing a dataset for yourself to find your own methodology and tricks. 
@@ -365,4 +521,13 @@ The [dp GitHub repository](https://github.com/nicholas-leonard/dp/)
 also provides a [wiki](https://github.com/nicholas-leonard/dp/wiki/Hyperparameter-Optimization) 
 that can be used to share hyper-parameter configurations
 as well as corresponding performance metrics and observations. 
-It is easier to hyper-optimize as a team than alone (everyone has a piece of the puzzle).
+
+Finally, it is easier to hyper-optimize as a team than alone. 
+Everyone has a piece of the puzzle. For example, not too long ago I was 
+reminded the importance of a good spreadsheet for keeping track of what 
+experiments were tried. This guy would have a column for each hyper-parameter 
+in the cmd-line arguments, and columns for error/accuracy and observations.
+For me, I was too lazy to make this nice spreadsheet on my own, I just used paper and pen...
+But then I noticed how easy it was for him to find the best hyper-parameter configurations.
+Anyway, the point is, I learned from this guy who had this part all figured out.
+So keep your eyes peeled for such lessons in the art of hyper-optimization.

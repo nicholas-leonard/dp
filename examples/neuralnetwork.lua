@@ -1,6 +1,7 @@
 require 'dp'
 
 --[[command line arguments]]--
+
 cmd = torch.CmdLine()
 cmd:text()
 cmd:text('Image Classification using MLP Training/Optimization')
@@ -11,7 +12,7 @@ cmd:option('--learningRate', 0.1, 'learning rate at t=0')
 cmd:option('--schedule', '{[200]=0.01, [400]=0.001}', 'learning rate schedule')
 cmd:option('--maxOutNorm', 1, 'max norm each layers output neuron weights')
 cmd:option('--momentum', 0, 'momentum')
-cmd:option('--nHidden', 200, 'number of hidden units')
+cmd:option('--hiddenSize', '{200,200}', 'number of hidden units per layer')
 cmd:option('--batchSize', 32, 'number of examples per batch')
 cmd:option('--cuda', false, 'use CUDA')
 cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
@@ -28,11 +29,13 @@ cmd:option('--silent', false, 'dont print anything to stdout')
 cmd:text()
 opt = cmd:parse(arg or {})
 opt.schedule = dp.returnString(opt.schedule)
+opt.hiddenSize = dp.returnString(opt.hiddenSize)
 if not opt.silent then
    table.print(opt)
 end
 
 --[[preprocessing]]--
+
 local input_preprocess = {}
 if opt.standardize then
    table.insert(input_preprocess, dp.Standardize())
@@ -46,15 +49,15 @@ if opt.lecunlcn then
 end
 
 --[[data]]--
-local datasource
+
 if opt.dataset == 'Mnist' then
-   datasource = dp.Mnist{input_preprocess = input_preprocess}
+   ds = dp.Mnist{input_preprocess = input_preprocess}
 elseif opt.dataset == 'NotMnist' then
-   datasource = dp.NotMnist{input_preprocess = input_preprocess}
+   ds = dp.NotMnist{input_preprocess = input_preprocess}
 elseif opt.dataset == 'Cifar10' then
-   datasource = dp.Cifar10{input_preprocess = input_preprocess}
+   ds = dp.Cifar10{input_preprocess = input_preprocess}
 elseif opt.dataset == 'Cifar100' then
-   datasource = dp.Cifar100{input_preprocess = input_preprocess}
+   ds = dp.Cifar100{input_preprocess = input_preprocess}
 else
     error("Unknown Dataset")
 end
@@ -62,20 +65,29 @@ end
 --[[Model]]--
 
 model = nn.Sequential()
-model:add(nn.Convert(datasource:ioShapes(), 'bf')) -- to batchSize x nFeature (also type converts)
-model:add(nn.Linear(datasource:featureSize(), opt.nHidden))
-if opt.batchNorm then
-   model:add(nn.BatchNormalization(opt.nHidden))
+model:add(nn.Convert(ds:ioShapes(), 'bf')) -- to batchSize x nFeature (also type converts)
+
+-- hidden layers
+inputSize = ds:featureSize()
+for i,hiddenSize in ipairs(opt.hiddenSize) do
+   model:add(nn.Linear(inputSize, hiddenSize)) -- parameters
+   if opt.batchNorm then
+      model:add(nn.BatchNormalization(hiddenSize))
+   end
+   model:add(nn.Tanh())
+   if opt.dropout then
+      model:add(nn.Dropout())
+   end
+   inputSize = hiddenSize
 end
-model:add(nn.Tanh())
-if opt.dropout then
-   model:add(nn.Dropout())
-end
-model:add(nn.Linear(opt.nHidden, #(datasource:classes())))
+
+-- output layer
+model:add(nn.Linear(inputSize, #(ds:classes())))
 model:add(nn.LogSoftMax())
 
 
 --[[Propagators]]--
+
 train = dp.Optimizer{
    acc_update = opt.accUpdate,
    loss = nn.ModuleCriterion(nn.ClassNLLCriterion(), nn.Convert()),
@@ -92,7 +104,7 @@ train = dp.Optimizer{
    end,
    feedback = dp.Confusion(),
    sampler = dp.ShuffleSampler{batch_size = opt.batchSize},
-   progress = opt.progress,
+   progress = opt.progress
 }
 valid = dp.Evaluator{
    feedback = dp.Confusion(),  
@@ -104,6 +116,7 @@ test = dp.Evaluator{
 }
 
 --[[Experiment]]--
+
 xp = dp.Experiment{
    model = model,
    optimizer = train,
@@ -122,6 +135,7 @@ xp = dp.Experiment{
 }
 
 --[[GPU or CPU]]--
+
 if opt.cuda then
    require 'cutorch'
    require 'cunn'
@@ -135,4 +149,4 @@ if not opt.silent then
    print(model)
 end
 
-xp:run(datasource)
+xp:run(ds)

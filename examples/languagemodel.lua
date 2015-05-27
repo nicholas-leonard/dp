@@ -158,10 +158,13 @@ xp = dp.Experiment{
    optimizer = train,
    validator = valid,
    tester = tester,
-   observer = (not opt.trainOnly) and {
+   observer = {
       dp.FileLogger(),
-      dp.EarlyStopper{max_epochs = opt.maxTries}
-   } or nil,
+      dp.EarlyStopper{
+         max_epochs = opt.maxTries, 
+         error_report={opt.trainOnly and 'optimizer' or 'validator','feedback','perplexity','ppl'}
+      }
+   },
    random_seed = os.time(),
    max_epoch = opt.maxEpoch
 }

@@ -186,14 +186,14 @@ xp = dp.Experiment{
    optimizer = train,
    validator = valid,
    tester = tester,
-   observer = (not opt.trainOnly) and {
+   observer = {
       ad,
       dp.FileLogger(),
       dp.EarlyStopper{
          max_epochs = opt.maxTries, 
-         error_report={'validator','feedback','perplexity','ppl'}
+         error_report={opt.trainOnly and 'optimizer' or 'validator','feedback','perplexity','ppl'}
       }
-   } or ad,
+   },
    random_seed = os.time(),
    max_epoch = opt.maxEpoch,
    target_module = nn.SplitTable(1,1):type('torch.IntTensor')

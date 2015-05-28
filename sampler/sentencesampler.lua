@@ -147,3 +147,19 @@ function SentenceSampler:_sampleEpoch(dataset)
    end
 end
 
+function SentenceSampler:write(file)
+   local state = _.map(self, 
+      function(k,v) 
+         if k ~= '_co' then 
+            return v 
+         end
+      end)
+   file:writeObject(state)
+end
+
+function SentenceSampler:read(file)
+   local state = file:readObject()
+   for k,v in pairs(state) do
+      self[k] = v
+   end
+end

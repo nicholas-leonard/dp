@@ -147,8 +147,8 @@ train = dp.Optimizer{
       model:zeroGradParameters() -- affects gradParams 
    end,
    sampler = dp.ShuffleSampler{batch_size = opt.batchSize},
-   feedback = dp.FacialKeypointFeedback{baseline=baseline, precision=98}
-   progress = opt.progress,
+   feedback = dp.FacialKeypointFeedback{baseline=baseline, precision=98},
+   progress = opt.progress
 }
 valid = dp.Evaluator{
    sampler = dp.Sampler{batch_size = opt.batchSize},

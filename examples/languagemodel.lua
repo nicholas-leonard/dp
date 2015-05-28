@@ -1,6 +1,7 @@
 require 'dp'
 
 --[[command line arguments]]--
+
 cmd = torch.CmdLine()
 cmd:text()
 cmd:text('Train a Language Model on BillionWords dataset using a Neural Network and SoftmaxTree')
@@ -55,7 +56,7 @@ elseif opt.tiny then
    train_file = 'train_tiny.th7'
 end
 
-local datasource = dp.BillionWords{
+local ds = dp.BillionWords{
    context_size = opt.contextSize, train_file = train_file
 }
 
@@ -67,7 +68,7 @@ nnlm = nn.Sequential()
 -- input layer
 -- lookuptable that contains the word embeddings that will be learned
 nnlm:extend(
-   nn.Dictionary(datasource:vocabularySize(), opt.inputEmbeddingSize, opt.accUpdate),
+   nn.Dictionary(ds:vocabularySize(), opt.inputEmbeddingSize, opt.accUpdate),
    nn.Collapse(2)
 )
 
@@ -100,23 +101,24 @@ if opt.softmaxforest or opt.softmaxtree then
    nnlm = nn.Sequential()
    nnlm:add(para)
    if opt.softmaxforest then -- requires a lot more memory
-      local trees = {datasource:hierarchy('word_tree1.th7'), datasource:hierarchy('word_tree2.th7'), datasource:hierarchy('word_tree3.th7')}
+      local trees = {ds:hierarchy('word_tree1.th7'), ds:hierarchy('word_tree2.th7'), ds:hierarchy('word_tree3.th7')}
       local rootIds = {880542,880542,880542}
       nnlm:add(nn.SoftMaxForest(inputSize, trees, rootIds, opt.forestGaterSize, nn.Tanh(), opt.accUpdate))
       opt.softmaxtree = true
    elseif opt.softmaxtree then
-      local tree, root = datasource:frequencyTree()
+      local tree, root = ds:frequencyTree()
       nnlm:add(nn.SoftMaxTree(inputSize, tree, root, opt.accUpdate))
    end
 else
    print("Warning: you are using full LogSoftMax for last layer, which "..
       "is really slow (800,000 x outputEmbeddingSize multiply adds "..
       "per example. Try --softmaxtree instead.")
-   nnlm:add(nn.Linear(inputSize, datasource:vocabularySize()))
+   nnlm:add(nn.Linear(inputSize, ds:vocabularySize()))
    nnlm:add(nn.LogSoftMax())
 end
 
 --[[Propagators]]--
+
 train = dp.Optimizer{
    loss = opt.softmaxtree and nn.TreeNLLCriterion() or nn.ModuleCriterion(nn.ClassNLLCriterion(), nil, nn.Convert()),
    callback = function(model, report) 
@@ -153,6 +155,7 @@ if not opt.trainOnly then
 end
 
 --[[Experiment]]--
+
 xp = dp.Experiment{
    model = nnlm,
    optimizer = train,
@@ -174,6 +177,7 @@ if opt.softmaxtree then
 end
 
 --[[GPU or CPU]]--
+
 if opt.cuda then
    require 'cutorch'
    require 'cunn'
@@ -190,4 +194,4 @@ if not opt.silent then
    print(nnlm)
 end
 
-xp:run(datasource)
+xp:run(ds)

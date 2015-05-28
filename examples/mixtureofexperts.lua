@@ -16,6 +16,7 @@ cmd:option('--expertSize', '{128,128}', 'number of hidden units per expert')
 cmd:option('--gaterSize', '{64,64}', 'number of hidden units in gater')
 cmd:option('--batchSize', 32, 'number of examples per batch')
 cmd:option('--cuda', false, 'use CUDA')
+cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
 cmd:option('--maxEpoch', 100, 'maximum number of epochs to run')
 cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better local minima for early-stopping')
 cmd:option('--dataset', 'Mnist', 'which dataset to use : Mnist | NotMnist | Cifar10 | Cifar100')
@@ -95,13 +96,6 @@ trunk:add(experts)
 
 moe:add(trunk)
 moe:add(nn.MixtureTable())
-   
---[[GPU or CPU]]--
-if opt.cuda then
-   require 'cutorch'
-   require 'cunn'
-   moe:cuda()
-end
 
 --[[Propagators]]--
 train = dp.Optimizer{
@@ -151,6 +145,14 @@ xp:verbose(not opt.silent)
 if not opt.silent then
    print"Model :"
    print(moe)
+end
+
+--[[GPU or CPU]]--
+if opt.cuda then
+   require 'cutorch'
+   require 'cunn'
+   cutorch.setDevice(opt.useDevice)
+   xp:cuda()
 end
 
 xp:run(ds)

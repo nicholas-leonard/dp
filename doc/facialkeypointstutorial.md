@@ -78,15 +78,15 @@ We loaded the two CSV files into Tensors using
 We shuffled the training set and saved both Tensors into `train.th7` 
 and `test.th7` files. 
 
-The dataset wrapper, [FacialKeypoints](), inherits DataSource:
+The dataset wrapper, [FacialKeypoints](https://github.com/nicholas-leonard/dp/blob/master/data/facialkeypoints.lua), inherits DataSource:
 ```lua
 local FacialKeypoints, DataSource = torch.class("dp.FacialKeypoints", "dp.DataSource")
 FacialKeypoints.isFacialKeypoints = true
 ```
 The wrapper has some static attributes like the name (which is also the 
 name of the directory where the data will be stored), size of the images 
-(for use in [Convolution2D](model.md#dp.convolution2d) Layers), 
-collapsed feature size (for use in [Neural](model.md#dp.Neural) Layers),
+(useful for initializing [SpatialConvolution](https://github.com/torch/nn/blob/master/doc/convolution.md#nn.SpatialConvolution) modules), 
+collapsed feature size (useful for initializing [Linear](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Linear) modules),
 the image and target axes (or views) as used in [Views](view.md#dp.View).
 ```lua
 FacialKeypoints._name = 'FacialKeypoints'

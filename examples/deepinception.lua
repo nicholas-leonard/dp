@@ -5,7 +5,7 @@ cmd = torch.CmdLine()
 cmd:text()
 cmd:text('Image Classification using Inception Modules Training/Optimization')
 cmd:text('Example:')
-cmd:text('$> th deepinception.lua --lecunlcn --batchSize 128 --accUpdate --cuda')
+cmd:text('$> th examples/deepinception.lua --accUpdate --progress --cuda --batchSize 64 --hiddenSize "{4000,4000,4000}" --lecunlcn --dropout')
 cmd:text('Options:')
 -- fundamentals 
 cmd:option('--learningRate', 0.1, 'learning rate at t=0')
@@ -100,8 +100,15 @@ elseif opt.dataset == 'Cifar10' then
    ds = dp.Cifar10{input_preprocess = input_preprocess}
 elseif opt.dataset == 'Cifar100' then
    ds = dp.Cifar100{input_preprocess = input_preprocess}
+   if not opt.lecunlcn then
+      print"You should probably try --lecunlcn with SVHN dataset"
+   end
 else
     error("Unknown Dataset")
+end
+
+if not (opt.dropout or opt.batchNorm) then
+   print"You shoudl probably try --dropout or --batchNorm (because the model is so deep)"
 end
 
 --[[Model]]--

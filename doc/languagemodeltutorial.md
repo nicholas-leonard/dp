@@ -265,7 +265,7 @@ word tree is clustered in such a way as to minimize overlap with the first,
 the third minimizes overlap with both of these. By default, the SoftmaxTree instance
 makes use of the the first hierarchy.
 
-Multiple hierarchies can be combined using the [SoftmaxForest](model.md#dp.SoftmaxForest)),
+Multiple hierarchies can be combined using the [SoftmaxForest](https://github.com/nicholas-leonard/dpnn/blob/master/SoftMaxForest.lua),
 although this approach requires more memory:
 
 ```lua

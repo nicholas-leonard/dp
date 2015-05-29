@@ -37,7 +37,7 @@ nn.ConcatTable. If the BaseSet is used for unsupervised learning, only inputs ne
 Constructs a dataset from inputs and targets.
 Arguments should be specified as key-value pairs. 
  
-  * `inputs` is an instance of [View](#dp.View) or a table of these. In the latter case, they will be automatically encapsulated by a [ListView](#dp.ListView). These are used as inputs to a [Model](model.md#dp.Model).
+  * `inputs` is an instance of [View](#dp.View) or a table of these. In the latter case, they will be automatically encapsulated by a [ListView](#dp.ListView). The encapsulated Tensor is used as inputs to a `model`.
   * `targets` is an instance of `View` or a table of these. In the latter case, they will be automatically encapsulated by a `ListView`. These are used as targets for training a `Model`. The indices of examples in `targets` must be aligned with those in `inputs`. 
   * `which_set` is a string identifying the purpose of the dataset. Valid values are 
     * *train* for training, i.e. for fitting a model to a dataset; 
@@ -66,7 +66,7 @@ Returns targets [View](view.md#dp.View).
 <a name="dp.DataSet"/>
 []()
 ## DataSet ##
-A subclass of [BaseSet](#dp.BaseSet). Contains input and optional target [Views](view.md#dp.View) used for training or evaluating [Models](model.md#dp.Model).
+A subclass of [BaseSet](#dp.BaseSet). Contains input and optional target [Views](view.md#dp.View) used for training or evaluating `models`.
 
 <a name='dp.DataSet.batch'/>
 []()
@@ -212,9 +212,11 @@ Empties the queue of asynchronous requests.
 
 <a name="dp.Batch"></a>
 ## Batch ##
-A subclass of [BaseSet](#dp.BaseSet). A mini-batch of input and target [Views](view.md#dp.View) 
-to be fed into a [Model](model.md#dp.Model) and [Loss](loss.md#dp.Loss). The batch of examples is usually sampled 
-from a [DataSet](#dp.DataSet) via a [Sampler](#dp.Sampler) iterator by calling the DataSet's different factory methods : [batch](#dp.DataSet.batch), [sub](#dp.DataSet.sub), and [index](#dp.DataSet.index).
+A subclass of [BaseSet](#dp.BaseSet). A mini-batch of input and target [Views](view.md#dp.View).
+The encapsulated Tensors are to be fed into a Module and Criterion. 
+The batch of examples is usually sampled from a [DataSet](#dp.DataSet) 
+via a [Sampler](#dp.Sampler) iterator by calling the DataSet's different factory methods : 
+[batch](#dp.DataSet.batch), [sub](#dp.DataSet.sub), and [index](#dp.DataSet.index).
 
 <a name="dp.DataSource"/>
 []()
@@ -231,7 +233,7 @@ It can also perform preprocessing using [Preprocess](preprocess.md#dp.Preprocess
 ### dp.DataSource{...} ###
 DataSource constructor. Arguments should be specified as key-value pairs. 
  
-  * `train_set` is an optional [DataSet](#dp.DataSet) used for training, i.e. optimizing a [Model](model.md#dp.Model) to minimize a [Loss](loss.md#dp.Loss)
+  * `train_set` is an optional [DataSet](#dp.DataSet) used for training, i.e. optimizing a `model` to minimize a `loss`
   * `valid_set` is an optional DataSet used for cross-validation, i.e. for early-stopping and hyper-optimization
   * `test_set` is an optional DataSet used to evaluate generalization performance after training (e.g. to compare different models)
   * `input_preprocess` is a [Preprocess](preprocess.md#dp.Preprocess) that will be applied to the inputs. Statistics are measured (fitted) on the `train_set` only, and then reused to preprocess all provided sets. This argument may also be provided as a list (table) of Preprocesses, in which case, they will be wrapped in the composite [Pipeline](preprocess.md#dp.Pipeline) Preprocess.
@@ -457,7 +459,8 @@ sentences of equal size one word at a time.
 The sentences sizes are iterated through randomly.
 Publishes to the `"beginSequence"` [Mediator](mediator.md#dp.Mediator) 
 [Channel](mediator.md#dp.Channel) before each new Sequence, which prompts 
-the recurrent [Models](model.md#dp.Model) to forget the previous sequence of inputs.
+the recurrent Modules (like [Recurrent](https://github.com/Element-Research/rnn#rnn.Recurrent)
+and [LSTM](https://github.com/Element-Research/rnn#rnn.LSTM)) to forget the previous sequence of inputs.
 Note that `epoch_size` only garantees the minimum number of samples per epoch (more could be sampled).
 Used for [Recurrent Neural Network Language Models](https://github.com/nicholas-leonard/dp/blob/master/examples/recurrentlanguagemodel.lua).
  

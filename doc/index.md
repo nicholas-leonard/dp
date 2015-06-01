@@ -63,7 +63,7 @@ or clone and make it (recommended):
 ```shell
 $> git clone git@github.com:nicholas-leonard/dp.git
 $> cd dp
-$> sudo luarocks make dp-scm-1.rockspec 
+$> sudo luarocks make rocks/dp-scm-1.rockspec 
 ```
 
 ### Optional Dependencies ###

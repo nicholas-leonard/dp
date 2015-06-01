@@ -484,7 +484,7 @@ function dptest.SentenceSampler()
 end
 
 function dptest.ErrorMinima()
-   local report={validator={loss={avgError=11}},epoch=1}
+   local report={validator={loss=11},epoch=1}
    local mediator = dp.Mediator()
    local m = dp.ErrorMinima{start_epoch=5}
    m:setup{mediator=mediator}
@@ -523,7 +523,7 @@ function dptest.ErrorMinima()
    end
    for epoch=11,15 do
       report.epoch = epoch
-      report.validator.loss.avgError = losses[epoch-10]
+      report.validator.loss = losses[epoch-10]
       m:doneEpoch(report)
    end
    mytester:assert(recv_count == 3, "ErrorMinima recv_count error")

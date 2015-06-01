@@ -23,7 +23,7 @@ function ErrorMinima:__init(config)
        help='when to start notifying listeners of new minimas.'},
       {arg='error_report', type='table', 
        help='a sequence of keys to access error from report. ' ..
-       'Default is {"validator", "loss", "avgError"}, unless ' ..
+       'Default is {"validator", "loss"}, unless ' ..
        'of course an error_channel is specified.'},
       {arg='error_channel', type='string | table',
        help='channel to subscribe to for monitoring error. Should ' ..

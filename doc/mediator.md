@@ -1,8 +1,8 @@
 # Mediate (or Bend the Rules) #
 The _dp_ library can be very rigid in how the interactions between different objects 
 are regulated (e.g. how [DataSet](data.md#dp.DataSet), 
-[Propagator](propagator.md#dp.Propagator), [Model](model.md#dp.Model) 
-and [Loss](loss.md#dp.Loss) all work together like clockwork). 
+[Propagator](propagator.md#dp.Propagator), [Module](https://github.com/torch/nn/blob/master/doc/module.md#nn.Module)
+and [Criterion](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.Criterion) all work together like clockwork). 
 Yet when doing research and development in the field of deep learning, 
 we often need to build models that require non-standard interactions.
 While the library cannot provide rigid interaction patterns for every research use case,

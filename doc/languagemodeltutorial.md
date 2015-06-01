@@ -177,7 +177,6 @@ model words in the output layer.
 
 ### Output Layer ###
 
-
 We could also use a Linear + transfer module to instantiate a NNLM output layer, where the
 transfer Module is a [SoftMax](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.SoftMax).
 A very popular choice for classification output layers, softmax is a normalizing non-linearity of the form : 

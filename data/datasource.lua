@@ -222,6 +222,11 @@ end
 function DataSource:imageAxes(idx)
    return idx and self._image_axes[idx] or self._image_axes
 end
+
+function DataSource:ioShapes()
+   local set = self:trainSet() or self:validSet() or self:testSet()
+   return set:ioShapes()
+end
 -- end access static attributes
 
 -- Download datasource if not found locally.  

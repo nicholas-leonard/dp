@@ -60,11 +60,3 @@ function Batch:indices()
    return self._indices
 end
 
--- generate a carry object to be passed along through forward/backward
-function Batch:carry()
-   self._carry:putObj('nSample', self:nSample())
-   self._carry:putObj('epochSize', self._epoch_size)
-   self._carry:putObj('batchIter', self._batch_iter)
-   self._carry:putObj('targets', self:targets())
-   return self._carry
-end

@@ -142,7 +142,9 @@ function Cifar100:createDataSet(data, which_set)
    self._coarse_targets:setClasses(self._classes)
    self._fine_targets:setClasses(self._classes)
    -- construct dataset
-   return dp.DataSet{inputs=input_v,targets=self._fine_targets,which_set=which_set}
+   local ds = dp.DataSet{inputs=input_v,targets=self._fine_targets,which_set=which_set}
+   ds:ioShapes('bchw', 'b')
+   return ds
 end
 
 --Returns a 10,000 or 50,000 x 3074 tensor, 

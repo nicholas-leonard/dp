@@ -23,7 +23,7 @@ function ErrorMinima:__init(config)
        help='when to start notifying listeners of new minimas.'},
       {arg='error_report', type='table', 
        help='a sequence of keys to access error from report. ' ..
-       'Default is {"validator", "loss", "avgError"}, unless ' ..
+       'Default is {"validator", "loss"}, unless ' ..
        'of course an error_channel is specified.'},
       {arg='error_channel', type='string | table',
        help='channel to subscribe to for monitoring error. Should ' ..
@@ -41,7 +41,7 @@ function ErrorMinima:__init(config)
    self._sign = self._maximize and -1 or 1
    assert(not(self._error_report and self._error_channel))
    if not (self._error_report or self._error_channel) then
-      self._error_report = {'validator','loss','avgError'}
+      self._error_report = {'validator','loss'}
    end
    parent.__init(self, "doneEpoch")
 end

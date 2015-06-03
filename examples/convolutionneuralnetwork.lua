@@ -9,15 +9,14 @@ cmd:text('$> th convolutionneuralnetwork.lua --batchSize 128 --momentum 0.5')
 cmd:text('Options:')
 cmd:option('--learningRate', 0.1, 'learning rate at t=0')
 cmd:option('--maxOutNorm', 1, 'max norm each layers output neuron weights')
-cmd:option('--maxNormPeriod', 2, 'Applies MaxNorm Visitor every maxNormPeriod batches')
 cmd:option('--momentum', 0, 'momentum')
 cmd:option('--channelSize', '{64,128}', 'Number of output channels for each convolution layer.')
 cmd:option('--kernelSize', '{5,5,5,5}', 'kernel size of each convolution layer. Height = Width')
 cmd:option('--kernelStride', '{1,1,1,1}', 'kernel stride of each convolution layer. Height = Width')
 cmd:option('--poolSize', '{2,2,2,2}', 'size of the max pooling of each convolution layer. Height = Width')
 cmd:option('--poolStride', '{2,2,2,2}', 'stride of the max pooling of each convolution layer. Height = Width')
-cmd:option('--padding', '{0,0,0,0}', 'amount of zero padding added to the input layer ( should be lower than math.floor(kernelSize/2)') 
-cmd:option('--batchSize', 128, 'number of examples per batch')
+cmd:option('--padding', false, 'add math.floor(kernelSize/2) padding to the input of each convolution') 
+cmd:option('--batchSize', 64, 'number of examples per batch')
 cmd:option('--cuda', false, 'use CUDA')
 cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
 cmd:option('--maxEpoch', 100, 'maximum number of epochs to run')
@@ -26,33 +25,26 @@ cmd:option('--dataset', 'Mnist', 'which dataset to use : Mnist | NotMnist | Cifa
 cmd:option('--trainPath', '.', 'Where to look for training images')
 cmd:option('--validPath', '.', 'Where to look for validation images')
 cmd:option('--metaPath', '.', 'Where to cache meta data')
-cmd:option('--loadSize', '.', 'Image size')
+cmd:option('--loadSize', '', 'Image size')
 cmd:option('--sampleSize', '.', 'The size to use for cropped images')
 cmd:option('--standardize', false, 'apply Standardize preprocessing')
 cmd:option('--zca', false, 'apply Zero-Component Analysis whitening')
 cmd:option('--lecunlcn', false, 'apply Yann LeCun Local Contrast Normalization (recommended)')
-cmd:option('--normalInit', false, 'initialize inputs using a normal distribution (as opposed to sparse initialization)')
 cmd:option('--activation', 'Tanh', 'transfer function like ReLU, Tanh, Sigmoid')
 cmd:option('--hiddenSize', '{}', 'size of the dense hidden layers after the convolution')
+cmd:option('--batchNorm', false, 'use batch normalization. dropout is mostly redundant with this')
 cmd:option('--dropout', false, 'use dropout')
 cmd:option('--dropoutProb', '{0.2,0.5,0.5}', 'dropout probabilities')
 cmd:option('--accUpdate', false, 'accumulate gradients inplace')
 cmd:option('--progress', false, 'print progress bar')
 cmd:option('--silent', false, 'dont print anything to stdout')
-cmd:option('--saveModel', '', 'Filename for saving the trained model')
 cmd:text()
 opt = cmd:parse(arg or {})
 if not opt.silent then
    table.print(opt)
 end
 
-if opt.activation == 'ReLU' and not opt.normalInit then
-   print("Warning : you should probably use --normalInit with ReLUs for "..
-      "this script if you don't want to get NaN errors")
-end
-
 opt.channelSize = table.fromString(opt.channelSize)
-opt.padding = table.fromString(opt.padding)
 opt.kernelSize = table.fromString(opt.kernelSize)
 opt.kernelStride = table.fromString(opt.kernelStride)
 opt.poolSize = table.fromString(opt.poolSize)
@@ -82,19 +74,19 @@ if opt.lecunlcn then
 end
 
 --[[data]]--
-local datasource
+local ds
 if opt.dataset == 'Mnist' then
-   datasource = dp.Mnist{input_preprocess = input_preprocess}
+   ds = dp.Mnist{input_preprocess = input_preprocess}
 elseif opt.dataset == 'NotMnist' then
-   datasource = dp.NotMnist{input_preprocess = input_preprocess}
+   ds = dp.NotMnist{input_preprocess = input_preprocess}
 elseif opt.dataset == 'Cifar10' then
-   datasource = dp.Cifar10{input_preprocess = input_preprocess}
+   ds = dp.Cifar10{input_preprocess = input_preprocess}
 elseif opt.dataset == 'Cifar100' then
-   datasource = dp.Cifar100{input_preprocess = input_preprocess}
+   ds = dp.Cifar100{input_preprocess = input_preprocess}
 elseif opt.dataset == 'Svhn' then
-   datasource = dp.Svhn{input_preprocess = input_preprocess}
+   ds = dp.Svhn{input_preprocess = input_preprocess}
 elseif opt.dataset == 'ImageSource' then
-   datasource = dp.ImageSource{load_size = opt.loadSize, sample_size = opt.sampleSize, train_path = opt.trainPath, valid_path = opt.validPath, meta_path = opt.metaPath, verbose = not opt.silent}
+   ds = dp.ImageSource{load_size = opt.loadSize, sample_size = opt.sampleSize, train_path = opt.trainPath, valid_path = opt.validPath, meta_path = opt.metaPath, verbose = not opt.silent}
 else
     error("Unknown Dataset")
 end
@@ -104,85 +96,91 @@ function dropout(depth)
 end
 
 --[[Model]]--
-cnn = dp.Sequential()
-inputSize = datasource.imageSize ~= nil and datasource:imageSize('c') or opt.loadSize[1]
-height = datasource.imageSize ~= nil and datasource:imageSize('h') or opt.loadSize[2]
-width = datasource.imageSize ~= nil and datasource:imageSize('w') or opt.loadSize[3]
+
+cnn = nn.Sequential()
+
+-- convolutional and pooling layers
 depth = 1
+inputSize = ds:imageSize('c') or opt.loadSize[1]
 for i=1,#opt.channelSize do
-   local conv = dp.Convolution2D{
-      input_size = inputSize, 
-      padding = opt.padding[i],
-      kernel_size = {opt.kernelSize[i], opt.kernelSize[i]},
-      kernel_stride = {opt.kernelStride[i], opt.kernelStride[i]},
-      pool_size = {opt.poolSize[i], opt.poolSize[i]},
-      pool_stride = {opt.poolStride[i], opt.poolStride[i]},
-      output_size = opt.channelSize[i], 
-      transfer = nn[opt.activation](),
-      dropout = dropout(depth),
-      acc_update = opt.accUpdate,
-      sparse_init = not opt.normalInit
-   }
-   cnn:add(conv)
-   inputSize, height, width = conv:outputSize(height, width, 'bchw')
+   if opt.dropout and (opt.dropoutProb[depth] or 0) > 0 then
+      -- dropout can be useful for regularization
+      cnn:add(nn.SpatialDropout(opt.dropoutProb[depth]))
+   end
+   cnn:add(nn.SpatialConvolution(
+      inputSize, opt.channelSize[i], 
+      opt.kernelSize[i], opt.kernelSize[i], 
+      opt.kernelStride[i], opt.kernelStride[i],
+      opt.padding and math.floor(opt.kernelSize[i]/2) or 0
+   ))
+   if opt.batchNorm then
+      -- batch normalization can be awesome
+      cnn:add(nn.SpatialBatchNormalization(opt.channelSize[i]))
+   end
+   cnn:add(nn[opt.activation]())
+   if opt.poolSize[i] and opt.poolSize[i] > 0 then
+      cnn:add(nn.SpatialMaxPooling(
+         opt.poolSize[i], opt.poolSize[i], 
+         opt.poolStride[i] or opt.poolSize[i], 
+         opt.poolStride[i] or opt.poolSize[i]
+      ))
+   end
+   inputSize = opt.channelSize[i]
    depth = depth + 1
 end
-inputSize = inputSize*height*width
-dp.vprint(not opt.silent, "input to first Neural layer has: "..inputSize.." neurons")
+-- get output size of convolutional layers
+outsize = cnn:outside{1,ds:imageSize('c'),ds:imageSize('h'),ds:imageSize('w')}
+inputSize = outsize[2]*outsize[3]*outsize[4]
+dp.vprint(not opt.silent, "input to dense layers has: "..inputSize.." neurons")
 
+cnn:insert(nn.Convert(ds:ioShapes(), 'bchw'), 1)
+
+-- dense hidden layers
+cnn:add(nn.Collapse(3))
 for i,hiddenSize in ipairs(opt.hiddenSize) do
-   local dense = dp.Neural{
-      input_size = inputSize, 
-      output_size = hiddenSize,
-      transfer = nn[opt.activation](),
-      dropout = dropout(depth),
-      acc_update = opt.accUpdate,
-      sparse_init = not opt.normalInit
-   }
-   cnn:add(dense)
+   if opt.dropout and (opt.dropoutProb[depth] or 0) > 0 then
+      cnn:add(nn.Dropout(opt.dropoutProb[depth]))
+   end
+   cnn:add(nn.Linear(inputSize, hiddenSize))
+   if opt.batchNorm then
+      cnn:add(nn.BatchNormalization(hiddenSize))
+   end
+   cnn:add(nn[opt.activation]())
    inputSize = hiddenSize
    depth = depth + 1
 end
 
-cnn:add(
-   dp.Neural{
-      input_size = inputSize, 
-      output_size = #(datasource:classes()),
-      transfer = nn.LogSoftMax(),
-      dropout = dropout(depth),
-      acc_update = opt.accUpdate,
-      sparse_init = not opt.normalInit
-   }
-)
-
-local visitor = {}
--- the ordering here is important:
-if opt.momentum > 0 then
-   if opt.accUpdate then
-      error"momentum doesn't work with --accUpdate"
-   end
-   table.insert(visitor, dp.Momentum{momentum_factor = opt.momentum})
+-- output layer
+if opt.dropout and (opt.dropoutProb[depth] or 0) > 0 then
+   cnn:add(nn.Dropout(opt.dropoutProb[depth]))
 end
-table.insert(visitor, dp.Learn{learning_rate = opt.learningRate})
-table.insert(visitor, dp.MaxNorm{
-   max_out_norm = opt.maxOutNorm, period=opt.maxNormPeriod
-})
+cnn:add(nn.Linear(inputSize, #(ds:classes())))
+cnn:add(nn.LogSoftMax())
 
 --[[Propagators]]--
 train = dp.Optimizer{
-   loss = dp.NLL(),
-   visitor = visitor,
+   acc_update = opt.accUpdate,
+   loss = nn.ModuleCriterion(nn.ClassNLLCriterion(), nil, nn.Convert()),
+   callback = function(model, report) 
+      -- the ordering here is important
+      if opt.accUpdate then
+         model:accUpdateGradParameters(model.dpnn_input, model.output, opt.learningRate)
+      else
+         model:updateGradParameters(opt.momentum) -- affects gradParams
+         model:updateParameters(opt.learningRate) -- affects params
+      end
+      model:maxParamNorm(opt.maxOutNorm) -- affects params
+      model:zeroGradParameters() -- affects gradParams 
+   end,
    feedback = dp.Confusion(),
    sampler = dp.ShuffleSampler{batch_size = opt.batchSize},
-   progress = opt.progress
+   progress = true
 }
 valid = dp.Evaluator{
-   loss = dp.NLL(),
    feedback = dp.Confusion(),  
    sampler = dp.Sampler{batch_size = opt.batchSize}
 }
 test = dp.Evaluator{
-   loss = dp.NLL(),
    feedback = dp.Confusion(),
    sampler = dp.Sampler{batch_size = opt.batchSize}
 }
@@ -214,13 +212,9 @@ if opt.cuda then
 end
 
 if not opt.silent then
-   print"dp.Models :"
+   print"Model:"
    print(cnn)
-   print"nn.Modules :"
-   print(cnn:toModule(datasource:trainSet():sub(1,32)))
 end
 xp:verbose(not opt.silent)
-xp:run(datasource)
-if opt.saveModel ~= '' then
-   torch.save(opt.saveModel, cnn)
-end
+
+xp:run(ds)

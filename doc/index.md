@@ -9,19 +9,21 @@ It emphasizes flexibility through the elegant use of object-oriented
 
 During my time in the LISA Lab as an apprentice of Yoshua Bengio and Aaron Courville,
 I was inspired by pylearn2 and Theano to build a framework better suited to 
-my needs and style.
+my needs and style. I have been using it since November 2013, and it has 
+recently undergone major refactoring to allow for a more seemless integration 
+with [nn](https://github.com/torch/nn/blob/master/README.md) through 
+[dpnn](https://github.com/nicholas-leonard/dpnn/blob/master/README.md).
 
 Among other things, this package includes : 
 
   * common datasets like MNIST, CIFAR-10 and CIFAR-100, preprocessing like Zero-Component Analysis whitening, Global Contrast Normalization, Lecun's Local Contrast Normalization, and facilities for interfacing your own.
-  * a high-level framework that abstracts away common usage patterns of the [nn](https://github.com/torch/nn/blob/master/README.md) and [torch7](https://github.com/torch/torch7/blob/master/README.md) package such as loading datasets and [early stopping](http://en.wikipedia.org/wiki/Early_stopping). 
-  * hyperparameter optimization facilities for sampling and running experiments from the command-line or prior hyper-parameter distributions.
-  * facilites for storing and analysing hyperpameters and results using a PostgreSQL database backend which facilitates distributing experiments over different machines.
-
+  * a framework that abstracts away common usage patterns of the [nn](https://github.com/torch/nn/blob/master/README.md) and [torch7](https://github.com/torch/torch7/blob/master/README.md) package such as loading datasets and [early stopping](http://en.wikipedia.org/wiki/Early_stopping). 
+  * documentation, examples and tutorials;
+  
 <a name="dp.tutorials"/>
 []()
 ## Tutorials and Examples ##
-In order to help you get up and running we provide a quick [neural network tutorial](neuralnetworktutorial.md) which explains step-by-step the contents of this [example script](https://github.com/nicholas-leonard/dp/blob/master/examples/neuralnetwork_tutorial.lua). For a more flexible option that allows input from the command-line specifying different datasources and preprocesses, using dropout, running the code on a GPU/CPU, please consult this [script](https://github.com/nicholas-leonard/dp/blob/master/examples/neuralnetwork.lua).
+In order to help you get up and running we provide a quick [neural network tutorial](neuralnetworktutorial.md) which explains step-by-step the contents of this [example script](https://github.com/nicholas-leonard/dp/blob/master/examples/neuralnetwork.lua). For a more flexible option that allows input from the command-line specifying different datasources and preprocesses, using dropout, running the code on a GPU/CPU, please consult this [script](https://github.com/nicholas-leonard/dp/blob/master/examples/neuralnetwork.lua).
 
 A [Facial Keypoints tutorial](facialkeypointstutorial.md) involving the case study of a Kaggle Challenge is also available. It provides an overview of the steps required for extending and using  __dp__ in the context of the challenge. And even provides the script so that you can generate your own Kaggle submissions.
 
@@ -37,14 +39,9 @@ The [Language Model tutorial](languagemodeltutorial.md) examines the implementat
     * [DataSource](data.md#dp.DataSource) : BaseSet containers like [Mnist](data.md#dp.Mnist) and [BillionWords](data.md#dp.BillionWords);
     * [Preprocess](preprocess.md) : data preprocessing like [ZCA](preprocess.md#dp.ZCA) and [Standardize](preprocess.md#dp.Standardize);
     * [Sampler](data.md#dp.Sampler) : DataSet iterators like [ShuffleSampler](data.md#dp.ShuffleSampler) and [SentenceSampler](data.md#dp.SentenceSampler);
-  * Node Library
-    * [Node](node.md) : abstract class that defines Model and Loss commonalities;
-    * [Model](model.md) : parameterized Nodes like [Neural](model.md#dp.Neural) and [Convolution2D](model.md#dp.Convolution2D) that adapt [Modules](https://github.com/torch/nn/blob/master/module.md#module) to [Model](model.md#dp.Model);
-    * [Loss](loss.md) : non-parameterized Nodes like [NLL](loss.md#dp.NLL) that adapt [Criterions](https://github.com/torch/nn/blob/master/criterion.md#nn.Criterion);
   * Experiment Library
     * [Experiment](experiment.md) : trains a Model using a DataSource and a Loss;
     * [Propagator](propagator.md) : propagates a DataSet through a Model and Loss;
-    * [Visitor](visitor.md) : visits Models after a backward pass to update parameters, statistics or gradients;
   * Extension Library
     * [Feedback](feedback.md) : provides I/O feedback given the Model output, input and targets;
     * [Observer](observer.md) : plugins that can be appended to objects as extensions;
@@ -66,7 +63,7 @@ or clone and make it (recommended):
 ```shell
 $> git clone git@github.com:nicholas-leonard/dp.git
 $> cd dp
-$> sudo luarocks make dp-scm-1.rockspec 
+$> sudo luarocks make rocks/dp-scm-1.rockspec 
 ```
 
 ### Optional Dependencies ###
@@ -74,13 +71,18 @@ For CUDA:
 ```shell
 $> sudo luarocks install cunnx
 ```
-For PostgresSQL:
-```shell
-$> sudo apt-get install libpq-dev
-$> sudo luarocks install luasql-postgres PGSQL_INCDIR=/usr/include/postgresql
-$> sudo apt-get install liblapack-dev
-```
 
 ## Contributions ##
 
 We appreciate [issues](https://github.com/nicholas-leonard/dp/issues) and [pull requests](https://github.com/nicholas-leonard/dp/pulls?q=is%3Apr+is%3Aclosed) of all kind.
+
+
+## Notice : June 2nd, 2015
+
+A major [pull request](https://github.com/nicholas-leonard/dp/pull/127) was recently merged which breaks backward compatibility. 
+Basically, all the dp.Model, dp.Loss and dp.Visitor were removed to reduce the complexity of the library.
+You can now use nn.Modules and nn.Criterions directly. 
+As for the dp.Visitors, these were refactored as [Module methods](https://github.com/nicholas-leonard/dpnn/blob/master/Module.lua)
+made available via the [dpnn](https://github.com/nicholas-leonard/dpnn/blob/master/README.md) library.
+Using the [Serial](https://github.com/nicholas-leonard/dpnn#nn.Serial) decorator, saved experiments 
+now require significantly less disk space.

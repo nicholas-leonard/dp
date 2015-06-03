@@ -50,14 +50,16 @@ function TopCrop:doneEpoch(report)
       local msg = self._id:toString().." accuracy top ("..table.concat(self._n_top,",")..") :"
       local centerTops = {}
       local allTops = {}
-      local nSample = self._n_sample / self._n_crop
+      local nSample = self._n_sample
       for i,top in ipairs(self._n_top) do
          table.insert(centerTops, string.format("%g", self.topCounts.center[top]/nSample*100))
          table.insert(allTops, string.format("%g", self.topCounts.all[top]/nSample*100))
       end
-      msg = msg .. "center ("..table.concat(centerTops, ",").."); "
-      msg = msg .. "all ("..table.concat(allTops,",")..")"
-      print(msg)
+      if self._verbose then
+         msg = msg .. "center ("..table.concat(centerTops, ",").."); "
+         msg = msg .. "all ("..table.concat(allTops,",")..")"
+         print(msg)
+      end
    end
 end
 
@@ -81,8 +83,14 @@ function TopCrop:topstats(preds, targets, ns)
    end
 end
 
-function TopCrop:add(batch, output, carry, report)
-   local preds = output:forward('bf', 'torch.FloatTensor')
+function TopCrop:add(batch, output, report)
+   assert(output:dim() == 2)
+   local preds = output
+   if torch.type(output) ~= torch.FloatTensor() then
+      self._act = self._act or torch.FloatTensor()
+      self._act:resize(output:size()):copy(output)
+      preds = self._act
+   end
    local labels = batch:targets():forward('b')
    assert(preds:isContiguous())
    assert(labels:isContiguous())

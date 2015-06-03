@@ -19,7 +19,7 @@ data found in other branches of the experiment tree.
 An Experiment constructor which takes key-value arguments:
 
   * `id` is an ObjectID uniquely identifying the experiment. Defaults to using `dp.uniqueID()`.
-  * `model` is a [Model](model.md#dp.Model) instance shared by all Propagators.
+  * `model` is a [Module](https://github.com/torch/nn/blob/master/doc/module.md#module) instance shared by all Propagators.
   * `optimizer` is an [Optimizer](propagator.md#dp.Optimizer) instance used for propagating the train set.
   * `validator` is an [Evaluator](propagator.md#dp.Evaluator) instance used for propagating the valid set. 
   * `tester` is an [Evaluator](propagator.md#dp.Evaluator) instance used for propagating the test set. 

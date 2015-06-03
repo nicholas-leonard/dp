@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------
 --[[ Propagator ]]--
 -- Abstract Class for propagating a sampling distribution (Sampler) 
--- through a model in order to evaluate its Loss, train the model, etc.
+-- through a module in order to evaluate its criterion, train, etc.
 -- To make your own training algorithm, you can build your own 
 -- propagator. If you can reduce it to reusable components, you could 
 -- then refactor these into visitors, observers, etc.
@@ -11,18 +11,18 @@ Propagator.isPropagator = true
 
 function Propagator:__init(config)   
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, loss, visitor, sampler, observer, feedback, progress,
-      verbose, stats = xlua.unpack(
+   local args, loss, callback, sampler, observer, feedback, progress,
+      verbose, stats, include_target = xlua.unpack(
       {config},
       'Propagator', 
       'Propagates Batches sampled from a DataSet using a Sampler '..
       'through a Model in order to evaluate a Loss, provide Feedback '.. 
       'or train the model',
-      {arg='loss', type='dp.Loss | nn.Criterion', req=true,
-       help='a neural network Loss to evaluate or minimize'},
-      {arg='visitor', type='dp.Visitor',
-       help='visits models at the end of each batch propagation to '.. 
-       'perform parameter updates and/or gather statistics, etc.'},
+      {arg='loss', type='nn.Criterion',
+       help='a neural network Criterion to evaluate or minimize'},
+      {arg='callback', type='function',
+       help='function(model, report) that does things like'..
+       'update model, gather statistics, decay learning rate, etc.'},
       {arg='sampler', type='dp.Sampler', 
        help='Iterates through a DataSet. [Default=dp.Sampler()]'},
       {arg='observer', type='dp.Observer', 
@@ -38,21 +38,19 @@ function Propagator:__init(config)
        help='display performance statistics (speed, etc). '..
       'Only applies if verbose is true.'}
    )
-   self:setSampler(sampler or dp.Sampler())
-   self:setLoss(loss)
-   self:setObserver(observer)
-   self:setFeedback(feedback)
-   self:setVisitor(visitor)
+   self:sampler(sampler or dp.Sampler())
+   self:loss(loss)
+   self:observer(observer)
+   self:feedback(feedback)
+   self:callback(callback)
    self._progress = progress
    self._verbose = verbose
    self._stats = stats
-   self.output = {}
 end
 
 function Propagator:setup(config)
    assert(type(config) == 'table', "Setup requires key-value arguments")
-   local args, id, model, mediator, mem_type, dataset, overwrite
-      = xlua.unpack(
+   local args, id, model, mediator, target_module = xlua.unpack(
       {config},
       'Propagator:setup', 
       'Post-initialization setup of the Propagator',
@@ -62,18 +60,16 @@ function Propagator:setup(config)
        help='the model that is to be trained or tested',},
       {arg='mediator', type='dp.Mediator', req=true,
        help='used for inter-object communication.'},
-      {arg='dataset', type='dp.DataSet', 
-       help='This might be useful to determine the type of targets. ' ..
-       'Propagator should not hold a reference to a dataset due to ' ..
-       'the propagator\'s possible serialization.'}
+      {arg='target_module', type='nn.Module', 
+       help='Optional module through which targets can be forwarded'}
    )
    assert(torch.isTypeOf(id, 'dp.ObjectID'))
    self._id = id
    assert(torch.isTypeOf(mediator, 'dp.Mediator'))
    self._mediator = mediator
-   self:setModel(model)
+   self:model(model)
+   self._target_module = target_module or nn.Identity()
    self._sampler:setup{mediator=mediator, model=model}
-   self._loss:setup{mediator=mediator, id=id:create("loss")}
    if self._observer then self._observer:setup{
       mediator=mediator, subject=self
    } end
@@ -86,6 +82,7 @@ function Propagator:setup(config)
 end
 
 function Propagator:propagateEpoch(dataset, report)
+   self.sumErr = 0
    if self._feedback then
       self._feedback:reset()
    end
@@ -99,6 +96,7 @@ function Propagator:propagateEpoch(dataset, report)
       print('==> epoch # '..(report.epoch + 1)..' for '..self:name()..' :')
    end
    
+   self._n_sample = 0
    local sampler = self._sampler:sampleEpoch(dataset)
    while true do
       -- reuse the batch object
@@ -115,6 +113,7 @@ function Propagator:propagateEpoch(dataset, report)
          break 
       end
       
+      self.nSample = i
       self:propagateBatch(batch, report)
       
       if self._progress then
@@ -139,26 +138,40 @@ function Propagator:propagateBatch(batch)
    error"NotImplementedError"
 end
 
+function Propagator:forward(batch)
+   local input = batch:inputs():input()
+   local target = batch:targets():input()
+   target = self._target_module:forward(target)
+   if self._include_target then
+      input = {input, target}
+   end
+   -- useful for calling accUpdateGradParameters in callback function
+   self._model.dpnn_input = input
+   
+   -- forward propagate through model
+   self.output = self._model:forward(input)
+   
+   if not self._loss then
+      return
+   end
+   -- measure loss
+   self.err = self._loss:forward(self.output, target)
+end
 
-function Propagator:monitor(batch, report, carry)
+function Propagator:monitor(batch, report)
+   self.sumErr = self.sumErr + (self.err or 0)
    -- monitor error and such
    if self._feedback then
-      self._feedback:add(batch, self.output, carry, report)
+      self._feedback:add(batch, self.output, report)
    end
    
    --publish report for this optimizer
    self._mediator:publish(self:name()..':'.."doneFeedback", report, batch)
-   return carry
 end
 
-function Propagator:doneBatch(report, carry)
-   -- zero gradients, statistics, etc.
-   self._model:doneBatch()
-   self._loss:doneBatch()
-   
+function Propagator:doneBatch(report)   
    --publish report for this optimizer
-   self._mediator:publish(self:name()..':'.."doneBatch", report, carry)
-   self.output = {}
+   self._mediator:publish(self:name()..':'.."doneBatch", report)
 end
 
 -- returns a log for the current epoch, in the format of a table
@@ -168,9 +181,16 @@ end
 -- channel names and values. Furthermore, values can be anything 
 -- serializable.
 function Propagator:report()
+   local avgErr
+   if self._loss and self.sumErr and self.nSample > 0 then
+      avgErr = self.sumErr/self.nSample
+      if self._verbose then
+         print(self:id():toString()..':loss avgErr '..avgErr)
+      end
+   end
    local report = {
       name = self:id():name(),      
-      loss = self._loss:report(),
+      loss = self._loss and self._loss.report and self._loss:report() or avgErr,
       sampler = self._sampler:report(),
       epoch_duration = self._epoch_duration,
       batch_duration = self._batch_duration,
@@ -181,21 +201,22 @@ function Propagator:report()
    if self._feedback then
       report.feedback = self._feedback:report()
    end
-   if self._visitor then
-      report.visitor = self._visitor:report()
-   end
    return report
 end
 
-function Propagator:setSampler(sampler)
-   self._sampler = sampler
-end
-
-function Propagator:sampler()
+function Propagator:sampler(sampler)
+   if sampler then
+      self._sampler = sampler
+      return
+   end
    return self._sampler
 end
 
-function Propagator:id()
+function Propagator:id(id)
+   if id then
+      self._id = id
+      return
+   end
    return self._id
 end
 
@@ -203,81 +224,69 @@ function Propagator:name()
    return self._id:name()
 end
 
-function Propagator:setModel(model)
-   self._model = model
-end
-
-function Propagator:model()
+function Propagator:model(model)
+   if model then
+      self._model = model
+      return
+   end
    return self._model
 end
 
-function Propagator:setObserver(observer)
-   if torch.type(observer) == 'table' then
-      --if list, make composite observer
-      observer = dp.CompositeObserver(observer)
+function Propagator:observer(observer)
+   if observer then
+      if torch.type(observer) == 'table' then
+         --if list, make composite observer
+         observer = dp.CompositeObserver(observer)
+      end
+      self._observer = observer
+      return
    end
-   self._observer = observer
-end
-
-function Propagator:observer()
    return self._observer
 end
 
-function Propagator:setVisitor(visitor)
-   if torch.type(visitor) == 'table' then
-      --if list, make visitor_chain
-      visitor = dp.VisitorChain{visitors=visitor}
+function Propagator:callback(callback)
+   if callback then
+      assert(torch.type(callback) == 'function', "expecting function")
+      self._callback = callback
+      return
    end
-   self._visitor = visitor
+   return self._callback
 end
 
-function Propagator:visitor()
-   return self._visitor
-end
-
-function Propagator:setFeedback(feedback)
-   if torch.type(feedback) == 'table' then
-      --if list, make visitor_chain
-      feedback = dp.CompositeFeedback{feedbacks=feedback}
+function Propagator:feedback(feedback)
+   if feedback then
+      if torch.type(feedback) == 'table' then
+         --if list, make visitor_chain
+         feedback = dp.CompositeFeedback{feedbacks=feedback}
+      end
+      self._feedback = feedback
+      return
    end
-   self._feedback = feedback
-end
-
-function Propagator:feedback()
    return self._feedback
 end
 
-function Propagator:setLoss(loss)
-   if not loss.isLoss then
-      print("Propagator:setLoss Warning : "..
-         "'loss' argumetn isn't an instance of dp.Loss."..
-         "Assuming it's a nn.Criterion instance."..
-         "Wrapping it in dp.Criterion (this doesn't always work as-is)"
-      )
-      loss = dp.Criterion{criterion=loss}
+function Propagator:loss(loss)
+   if loss then
+      assert(torch.isTypeOf(loss, 'nn.Criterion'), "Expecting nn.Criterion instance")
+      self._loss = loss
+      return
    end
-   self._loss = loss
+   return self._loss
 end
 
-function Propagator:loss()
-   return self._loss
+function Propagator:includeTarget(mode)
+   -- forward propagates {input, target} instead of just input
+   self._include_target = (mode == nil) and true or false
 end
 
 function Propagator:verbose(verbose)
    self._verbose = (verbose == nil) and true or verbose
-   if self._loss then
-      self._loss:verbose(self._verbose)
-   end
    if self._feedback then
       self._feedback:verbose(self._verbose)
-   end
-   if self._visitor then 
-      self._visitor:verbose(self._verbose)
    end
    if self._observer then
       self._observer:verbose(self._verbose)
    end
-   --TODO self._sampler:verbose()
 end
 
 function Propagator:silent()

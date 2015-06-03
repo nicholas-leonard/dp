@@ -65,8 +65,8 @@ function ShuffleSampler:sampleEpoch(dataset)
       if nSampled >= epochSize then
          return
       end
-      batch = batch or dataset:batch(self._batch_size)
       stop = math.min(self._start+self._batch_size-1,nSample)
+      batch = batch or dataset:batch(stop-self._start+1)
       local batch_indices = dataset_indices:sub(self._start,stop)
       -- inputs and targets
       dataset:index(batch, batch_indices)
@@ -84,7 +84,7 @@ function ShuffleSampler:sampleEpoch(dataset)
          self._start = 1
          dataset_indices = torch.randperm(nSample):long()
       end
-      collectgarbage() 
+      self:collectgarbage() 
       return batch, math.min(nSampled, epochSize), epochSize
    end
 end

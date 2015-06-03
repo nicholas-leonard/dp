@@ -28,19 +28,19 @@ as an example, each `input -> target` word would have the following contexts of 
 
 The entire dataset is divided into 100 partitions of equal size,
 99 of which are used for training. The remaining partition is further 
-divided into 50 partitions, one of which is used for testing,
+divided into 50 smaller partitions, one of which is used for testing,
 while the remaining 49 are reserved for cross-validation. 
 All words with less then 3 occurrences in the training set are replaced 
 with the `"<UNK>"` token. This is the same split described in the [original paper](http://arxiv.org/abs/1312.3005).
 The dataset is wrapped by the [BillionWords](data.md#dp.BillionWords) [DataSource](data.md#dp.DataSource).
 The downloaded `billionwords.tar.gz` compressed tarball contains the following files:
  
-  * `train_data.th7`, `train_small.th7` and `train_tiny.th7` training sets of different size (from fullest to smallest) ;
-  * `valid_data.th7` the validation set ;
-  * `test_data.th7` the test set ;  
-  * `word_freq.th7` the frequencies of words (not really used) ;  
-  * `word_tree1.th7`, `word_tree2.th7` and `word_tree3.th7` different hierarchies of words ; and
-  * `word_map.th7` maps the word IDs (efficient integers) to the actual words (bulky strings). 
+  * `train_data.th7`, `train_small.th7` and `train_tiny.th7` : training sets of different size (from fullest to smallest) ;
+  * `valid_data.th7` : the validation set ;
+  * `test_data.th7` : the test set ;  
+  * `word_freq.th7` : the frequencies of words ;  
+  * `word_tree1.th7`, `word_tree2.th7` and `word_tree3.th7` : different hierarchies of words ; and
+  * `word_map.th7` : maps the word IDs (efficient integers) to the actual words (bulky strings). 
   
 The training, validation and test set files contain serialized 2D Tensors.
 Each such Tensor has 2 columns. First column is for storing start indices of sentences. 
@@ -74,7 +74,7 @@ There are various approaches to building NNLMs.
 The first NNLM was presented in [(Bengio et al., 2001)](http://papers.nips.cc/paper/1839-a-neural-probabilistic-language-model.pdf), 
 which we used as a baseline to implement a  
 [NNLM training script](https://github.com/nicholas-leonard/dp/blob/master/examples/languagemodel.lua) for dp.
-In many respects, the script is very similar to the other training scripts includes in the 
+In many respects, the script is very similar to the other training scripts included in the 
 [examples directory](https://github.com/nicholas-leonard/dp/tree/master/examples). Since the basics of these scripts 
 are explained in the [Neural Network](neuralnetworktutorial.md) and 
 [Facial Keypoint Detection](facialkeypointstutorial.md) 
@@ -100,8 +100,9 @@ Each word is assigned a single row of weight matrix `W` which will serve as its 
 These embeddings are parameter vectors that can be learned through backpropagation. 
 
 A [LookupTable](https://github.com/torch/nn/blob/master/doc/convolution.md#nn.LookupTable)
-Module is available in [nn](https://github.com/torch/nn/blob/master/README.md).
-The [Dictionary](model.md#dp.Dictionary) Model adapts the Module for use within dp.
+Module is available in [nn](https://github.com/torch/nn/blob/master/README.md). 
+But we use its [Dictionary](https://github.com/nicholas-leonard/dpnn#nn.Dictionary) subclass, 
+which adds some functionality to make it more efficient for large vocabularies.
 
 The (non-batch) input to the LookupTable is a vector `x` of dimension 
 `n` where each variable `x[i]` contains the index of the word at position `i` of the context.
@@ -119,17 +120,19 @@ which makes this layer efficient for both forward and backward propagation
 since only the `n` context words need to be queried, concatenated and updated.
 The code for this looks like :
 ```lua
-inputModel = dp.Dictionary{
-   dict_size = datasource:vocabularySize(),
-   output_size = opt.inputEmbeddingSize,
-   acc_update = opt.accUpdate
-}
+-- input layer
+-- lookuptable that contains the word embeddings that will be learned
+nnlm:extend(
+   nn.Dictionary(ds:vocabularySize(), opt.inputEmbeddingSize, opt.accUpdate),
+   nn.Collapse(2)
+)
 ```
-The `acc_update` argument is available for most [Layer](model.md#dp.Layer)
-instances. Its faster and more memory efficient to set this to true as 
+
+The first and second argument are the aforementioned `N` and `m`. 
+The last argument, `accUpdate`, is explained in the [Neural Network Tutorial](neuralnetworktutorial.md). 
+Basically, it's faster and more memory efficient to set this to true as 
 in many cases the Tensor storing gradients with respect to parameters (weights, biases, etc.)
 can be omitted, thereby freeing up some of that much needed GPU memory.
-The `dict_size` and `output_size` are the aforementioned `N` and `m`. 
 
 ### Hidden Layers ###
 
@@ -143,40 +146,30 @@ function. NNLMs are often shallow networks having no more than 1 or 2 parameteri
 [(Schwenk et al., 2005)](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.228.2482&rep=rep1&type=pdf#page=237), 
 [(Lee et al., 2011)](http://www.researchgate.net/publication/220733157_Structured_Output_Layer_neural_network_language_model/file/e0b4951cbf8e0d0c6b.pdf).
 
-As seen in the previous tutorials, the [Neural](model.md#dp.Neural) Model can be used to implement hidden layers.
-This model adapts a [Sequential](https://github.com/torch/nn/blob/master/doc/containers.md#nn.Sequential) 
-[Container](https://github.com/torch/nn/blob/master/doc/containers.md#nn.Container) 
-which itself encapsulates a [Linear](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Linear) 
-followed by a transfer Module, like [Tanh](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Tanh).
+As seen in the previous tutorials, combining a [Linear](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Linear) 
+with a transfer function like [Tanh](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.Tanh)
+can be used to implement hidden layers.
+These can be added to a [Sequential](https://github.com/torch/nn/blob/master/doc/containers.md#nn.Sequential) 
+[Container](https://github.com/torch/nn/blob/master/doc/containers.md#nn.Container).
 
-For our model we use two hidden layers. The first is instantiated as :
-
-```lua
-hiddenModel = dp.Neural{
-   input_size = opt.contextSize*opt.inputEmbeddingSize,
-   output_size = opt.neuralSize, 
-   transfer = nn.Tanh(),
-   dropout = opt.dropout and nn.Dropout() or nil,
-   acc_update = opt.accUpdate
-}
-```
-
-The training script also provides the option of substituting a 
-[TemporalConvolution](https://github.com/torch/nn/blob/master/doc/convolution.md#nn.TemporalConvolution)
-for this Neural layer instead. The resulting model would be similar to what was implemented in 
-[(Collobert et al., 2011)](http://arxiv.org/pdf/1103.0398). We recommend against it 
-as the TemporalConvolution is still very slow on GPU.
-
-And the second hidden layer is instantiated as :
+For our model we allow the number and size of hidden layers to be specified from the command-line
+via the `--hiddenSize` argument:
 
 ```lua
-dp.Neural{
-   input_size = inputSize, 
-   output_size = opt.outputEmbeddingSize, 
-   transfer = nn.Tanh(),
-   dropout = opt.dropout and nn.Dropout() or nil,
-   acc_update = opt.accUpdate
-}
+-- hidden layer(s)
+inputSize = opt.contextSize*opt.inputEmbeddingSize
+opt.hiddenSize[#opt.hiddenSize + 1] = opt.outputEmbeddingSize
+for i,hiddenSize in ipairs(opt.hiddenSize) do
+   if opt.dropout then
+      nnlm:add(nn.Dropout())
+   end
+   nnlm:add(nn.Linear(inputSize, hiddenSize))
+   if opt.batchNorm then
+      nnlm:add(nn.BatchNormalization(hiddenSize))
+   end
+   nnlm:add(nn.Tanh())
+   inputSize = hiddenSize
+end
 ```
 
 The `outputEmbeddingSize` is the size of the embedding space used to 
@@ -184,7 +177,7 @@ model words in the output layer.
 
 ### Output Layer ###
 
-The Neural Model can also be used to instantiate a NNLM output layer, where the
+We could also use a Linear + transfer module to instantiate a NNLM output layer, where the
 transfer Module is a [SoftMax](https://github.com/torch/nn/blob/master/doc/transfer.md#nn.SoftMax).
 A very popular choice for classification output layers, softmax is a normalizing non-linearity of the form : 
 
@@ -205,13 +198,8 @@ thus making it useful for generating multinomial probabilities `P(Y|X)`. The cod
 this particular implementation of the output layer is as follows:
 
 ```lua
-softmax = dp.Neural{
-   input_size = opt.outputEmbeddingSize,
-   output_size = table.length(datasource:classes()),
-   transfer = nn.LogSoftMax(),
-   dropout = opt.dropout and nn.Dropout() or nil,
-   acc_update = opt.accUpdate
-}
+nnlm:add(nn.Linear(inputSize, ds:vocabularySize()))
+nnlm:add(nn.LogSoftMax())
 ```
 
 The forward and backward propagations of this layer are extremely costly in 
@@ -219,16 +207,6 @@ terms of processing time for large vocabularies. This inefficiency is due
 to the normalization which requires calculating all `x[i]` for `1 < i < N`. 
 
 #### SoftmaxTree ####
-
-```lua
-softmax = dp.SoftmaxTree{
-   input_size = opt.outputEmbeddingSize, 
-   hierarchy = datasource:hierarchy(),
-   root_id = 880542,
-   dropout = opt.dropout and nn.Dropout() or nil,
-   acc_update = opt.accUpdate
-}
-```
 
 Various solutions have been proposed to circumvent the issue. 
 All of these are variants of the original class decomposition idea 
@@ -240,13 +218,34 @@ All of these are variants of the original class decomposition idea
  4. hierarchical log-bilinear model : [(Mnih et al., 2009)](http://papers.nips.cc/paper/3583-a-scalable-hierarchical-distributed-language-model) ;
  5. structured output layer : [(Le et al., 2011)](http://www.researchgate.net/profile/Le_Hai_Son/publication/220733157_Structured_Output_Layer_neural_network_language_model/links/00b4951cbf8e0d0c6b000000.pdf) ; and
  6. noise-constrastive estimation : [(Mnih et al., 2012)](http://arxiv.org/pdf/1206.6426).
+ 
+ 
+```lua
+-- input to nnlm is {inputs, targets} for nn.SoftMaxTree
+local para = nn.ParallelTable()
+para:add(nnlm):add(opt.cuda and nn.Convert() or nn.Identity()) 
+nnlm = nn.Sequential()
+nnlm:add(para)
+local tree, root = ds:frequencyTree()
+nnlm:add(nn.SoftMaxTree(inputSize, tree, root, opt.accUpdate))
+```
 
-Our approach, which is implemented in the [SoftmaxTree](model.md#dp.SoftmaxTree) Model, 
+Our approach, which is implemented in the [SoftMaxTree](https://github.com/clementfarabet/lua---nnx#nnx.SoftMaxTree) Module, 
 is very similar to the 3rd, 4th and 5th approaches in that we 
 use a hierarchical representation of words to accelerate the process. 
 It also has in common with the 5th approach the use of a non-binary tree. 
 However, unlike any of these solutions, we make no use of embeddings, and thus do not
-require training an LBL model or a NNLM to obtain these. We instead use a clustering method that uses the 
+require training an LBL model or a NNLM to obtain these. By default, we 
+create a hiearchy by dividing words into bins of similar word frequency.
+While being extremely easy to prepare, this hierarchy makes sense 
+as each bin can learn the prior probability from the mean frequency of 
+words in the bin.
+
+#### SoftMaxForest ####
+
+For the very experimental [SoftMaxForest](https://github.com/nicholas-leonard/dpnn/blob/master/SoftMaxForest.lua), 
+which is just a mixture of SoftMaxTree experts, we use a different set of hierarchies. 
+These were obtained using a clustering method that uses the 
 relations between words. We chose this kind of approach over embedding-based 
 clustering as we already had [code for it](https://github.com/nicholas-leonard/equanimity/blob/master/nlp/cluster.py).
 
@@ -265,23 +264,19 @@ word tree is clustered in such a way as to minimize overlap with the first,
 the third minimizes overlap with both of these. By default, the SoftmaxTree instance
 makes use of the the first hierarchy.
 
-Multiple hierarchies can be combined using the [SoftmaxForest](model.md#dp.SoftmaxForest)),
+Multiple hierarchies can be combined using the [SoftmaxForest](https://github.com/nicholas-leonard/dpnn/blob/master/SoftMaxForest.lua),
 although this approach requires more memory:
 
 ```lua
-softmax = dp.SoftmaxForest{
-   input_size = opt.outputEmbeddingSize, 
-   hierarchy = {  
-      datasource:hierarchy('word_tree1.th7'), 
-      datasource:hierarchy('word_tree2.th7'),
-      datasource:hierarchy('word_tree3.th7')
-   },
-   gater_size = table.fromString(opt.forestGaterSize),
-   gater_act = nn.Tanh(),
-   root_id = {880542,880542,880542},
-   dropout = opt.dropout and nn.Dropout() or nil,
-   acc_update = opt.accUpdate
-}
+-- input to nnlm is {inputs, targets} for nn.SoftMaxTree
+local para = nn.ParallelTable()
+para:add(nnlm):add(opt.cuda and nn.Convert() or nn.Identity()) 
+nnlm = nn.Sequential()
+nnlm:add(para)
+local trees = {ds:hierarchy('word_tree1.th7'), ds:hierarchy('word_tree2.th7'), ds:hierarchy('word_tree3.th7')}
+local rootIds = {880542,880542,880542}
+nnlm:add(nn.SoftMaxForest(inputSize, trees, rootIds, opt.forestGaterSize, nn.Tanh(), opt.accUpdate))
+opt.softmaxtree = true
 ```
 
 ### Criterion ###
@@ -305,26 +300,28 @@ Note: the above is true as long as the NLL and PPL use the same logarithm basis 
 
 ```lua
 train = dp.Optimizer{
-   loss = opt.softmaxtree and dp.TreeNLL() or dp.NLL(),
-   visitor = {
-      dp.Learn{
-         learning_rate = opt.learningRate, 
-         observer = dp.LearningRateSchedule{
-            schedule = {[opt.decayPoint]=opt.learningRate*opt.decayFactor}
-         }
-      },
-      dp.MaxNorm{max_out_norm=opt.maxOutNorm, period=opt.maxNormPeriod}
-   },
+   loss = opt.softmaxtree and nn.TreeNLLCriterion() or nn.ModuleCriterion(nn.ClassNLLCriterion(), nil, nn.Convert()),
+   callback = function(model, report) 
+      opt.learningRate = opt.schedule[report.epoch] or opt.learningRate
+      if opt.accUpdate then
+         model:accUpdateGradParameters(model.dpnn_input, model.output, opt.learningRate)
+      else
+         model:updateGradParameters(opt.momentum) -- affects gradParams
+         model:updateParameters(opt.learningRate) -- affects params
+      end
+      model:maxParamNorm(opt.maxOutNorm) -- affects params
+      model:zeroGradParameters() -- affects gradParams 
+   end,
    feedback = dp.Perplexity(),  
-   sampler = dp.Sampler{ --shuffle sample takes too much mem
+   sampler = dp.RandomSampler{
       epoch_size = opt.trainEpochSize, batch_size = opt.batchSize
    },
+   acc_update = opt.accUpdate,
    progress = opt.progress
 }
 ```
 
 If the output layer uses a SoftmaxTree, we use the TreeNLL, 
-which is essentially NLL without the targets (SoftmaxTree uses the targets).
-In order to save on memory, we don't use Momentum or WeightDecay Visitors. 
+which is essentially ClassNLLCriterion without the targets (SoftMaxTree uses the targets).
 We use the Perplexity Feedback to measure perplexity. The evaluations of the 
 validation and test sets also make use of this Feedback.

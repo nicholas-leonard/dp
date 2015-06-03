@@ -8,26 +8,10 @@
 local SentenceSampler, parent = torch.class("dp.SentenceSampler", "dp.Sampler")
 
 function SentenceSampler:__init(config)
-   config = config or {}
-   assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, evaluate = xlua.unpack(
-      {config},
-      'SentenceSampler', 
-      'Iterates over parallel sentences of equal size one word at a time. '..
-      'The sentences sizes are iterated through randomly. '..
-      'Used for Recurrent Neural Network Language Models. '..
-      'Publishes to "beginSequence" Mediator channel before each '..
-      'new Sequence, which prompts the Recurrent* Models '..
-      'to forget the previous sequence of inputs. '..
-      'Note that epoch_size only garantees the minimum number of '..
-      'samples per epoch. More could be sampled.',
-      {arg='evaluate', type='boolean', req=true,
-       help='In training mode (evaluate=false), the object publishes '..
-       'to "doneSequence" channel to advise RecurrentVisitorChain to '..
-       'visit the model after the sequence is propagated'}
-   )
-   self._evaluate = evaluate
    parent.__init(self, config)
+   -- the billion words validation set has a sentence of 820 words???
+   -- but the test set is alright
+   self._max_size = config.max_size or 999999999999
 end
 
 function SentenceSampler:sampleEpoch(dataset)
@@ -51,7 +35,7 @@ function SentenceSampler:sampleEpoch(dataset)
          batch = self._ppf(batch)
          return batch, batchIter, epochSize
       elseif not code then
-         print(batch, dataset:whichSet())
+         print(batch, "on dataset :", dataset:whichSet())
          error("corountine error")
       end
    end
@@ -59,11 +43,25 @@ end
 
 function SentenceSampler:_sampleEpoch(dataset)
    dataset = dp.Sampler.toDataset(dataset)
-   local nSample = dataset:nSample()
    
    local sentenceStartId = dataset:startId()
    local sentenceTable_, corpus = dataset:groupBySize()
    local text = corpus:select(2,2) -- second column is the text
+   
+   -- remove sentences of size > self._max_size
+   sentenceTable_ = _.map(sentenceTable_, 
+      function(k,v) 
+         if k <= self._max_size then
+            return v
+         else
+            return nil 
+         end
+      end)
+   
+   local nSample = 0
+   for size, s in pairs(sentenceTable_) do
+      nSample = nSample + s.count
+   end
       
    local epochSize = self._epoch_size or nSample
    local nSampled = 0
@@ -71,9 +69,8 @@ function SentenceSampler:_sampleEpoch(dataset)
    local function newBatch()
       return batch or dp.Batch{
          which_set=dataset:whichSet(), epoch_size=epochSize,
-         inputs=dp.ClassView('b', torch.IntTensor{1}), 
-         targets=dp.ClassView('b', torch.IntTensor{1})
-         -- carry?
+         inputs=dp.ClassView('bt', torch.IntTensor{{1}}), 
+         targets=dp.ClassView('bt', torch.IntTensor{{1}})
       } 
    end
    
@@ -89,10 +86,10 @@ function SentenceSampler:_sampleEpoch(dataset)
       while nSizes > 0 do
          
          for i,sentenceSize in pairs(sentenceSizes) do
-            
             local s = sentenceTable[sentenceSize]
             local start = s.sampleIdx
             local stop = math.min(start + self._batch_size - 1, s.indices:size(1))
+            
             -- batch of word indices, each at same position in different sentence
             local textIndices = s.indices:narrow(1, start, stop - start + 1)
             self._text_indices = self._text_indices or torch.LongTensor()
@@ -100,57 +97,45 @@ function SentenceSampler:_sampleEpoch(dataset)
             self._text_indices:copy(textIndices)
             textIndices = self._text_indices
             
-            if self._mediator then
-               -- tells recurrent models to forget the past sequence
-               self._mediator:publish("beginSequence")
-            end
+            batch = batch or newBatch()
+            local input_v = batch:inputs()
+            assert(torch.isTypeOf(input_v, 'dp.ClassView'))
+            local inputs = input_v:input() or torch.IntTensor()
+            inputs:resize(textIndices:size(1), sentenceSize+1)
+            local target_v = batch:targets()
+            assert(torch.isTypeOf(target_v, 'dp.ClassView'))
+            local targets = target_v:input() or torch.IntTensor()
+            targets:set(inputs:narrow(2,2,inputs:size(2)-1))
+            -- metadata
+            batch:setup{
+               batch_iter=(nSampled + textIndices:size(1) - 1), 
+               batch_size=self._batch_size,
+               n_sample=textIndices:size(1)
+            }
             
             for wordOffset=1,sentenceSize do
-               
-               batch = batch or newBatch()
-               local input_v = batch:inputs()
-               assert(input_v.isClassView)
-               local inputs = input_v:input() or torch.IntTensor()
-               local target_v = batch:targets()
-               assert(target_v.isClassView)
-               local targets = target_v:input() or torch.IntTensor()
-               
                if wordOffset == 1 then
-                  inputs:resize(textIndices:size(1))
-                  inputs:fill(sentenceStartId)
-               else
-                  inputs:copy(self._prev_targets)
+                  inputs:select(2,1):fill(sentenceStartId)
                end
                
-               targets:index(text, 1, textIndices)
-               self._prev_targets = self._prev_targets or targets.new()
-               self._prev_targets:resize(targets:size()):copy(targets)
-               
-               -- metadata
-               batch:setup{
-                  batch_iter=(nSampled + textIndices:size(1) - 1), 
-                  batch_size=self._batch_size,
-                  n_sample=textIndices:size(1)
-               }
-               
-               -- re-encapsulate in dp.Views
-               input_v:forward('b', inputs)
-               input_v:setClasses(dataset:vocabulary())
-               target_v:forward('b', targets)
-               target_v:setClasses(dataset:vocabulary())
-               
-               nSampled = nSampled + textIndices:size(1)
-               
-               if self._mediator and (not self._evaluate) and wordOffset == sentenceSize then
-                  -- tells the RecurrentVisitorChain to update the model when next called
-                  self._mediator:publish("doneSequence")
-               end
-               
-               coroutine.yield(batch, math.min(nSampled, epochSize), epochSize)
+               local target = inputs:select(2,wordOffset+1)
+               target:index(text, 1, textIndices)         
                
                -- move to next word in each sentence
                textIndices:add(1)
             end
+            
+            inputs = inputs:narrow(2, 1, sentenceSize)
+            
+            -- re-encapsulate in dp.Views
+            input_v:forward('bt', inputs)
+            input_v:setClasses(dataset:vocabulary())
+            target_v:forward('bt', targets)
+            target_v:setClasses(dataset:vocabulary())
+            
+            nSampled = nSampled + textIndices:size(1)
+            
+            coroutine.yield(batch, math.min(nSampled, epochSize), epochSize)
             
             if nSampled >= epochSize then
                batch = coroutine.yield(false)
@@ -162,12 +147,27 @@ function SentenceSampler:_sampleEpoch(dataset)
                sentenceSizes[i] = nil
                nSizes = nSizes - 1
             end
-            
          end
          
-         collectgarbage()
+         self:collectgarbage()
           
       end
    end
 end
 
+function SentenceSampler:write(file)
+   local state = _.map(self, 
+      function(k,v) 
+         if k ~= '_co' then 
+            return v 
+         end
+      end)
+   file:writeObject(state)
+end
+
+function SentenceSampler:read(file)
+   local state = file:readObject()
+   for k,v in pairs(state) do
+      self[k] = v
+   end
+end

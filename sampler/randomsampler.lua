@@ -19,10 +19,9 @@ function RandomSampler:sampleEpoch(dataset)
       if nSampled >= epochSize then
          return
       end
-      batch = batch or dataset:batch(self._batch_size)
+      batch = batch or dataset:sample(self._batch_size)
       -- inputs and targets
       dataset:sample(batch, self._batch_size)
-      local indices = batch:indices() or torch.Tensor()
       -- metadata
       batch:setup{
          batch_iter=nSampled, batch_size=self._batch_size,
@@ -34,8 +33,7 @@ function RandomSampler:sampleEpoch(dataset)
       if self._start >= nSample then
          self._start = 1
       end
-      --http://bitsquid.blogspot.ca/2011/08/fixing-memory-issues-in-lua.html
-      collectgarbage() 
+      self:collectgarbage() 
       return batch, math.min(nSampled, epochSize), epochSize
    end
 end
@@ -77,7 +75,7 @@ function RandomSampler:sampleEpochAsync(dataset)
       if not putOnly then
          batch = dataset:asyncGet()
          nSampledGet = nSampledGet + self._batch_size
-         collectgarbage() 
+         self:collectgarbage() 
          return batch, math.min(nSampledGet, epochSize), epochSize
       end
    end
@@ -86,7 +84,7 @@ function RandomSampler:sampleEpochAsync(dataset)
    -- empty the async queue
    dataset:synchronize()
    -- fill task queue with some batch requests
-   for tidx=1,dataset.queueSize do
+   for tidx=1,dataset.nThread do
       sampleBatch(nil, true)
    end
    

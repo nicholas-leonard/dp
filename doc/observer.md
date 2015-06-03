@@ -4,8 +4,7 @@ The following Observers are available:
   * [Observer](#dp.Observer) : abstract class;
     * [ErrorMinima](#dp.ErrorMinima) : monitors an error variable to keep track of its minima.
       * [EarlyStopper](#dp.EarlyStopper) : upon reaching minima, saves [Experiment](experiment.md#dp.Experiment) and notifies [Subscribers](mediator.md#dp.Subscriber);
-   * [LearningRateSchedule](#dp.LearningRateSchedule) : modifies learning rate using a schedule;
-   * [AdaptiveLearningRate](#dp.AdaptiveLearningRate) : decays learning rate when new minima on validation error isn't found;
+   * [AdaptiveDecay](#dp.AdaptiveDecay) : decays learning rate when new minima on validation error isn't found;
    * [Logger](#dp.Logger) : abstract logging class (prints reports to cmdline);
      * [FileLogger](#dp.FileLogger) : basic file-based report logging;
    * [CompositeObserver](#dp.CompositeObserver) : a composite of observers;
@@ -47,9 +46,9 @@ located at a leaf of the report tree specified by a sequence of keys (branches) 
 In this case, the object subscribes to `doneEpoch` channel in order to receive the reports
 at the end of each epoch.
 
-<a name='dp.ErrorMinima.__init'/>
-[]()
+<a name='dp.ErrorMinima.__init'></a>
 ### dp.ErrorMinima{...} ###
+
 Constructs an ErrorMinima Observer. Arguments should be specified as key-value pairs. 
 Other then the following arguments, those specified in [Observer](#dp.Observer.__init) also apply.
  
@@ -59,8 +58,7 @@ Other then the following arguments, those specified in [Observer](#dp.Observer._
   * `maximize` is a boolean having a default value of false. When true, the error channel or report is negated. This is useful when the channel returns a measure like accuracy that should be maximized, instead of an error that should be minimized.
   * `notify` is a boolean. When true (the default), notifies listeners ([Subscribers](mediator.md#dp.Subscriber)) when a new minima is found.
  
-<a name="dp.EarlyStopper"/>
-[]()
+<a name="dp.EarlyStopper"></a>
 ## EarlyStopper ##
 An [ErrorMinima](#dp.ErrorMinima) instance that saves the version of 
 the `subject` with the lowest error and terminates 
@@ -70,7 +68,7 @@ Error can be obtained from experiment report or mediator Channel.
 If obtained from experiment report via error_report, subscribes to doneEpoch channel.
 
 ### dp.EarlyStopper{...} ###
-[]()
+
 Constructs an EarlyStopper Observer. Arguments should be specified as key-value pairs.
 Other then the following arguments, those specified in [ErrorMinima](#dp.ErrorMinima.__init) also apply.
  
@@ -79,24 +77,10 @@ Other then the following arguments, those specified in [ErrorMinima](#dp.ErrorMi
   * `max_error` is the maximum value for which the experiment should be stopped after `min_epoch` epochs. If `maximize=true` this is minimum value. A value of 0 (the default) means that it is ignored.
   * `min_epoch` is a number having a default value of 1000000. See `max_value` for a description.
 
-<a name="dp.LearningRateSchedule"/>
-[]()
-## LearningRateSchedule ##
-An Observer that only works on [Learn](visitor.md#dp.Learn) subject. 
-It decays its subject's learning rate according to a schedule.
+<a name="dp.AdaptiveDecay"></a>
+## AdaptiveDecay ##
 
-<a name="dp.LearningRateSchedule.__init"/>
-[]()
-### dp.LearningRateSchedule{schedule} ###
-Constructs an LearningRateSchedule Observer. The argument should be specified as key-value pairs.
- 
-  * `schedule` is a table or a Tensor where epochs are keys, and learning rates are values. At each epoch having a key in the table, the subject's learning rate is set to its corresponding value. 
-
-<a name="dp.AdaptiveLearningRate"/>
-[]()
-## AdaptiveLearningRate ##
-An Observer that only works on a [Learn](visitor.md#dp.Learn) subject.
-It decays learning rate by `decay_factor` when validation error doesn't reach a new 
+An Observer that decays learning rate by `decay_factor` when validation error doesn't reach a new 
 minima for `max_wait` epochs. This object should observe in conjuction with an 
 [ErrorMinima](#dp.ErrorMinima) instance, such as [EarlyStopper](#dp.EarlyStopper).
 
@@ -111,10 +95,10 @@ then the corresponding sequence of learning rates given these errors would be
 10, 10, 10, 10, 1, 1, 0.1, 0.1, 0.1, 0.01
 ```
  
-<a name="dp.AdaptiveLearningRate.__init"/>
-[]()
-### dp.AdaptiveLearningRate{...} ###
-Constructs an AdaptiveLearningRate Observer. Arguments should be specified as key-value pairs.
+<a name="dp.AdaptiveDecay.__init"></a>
+### dp.AdaptiveDecay{...} ###
+
+Constructs an AdaptiveDecay Observer. Arguments should be specified as key-value pairs.
 Other then the following arguments, those specified in [Observer](#dp.Observer.__init) also apply.
  
   * `max_wait` specifies the maximum number of epochs to wait for a new minima to be found. After that, the learning rate is decayed by `decay_factor`. Defaults to 2.

@@ -12,3 +12,4 @@ It emphasizes flexibility through the elegant use of object-oriented
 This package includes lots of documentations and tutorials which you 
 will find hosted on [readthedocs](http://dp.readthedocs.org/en/latest/).
 If you prefer, you can consult the docs using [github](https://github.com/nicholas-leonard/dp/blob/master/doc/index.md).
+

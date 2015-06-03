@@ -272,11 +272,13 @@ When set to true, the gradients w.r.t. parameters (a.k.a. `gradParameters`)
 are accumulated directly into the parameters (a.k.a. `parameters`) to produce
 an update after the `forward` and `backward` pass. 
 In other words, for `acc_update=true`, the sequence for propagating a batch is essentially:
+
  1. `updateOutput`
  2. `updateGradInput`
  3. `accUpdateGradParameters`
  
 Instead of the more common: 
+
  1. `updateOutput`
  2. `updateGradInput`
  3. `accGradParameters`

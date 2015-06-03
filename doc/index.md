@@ -77,7 +77,7 @@ $> sudo luarocks install cunnx
 We appreciate [issues](https://github.com/nicholas-leonard/dp/issues) and [pull requests](https://github.com/nicholas-leonard/dp/pulls?q=is%3Apr+is%3Aclosed) of all kind.
 
 
-## Notice : June 2nd, 2015 ## 
+## Notice : June 2nd, 2015
 
 A major [pull request](https://github.com/nicholas-leonard/dp/pull/127) was recently merged which breaks backward compatibility. 
 Basically, all the dp.Model, dp.Loss and dp.Visitor were removed to reduce the complexity of the library.

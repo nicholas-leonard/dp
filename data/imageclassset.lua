@@ -532,15 +532,15 @@ function ImageClassSet:sampleTest(dst, path)
    image.crop(dst[1], im, w1, h1) 
    image.hflip(dst[2], dst[1])
    -- top-left
-   h1 = 1; w1 = 1;
+   h1 = 0; w1 = 0;
    image.crop(dst[3], im, w1, h1) 
    dst[4] = image.hflip(dst[3])
    -- top-right
-   h1 = 1; w1 = iW-oW;
+   h1 = 0; w1 = iW-oW;
    image.crop(dst[5], im, w1, h1) 
    image.hflip(dst[6], dst[5])
    -- bottom-left
-   h1 = iH-oH; w1 = 1;
+   h1 = iH-oH; w1 = 0;
    image.crop(dst[7], im, w1, h1) 
    image.hflip(dst[8], dst[7])
    -- bottom-right

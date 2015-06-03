@@ -463,12 +463,6 @@ the recurrent Modules (like [Recurrent](https://github.com/Element-Research/rnn#
 and [LSTM](https://github.com/Element-Research/rnn#rnn.LSTM)) to forget the previous sequence of inputs.
 Note that `epoch_size` only garantees the minimum number of samples per epoch (more could be sampled).
 Used for [Recurrent Neural Network Language Models](https://github.com/nicholas-leonard/dp/blob/master/examples/recurrentlanguagemodel.lua).
- 
-<a name='dp.SentenceSampler.__init'></a>
-### dp.SentenceSampler{evaluate} ###
-In training mode (`evaluate=false`), the object publishes to the 
-`"doneSequence"` Channel to advise the [RecurrentVisitorChain](visitor.md#dp.RecurrentVisitorChain) 
-to visit the model after the current batch (the last of the sequence) is propagated.
 
 <a name='dp.RandomSampler'></a>
 ## RandomSampler ##

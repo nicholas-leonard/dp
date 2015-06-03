@@ -360,7 +360,7 @@ We don't initialize the Experiment with the DataSource so that we may easily
 save it to disk, thereby keeping this snapshot separate from its data 
 (which shouldn't be modified by the experiment).
 
-Let's run the [script](https://github.com/nicholas-leonard/dp/blob/master/examples/neuralnetwork_tutorial.lua) 
+Let's run the [script](https://github.com/nicholas-leonard/dp/blob/master/examples/neuralnetwork.lua) 
 from the cmd-line (with default arguments):
 
 ```bash

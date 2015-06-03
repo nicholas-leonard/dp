@@ -23,7 +23,7 @@ Among other things, this package includes :
 <a name="dp.tutorials"/>
 []()
 ## Tutorials and Examples ##
-In order to help you get up and running we provide a quick [neural network tutorial](neuralnetworktutorial.md) which explains step-by-step the contents of this [example script](https://github.com/nicholas-leonard/dp/blob/master/examples/neuralnetwork_tutorial.lua). For a more flexible option that allows input from the command-line specifying different datasources and preprocesses, using dropout, running the code on a GPU/CPU, please consult this [script](https://github.com/nicholas-leonard/dp/blob/master/examples/neuralnetwork.lua).
+In order to help you get up and running we provide a quick [neural network tutorial](neuralnetworktutorial.md) which explains step-by-step the contents of this [example script](https://github.com/nicholas-leonard/dp/blob/master/examples/neuralnetwork.lua). For a more flexible option that allows input from the command-line specifying different datasources and preprocesses, using dropout, running the code on a GPU/CPU, please consult this [script](https://github.com/nicholas-leonard/dp/blob/master/examples/neuralnetwork.lua).
 
 A [Facial Keypoints tutorial](facialkeypointstutorial.md) involving the case study of a Kaggle Challenge is also available. It provides an overview of the steps required for extending and using  __dp__ in the context of the challenge. And even provides the script so that you can generate your own Kaggle submissions.
 
@@ -75,3 +75,13 @@ $> sudo luarocks install cunnx
 ## Contributions ##
 
 We appreciate [issues](https://github.com/nicholas-leonard/dp/issues) and [pull requests](https://github.com/nicholas-leonard/dp/pulls?q=is%3Apr+is%3Aclosed) of all kind.
+
+## Notice ## 
+
+A major [pull request](https://github.com/nicholas-leonard/dp/pull/127) was recently merged which breaks backward compatibility. 
+Basically, all the dp.Model, dp.Loss and dp.Visitor were removed to reduce the complexity of the library.
+You can now use nn.Modules and nn.Criterions directly. 
+As for the dp.Visitors, these were refactored as [Module methods](https://github.com/nicholas-leonard/dpnn/blob/master/Module.lua)
+made available via the [dpnn](https://github.com/nicholas-leonard/dpnn/blob/master/README.md) library.
+Using the [Serial](https://github.com/nicholas-leonard/dpnn#nn.Serial) decorator, saved experiments 
+now require significantly less disk space.

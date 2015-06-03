@@ -395,6 +395,7 @@ function dptest.SentenceSampler()
    local batchSampler = sampler:sampleEpoch(dataset)
    local sampled = {}
    local nSampled = 0
+   local nSampled2 = 0
    local batch
    while true do
       batch = batchSampler(batch)
@@ -418,15 +419,17 @@ function dptest.SentenceSampler()
          end
       end
       nSampled = nSampled + inputs:size(1)
+      nSampled2 = nSampled2 + inputs:nElement()
    end 
-   mytester:assert(nSampled < epochSize + maxSize * batchSize, "iterator not stoping")
+   mytester:assert(nSampled <= epochSize + 3, "iterator not stoping "..nSampled.." ~= "..epochSize.." + 3")
    
    local epochSize = nSentence
    local dataset = dp.SentenceSet{data=data,which_set='train',start_id=start_id,end_id=end_id}
-   local sampler = dp.SentenceSampler{batch_size=batchSize,epoch_size=-1,evaluate=false}
+   local sampler = dp.SentenceSampler{batch_size=batchSize,epoch_size=-1}
    local batchSampler = sampler:sampleEpoch(dataset)
    local sampled = {}
    local nSampled = 0
+   local nSampled2 = 0
    local sampledTwice = 0
    while nSampled < epochSize do
       batch = batchSampler(batch)
@@ -448,6 +451,7 @@ function dptest.SentenceSampler()
          end
       end
       nSampled = nSampled + inputs:size(1)
+      nSampled2 = nSampled2 + inputs:nElement()
    end
    
    mytester:assert(sampledTwice == 0, sampledTwice..' words sampled twice ')

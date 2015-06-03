@@ -49,7 +49,14 @@ function SentenceSampler:_sampleEpoch(dataset)
    local text = corpus:select(2,2) -- second column is the text
    
    -- remove sentences of size > self._max_size
-   sentenceTable_ = _.select(sentenceTable_, function(k,v) return k <= self._max_size end)
+   sentenceTable_ = _.map(sentenceTable_, 
+      function(k,v) 
+         if k <= self._max_size then
+            return v
+         else
+            return nil 
+         end
+      end)
    
    local nSample = 0
    for size, s in pairs(sentenceTable_) do
@@ -82,6 +89,7 @@ function SentenceSampler:_sampleEpoch(dataset)
             local s = sentenceTable[sentenceSize]
             local start = s.sampleIdx
             local stop = math.min(start + self._batch_size - 1, s.indices:size(1))
+            
             -- batch of word indices, each at same position in different sentence
             local textIndices = s.indices:narrow(1, start, stop - start + 1)
             self._text_indices = self._text_indices or torch.LongTensor()

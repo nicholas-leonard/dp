@@ -28,17 +28,13 @@ end
 
 function Feedback:setup(config)
    assert(type(config) == 'table', "Setup requires key-value arguments")
-   local args, mediator, propagator, dataset = xlua.unpack(
+   local args, mediator, propagator = xlua.unpack(
       {config},
       'Feedback:setup', 
       'setup the Feedback for mediation and such',
       {arg='mediator', type='dp.Mediator', 
        help='used for inter-object communication. defaults to dp.Mediator()'},
-      {arg='propagator', type='dp.Propagator'},
-      {arg='dataset', type='dp.DataSet', 
-       help='This might be useful to determine the type of targets. ' ..
-       'Feedback should not hold a reference to the dataset due to ' ..
-       "the feedback's possible serialization."}
+      {arg='propagator', type='dp.Propagator'}
    )
    self._mediator = mediator
    self._propagator = propagator
@@ -46,7 +42,6 @@ function Feedback:setup(config)
       self._id = propagator:id():create(self._name)
    end
    self._name = nil
-   return dataset
 end
 
 function Feedback:id()
@@ -62,13 +57,13 @@ function Feedback:savePath()
 end
 
 --accumulates information from the batch
-function Feedback:add(batch, output, carry, report)
-   assert(batch.isBatch, "First argument should be Batch")
+function Feedback:add(batch, output, report)
+   assert(torch.isTypeOf(batch, 'dp.Batch'), "First argument should be dp.Batch")
    self._n_sample = self._n_sample + batch:nSample()
-   self:_add(batch, output, carry, report)
+   self:_add(batch, output, report)
 end
 
-function Feedback:_add(batch, output, carry, report)
+function Feedback:_add(batch, output, report)
 end
 
 function Feedback:report()

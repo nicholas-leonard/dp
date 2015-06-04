@@ -27,10 +27,10 @@ function CompositeFeedback:setup(config)
    end
 end
 
-function CompositeFeedback:_add(batch, output, carry, report)
+function CompositeFeedback:_add(batch, output, report)
    _.map(self._feedbacks, 
       function(key, fb) 
-         fb:add(batch, output, carry, report)
+         fb:add(batch, output, report)
       end
    )
 end

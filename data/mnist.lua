@@ -126,7 +126,9 @@ function Mnist:createDataSet(inputs, targets, which_set)
    target_v:forward('b', targets)
    target_v:setClasses(self._classes)
    -- construct dataset
-   return dp.DataSet{inputs=input_v,targets=target_v,which_set=which_set}
+   local ds = dp.DataSet{inputs=input_v,targets=target_v,which_set=which_set}
+   ds:ioShapes('bhwc', 'b')
+   return ds
 end
 
 function Mnist:loadData(file_name, download_url)

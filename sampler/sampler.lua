@@ -9,7 +9,7 @@ Sampler.isSampler = true
 function Sampler:__init(config)
    config = config or {}
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, batch_size, epoch_size, ppf = xlua.unpack(
+   local args, batch_size, epoch_size, ppf, gc_freq = xlua.unpack(
       {config},
       'Sampler', 
       'Samples batches from a set of examples in a dataset. '..
@@ -20,11 +20,15 @@ function Sampler:__init(config)
        help='Number of examples presented per epoch. '..
        'Default is to use then entire dataset per epoch'},
       {arg='ppf', type='function', 
-       help='a function that preprocesses a Batch into another Batch'} 
+       help='a function that preprocesses a Batch into another Batch'},
+      {arg='gc_freq', type='number', default=50,
+       help='collectgarbage() every gc_freq batches'}
    )
    self._ppf = ppf or function(batch) return batch end
+   self._gc_freq = gc_freq
    self:setBatchSize(batch_size)
    self._epoch_size = epoch_size
+   self._gc_n_batch = 0
    if epoch_size > 0 then
       if batch_size > epoch_size then
          error("positive epoch_size should be greater than batch_size", 2)
@@ -84,6 +88,15 @@ function Sampler.toDataset(dataset)
    return dataset
 end
 
+function Sampler:collectgarbage()
+   self._gc_n_batch = self._gc_n_batch + 1
+   if self._gc_n_batch >= self._gc_freq then
+      --http://bitsquid.blogspot.ca/2011/08/fixing-memory-issues-in-lua.html
+      collectgarbage()
+      self._gc_n_batch = 0
+   end
+end
+
 -- Returns an iterator over samples for one epoch
 -- Default is to iterate sequentially over all examples
 function Sampler:sampleEpoch(dataset)
@@ -98,8 +111,8 @@ function Sampler:sampleEpoch(dataset)
       if nSampled >= epochSize then
          return
       end
-      batch = batch or dataset:batch(self._batch_size)
       stop = math.min(self._start+self._batch_size-1,nSample)
+      batch = batch or dataset:batch(stop-self._start+1)
       -- inputs and targets
       dataset:sub(batch, self._start, stop)
       local indices = batch:indices() or torch.Tensor()
@@ -115,8 +128,7 @@ function Sampler:sampleEpoch(dataset)
       if self._start >= nSample then
          self._start = 1
       end
-      --http://bitsquid.blogspot.ca/2011/08/fixing-memory-issues-in-lua.html
-      collectgarbage() 
+      self:collectgarbage()
       return batch, math.min(nSampled, epochSize), epochSize
    end
 end
@@ -160,7 +172,7 @@ function Sampler:sampleEpochAsync(dataset)
       if not putOnly then
          batch = dataset:asyncGet()
          nSampledGet = nSampledGet + self._batch_size
-         collectgarbage() 
+         self:collectgarbage() 
          return batch, math.min(nSampledGet, epochSize), epochSize
       end
    end
@@ -169,7 +181,7 @@ function Sampler:sampleEpochAsync(dataset)
    -- empty the async queue
    dataset:synchronize()
    -- fill task queue with some batch requests
-   for tidx=1,dataset.queueSize do
+   for tidx=1,dataset.nThread do
       sampleBatch(nil, true)
    end
    

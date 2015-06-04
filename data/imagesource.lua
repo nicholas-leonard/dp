@@ -1,35 +1,30 @@
 ------------------------------------------------------------------------
---[[ ImageNet ]]--
--- http://image-net.org/challenges/LSVRC/2014/download-images-5jj5.php
--- Wraps the Large Scale Visual Recognition Challenge 2014 (ILSVRC2014)
--- classification dataset (commonly known as ImageNet). The dataset
--- hasn't changed from 2012-2014.
--- Due to its size, the data first needs to be prepared offline :
--- 1. use scripts/downloadimagenet.lua to download and extract the data
--- 2. use scripts/harmonizeimagenet.lua to harmonize train/valid sets
+--[[ ImageSource ]]--
+-- A DataSource consisting of two sets (train and valid) of local training images
 ------------------------------------------------------------------------
-local ImageNet, DataSource = torch.class("dp.ImageNet", "dp.DataSource")
+local ImageSource, DataSource = torch.class("dp.ImageSource", "dp.DataSource")
 
-ImageNet._name = 'ImageNet'
-ImageNet._image_axes = 'bchw'
-ImageNet._classes = torch.range(1,1000):totable()
 
-function ImageNet:__init(config)
+ImageSource._name = 'ImageSource'
+ImageSource._image_axes = 'bchw'
+
+function ImageSource:__init(config) 
    config = config or {}
    assert(torch.type(config) == 'table' and not config[1], 
       "Constructor requires key-value arguments")
-   if config.input_preprocess or config.output_preprocess then
-      error("ImageNet doesnt support Preprocesses. "..
+   if config.input_preprocess or config.target_preprocess then
+      error("ImageSource doesnt support Preprocesses. "..
             "Use Sampler ppf arg instead (for online preprocessing)")
    end
    local load_all, input_preprocess, target_preprocess
    self._args, self._load_size, self._sample_size, 
       self._train_path, self._valid_path, self._meta_path, 
-      self._verbose, load_all, self._cache_mode
+      self._verbose, load_all
       = xlua.unpack(
       {config},
-      'ImageNet',
-      'ILSVRC2012-14 image classification dataset',
+      'ImageSource', 
+      'General image classification problem.' ..
+      'Provide a path to the training set.',
       {arg='load_size', type='table', 
        help='an approximate size to load the images to before cropping.'
        ..' Defaults to 3x256x256.'},
@@ -37,20 +32,15 @@ function ImageNet:__init(config)
        help='a consistent size for cropped patches from loaded images.'
        ..' Defaults to 3x224x244.'},
       {arg='train_path', type='string', help='path to training images',
-       default=paths.concat(dp.DATA_DIR, 'ILSVRC2012_img_train')},
+       default=paths.concat(dp.DATA_DIR, 'img_train')},
       {arg='valid_path', type='string', help='path to validation images',
-       default=paths.concat(dp.DATA_DIR, 'ILSVRC2012_img_val')},
+       default=paths.concat(dp.DATA_DIR, 'img_val')},
       {arg='meta_path', type='string', help='path to meta data',
        default=paths.concat(dp.DATA_DIR, 'metadata')},
       {arg='verbose', type='boolean', default=true,
        help='Verbose mode during initialization'},
       {arg='load_all', type='boolean', 
-       help='Load all datasets : train and valid', default=true},
-      {arg='cache_mode', type='string', default='writeonce',
-       help='writeonce : read from cache if exists, else write to cache. '..
-       'overwrite : write to cache, regardless if exists. '..
-       'nocache : dont read or write from cache. '..
-       'readonly : only read from cache, fail otherwise.'}
+       help='Load all datasets : train, valid, test.', default=true}
    )
    self._load_size = self._load_size or {3, 256, 256}
    self._sample_size = self._sample_size or {3, 224, 224}
@@ -65,48 +55,49 @@ function ImageNet:__init(config)
    end
 end
 
-function ImageNet:loadTrain()
+function ImageSource:loadTrain()
    local dataset = dp.ImageClassSet{
       data_path=self._train_path, load_size=self._load_size,
       which_set='train', sample_size=self._sample_size,
-      verbose=self._verbose, sample_func='sampleTrain',
-      sort_func=function(x,y)
-         return tonumber(x:match('[0-9]+')) < tonumber(y:match('[0-9]+'))
-      end, cache_mode=self._cache_mode
+      carry=dp.Carry(), verbose=self._verbose
    }
-   self:setTrainSet(dataset)
+   if self._classes == nil then
+      self._classes = dataset:classes()
+   end
+   self:setTrainSet(dataset)   
    return dataset
 end
 
-function ImageNet:loadValid()
+function ImageSource:loadValid()
    local dataset = dp.ImageClassSet{
       data_path=self._valid_path, load_size=self._load_size,
       which_set='valid', sample_size=self._sample_size,
-      verbose=self._verbose, sample_func='sampleTest',
+      carry=dp.Carry(), verbose=self._verbose, sample_func='sampleTest',
       sort_func=function(x,y)
          return tonumber(x:match('[0-9]+')) < tonumber(y:match('[0-9]+'))
-      end, cache_mode=self._cache_mode
+      end
    }
+   if self._classes == nil then
+      self._classes = dataset:classes()
+   end
    self:setValidSet(dataset)
    return dataset
 end
 
-function ImageNet:loadMeta()
+function ImageSource:loadMeta()
    local classInfoPath = paths.concat(self._meta_path, 'classInfo.th7')
    if paths.filep(classInfoPath) then
       self.classInfo = torch.load(classInfoPath)
    else
       if self._verbose then
-         print("ImageNet: skipping "..classInfoPath)
-         print("To avoid this message use harmonizeimagenet.lua "..
-               "script and pass correct meta_path")
+         print("ImageSource: skipping "..classInfoPath)
       end
    end
 end
 
 -- Returns normalize preprocessing function (PPF)
 -- Estimate the per-channel mean/std on training set and caches results
-function ImageNet:normalizePPF()
+function ImageSource:normalizePPF()
    local meanstdCache = paths.concat(self._meta_path, 'meanstd.th7')
    local mean, std
    if paths.filep(meanstdCache) then
@@ -154,7 +145,7 @@ function ImageNet:normalizePPF()
    
    local function ppf(batch)
       local inputView = batch:inputs()
-      assert(inputView:view() == 'bchw', 'ImageNet ppf only works with bchw')
+      assert(inputView:view() == 'bchw', 'ImageSource ppf only works with bchw')
       local input = inputView:input()
       for i=1,3 do -- channels
          input:select(2,i):add(-mean[i]):div(std[i]) 
@@ -174,7 +165,7 @@ function ImageNet:normalizePPF()
    return ppf
 end
 
-function ImageNet:multithread(nThread)
+function ImageSource:multithread(nThread)
    if self._train_set then
       self._train_set:multithread(nThread)
    end

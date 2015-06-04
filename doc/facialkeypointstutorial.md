@@ -1,15 +1,16 @@
 <a name="FacialKeypointsTutorial"/>
 []()
 # Facial Keypoints Tutorial #
+
 In this tutorial, we demonstrate how the __dp__ library can be used 
 to build convolution neural networks and easily extended using Feedback 
 objects and the Mediator. To make things more spicy, we consider 
 a case study involving its practical application to a 
 [Kaggle](https://www.kaggle.com) challenge provided by the University of Montreal: 
 [Facial Keypoints Detection](https://www.kaggle.com/c/facial-keypoints-detection).
-We will attempt to keep this tutorial as complete yet concise as possible.
 
 ## Planning and Analysis ##
+
 The first step is to determine how to approach the problem and outline the 
 necessary components that will be needed to get the model working. 
 It is in this step that one plans the final model(s) and components that
@@ -52,6 +53,7 @@ preparing Kaggle submissions when new minima on the valid set are found
 (where these minima will be evaluated using the above Feedback object).
 
 ## Building Components ##
+
 From the above analysis, we can begin to draw a roadmap of components to 
 build :
 
@@ -62,6 +64,7 @@ build :
   5. [facialkeypointsdetector.lua](#facialkeypointsdetector.lua) : main launch script; 
 
 ### FacialKeypoints ###
+
 The first task of any machine learning endeavor is to prepare the 
 dataset for use within the library. In this case, the 
 [data](https://www.kaggle.com/c/facial-keypoints-detection/data) was 
@@ -75,15 +78,15 @@ We loaded the two CSV files into Tensors using
 We shuffled the training set and saved both Tensors into `train.th7` 
 and `test.th7` files. 
 
-The dataset wrapper, [FacialKeypoints](), inherits DataSource:
+The dataset wrapper, [FacialKeypoints](https://github.com/nicholas-leonard/dp/blob/master/data/facialkeypoints.lua), inherits DataSource:
 ```lua
 local FacialKeypoints, DataSource = torch.class("dp.FacialKeypoints", "dp.DataSource")
 FacialKeypoints.isFacialKeypoints = true
 ```
 The wrapper has some static attributes like the name (which is also the 
 name of the directory where the data will be stored), size of the images 
-(for use in [Convolution2D](model.md#dp.convolution2d) Layers), 
-collapsed feature size (for use in [Neural](model.md#dp.Neural) Layers),
+(useful for initializing [SpatialConvolution](https://github.com/torch/nn/blob/master/doc/convolution.md#nn.SpatialConvolution) modules), 
+collapsed feature size (useful for initializing [Linear](https://github.com/torch/nn/blob/master/doc/simple.md#nn.Linear) modules),
 the image and target axes (or views) as used in [Views](view.md#dp.View).
 ```lua
 FacialKeypoints._name = 'FacialKeypoints'
@@ -290,6 +293,7 @@ FacialKeypoints Feedbacks, which are initialized with the output of
 this DataSource's `loadSubmission` and `loadBaseline` methods.
 
 ### FKDKaggle ###
+
 Feedbacks are a little tricky to get the hang of,
 but are very useful for extending an experiment with task-tailored 
 I/O functionality. 
@@ -377,7 +381,7 @@ will be passed through a softmax to obtain multinomial probabilities.
 This method also prepares a table of submissions in a format 
 that package `csvigo` understands. 
 ```lua
-function FKDKaggle:_add(batch, output, carry, report)
+function FKDKaggle:_add(batch, output, report)
    local target = batch:targets():forward('b')
    local act = output:forward('bwc', 'torch.FloatTensor')
    local pixels = self._pixels:expandAs(act)
@@ -434,6 +438,7 @@ end
 ```
 
 ### FacialKeypointFeedback ###
+
 Unlike the previous Feedback which is used for preparing submissions 
 base on the model predictions given the test set, this one is used for 
 the train and valid set. Its can take an optional baseline Tensor, 
@@ -490,7 +495,7 @@ coordinates are obtained from the `output`. The mean square error (MSE)
 of both the baseline and the predictions w.r.t. targets is accumulated
 using `self._sum` (or `self._baselineSum`) and `self._count`:
 ```lua
-function FacialKeypointFeedback:_add(batch, output, carry, report)
+function FacialKeypointFeedback:_add(batch, output, report)
    local target = batch:targets():forward('bwc')
    local act = output:forward('bwc', 'torch.FloatTensor')
    if not self._isSetup then
@@ -665,260 +670,13 @@ end
 ```
 
 ### facialkeypointsdetector.lua ###
+
 The final component is the [script](https://github.com/nicholas-leonard/dp/blob/master/examples/facialkeypointdetector.lua) 
 that provides different cmd-line options for specifying Model assembly 
-and Experiment hyper-parameters. 
+and Experiment hyper-parameters.
 
-As with most launch scripts, we begin by specifying a bunch of cmd-line 
-options that will allow us to try many different Experiment configurations 
-from the command-line:
-```lua
-require 'dp'
-
---[[command line arguments]]--
-cmd = torch.CmdLine()
-cmd:text()
-cmd:text('Facial Keypoint detector using Convolution Neural Network Training/Optimization')
-cmd:text('Example:')
-cmd:text('$> th facialkeypointdetector.lua --batchSize 128 --momentum 0.5')
-cmd:text('Options:')
-cmd:option('--learningRate', 0.1, 'learning rate at t=0')
-cmd:option('--maxOutNorm', 1, 'max norm each layers output neuron weights')
-cmd:option('--maxNormPeriod', 2, 'Applies MaxNorm Visitor every maxNormPeriod batches')
-cmd:option('--momentum', 0, 'momentum')
-cmd:option('--channelSize', '{64,128}', 'Number of output channels for each convolution layer.')
-cmd:option('--kernelSize', '{5,5}', 'kernel size of each convolution layer. Height = Width')
-cmd:option('--kernelStride', '{1,1}', 'kernel stride of each convolution layer. Height = Width')
-cmd:option('--poolSize', '{2,2}', 'size of the max pooling of each convolution layer. Height = Width')
-cmd:option('--poolStride', '{2,2}', 'stride of the max pooling of each convolution layer. Height = Width')
-cmd:option('--hiddenSize', 1000, 'size of the dense hidden layer (after convolutions, before output)')
-cmd:option('--batchSize', 128, 'number of examples per batch')
-cmd:option('--cuda', false, 'use CUDA')
-cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
-cmd:option('--maxEpoch', 100, 'maximum number of epochs to run')
-cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better local minima for early-stopping')
-cmd:option('--dropout', false, 'apply dropout on hidden neurons, requires "nnx" luarock')
-cmd:option('--dataset', 'FacialKeypoints', 'which dataset to use : Mnist | NotMnist | Cifar10 | Cifar100')
-cmd:option('--standardize', false, 'apply Standardize preprocessing')
-cmd:option('--zca', false, 'apply Zero-Component Analysis whitening')
-cmd:option('--activation', 'ReLU', 'transfer function like ReLU, Tanh, Sigmoid')
-cmd:option('--dropout', false, 'use dropout')
-cmd:option('--dropoutProb', '{0.2,0.5,0.5}', 'dropout probabilities')
-cmd:option('--accUpdate', false, 'accumulate gradients inplace')
-cmd:option('--submissionFile', '', 'Kaggle submission will be saved to a file with this name')
-cmd:option('--progress', false, 'print progress bar')
-cmd:option('--normalInit', false, 'initialize inputs using a normal distribution (as opposed to sparse initialization)')
-cmd:option('--validRatio', 1/10, 'proportion of dataset used for cross-validation')
-cmd:option('--neuralSize', 1000, 'Size of first neural layer in 3 Neural Layer MLP.')
-cmd:option('--mlp', false, 'use multi-layer perceptron, as opposed to convolution neural network')
-cmd:text()
-opt = cmd:parse(arg or {})
-print(opt)
-
-assert(opt.submissionFile ~= '', 'provide filename, e.g.: --submissionFile submission12.csv')
-```
-The table values need to be translated from strings to tables using the 
-[table.fromString](https://github.com/nicholas-leonard/dp/blob/master/utils/table.lua) function:
-```lua
-opt.channelSize = table.fromString(opt.channelSize)
-opt.kernelSize = table.fromString(opt.kernelSize)
-opt.kernelStride = table.fromString(opt.kernelStride)
-opt.poolSize = table.fromString(opt.poolSize)
-opt.poolStride = table.fromString(opt.poolStride)
-opt.dropoutProb = table.fromString(opt.dropoutProb)
-```
-The next step is to allow for loading the dataset and some optional 
-preprocessors:
-```
---[[preprocessing]]--
-local input_preprocess = {}
-if opt.standardize then
-   table.insert(input_preprocess, dp.Standardize())
-end
-if opt.zca then
-   table.insert(input_preprocess, dp.ZCA())
-end
-
---[[data]]--
-local datasource
-if opt.dataset == 'FacialKeypoints' then
-   datasource = dp.FacialKeypoints{
-      input_preprocess = input_preprocess, valid_ratio = opt.validRatio
-   }
-else
-    error("Unknown Dataset")
-end
-```
-Next we build the [Model](model.md#dp.Model). The Model can be a 
-Convolution Neural Network (CNN) or a Multi-Layer Neural Network (NN). 
-The CNN can be configured for one or many Convolution2D Layers 
-followed by two Neural Layers. The NN can have 2 or 3 Neural Layers:
-```
---[[Model]]--
-
-cnn = dp.Sequential()
-
-local inputSize
-if not opt.mlp then
-   inputSize = datasource:imageSize('c')
-   outputSize = {datasource:imageSize('h'), datasource:imageSize('w')}
-   for i=1,#opt.channelSize do
-      local conv = dp.Convolution2D{
-         input_size = inputSize, 
-         kernel_size = {opt.kernelSize[i], opt.kernelSize[i]},
-         kernel_stride = {opt.kernelStride[i], opt.kernelStride[i]},
-         pool_size = {opt.poolSize[i], opt.poolSize[i]},
-         pool_stride = {opt.poolStride[i], opt.poolStride[i]},
-         output_size = opt.channelSize[i], 
-         transfer = nn[opt.activation](),
-         dropout = opt.dropout and nn.Dropout(opt.dropoutProb[i]),
-         acc_update = opt.accUpdate,
-         sparse_init = not opt.normalInit
-      }
-      cnn:add(conv)
-      inputSize = opt.channelSize[i]
-      outputSize[1] = conv:nOutputFrame(outputSize[1], 1)
-      outputSize[2] = conv:nOutputFrame(outputSize[2], 2)
-   end
-   inputSize = inputSize*outputSize[1]*outputSize[2]
-   print("input to first Neural layer has: "..inputSize.." neurons")
-else
-   inputSize = datasource:featureSize()
-   if opt.neuralSize > 0 then
-      cnn:add(
-         dp.Neural{
-            input_size = inputSize, 
-            output_size = opt.neuralSize,
-            transfer = nn[opt.activation](),
-            dropout = opt.dropout and nn.Dropout(opt.dropoutProb[#opt.channelSize]),
-            acc_update = opt.accUpdate,
-            sparse_init = not opt.normalInit
-         }
-      )
-      inputSize = opt.neuralSize
-   end
-end
-
-cnn:add(
-   dp.Neural{
-      input_size = inputSize, 
-      output_size = opt.hiddenSize,
-      transfer = nn[opt.activation](),
-      dropout = opt.dropout and nn.Dropout(opt.dropoutProb[#opt.channelSize]),
-      acc_update = opt.accUpdate,
-      sparse_init = not opt.normalInit
-   }
-)
-```
-The last layer uses the [MultiSoftMax](#multisoftmax) Module as its 
-`transfer` function. We also need to over-rite the default `output_view` 
-so that it uses axis view `bwc`, and a [SequenceView](#view.md#dp.SequenceView) 
-`output` :
-```lua
--- we use a special nn.MultiSoftMax() Module for detecting coordinates :
-local multisoftmax = nn.Sequential()
-multisoftmax:add(nn.Reshape(30,98))
-multisoftmax:add(nn.MultiSoftMax())
-cnn:add(
-   dp.Neural{
-      input_size = opt.hiddenSize, 
-      output_size = 30*98,
-      transfer = multisoftmax,
-      dropout = opt.dropout and nn.Dropout(opt.dropoutProb[#opt.channelSize]),
-      acc_update = opt.accUpdate,
-      sparse_init = not opt.normalInit,
-      output_view = 'bwc', -- because of the multisoftmax,
-      output = dp.SequenceView() --same
-   }
-)
-```
-We also have the usual Visitor options:
-```lua
-local visitor = {}
--- the ordering here is important:
-if opt.momentum > 0 then
-   if opt.accUpdate then
-      error"momentum doesn't work with --accUpdate"
-   end
-   table.insert(visitor, dp.Momentum{momentum_factor = opt.momentum})
-end
-table.insert(visitor, dp.Learn{learning_rate = opt.learningRate})
-table.insert(visitor, dp.MaxNorm{
-   max_out_norm = opt.maxOutNorm, period = opt.maxNormPeriod
-})
-```
-As you can see, we use the [FacialKeypoints](#facialkeypoints) `datasource`
-to load the baseline and submission required by the [FKDKaggle](#fkdkaggle)
-and [FacialKeypointFeedback](#facialkeypointfeedback) Feedbacks:
-```lua
-local baseline = datasource:loadBaseline()
-local logModule = nn.Sequential()
-logModule:add(nn.AddConstant(0.00000001)) -- fixes log(0)=NaN errors
-logModule:add(nn.Log())
-
---[[Propagators]]--
-train = dp.Optimizer{
-   loss = dp.KLDivergence{input_module=logModule:clone()},
-   visitor = visitor,
-   sampler = dp.ShuffleSampler{batch_size = opt.batchSize},
-   progress = opt.progress,
-   feedback = dp.FacialKeypointFeedback{baseline=baseline, precision=98}
-}
-valid = dp.Evaluator{
-   loss = dp.KLDivergence{input_module=logModule:clone()},
-   sampler = dp.Sampler{batch_size = opt.batchSize},
-   feedback = dp.FacialKeypointFeedback{baseline=baseline, precision=98}
-}
-test = dp.Evaluator{
-   loss = dp.Null(), -- because we don't have targets for the test set
-   feedback = dp.FKDKaggle{
-      submission = datasource:loadSubmission(), 
-      file_name = opt.submissionFile
-   },
-   sampler = dp.Sampler{batch_size = opt.batchSize}
-}
-```
-Finally, all components are assembled in the Experiment. The 
-EarlyStopper uses the FacialKeypointFeedback's `mse` report attribute 
-for cross-validation:
-```lua
---[[Experiment]]--
-xp = dp.Experiment{
-   model = cnn,
-   optimizer = train,
-   validator = valid,
-   tester = test,
-   observer = {
-      dp.FileLogger(),
-      dp.EarlyStopper{
-         error_report = {'validator','feedback','facialkeypoint','mse'},
-         max_epochs = opt.maxTries
-      }
-   },
-   random_seed = os.time(),
-   max_epoch = opt.maxEpoch
-}
-```
-After optionally casting the experiment to CUDA and setting the device,
-the `dp.Model` and `nn.Module` structure is printed to screen and 
-the experiment is run:
-```lua
---[[GPU or CPU]]--
-if opt.cuda then
-   require 'cutorch'
-   require 'cunn'
-   cutorch.setDevice(opt.useDevice)
-   xp:cuda()
-end
-
-print"dp.Models :"
-print(cnn)
-print"nn.Modules :"
-print(cnn:toModule(datasource:trainSet():sub(1,32)))
-
-xp:run(datasource)
-```
 ## Running Experiments ##
+
 The last step is to use the components assembled in the launch script 
 to run some experiments, and maybe even optimize hyper-parameters:
 ```bash

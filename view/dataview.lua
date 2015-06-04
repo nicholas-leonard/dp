@@ -424,6 +424,7 @@ function DataView:sub(v, start, stop, inplace)
       v = torch.protoClone(self)
       data = self:input().new()
    end
+   
    local input = self._input:narrow(b_pos, start, stop-start+1)
    if inplace then
       -- user beware: this doesn't interact well with :index()

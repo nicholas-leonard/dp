@@ -36,7 +36,7 @@ function Confusion:doneEpoch(report)
    end
 end
 
-function Confusion:_add(batch, output, carry, report)
+function Confusion:_add(batch, output, report)
    if not self._cm then
       require 'optim'
       if self._bce then
@@ -46,14 +46,7 @@ function Confusion:_add(batch, output, carry, report)
       end
    end
    
-   -- binary cross-entropy has one output
-   local view = self._bce and 'b' or 'bf'
-   local act = output:forward(view)
-   local act_type = torch.type(act)
-   if act_type ~= 'torch.DoubleTensor' and act_type ~= 'torch.FloatTensor' then
-      act = output:forward(view, 'torch.FloatTensor')
-   end
-   
+   local act = self._bce and output:view(1) or output:view(output:size(1), -1)
    local tgt = batch:targets():forward('b')
    
    if self._bce then
@@ -66,7 +59,12 @@ function Confusion:_add(batch, output, carry, report)
       act = self._act
       tgt = self._tgt
    end
-
+   
+   if not (torch.isTypeOf(act,'torch.FloatTensor') or torch.isTypeOf(act, 'torch.DoubleTensor')) then
+      self._actf = self.actf or torch.FloatTensor()
+      self._actf:resize(act:size()):copy(act)
+      act = self._actf
+   end
    self._cm:batchAdd(act, tgt)
 end
 

@@ -22,7 +22,7 @@ function BillionWords:__init(config)
    local args, load_all
    args, self._context_size, self._train_file, self._valid_file, 
          self._test_file, self._word_file, self._data_path, 
-         self._download_url, load_all 
+         self._recurrent, self._download_url, load_all 
       = xlua.unpack(
       {config},
       'BillionWords', 
@@ -39,6 +39,9 @@ function BillionWords:__init(config)
        help='name of file containing mapping of word_ids to word strings.'},
       {arg='data_path', type='string', default=dp.DATA_DIR,
        help='path to data repository'},
+      {arg='recurrent', type='number', default=false,
+       help='For RNN training, set this to true. In which case, '..
+       'outputs a target word for each input word'},
       {arg='download_url', type='string',
        default='http://lisaweb.iro.umontreal.ca/transfert/lisa/users/leonardn/billionwords.tar.gz',
        help='URL from which to download dataset if not found on disk.'},
@@ -81,7 +84,7 @@ function BillionWords:createSentenceSet(data, which_set)
    return dp.SentenceSet{
       data=data, which_set=which_set, context_size=self._context_size,
       end_id=self._sentence_end, start_id=self._sentence_start, 
-      words=self._classes
+      words=self._classes, recurrent=self._recurrent
    }
 end
 
@@ -112,12 +115,10 @@ function BillionWords:vocabularySize()
    return table.length(self._classes)
 end
 
--- this can be used to initialize a softmaxTree
+-- this can be used to initialize a SoftMaxTree (optional)
 function BillionWords:hierarchy(file_name)
    file_name = file_name or 'word_tree1.th7'
-   local hierarchy = torch.load(
-      paths.concat(self._data_path, self._name, file_name)
-   )
+   local hierarchy = torch.load(paths.concat(self._data_path, self._name, file_name))
    _.map(hierarchy, function(k,v) 
       assert(torch.type(k) == 'number', 
          "Hierarchy keys should be numbers")
@@ -125,6 +126,35 @@ function BillionWords:hierarchy(file_name)
          "Hierarchy values should be torch.IntTensors")
    end)
    return hierarchy
+end
+
+-- this can be used to initialize a SoftMaxTree
+function BillionWords:frequencyTree(file_name, binSize)
+   file_name = file_name or 'word_freq.th7'
+   binSize = binSize or 100
+   local wf = torch.load(paths.concat(self._data_path, self._name, file_name))
+   local vals, indices = wf:sort()
+   local tree = {}
+   local id = indices:size(1)
+   function recursiveTree(indices)
+      if indices:size(1) < binSize then
+         id = id + 1
+         tree[id] = indices
+         return
+      end
+      local parents = {}
+      for start=1,indices:size(1),binSize do
+         local stop = math.min(indices:size(1), start+binSize-1)
+         local bin = indices:narrow(1, start, stop-start+1)
+         assert(bin:size(1) <= binSize)
+         id = id + 1
+         table.insert(parents, id)
+         tree[id] = bin
+      end
+      recursiveTree(indices.new(parents))
+   end
+   recursiveTree(indices)
+   return tree, id
 end
 
 function BillionWords:rootId()

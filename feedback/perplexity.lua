@@ -39,28 +39,55 @@ function Perplexity:doneEpoch(report)
    end
 end
 
-function Perplexity:_add(batch, output, carry, report)
-   if output:input():dim() == 2 then
-      -- assume output originates from LogSoftMax
-      local act = output:forward('bf')
-      if act ~= 'torch.DoubleTensor' and act ~= 'torch.FloatTensor' then
-         act = output:forward('bf', 'torch.FloatTensor')
-      end
-      local targets = batch:targets():forward('b')
+function Perplexity:add(batch, output, report)
+   assert(torch.isTypeOf(batch, 'dp.Batch'), "First argument should be dp.Batch")
+   -- table outputs are expected of recurrent neural networks   
+   if torch.type(output) == 'table' then
+      -- targets aren't a table
+      local targets = batch:targets():forward('bt')
+      self._n_sample = self._n_sample + targets:nElement()
       local sum = 0
-      for i=1,targets:size(1) do
-         sum = sum + act[i][targets[i]]
+      for i=1,#output do
+         local target = targets:select(2,i)
+         local act = output[i]
+         if torch.type(act) ~= torch.FloatTensor() then
+            self._act = self._act or torch.FloatTensor()
+            self._act:resize(act:size()):copy(act)
+            act = self._act
+         end
+         if act:dim() == 2 then
+            -- assume output originates from LogSoftMax
+            for i=1,target:size(1) do
+               sum = sum + act[i][target[i]]
+            end
+         else
+            -- assume output originates from SoftMaxTree
+            sum = sum + act:view(-1):sum()
+         end
       end
-
+      -- divide by number of elements in sequence
       self._nll = self._nll - sum
    else
-      -- assume output originates from SoftMaxTree
-      local act = output:forward('b')
-      if act ~= 'torch.DoubleTensor' and act ~= 'torch.FloatTensor' then
-         act = output:forward('b', 'torch.FloatTensor')
+      self._n_sample = self._n_sample + batch:nSample()
+      local act = output
+      if torch.type(act) ~= torch.FloatTensor() then
+         self._act = self._act or torch.FloatTensor()
+         self._act:resize(act:size()):copy(act)
+         act = self._act
       end
-      -- accumulate the sum of negative log likelihoods
-      self._nll = self._nll - act:sum()
+      if output:dim() == 2 then
+         -- assume output originates from LogSoftMax
+         local targets = batch:targets():forward('b')
+         local sum = 0
+         for i=1,targets:size(1) do
+            sum = sum + act[i][targets[i]]
+         end
+         self._nll = self._nll - sum
+      else
+         -- assume output originates from SoftMaxTree
+         -- accumulate the sum of negative log likelihoods
+         self._nll = self._nll - act:view(-1):sum()
+      end
    end
 end
 
@@ -71,7 +98,7 @@ end
 function Perplexity:report()
    return {
       [self:name()] = {
-         perplexity = self._n_sample > 0 and self:perplexity() or 0
+         ppl = self._n_sample > 0 and self:perplexity() or 0
       },
       n_sample = self._n_sample
    }

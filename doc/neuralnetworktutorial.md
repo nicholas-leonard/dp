@@ -189,7 +189,7 @@ generate [Batches](data.md#dp.Batch) of examples (inputs and targets) to propaga
 
 train = dp.Optimizer{
    acc_update = opt.accUpdate,
-   loss = nn.ModuleCriterion(nn.ClassNLLCriterion(), nn.Convert()),
+   loss = nn.ModuleCriterion(nn.ClassNLLCriterion(), nil, nn.Convert()),
    callback = function(model, report) 
       opt.learningRate = opt.schedule[report.epoch] or opt.learningRate
       if opt.accUpdate then

@@ -194,7 +194,7 @@ function SentenceSet:index(batch, indices)
    -- indexSelect the data and reuse memory (optimization)
    self.__index_mem = self.__index_mem or torch.IntTensor()
    self.__index_mem:index(self._data, 1, indices)
-   local data = self.__index_mem
+   local data = self.__index_mem -- contains the batch of targets
    local words = self._data:select(2, 2)
    
    for i=1,data:size(1) do

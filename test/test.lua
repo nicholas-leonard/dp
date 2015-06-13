@@ -339,6 +339,53 @@ function dptest.TextSet()
    mytester:assertTableEq(targetFreq, targetWC, 0.00001)
 end
 
+function dptest.TextSource()
+   local trainStr = [[ no it was n't black monday 
+ but while the new york stock exchange did n't fall apart friday as the dow jones industrial average plunged N points most of it in the final hour it barely managed to stay this side of chaos 
+ some circuit breakers installed after the october N crash failed their first test traders say unable to cool the selling panic in both stocks and futures 
+ the N stock specialist firms on the big board floor the buyers and sellers of last resort who were criticized after the N crash once again could n't handle the selling pressure 
+ big investment banks refused to step up to the plate to support the beleaguered floor traders by buying big blocks of stock traders say 
+ heavy selling of standard & poor 's 500-stock index futures in chicago <unk> beat stocks downward 
+]]
+   local validStr = [[ no it was n't black monday 
+ but while the new york stock exchange did n't fall apart friday as the dow jones industrial average plunged N points most of it in the final hour it barely managed to stay this side of chaos 
+]]
+   local testStr = [[ big investment banks refused to step up to the plate to support the beleaguered floor traders by buying big blocks of stock traders say 
+ heavy selling of standard & poor 's 500-stock index futures in chicago <unk> beat stocks downward 
+]]
+   local ts = dp.TextSource{
+      name='unit-test', context_size=5, string=true, recurrent=true,
+      train=trainStr, valid=validStr, test=testStr
+   }
+   local train = trainStr..validStr
+   local stringx = require('pl.stringx')
+   train = stringx.replace(train, '\n', '<eos>')
+   train = stringx.split(train)
+   local vocab = {}
+   local wordFreq = {}
+   local word_seq = 0
+   for i,word in ipairs(train) do
+      local word_id = vocab[word]
+      if not word_id then 
+         word_seq = word_seq + 1
+         vocab[word] = word_seq
+         word_id = word_seq
+      end
+      wordFreq[word_id] = (wordFreq[word_id] or 0) + 1
+   end
+   local wordFreq2 = ts:wordFrequency()
+   mytester:assertTableEq(wordFreq2, wordFreq, 0.000001)
+   
+   local nTrain = ts:trainSet():nSample() + 5
+   local nValid = ts:validSet():nSample() + 5
+   local nTest = ts:testSet():nSample() + 5
+   
+   local test = stringx.replace(testStr, '\n', '<eos>')
+   test = stringx.split(test)
+   mytester:assert(nTrain+nValid == #train)
+   mytester:assert(nTest == #test)
+end
+
 function dptest.GCN()
    --[[ zero_vector ]]--
    -- Global Contrast Normalization
@@ -371,6 +418,7 @@ function dptest.GCN()
    local max_norm_error = torch.abs(norms:add(-1)):max()
    mytester:assert(max_norm_error < 3e-5)
 end
+
 function dptest.ZCA()
    -- Confirm that ZCA.inv_P_ is the correct inverse of ZCA._P.
    local dv = dp.DataView('bf', torch.randn(15,10))
@@ -387,6 +435,7 @@ function dptest.ZCA()
    mytester:assert(not is_identity(preprocess._P))
    mytester:assert(is_identity(preprocess._P*preprocess._inv_P))
 end
+
 function dptest.LeCunLCN()
    -- Test on a random image to confirm that it loads without error
    -- and it doesn't result in any NaN or Inf values

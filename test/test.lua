@@ -9,6 +9,7 @@ function dptest.uniqueID()
    mytester:assertne(uid1, uid2, 'uid1 ~= uid2')
    mytester:assertne(uid2, uid3, 'uid2 ~= uid3')
 end
+
 function dptest.DataView()
    local data = torch.rand(3,4)
    local sizes = {3, 4}
@@ -51,6 +52,7 @@ function dptest.DataView()
    v:sub(v6, 1, 2)
    mytester:assertTensorEq(v6:forward('bf', 'torch.DoubleTensor'), data:sub(1,2), 0.000001)
 end
+
 function dptest.ImageView()
    local size = {8,32,32,3}
    local feature_size = {8,32*32*3}
@@ -95,6 +97,7 @@ function dptest.ImageView()
    local v5 = v:index(nil, indices)
    mytester:assertTensorEq(v5:forward('bhwc', 'torch.DoubleTensor'), v._input:index(1, indices), 0.0000001)
 end
+
 function dptest.SequenceView()
    local size = {8,10,50}
    local feature_size = {8,10*50}
@@ -125,6 +128,7 @@ function dptest.SequenceView()
    local v5 = v:index(nil, indices)
    mytester:assertTensorEq(v4:forward('bf', 'torch.DoubleTensor'), v5:forward('bf', 'torch.DoubleTensor'), 0.0000001)
 end
+
 function dptest.ClassView()
    local size = {48,4}
    local data = torch.rand(unpack(size))
@@ -151,6 +155,7 @@ function dptest.ClassView()
    mytester:assertTensorEq(v5:forward('bt', 'torch.DoubleTensor'), v2:forward('bt', 'torch.DoubleTensor'), 0.0000001)
    mytester:assertTableEq(v:classes(), v5:classes())
 end
+
 function dptest.ListView()
    -- image tensor
    local image_size = {8,32,32,3}
@@ -237,6 +242,7 @@ function dptest.DataSet()
    mytester:assertTensorEq(batch3:inputs():forward('bhwc'), batch:inputs():forward('bhwc'), 0.00001)
    mytester:assertTensorEq(batch3:targets():forward('bt'), batch:targets():forward('bt'), 0.00001)
 end
+
 function dptest.SentenceSet()
    local tensor = torch.IntTensor(80, 2):zero()
    for i=1,8 do
@@ -268,6 +274,71 @@ function dptest.SentenceSet()
    mytester:assertTensorEq(batch3:inputs():forward('bt'), batch:inputs():forward('bt'), 0.00001)
    mytester:assertTensorEq(batch3:targets():forward('b'), batch:targets():forward('b'), 0.00001)
 end 
+
+function dptest.TextSet()
+   local data = torch.IntTensor(200):random(1,40)
+   data[1] = 41 -- 41st word in vocabulary
+   data[200] = 42 -- 42nd word in vocabulary
+   local inputFreq, targetFreq = {}, {}
+   data:narrow(1,1,190):apply(function(x) inputFreq[x] = (inputFreq[x] or 0) + 1 end)
+   data:narrow(1,11,190):apply(function(x) targetFreq[x] = (targetFreq[x] or 0) + 1 end)
+   local ts = dp.TextSet{data=data,which_set='train',context_size=10,recurrent=true}
+   -- test TextSet:index() for recurrent = true
+   local sampler = dp.ShuffleSampler{batch_size=4}
+   local inputWC, targetWC = {}, {}
+   local batch
+   local sampleBatch = sampler:sampleEpoch(ts)
+   local nSample = 0
+   while true do
+      batch = sampleBatch(batch)
+      if not batch then
+         break
+      end
+      local inputs = batch:inputs():forward('bt')
+      local targets = batch:targets():forward('bt')
+      mytester:assert(inputs:isSameSizeAs(targets))
+      mytester:assert(inputs:size(1) <= 4)
+      mytester:assert(inputs:size(2) == 10)
+      mytester:assertTensorEq(inputs:narrow(2,2,inputs:size(2)-1), targets:narrow(2,1,targets:size(2)-1), 0.000001)
+      inputs:select(2,1):apply(function(x) inputWC[x] = (inputWC[x] or 0) + 1 end)
+      targets:select(2,10):apply(function(x) targetWC[x] = (targetWC[x] or 0) + 1 end)
+      nSample = nSample + targets:size(1)
+   end
+   mytester:assert(nSample == 200-10)
+   mytester:assertTableEq(inputFreq, inputWC, 0.00001)
+   mytester:assertTableEq(targetFreq, targetWC, 0.00001)
+   
+   -- test TextSet:sub() for recurrent = true
+   local inputFreq, targetFreq = {}, {}
+   data:narrow(1,1,199):apply(function(x) inputFreq[x] = (inputFreq[x] or 0) + 1 end)
+   data:narrow(1,2,199):apply(function(x) targetFreq[x] = (targetFreq[x] or 0) + 1 end)
+   ts:contextSize(1)
+   local sampler = dp.Sampler{batch_size=10}
+   local inputWC, targetWC = {}, {}
+   local batch = nil
+   local sampleBatch = sampler:sampleEpoch(ts)
+   local nSample = 0
+   while true do
+      batch = sampleBatch(batch)
+      if not batch then
+         break
+      end
+      local inputs = batch:inputs():forward('bt')
+      local targets = batch:targets():forward('bt')
+      mytester:assert(inputs:isSameSizeAs(targets))
+      mytester:assert(inputs:size(1) == 1)
+      mytester:assert(inputs:size(2) <= 10)
+      mytester:assertTensorEq(inputs:narrow(2,2,inputs:size(2)-1), targets:narrow(2,1,targets:size(2)-1), 0.000001)
+      inputs:apply(function(x) inputWC[x] = (inputWC[x] or 0) + 1 end)
+      targets:apply(function(x) targetWC[x] = (targetWC[x] or 0) + 1 end)
+      nSample = nSample + targets:nElement()
+   end
+   
+   mytester:assert(nSample == 200-1)
+   mytester:assertTableEq(inputFreq, inputWC, 0.00001)
+   mytester:assertTableEq(targetFreq, targetWC, 0.00001)
+end
+
 function dptest.GCN()
    --[[ zero_vector ]]--
    -- Global Contrast Normalization

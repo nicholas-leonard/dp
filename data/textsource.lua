@@ -1,7 +1,11 @@
 ------------------------------------------------------------------------
 --[[ TextSource ]]--
--- Creates a DataSource out of 3 strings or text files.
--- Text files are assumed to be arranged one sentence per line.
+-- Creates a DataSource out of 1 to 3 strings or text files.
+-- Text files are assumed to be arranged one sentence per line, each
+-- line beginning with a space and ending with a space and a newline.
+
+-- Feel free to send a Pull Request to extend this DataSource with 
+-- your own constructor arguments and functionality.
 ------------------------------------------------------------------------
 local TextSource, parent = torch.class("dp.TextSource", "dp.DataSource")
 TextSource.isTextSource = true
@@ -12,7 +16,7 @@ function TextSource:__init(config)
       "Constructor requires key-value arguments")
    local args
    args, self._name, self._context_size, self._recurrent,
-         self._train_file, self._valid_file, self._test_file, 
+         self._train, self._valid, self._test, 
          self._data_path, self._download_url, self._string
       = xlua.unpack(
       {config},
@@ -25,25 +29,24 @@ function TextSource:__init(config)
       {arg='recurrent', type='number', default=false,
        help='For RNN training, set this to true. In which case, '..
        'outputs a target word for each input word'},
-      {arg='train_file', type='string', default='train_data.txt',
-       help='name of training file'},
-      {arg='valid_file', type='string', default='valid_data.txt',
-       help='name of validation file'},
-      {arg='test_file', type='string', default='test_data.txt',
-       help='name of test file'},
+      {arg='train', type='string', default='train_data.txt',
+       help='training text data or name of training file'},
+      {arg='valid', type='string', default='valid_data.txt',
+       help='validation text data or name of validation file'},
+      {arg='test', type='string', default='test_data.txt',
+       help='test text data or name of test file'},
       {arg='data_path', type='string', default=dp.DATA_DIR,
        help='path to train, valid, test files'},
       {arg='download_url', type='string',
-       default='https://github.com/wojzaremba/lstm',
        help='URL from which to download dataset if not found on disk.'},
       {arg='string', type='boolean', default=false,
        help='set this to true when the *file args are the text itself'}
    )
    -- everything is loaded in the same order 
    -- to keep the mapping of word to word_id consistent
-   self:setTrainSet(self:textSetFromFile(self._train_file, 'train'))
-   self:setValidSet(self:testSetFromFile(self._valid_file, 'valid'))
-   self:setTestSet(self:textSetFromFile(self._test_file, 'test'))
+   self:setTrainSet(self:createTextSet(self._train, 'train'))
+   self:setValidSet(self:createTextSet(self._valid, 'valid'))
+   self:setTestSet(self:createTextSet(self._test, 'test'))
    
    parent.__init(self, {
       train_set=self:trainSet(), 
@@ -52,40 +55,57 @@ function TextSource:__init(config)
    })
 end
 
-function TextSource:textSetFromFile(file_name, which_set) 
+function TextSource:createTextSet(file_name, which_set) 
+   if file_name == nil then
+      return
+   end
    local data
    if not self._string then
-      local path = parent.getDataPath{
-         name=self._name, url=self._download_url, 
-         decompress_file=file_name, data_dir=self._data_path
-      }
-
-      data = file.read(path)
-      data = stringx.replace(data, '\n', '<eos>')
-      data = stringx.split(data)
+      if #file_name > 1000 then
+         print("TextSource Warning : either you have a really long file_name "..
+            "or you forget to add string=true to the constructor")
+      end
       
-      local stringx = require('pl.stringx')
+      local path 
+      if download_url then 
+         path = parent.getDataPath{
+            name=self._name, url=self._download_url, 
+            decompress_file=file_name, data_dir=self._data_path
+         }
+      else
+         path = paths.concat(self._data_path, file_name)
+      end
+      
       local file = require('pl.file')
+      data = file.read(path)
    else
       data = file_name
    end
    
-   local word_id = 0
+   local stringx = require('pl.stringx')
+   data = stringx.replace(data, '\n', '<eos>')
+   data = stringx.split(data)
+   
+   local word_seq = 0
    self._word_freq = self._word_freq or {}
    self.vocab = self.vocab or {}
    
-   local x = torch.zeros(#data)
+   local x = torch.IntTensor(#data):fill(0)
    count_freq = (which_set ~= 'test')
    for i = 1, #data do
       local word = data[i]
-      if not selfvocab[word] then
-         word_id = word_id + 1
-         self.vocab[word] = word_id
-         self._word_freq[word_id] = 0
+      local word_id = self.vocab[word]
+      if not word_id then
+         word_seq = word_seq + 1
+         self.vocab[word] = word_seq
+         self._word_freq[word_seq] = 0
+         word_id = word_seq
       end
+      
       if count_freq then 
          self._word_freq[word_id] = self._word_freq[word_id] + 1
       end
+      
       x[i] = word_id
    end
    
@@ -94,9 +114,13 @@ function TextSource:textSetFromFile(file_name, which_set)
       self._classes[word_id] = word
    end
    
+   -- Note that the context_size of a test set should probably be 
+   -- manually set to 1 for recurrent models. This will allow 
+   -- for feeding the test set as a single contiguous sequence of 
+   -- words to your recurrent model (like RNN and LSTM).
    return dp.TextSet{
       data=x, which_set=which_set, context_size=self._context_size,
-      recurrent = self._recurrent, words=self._classes
+      recurrent=self._recurrent, words=self._classes
    }
 end
 
@@ -106,4 +130,8 @@ end
 
 function TextSource:vocabularySize()
    return table.length(self._classes)
+end
+
+function TextSource:wordFrequency()
+   return self._word_freq
 end

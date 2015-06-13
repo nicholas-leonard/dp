@@ -225,6 +225,11 @@ function dp.images2tensor(inputs, targets, paths, shuffle, verbose)
    return inputs, targets
 end
 
+function dp.reload(mod, ...)
+    package.loaded[mod] = nil
+    return require(mod, ...)
+end
+
 ------------------------ Queue -----------------------------
 local Queue = torch.class("dp.Queue")
 function Queue:__init()

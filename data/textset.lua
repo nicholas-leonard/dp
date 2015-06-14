@@ -32,7 +32,7 @@ function TextSet:__init(config)
        help='For RNN training, set this to true. In which case, '..
        'outputs a target word for each input word'}
    )
-   self:setWhichSet(which_set)
+   self:whichSet(which_set)
    assert(torch.type(data) == 'torch.IntTensor')
    self._data = data
    self._context_size = context_size

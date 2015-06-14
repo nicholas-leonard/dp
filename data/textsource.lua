@@ -14,9 +14,9 @@ function TextSource:__init(config)
    config = config or {}
    assert(torch.type(config) == 'table' and not config[1], 
       "Constructor requires key-value arguments")
-   local args
+   local args, train, valid, test
    args, self._name, self._context_size, self._recurrent,
-         self._train, self._valid, self._test, 
+         train, valid, test, 
          self._data_path, self._download_url, self._string
       = xlua.unpack(
       {config},
@@ -29,11 +29,11 @@ function TextSource:__init(config)
       {arg='recurrent', type='number', default=false,
        help='For RNN training, set this to true. In which case, '..
        'outputs a target word for each input word'},
-      {arg='train', type='string', default='train_data.txt',
+      {arg='train', type='string', 
        help='training text data or name of training file'},
-      {arg='valid', type='string', default='valid_data.txt',
+      {arg='valid', type='string',
        help='validation text data or name of validation file'},
-      {arg='test', type='string', default='test_data.txt',
+      {arg='test', type='string',
        help='test text data or name of test file'},
       {arg='data_path', type='string', default=dp.DATA_DIR,
        help='path to train, valid, test files'},
@@ -44,9 +44,9 @@ function TextSource:__init(config)
    )
    -- everything is loaded in the same order 
    -- to keep the mapping of word to word_id consistent
-   self:setTrainSet(self:createTextSet(self._train, 'train'))
-   self:setValidSet(self:createTextSet(self._valid, 'valid'))
-   self:setTestSet(self:createTextSet(self._test, 'test'))
+   self:trainSet(self:createTextSet(train, 'train'))
+   self:validSet(self:createTextSet(valid, 'valid'))
+   self:testSet(self:createTextSet(test, 'test'))
    
    parent.__init(self, {
       train_set=self:trainSet(), 

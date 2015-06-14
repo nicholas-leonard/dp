@@ -17,11 +17,11 @@ function PennTreeBank:__init(config)
       'PennTreeBank', 
       'The Penn Tree Bank dataset',
       {arg='train_file', type='string', default='ptb.train.txt',
-       help='name of training file'}
+       help='name of training file'},
       {arg='valid_file', type='string', default='ptb.valid.txt',
-       help='name of validation file'}
+       help='name of validation file'},
       {arg='test_file', type='string', default='ptb.test.txt',
-       help='name of test file'}
+       help='name of test file'},
       {arg='download_url', type='string',
        default='https://github.com/wojzaremba/lstm',
        help='URL from which to download dataset if not found on disk.'}

@@ -38,12 +38,12 @@ function DataSource:__init(config)
        'preprocess the valid_set and test_set.'}  
    )
    --datasets
-   self:setTrainSet(train_set)
-   self:setValidSet(valid_set)
-   self:setTestSet(test_set)
+   self:trainSet(train_set)
+   self:validSet(valid_set)
+   self:testSet(test_set)
    --preprocessing
-   self:setInputPreprocess(input_preprocess)
-   self:setTargetPreprocess(target_preprocess)
+   self:inputPreprocess(input_preprocess)
+   self:targetPreprocess(target_preprocess)
    self:preprocess()
 end
 
@@ -118,49 +118,44 @@ function DataSource:set(which_set, attribute, view, tensor)
    return dataview, dataset
 end
 
-function DataSource:setTrainSet(train_set)
-   self._train_set = train_set
-end
-
-function DataSource:setValidSet(valid_set)
-   self._valid_set = valid_set
-end
-
-function DataSource:setTestSet(test_set)
-   self._test_set = test_set
-end
-
-function DataSource:trainSet()
+function DataSource:trainSet(train_set)
+   if train_set then
+      self._train_set = train_set
+   end
    return self._train_set
 end
 
-function DataSource:validSet()
+function DataSource:validSet(valid_set)
+   if valid_set then
+      self._valid_set = valid_set
+   end
    return self._valid_set
 end
 
-function DataSource:testSet()
+function DataSource:testSet(test_set)
+   if test_set then
+      self._test_set = test_set
+   end
    return self._test_set
 end
 
-function DataSource:setInputPreprocess(input_preprocess)
-   if torch.type(input_preprocess)  == 'table' then
-      input_preprocess = dp.Pipeline(input_preprocess)
+function DataSource:inputPreprocess(input_preprocess)
+   if input_preprocess then
+      if torch.type(input_preprocess)  == 'table' then
+         input_preprocess = dp.Pipeline(input_preprocess)
+      end
+      self._input_preprocess = input_preprocess
    end
-   self._input_preprocess = input_preprocess
-end
-
-function DataSource:setTargetPreprocess(target_preprocess)
-   if torch.type(target_preprocess) == 'table' then
-      target_preprocess = dp.Pipeline(target_preprocess)
-   end
-   self._target_preprocess = target_preprocess
-end
-
-function DataSource:inputPreprocess()
    return self._input_preprocess
 end
 
-function DataSource:targetPreprocess()
+function DataSource:targetPreprocess(target_preprocess)
+   if target_preprocess then
+      if torch.type(target_preprocess) == 'table' then
+         target_preprocess = dp.Pipeline(target_preprocess)
+      end
+      self._target_preprocess = target_preprocess
+   end
    return self._target_preprocess
 end
 
@@ -260,8 +255,8 @@ function DataSource.getDataPath(config)
    local data_file = paths.basename(url)
    local data_path = paths.concat(datasrc_dir, data_file)
 
-   dp.check_and_mkdir(data_dir)
-   dp.check_and_mkdir(datasrc_dir)
+   dp.mkdir(data_dir)
+   dp.mkdir(datasrc_dir)
    dp.check_and_download_file(data_path, url)
    
    -- decompress 
@@ -298,3 +293,31 @@ function DataSource.binarize(x, threshold)
    x[x:ge(threshold)] = 1;
    return x
 end
+
+-- BEGIN DEPRECATED (June 13, 2015)
+function DataSource:setTrainSet(train_set)
+   self._train_set = train_set
+end
+
+function DataSource:setValidSet(valid_set)
+   self._valid_set = valid_set
+end
+
+function DataSource:setTestSet(test_set)
+   self._test_set = test_set
+end
+
+function DataSource:setInputPreprocess(input_preprocess)
+   if torch.type(input_preprocess)  == 'table' then
+      input_preprocess = dp.Pipeline(input_preprocess)
+   end
+   self._input_preprocess = input_preprocess
+end
+
+function DataSource:setTargetPreprocess(target_preprocess)
+   if torch.type(target_preprocess) == 'table' then
+      target_preprocess = dp.Pipeline(target_preprocess)
+   end
+   self._target_preprocess = target_preprocess
+end
+-- END DEPRECATED

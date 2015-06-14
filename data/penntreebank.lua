@@ -23,7 +23,7 @@ function PennTreeBank:__init(config)
       {arg='test_file', type='string', default='ptb.test.txt',
        help='name of test file'},
       {arg='download_url', type='string',
-       default='https://github.com/wojzaremba/lstm',
+       default='https://raw.githubusercontent.com/wojzaremba/lstm/master/data/',
        help='URL from which to download dataset if not found on disk.'}
    )
    config.name = config.name or self._name
@@ -36,9 +36,9 @@ function PennTreeBank:__init(config)
    local valid = paths.concat(dsdir, valid_file)
    local test = paths.concat(dsdir, test_file)
    -- download if not found
-   dp.check_and_download_file(train, paths.concat(url, train_file))
-   dp.check_and_download_file(valid, paths.concat(url, valid_file))
-   dp.check_and_download_file(test, paths.concat(url, test_file))
+   dp.check_and_download_file(train, url..train_file)
+   dp.check_and_download_file(valid, url..valid_file)
+   dp.check_and_download_file(test, url..test_file)
    -- initialize (order is important for consistency)
    self:trainSet(self:createTextSet(train, 'train'))
    self:validSet(self:createTextSet(valid, 'valid'))

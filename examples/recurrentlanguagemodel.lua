@@ -37,6 +37,7 @@ cmd:option('--softmaxforest', false, 'use SoftmaxForest instead of SoftmaxTree (
 cmd:option('--forestGaterSize', '{}', 'size of hidden layers used for forest gater (trees are experts)') 
 
 --[[ data ]]--
+cmd:option('--dataset', 'BillionWords', 'which dataset to use : BillionWords | PennTreeBank')
 cmd:option('--small', false, 'use a small (1/30th) subset of the training set')
 cmd:option('--tiny', false, 'use a tiny (1/100th) subset of the training set')
 cmd:option('--trainEpochSize', 400000, 'number of train examples seen between each epoch')
@@ -65,14 +66,20 @@ elseif opt.tiny then
    train_file = 'train_tiny.th7'
 end
 
-datasource = dp.BillionWords{
-   train_file=train_file, load_all=false, 
-   context_size=opt.rho, recurrent=true
-}
-datasource:loadTrain()
-if not opt.trainOnly then
-   datasource:loadValid()
-   datasource:loadTest()
+if opt.dataset == 'BillionWords' then
+   ds = dp.BillionWords{
+      train_file=train_file, load_all=false, 
+      context_size=opt.rho, recurrent=true
+   }
+   ds:loadTrain()
+   if not opt.trainOnly then
+      ds:loadValid()
+      ds:loadTest()
+   end
+elseif opt.dataset == 'PennTreeBank' then
+   ds = dp.PennTreeBank{context_size=opt.rho,recurrent=true}
+   ds:testSet():contextSize(1) -- so that it works with dp.Sampler
+   assert(not opt.softmaxforest, "SoftMaxForest not supported with PennTreeBank")
 end
 
 --[[Saved experiment]]--
@@ -85,7 +92,7 @@ if opt.xpPath ~= '' then
    if opt.cuda then
       xp:cuda()
    end
-   xp:run(datasource)
+   xp:run(ds)
    os.exit()
 end
 
@@ -98,7 +105,7 @@ lm:add(nn.DontCast(nn.SplitTable(1,1):dontBackward():type('torch.IntTensor'))) -
 -- simple recurrent neural network
 rnn = nn.Recurrent(
    opt.hiddenSize, 
-   nn.Dictionary(datasource:vocabularySize(), opt.hiddenSize, opt.accUpdate),
+   nn.Dictionary(ds:vocabularySize(), opt.hiddenSize, opt.accUpdate),
    nn.Linear(opt.hiddenSize, opt.hiddenSize), nn.Sigmoid(), 99999
 )
 lm:add(nn.Sequencer(rnn))
@@ -112,12 +119,12 @@ if opt.softmaxforest or opt.softmaxtree then
    lm:add(para)
    lm:add(nn.ZipTable())
    if opt.softmaxforest then -- requires a lot more memory
-      local trees = {datasource:hierarchy('word_tree1.th7'), datasource:hierarchy('word_tree2.th7'), datasource:hierarchy('word_tree3.th7')}
+      local trees = {ds:hierarchy('word_tree1.th7'), ds:hierarchy('word_tree2.th7'), ds:hierarchy('word_tree3.th7')}
       local rootIds = {880542,880542,880542}
       softmax = nn.SoftMaxForest(opt.hiddenSize, trees, rootIds, opt.forestGaterSize, nn.Tanh(), opt.accUpdate)
       opt.softmaxtree = true
    elseif opt.softmaxtree then -- uses frequency based tree
-      local tree, root = datasource:frequencyTree()
+      local tree, root = ds:frequencyTree()
       softmax = nn.SoftMaxTree(opt.hiddenSize, tree, root, opt.accUpdate)
    end
 else
@@ -125,7 +132,7 @@ else
       "is really slow (800,000 x outputEmbeddingSize multiply adds "..
       "per example. Try --softmaxtree instead.")
    softmax = nn.Sequential()
-   softmax:add(nn.Linear(opt.hiddenSize, datasource:vocabularySize()))
+   softmax:add(nn.Linear(opt.hiddenSize, ds:vocabularySize()))
    softmax:add(nn.LogSoftMax())
 end
 lm:add(nn.Sequencer(softmax))
@@ -168,15 +175,14 @@ train = dp.Optimizer{
 if not opt.trainOnly then
    valid = dp.Evaluator{
       feedback = dp.Perplexity(),  
-      sampler = dp.SentenceSampler{
-         epoch_size = opt.validEpochSize, batch_size = 1, max_size = 100
-      },
+      sampler = opt.dataset == 'PennTreeBank' and dp.RandomSampler{batch_size = opt.batchSize} 
+         or dp.SentenceSampler{epoch_size = opt.validEpochSize, batch_size = 1, max_size = 100},
       progress = opt.progress
    }
    tester = dp.Evaluator{
       feedback = dp.Perplexity(),  
-      -- Note : remove max_size for exact test set perplexity (will cost more memory)
-      sampler = dp.SentenceSampler{batch_size = 1, max_size = 100} 
+      sampler = opt.dataset == 'PennTreeBank' and dp.Sampler{batch_size = opt.contextSize} 
+         or dp.SentenceSampler{batch_size = 1, max_size = 100}  -- Note : remove max_size for exact test set perplexity (will cost more memory)
    }
 end
 
@@ -220,4 +226,4 @@ if not opt.silent then
    print(lm)
 end
 
-xp:run(datasource)
+xp:run(ds)

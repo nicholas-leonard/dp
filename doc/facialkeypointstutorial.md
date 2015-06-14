@@ -176,7 +176,7 @@ function FacialKeypoints:loadTrain()
    local start = 1
    local size = math.floor(data:size(1)*(1-self._valid_ratio))
    local train_data = data:narrow(1, start, size)
-   self:setTrainSet(self:createTrainSet(train_data, 'train'))
+   self:trainSet(self:createTrainSet(train_data, 'train'))
    return self:trainSet()
 end
 ```

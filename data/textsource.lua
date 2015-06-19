@@ -56,7 +56,7 @@ function TextSource:__init(config)
 end
 
 function TextSource:createTextSet(file_name, which_set) 
-   if file_name == nil then
+   if file_name == nil or file_name == '' then
       return
    end
    local data

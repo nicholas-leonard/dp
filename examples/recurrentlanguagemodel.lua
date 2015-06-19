@@ -1,7 +1,7 @@
 require 'dp'
 require 'rnn'
 
-version = 4
+version = 5
 
 --[[command line arguments]]--
 cmd = torch.CmdLine()
@@ -25,6 +25,9 @@ cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
 cmd:option('--maxEpoch', 400, 'maximum number of epochs to run')
 cmd:option('--maxTries', 30, 'maximum number of epochs to try to find a better local minima for early-stopping')
 cmd:option('--accUpdate', false, 'accumulate updates inplace using accUpdateGradParameters')
+cmd:option('--progress', false, 'print progress bar')
+cmd:option('--silent', false, 'dont print anything to stdout')
+cmd:option('--xpPath', '', 'path to a previously saved model')
 
 --[[ recurrent layer ]]--
 cmd:option('--rho', 5, 'back-propagate through time (BPTT) for rho time-steps')
@@ -37,15 +40,19 @@ cmd:option('--softmaxforest', false, 'use SoftmaxForest instead of SoftmaxTree (
 cmd:option('--forestGaterSize', '{}', 'size of hidden layers used for forest gater (trees are experts)') 
 
 --[[ data ]]--
-cmd:option('--dataset', 'BillionWords', 'which dataset to use : BillionWords | PennTreeBank')
-cmd:option('--small', false, 'use a small (1/30th) subset of the training set')
-cmd:option('--tiny', false, 'use a tiny (1/100th) subset of the training set')
+cmd:option('--dataset', 'BillionWords', 'which dataset to use : BillionWords | PennTreeBank | TextSource')
 cmd:option('--trainEpochSize', 400000, 'number of train examples seen between each epoch')
 cmd:option('--validEpochSize', 24000, 'number of valid examples used for early stopping and cross-validation') 
-cmd:option('--trainOnly', false, 'forget the validation and test sets, focus on the training set (wont save any models though)')
-cmd:option('--progress', false, 'print progress bar')
-cmd:option('--silent', false, 'dont print anything to stdout')
-cmd:option('--xpPath', '', 'path to a previously saved model')
+cmd:option('--trainOnly', false, 'forget the validation and test sets, focus on the training set')
+cmd:option('--dataPath', dp.DATA_DIR,  'path to data directory')
+-- BillionWords
+cmd:option('--small', false, 'use a small (1/30th) subset of the training set (BillionWors only)')
+cmd:option('--tiny', false, 'use a tiny (1/100th) subset of the training set (BillionWors only)')
+-- TextSource
+cmd:option('--trainFile', 'train.txt', 'filename containing tokenized training text data')
+cmd:option('--validFile', 'valid.txt', 'filename containing tokenized validation text data')
+cmd:option('--testFile', 'test.txt', 'filename containing tokenized test text data')
+
 cmd:text()
 opt = cmd:parse(arg or {})
 opt.schedule = dp.returnString(opt.schedule)
@@ -80,6 +87,16 @@ elseif opt.dataset == 'PennTreeBank' then
    ds = dp.PennTreeBank{context_size=opt.rho,recurrent=true}
    ds:testSet():contextSize(1) -- so that it works with dp.Sampler
    assert(not opt.softmaxforest, "SoftMaxForest not supported with PennTreeBank")
+elseif opt.dataset == 'TextSource' then
+   ds = dp.TextSource{
+      context_size=opt.rho, recurrent=true,
+      name='rnnlm', data_path = opt.dataPath,
+      train=opt.trainFile, valid=opt.validFile, test=opt.testFile
+   }
+   ds:testSet():contextSize(1) -- so that it works with dp.Sampler
+   assert(not opt.softmaxforest, "SoftMaxForest not supported with TextSource")
+else
+   error"Unrecognized --dataset"
 end
 
 --[[Saved experiment]]--
@@ -91,6 +108,8 @@ if opt.xpPath ~= '' then
    xp = torch.load(opt.xpPath)
    if opt.cuda then
       xp:cuda()
+   else
+      xp:float()
    end
    xp:run(ds)
    os.exit()
@@ -128,9 +147,11 @@ if opt.softmaxforest or opt.softmaxtree then
       softmax = nn.SoftMaxTree(opt.hiddenSize, tree, root, opt.accUpdate)
    end
 else
-   print("Warning: you are using full LogSoftMax for last layer, which "..
-      "is really slow (800,000 x outputEmbeddingSize multiply adds "..
-      "per example. Try --softmaxtree instead.")
+   if #ds:vocabulary() > 50000 then
+      print("Warning: you are using full LogSoftMax for last layer, which "..
+         "is really slow (800,000 x outputEmbeddingSize multiply adds "..
+         "per example. Try --softmaxtree instead.")
+   end
    softmax = nn.Sequential()
    softmax:add(nn.Linear(opt.hiddenSize, ds:vocabularySize()))
    softmax:add(nn.LogSoftMax())
@@ -175,13 +196,13 @@ train = dp.Optimizer{
 if not opt.trainOnly then
    valid = dp.Evaluator{
       feedback = dp.Perplexity(),  
-      sampler = opt.dataset == 'PennTreeBank' and dp.RandomSampler{batch_size = opt.batchSize} 
+      sampler = torch.isTypeOf(ds, 'dp.TextSource') and dp.RandomSampler{batch_size = opt.batchSize} 
          or dp.SentenceSampler{epoch_size = opt.validEpochSize, batch_size = 1, max_size = 100},
       progress = opt.progress
    }
    tester = dp.Evaluator{
       feedback = dp.Perplexity(),  
-      sampler = opt.dataset == 'PennTreeBank' and dp.Sampler{batch_size = opt.contextSize} 
+      sampler = torch.isTypeOf(ds, 'dp.TextSource') and dp.Sampler{batch_size = opt.contextSize} 
          or dp.SentenceSampler{batch_size = 1, max_size = 100}  -- Note : remove max_size for exact test set perplexity (will cost more memory)
    }
 end

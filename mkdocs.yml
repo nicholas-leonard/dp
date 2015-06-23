@@ -5,17 +5,21 @@ use_directory_urls : false
 markdown_extensions: [extra]
 docs_dir : doc
 pages:
-- [index.md, Home]
-- [neuralnetworktutorial.md, Tutorial, Neural Network]
-- [facialkeypointstutorial.md, Tutorial, Facial Keypoints]
-- [languagemodeltutorial.md, Tutorial, Language Model]
-- [view.md, Data Library, View]
-- [data.md, Data Library, Data]
-- [preprocess.md, Data Library, Preprocess] 
-- [experiment.md, Experiment Library, Experiment]
-- [propagator.md, Experiment Library, Propagator]
-- [feedback.md, Extensions, Feedback]
-- [observer.md, Extensions, Observer]
-- [mediator.md, Extensions, Mediator]
+- Home: index.md
+- Tutorial:
+  - Neural Network: neuralnetworktutorial.md
+  - Facial Keypoints: facialkeypointstutorial.md
+  - Language Model: languagemodeltutorial.md
+- Data Library:
+  - View: view.md
+  - Data: data.md
+  - Preprocess: preprocess.md
+- Experiment Library:
+  - Experiment: experiment.md
+  - Propagator: propagator.md
+- Extensions:
+  - Feedback: feedback.md
+  - Observer: observer.md
+  - Mediator: mediator.md
 
 

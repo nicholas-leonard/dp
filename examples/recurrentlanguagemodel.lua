@@ -15,7 +15,7 @@ cmd:text('Options:')
 cmd:option('--learningRate', 0.1, 'learning rate at t=0')
 cmd:option('--schedule', '{[250]=0.01, [350]=0.001}', 'learning rate schedule')
 cmd:option('--momentum', 0, 'momentum')
-cmd:option('--adaptivedecay', false, 'use adaptive learning rate')
+cmd:option('--adaptiveDecay', false, 'use adaptive learning rate')
 cmd:option('--maxWait', 4, 'maximum number of epochs to wait for a new minima to be found. After that, the learning rate is decayed by decayFactor.')
 cmd:option('--decayFactor', 0.1, 'factor by which learning rate is decayed.')
 cmd:option('--maxOutNorm', 2, 'max norm each layers output neuron weights')
@@ -86,6 +86,7 @@ if opt.dataset == 'BillionWords' then
 elseif opt.dataset == 'PennTreeBank' then
    ds = dp.PennTreeBank{context_size=opt.rho,recurrent=true}
    ds:testSet():contextSize(1) -- so that it works with dp.Sampler
+   ds:validSet():contextSize(1)
    assert(not opt.softmaxforest, "SoftMaxForest not supported with PennTreeBank")
 elseif opt.dataset == 'TextSource' then
    ds = dp.TextSource{
@@ -94,6 +95,7 @@ elseif opt.dataset == 'TextSource' then
       train=opt.trainFile, valid=opt.validFile, test=opt.testFile
    }
    ds:testSet():contextSize(1) -- so that it works with dp.Sampler
+   ds:validSet():contextSize(1)
    assert(not opt.softmaxforest, "SoftMaxForest not supported with TextSource")
 else
    error"Unrecognized --dataset"
@@ -127,7 +129,12 @@ rnn = nn.Recurrent(
    nn.Dictionary(ds:vocabularySize(), opt.hiddenSize, opt.accUpdate),
    nn.Linear(opt.hiddenSize, opt.hiddenSize), nn.Sigmoid(), 99999
 )
-lm:add(nn.Sequencer(rnn))
+seq = nn.Sequencer(rnn)
+if not opt.dataset == 'BillionWords' then
+   -- evaluation will recurse a single continuous sequence
+   seq:remember()
+end
+lm:add(seq)
 
 -- output layer
 if opt.softmaxforest or opt.softmaxtree then
@@ -164,14 +171,18 @@ if opt.adaptiveDecay then
 end
 train = dp.Optimizer{
    loss = nn.SequencerCriterion(
-      opt.softmaxtree and nn.TreeNLLCriterion() or nn.ModuleCriterion(nn.ClassNLLCriterion(), 
-      nn.Identity(), 
-      opt.cuda and nn.Convert() or nn.Identity())
+      opt.softmaxtree and nn.TreeNLLCriterion() 
+         or nn.ModuleCriterion(
+            nn.ClassNLLCriterion(), 
+            nn.Identity(), 
+            opt.cuda and nn.Convert() or nn.Identity()
+         )
    ),
    callback = function(model, report) 
       -- learning rate decay
       if ad and ad.decay ~= 1 or opt.schedule[report.epoch] then
          opt.learningRate = ad and opt.learningRate*ad.decay or opt.schedule[report.epoch]
+         ad.decay = 1
          if not opt.silent then
             print("learningRate", opt.learningRate)
          end
@@ -196,7 +207,7 @@ train = dp.Optimizer{
 if not opt.trainOnly then
    valid = dp.Evaluator{
       feedback = dp.Perplexity(),  
-      sampler = torch.isTypeOf(ds, 'dp.TextSource') and dp.RandomSampler{batch_size = opt.batchSize} 
+      sampler = torch.isTypeOf(ds, 'dp.TextSource') and dp.Sampler{batch_size = opt.contextSize} 
          or dp.SentenceSampler{epoch_size = opt.validEpochSize, batch_size = 1, max_size = 100},
       progress = opt.progress
    }

@@ -220,10 +220,27 @@ function DataSource:featureSize()
 end
 
 function DataSource:imageAxes(idx)
-   return idx and self._image_axes[idx] or self._image_axes
+   if self._image_axes then
+      return idx and self._image_axes[idx] or self._image_axes
+   else
+      local iShape = self:ioShapes()
+      return idx and iShape[idx] or iShape
+   end
 end
 
-function DataSource:ioShapes()
+function DataSource:ioShapes(input_shape, output_shape)
+   if input_shape or output_shape then
+      if self:trainSet() then
+         self:trainSet():ioShapes(input_shape, output_shape)
+      end
+      if self:validSet() then
+         self:validSet():ioShapes(input_shape, output_shape)
+      end
+      if self:testSet() then
+         self:testSet():ioShapes(input_shape, output_shape)
+      end
+      return
+   end
    local set = self:trainSet() or self:validSet() or self:testSet()
    return set:ioShapes()
 end

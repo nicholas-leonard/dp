@@ -11,16 +11,18 @@ One of the most important aspects of any machine learning problem is the data. T
     * [NotMnist](#dp.NotMnist) : the lesser known NotMNIST dataset;
     * [Cifar10](#dp.Cifar10) : the CIFAR-10 dataset;
     * [Cifar100](#dp.Cifar100) : the very difficult to generalize CIFAR-100 dataset;
-    * [BillionWords](#dp.BillionWords) : the Google 1-Billion Words language model dataset;
     * [Svhn](#dp.Svhn) : the Google Street View House Numbers dataset;
     * [ImageNet](#dp.ImageNet) : the Large Scale Visual Recognition Challenge 2014 (ILSVRC2014) dataset;
+    * [ImageSource](#dp.ImageSource) :
+    * [TextSource](#dp.TextSource) :
+    * [PennTreeBank](#dp.PennTreeBank) :
+    * [BillionWords](#dp.BillionWords) : the Google 1-Billion Words language model dataset;
   * [Sampler](#dp.Sampler) : ordered dataset iterator;
     * [ShuffleSampler](#dp.ShuffleSampler) : shuffled dataset iterator;
     * [SentenceSampler](#dp.SentenceSampler) : samples sentences for recurrent models;
     * [RandomSampler](#dp.RandomSampler) : iterates through batches of random examples;
 
-<a name="dp.BaseSet"/>
-[]()
+<a name="dp.BaseSet"></a>
 ## BaseSet ##
 This is the base (abstract) class inherited by subclasses like [DataSet](#dp.DataSet),
 [SentenceSet](#dp.SentenceSet) and [Batch](#dp.Batch). It is used for training or evaluating a model. 
@@ -31,8 +33,7 @@ be created allowing, for example, images to be combined with
 tags, text with images, etc. Multi-input/target facilities could be used with nn.ParallelTable and 
 nn.ConcatTable. If the BaseSet is used for unsupervised learning, only inputs need to be provided.
 
-<a name='dp.BaseSet.__init'/>
-[]()
+<a name='dp.BaseSet.__init'></a>
 ### dp.BaseSet{inputs, [targets, which_set]} ###
 Constructs a dataset from inputs and targets.
 Arguments should be specified as key-value pairs. 
@@ -44,8 +45,7 @@ Arguments should be specified as key-value pairs.
     * *valid* for cross-validation, i.e. for early-stopping and hyper-optimization; 
     * *test* for testing, i.e. comparing your model to the current state-of-the-art and such.
 
-<a name="dp.BaseSet.preprocess"/>
-[]()
+<a name="dp.BaseSet.preprocess"></a>
 ### preprocess([input_preprocess, target_preprocess, can_fit]) ###
 Preprocesses the BaseSet.
  
@@ -53,43 +53,36 @@ Preprocesses the BaseSet.
   * `target_preprocess` is [Preprocess](preprocess.md#dp.Preprocess) to be applied to the target [View](view.md#dp.View) of the [BaseSet](data.md#dp.BaseSet).
   * `can_fit` is a boolean. When true, allows measuring of statistics on the View of BaseSet to initialize the Preprocess. Should normally only be done on the training set. Default is to fit the training set.
 
-<a name="dp.BaseSet.inputs"/>
-[]()
+<a name="dp.BaseSet.inputs"></a>
 ### [inputs] inputs() ###
 Returns inputs [View](view.md#dp.View).
 
-<a name="dp.BaseSet.targets"/>
-[]()
+<a name="dp.BaseSet.targets"></a>
 ### [targets] targets() ###
 Returns targets [View](view.md#dp.View).
 
-<a name="dp.DataSet"/>
-[]()
+<a name="dp.DataSet"></a>
 ## DataSet ##
 A subclass of [BaseSet](#dp.BaseSet). Contains input and optional target [Views](view.md#dp.View) used for training or evaluating `models`.
 
-<a name='dp.DataSet.batch'/>
-[]()
+<a name='dp.DataSet.batch'></a>
 ### batch(batch_size) ###
 A factory method that builds a [Batch](#dp.Batch) of size `batch_size`. It effectively 
 calls [sub](#dp.DataSet.sub) with arguments `start=1` and `stop=batch_size`. This method 
 reuses the DataSet's inputs and targets, such that these shouldn't be modified, unless the 
 intent is to modify the original DataSet.
 
-<a name='dp.DataSet.sub'/>
-[]()
+<a name='dp.DataSet.sub'></a>
 ### sub(start, stop, [new]) ###
 A factory method that builds a [Batch](#dp.Batch) by calling [sub](view.md#dp.View.sub) 
 with argument `start` and `stop` on the DataSet's inputs and targets.
 This method reuses the DataSet's inputs and targets, such that these shouldn't be modified, unless the 
 intent is to modify the original DataSet.
 
-<a name='dp.DataSet.index'/>
-[]()
+<a name='dp.DataSet.index'></a>
 ### index([batch,] indices) ###
 
-<a name="dp.SentenceSet"/>
-[]()
+<a name="dp.SentenceSet"></a>
 ## SentenceSet ##
 A subclass of [DataSet](#dp.DataSet) used for language modeling. 
 Takes a sequence of words stored as a tensor of word IDs and a [Tensor](https://github.com/torch/torch7/blob/master/doc/tensor.md#tensor) 
@@ -218,8 +211,7 @@ The batch of examples is usually sampled from a [DataSet](#dp.DataSet)
 via a [Sampler](#dp.Sampler) iterator by calling the DataSet's different factory methods : 
 [batch](#dp.DataSet.batch), [sub](#dp.DataSet.sub), and [index](#dp.DataSet.index).
 
-<a name="dp.DataSource"/>
-[]()
+<a name="dp.DataSource"></a>
 ## DataSource ##
 Abstract class used to generate up to 3 [DataSets](#dp.DataSet) : *train*, *valid* and *test*:
  
@@ -228,8 +220,7 @@ Abstract class used to generate up to 3 [DataSets](#dp.DataSet) : *train*, *vali
   * *test* for testing, i.e. comparing your model to the current state-of-the-art and such.
 It can also perform preprocessing using [Preprocess](preprocess.md#dp.Preprocess) on all DataSets by fitting only the training set.
 
-<a name="dp.DataSource.__init"/>
-[]()
+<a name="dp.DataSource.__init"></a>
 ### dp.DataSource{...} ###
 DataSource constructor. Arguments should be specified as key-value pairs. 
  
@@ -297,14 +288,12 @@ Returns the `path` to the resulting data file.
   * `data_dir` is a string specifying the path to the directory containing directory `name`, which is expected to contain the data, or where it will be downloaded.
   * `decompress_file` is a string that when non-nil, decompresses the downloaded data if `data_dir/name/decompress_file` is not found. In which case, returns `data_dir/name/decompress_file`.
  
-<a name="dp.Mnist"/>
-[]()
+<a name="dp.Mnist"></a>
 ## Mnist ##
 A [DataSource](#dp.DataSource) subclass wrapping the simple but widely used handwritten digits 
 classification problem (see [MNIST](http://yann.lecun.com/exdb/mnist/)). The images are of size `28x28x1`. The classes are : 0, 1, 2, 3, 4, 5, 6, 7, 8, 9.
 
-<a name="dp.NotMnist"/>
-[]()
+<a name="dp.NotMnist"></a>
 ## NotMnist ##
 A [DataSource](#dp.DataSource) subclass wrapping the much larger alternative to MNIST: 
 [NotMNIST](http://yaroslavvb.blogspot.ca/2011/09/notmnist-dataset.html). 
@@ -313,22 +302,19 @@ If not found on the local machine, the object downloads the dataset from the
 It contains 500k+ examples of 10 charaters using unicode fonts: *A*,*B*,*C*,*D*,*E*,*F*,*G*,*H*,*I*,*J*. 
 Like [Mnist](#dp.Mnist), the images are of size `28x28x1`.
 
-<a name="dp.Cifar10"/>
-[]()
+<a name="dp.Cifar10"></a>
 ## Cifar10 ##
 A [DataSource](#dp.DataSource) subclass wrapping the [CIFAR-10](http://www.cs.toronto.edu/~kriz/cifar.html) dataset. 
 It is a `3x32x32` color-image set of 10 different objects. Small dataset size makes it hard to generalize 
 from train to test set (Regime : overfitting).
 
-<a name="dp.Cifar100"/>
-[]()
+<a name="dp.Cifar100"></a>
 ## Cifar100 ##
 A [DataSource](#dp.DataSource) subclass wrapping the [CIFAR-100](http://www.cs.toronto.edu/~kriz/cifar.html) 
 dataset. It is a `3x32x32` color-image set of 100 different objects. Small dataset (even less images 
 per class than [Cifar-10](#dp.Cifar10)) size makes it hard to generalize from train to test set (Regime : overfitting). 
 
-<a name="dp.BillionWords"/>
-[]()
+<a name="dp.BillionWords"></a>
 ## BillionWords ##
 A [DataSource](#dp.DataSource) subclass wrapping the corpus derived from the 
 `training-monolingual.tokenized/news.20??.en.shuffled.tokenized` data distributed for [WMT11](http://statmt.org/wmt11/translation-task.html). The preprocessing suggested by 

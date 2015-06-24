@@ -1,6 +1,7 @@
 ------------------------------------------------------------------------
 --[[ ImageSource ]]--
--- A DataSource consisting of two sets (train and valid) of local training images
+-- A DataSource consisting of two sets (train and valid) 
+-- of local training images. Similar to ImageNet DataSource.
 ------------------------------------------------------------------------
 local ImageSource, DataSource = torch.class("dp.ImageSource", "dp.DataSource")
 
@@ -58,13 +59,13 @@ end
 function ImageSource:loadTrain()
    local dataset = dp.ImageClassSet{
       data_path=self._train_path, load_size=self._load_size,
-      which_set='train', sample_size=self._sample_size,
-      carry=dp.Carry(), verbose=self._verbose
+      which_set='train', sample_size=self._sample_size, 
+      sort_func=function(x,y)
+         return tonumber(x:match('[0-9]+')) < tonumber(y:match('[0-9]+'))
+      end
    }
-   if self._classes == nil then
-      self._classes = dataset:classes()
-   end
-   self:setTrainSet(dataset)   
+   self._classes = self._classes or dataset:classes()
+   self:trainSet(dataset)   
    return dataset
 end
 
@@ -72,15 +73,13 @@ function ImageSource:loadValid()
    local dataset = dp.ImageClassSet{
       data_path=self._valid_path, load_size=self._load_size,
       which_set='valid', sample_size=self._sample_size,
-      carry=dp.Carry(), verbose=self._verbose, sample_func='sampleTest',
+      verbose=self._verbose, sample_func='sampleTest',
       sort_func=function(x,y)
          return tonumber(x:match('[0-9]+')) < tonumber(y:match('[0-9]+'))
       end
    }
-   if self._classes == nil then
-      self._classes = dataset:classes()
-   end
-   self:setValidSet(dataset)
+   self._classes = self._classes or dataset:classes()
+   self:validSet(dataset)
    return dataset
 end
 

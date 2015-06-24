@@ -120,7 +120,7 @@ The third is used for publishing papers and comparing results across different m
 ## Model of Modules ##
 
 Ok so we have a DataSource, now we need a model. Let's build a 
-multi-layer perceptron (MLP) with on or more parameterized non-linear layers
+multi-layer perceptron (MLP) with one or more parameterized non-linear layers
 (note that in the case of hidden layers being ommitted (`--hiddenSize '{}'`), 
 the model is just a linear classifier):
 
@@ -189,7 +189,7 @@ generate [Batches](data.md#dp.Batch) of examples (inputs and targets) to propaga
 
 train = dp.Optimizer{
    acc_update = opt.accUpdate,
-   loss = nn.ModuleCriterion(nn.ClassNLLCriterion(), nn.Convert()),
+   loss = nn.ModuleCriterion(nn.ClassNLLCriterion(), nil, nn.Convert()),
    callback = function(model, report) 
       opt.learningRate = opt.schedule[report.epoch] or opt.learningRate
       if opt.accUpdate then

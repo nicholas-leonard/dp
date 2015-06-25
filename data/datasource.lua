@@ -203,24 +203,51 @@ function DataSource:classes()
    return self._classes
 end
 
-function DataSource:imageSize(idx)
+-- input size
+function DataSource:iSize(idx)
    if torch.type(idx) == 'string' then
-      local view = string.gsub(self:imageAxes(), 'b', '')
+      local view = string.gsub(self:iAxes(), 'b', '')
       local axis_pos = view:find(idx)
       if not axis_pos then
-         error("Datasource has no axis '"..idx.."'", 2)
+         if idx == 'f' then
+            if self._feature_size then 
+               -- legacy
+               return self._feature_size
+            else
+               -- extrapolate feature size
+               local set = self:trainSet() or self:validSet() or self:testSet()
+               local batch = set:sub(1,2)
+               local inputView = batch:inputs()
+               local inputs = inputView:forward('bf')
+               local f_idx = inputView:findAxis('f')
+               return inputs:size(f_idx)
+            end
+         else
+            error("Datasource has no axis '"..idx.."'")
+         end
       end
       idx = axis_pos
    end
-   return idx and self._image_size[idx] or self._image_size
+   
+   if self._image_size then
+      -- legacy 
+      return idx and self._image_size[idx] or self._image_size
+   else
+      -- extrapolate input size
+      local set = self:trainSet() or self:validSet() or self:testSet()
+      local batch = set:sub(1,2)
+      local inputView = batch:inputs()
+      assert(torch.isTypeOf(inputView, 'dp.ImageView'), "Expecting dp.ImageView inputs")
+      local inputs = inputView:forward(self:imageAxes())
+      local size = inputs:size():totable()
+      local b_idx = inputView:findAxis('b')
+      table.remove(size, b_idx)
+      return idx and size[idx] or size
+   end
 end
 
-function DataSource:featureSize()
-   return self._feature_size
-end
-
-function DataSource:imageAxes(idx)
-   if self._image_axes then
+function DataSource:iAxes(idx)
+   if self._image_axes then -- legacy
       return idx and self._image_axes[idx] or self._image_axes
    else
       local iShape = self:ioShapes()
@@ -244,7 +271,20 @@ function DataSource:ioShapes(input_shape, output_shape)
    local set = self:trainSet() or self:validSet() or self:testSet()
    return set:ioShapes()
 end
--- end access static attributes
+
+-- DEPRECATED
+function DataSource:imageSize(idx)
+   return self:iSize(idx)
+end
+
+function DataSource:featureSize()
+   return self:iSize('f')
+end
+
+function DataSource:imageAxes(idx)
+   return self:iAxes(idx)
+end
+-- END DEPRECATED
 
 -- Download datasource if not found locally.  
 -- Returns the path to the resulting data file.

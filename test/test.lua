@@ -268,6 +268,24 @@ function dptest.SentenceSet()
    mytester:assertTensorEq(batch3:inputs():forward('bt'), batch:inputs():forward('bt'), 0.00001)
    mytester:assertTensorEq(batch3:targets():forward('b'), batch:targets():forward('b'), 0.00001)
 end 
+
+function dptest.DataSource()
+   local input = torch.randn(3,4,5,6)
+   local target = torch.randn(3)
+   local inputView = dp.ImageView('bchw', input)
+   local targetView = dp.TargetView('b', target)
+   local valid = dp.DataSet{which_set='valid', inputs=input, targets=target}
+   local ds = dp.DataSource{valid_set=valid}
+   -- test ioShape
+   local iShape, oShape = ds:ioShape()
+   mytester:assert(iShape == 'bchw')
+   mytester:assert(oShape == 'b')
+   -- test iAxes
+   
+   -- test iSize
+   
+end
+
 function dptest.GCN()
    --[[ zero_vector ]]--
    -- Global Contrast Normalization

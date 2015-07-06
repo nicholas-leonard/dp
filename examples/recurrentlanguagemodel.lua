@@ -32,6 +32,7 @@ cmd:option('--xpPath', '', 'path to a previously saved model')
 --[[ recurrent layer ]]--
 cmd:option('--rho', 5, 'back-propagate through time (BPTT) for rho time-steps')
 cmd:option('--hiddenSize', 200, 'number of hidden units used in Simple RNN')
+cmd:option('--zeroFirst', false, 'first step will forward zero through recurrence (i.e. add bias of recurrence). As opposed to learning bias specifically for first step.')
 cmd:option('--dropout', false, 'apply dropout on hidden neurons (not recommended)')
 
 --[[ output layer ]]--
@@ -66,6 +67,7 @@ if opt.xpPath ~= '' then
 end
 
 --[[data]]--
+
 local train_file = 'train_data.th7' 
 if opt.small then 
    train_file = 'train_small.th7'
@@ -125,10 +127,16 @@ lm:add(nn.DontCast(nn.SplitTable(1,1):dontBackward():type('torch.IntTensor'))) -
 
 -- simple recurrent neural network
 rnn = nn.Recurrent(
-   opt.hiddenSize, 
-   nn.Dictionary(ds:vocabularySize(), opt.hiddenSize, opt.accUpdate),
-   nn.Linear(opt.hiddenSize, opt.hiddenSize), nn.Sigmoid(), 99999
+   opt.hiddenSize, -- first step will use nn.Add
+   nn.Dictionary(ds:vocabularySize(), opt.hiddenSize, opt.accUpdate), -- input layer is a lookup table
+   nn.Linear(opt.hiddenSize, opt.hiddenSize), -- feedback layer (recurrence)
+   nn.Sigmoid(), -- transfer function 
+   99999 -- maximum number of time-steps per sequence
 )
+if opt.zeroFirst then
+   -- this is equivalent to forwarding a zero vector through the feedback layer
+   rnn.startModule:share(rnn.feedbackModule, 'bias')
+end
 seq = nn.Sequencer(rnn)
 if not opt.dataset == 'BillionWords' then
    -- evaluation will recurse a single continuous sequence
@@ -169,6 +177,7 @@ lm:add(nn.Sequencer(softmax))
 if opt.adaptiveDecay then
    ad = dp.AdaptiveDecay{max_wait = opt.maxWait, decay_factor=opt.decayFactor}
 end
+opt.lastEpoch = 0
 train = dp.Optimizer{
    loss = nn.SequencerCriterion(
       opt.softmaxtree and nn.TreeNLLCriterion() 
@@ -180,13 +189,14 @@ train = dp.Optimizer{
    ),
    callback = function(model, report) 
       -- learning rate decay
-      if ad and ad.decay ~= 1 or opt.schedule[report.epoch] then
+      if opt.lastEpoch < report.epoch and ad and ad.decay ~= 1 or opt.schedule[report.epoch] then
          opt.learningRate = ad and opt.learningRate*ad.decay or opt.schedule[report.epoch]
-         ad.decay = 1
+         if ad then ad.decay = 1 end
          if not opt.silent then
             print("learningRate", opt.learningRate)
          end
       end
+      opt.lastEpoch = report.epoch
       if opt.accUpdate then
          model:accUpdateGradParameters(model.dpnn_input, model.output, opt.learningRate)
       else

@@ -120,7 +120,7 @@ The third is used for publishing papers and comparing results across different m
 ## Model of Modules ##
 
 Ok so we have a DataSource, now we need a model. Let's build a 
-multi-layer perceptron (MLP) with on or more parameterized non-linear layers
+multi-layer perceptron (MLP) with one or more parameterized non-linear layers
 (note that in the case of hidden layers being ommitted (`--hiddenSize '{}'`), 
 the model is just a linear classifier):
 

@@ -18,7 +18,8 @@ cmd:option('--momentum', 0, 'momentum')
 cmd:option('--adaptiveDecay', false, 'use adaptive learning rate')
 cmd:option('--maxWait', 4, 'maximum number of epochs to wait for a new minima to be found. After that, the learning rate is decayed by decayFactor.')
 cmd:option('--decayFactor', 0.1, 'factor by which learning rate is decayed.')
-cmd:option('--maxOutNorm', 2, 'max norm each layers output neuron weights')
+cmd:option('--maxOutNorm', 2, 'max l2-norm each layers output neuron weights')
+cmd:option('--cutoffNorm', -1, 'max l2-norm of contatenation of all gradParam tensors')
 cmd:option('--batchSize', 64, 'number of examples per batch')
 cmd:option('--cuda', false, 'use CUDA')
 cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
@@ -66,8 +67,7 @@ if opt.xpPath ~= '' then
    assert(paths.filep(opt.xpPath), opt.xpPath..' does not exist')
 end
 
---[[data]]--
-
+--[[Data]]--
 local train_file = 'train_data.th7' 
 if opt.small then 
    train_file = 'train_small.th7'
@@ -86,7 +86,7 @@ if opt.dataset == 'BillionWords' then
       ds:loadTest()
    end
 elseif opt.dataset == 'PennTreeBank' then
-   ds = dp.PennTreeBank{context_size=opt.rho,recurrent=true}
+   ds = dp.PennTreeBank{context_size=opt.rho, recurrent=true}
    ds:testSet():contextSize(1) -- so that it works with dp.Sampler
    ds:validSet():contextSize(1)
    assert(not opt.softmaxforest, "SoftMaxForest not supported with PennTreeBank")
@@ -179,14 +179,12 @@ if opt.adaptiveDecay then
 end
 opt.lastEpoch = 0
 train = dp.Optimizer{
-   loss = nn.SequencerCriterion(
-      opt.softmaxtree and nn.TreeNLLCriterion() 
+   loss = opt.softmaxtree and nn.SequencerCriterion(nn.TreeNLLCriterion())
          or nn.ModuleCriterion(
-            nn.ClassNLLCriterion(), 
+            nn.SequencerCriterion(nn.ClassNLLCriterion()), 
             nn.Identity(), 
-            opt.cuda and nn.Convert() or nn.Identity()
-         )
-   ),
+            opt.cuda and nn.Sequencer(nn.Convert()) or nn.Identity()
+         ),
    callback = function(model, report) 
       -- learning rate decay
       if opt.lastEpoch < report.epoch and ad and ad.decay ~= 1 or opt.schedule[report.epoch] then
@@ -196,15 +194,24 @@ train = dp.Optimizer{
             print("learningRate", opt.learningRate)
          end
       end
-      opt.lastEpoch = report.epoch
+      
       if opt.accUpdate then
          model:accUpdateGradParameters(model.dpnn_input, model.output, opt.learningRate)
       else
+         if opt.cutoffNorm > 0 then
+            local norm = model:gradParamClip(opt.cutoffNorm) -- affects gradParams
+            opt.meanNorm = opt.meanNorm and (opt.meanNorm*0.9 + norm*0.1) or norm
+            if opt.lastEpoch < report.epoch and not opt.silent then
+               print("mean gradParam norm", opt.meanNorm)
+            end
+         end
          model:updateGradParameters(opt.momentum) -- affects gradParams
          model:updateParameters(opt.learningRate) -- affects params
       end
       model:maxParamNorm(opt.maxOutNorm) -- affects params
       model:zeroGradParameters() -- affects gradParams 
+      
+      opt.lastEpoch = report.epoch
    end,
    feedback = dp.Perplexity(),  
    sampler = dp.RandomSampler{

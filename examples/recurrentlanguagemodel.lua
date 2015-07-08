@@ -8,7 +8,7 @@ cmd = torch.CmdLine()
 cmd:text()
 cmd:text('Train a Language Model on BillionWords dataset using a Simple Recurrent Neural Network')
 cmd:text('Example:')
-cmd:text('$> th recurrentlanguagemodel.lua --small --batchSize 64 ')
+cmd:text("$> th recurrentlanguagemodel.lua --dataset PennTreeBank --cuda --useDevice 2 --trainEpochSize -1 --trainEpochSize -1 --dropout --bidirectional --hiddenSize '{200,200}' --zeroFirst --batchSize 32 --progress")
 cmd:text('$> th recurrentlanguagemodel.lua --tiny --batchSize 64 ')
 cmd:text('$> th recurrentlanguagemodel.lua --tiny --batchSize 64 --rho 5 --validEpochSize 10000 --trainEpochSize 100000 --softmaxtree')
 cmd:text('Options:')
@@ -31,10 +31,12 @@ cmd:option('--silent', false, 'dont print anything to stdout')
 cmd:option('--xpPath', '', 'path to a previously saved model')
 
 --[[ recurrent layer ]]--
+cmd:option('--lstm', false, 'use Long Short Term Memory (nn.LSTM instead of nn.Recurrent)')
+cmd:option('--bidirectional', false, 'use a Bidirectional RNN/LSTM (nn.BiSequencer instead of nn.Sequencer)')
 cmd:option('--rho', 5, 'back-propagate through time (BPTT) for rho time-steps')
-cmd:option('--hiddenSize', 200, 'number of hidden units used in Simple RNN')
+cmd:option('--hiddenSize', '{200}', 'number of hidden units used at output of each recurrent layer. When more than one is specified, RNN/LSTMs are stacked')
 cmd:option('--zeroFirst', false, 'first step will forward zero through recurrence (i.e. add bias of recurrence). As opposed to learning bias specifically for first step.')
-cmd:option('--dropout', false, 'apply dropout on hidden neurons (not recommended)')
+cmd:option('--dropout', false, 'apply dropout after each recurrent layer')
 
 --[[ output layer ]]--
 cmd:option('--softmaxtree', false, 'use SoftmaxTree instead of the inefficient (full) softmax')
@@ -58,9 +60,12 @@ cmd:option('--testFile', 'test.txt', 'filename containing tokenized test text da
 cmd:text()
 opt = cmd:parse(arg or {})
 opt.schedule = dp.returnString(opt.schedule)
+opt.hiddenSize = dp.returnString(opt.hiddenSize)
 if not opt.silent then
    table.print(opt)
 end
+
+Sequencer = opt.bidirectional and nn.BiSequencer or nn.Sequencer
 
 if opt.xpPath ~= '' then
    -- check that saved model exists
@@ -123,26 +128,58 @@ end
 
 -- language model
 lm = nn.Sequential()
-lm:add(nn.DontCast(nn.SplitTable(1,1):dontBackward():type('torch.IntTensor'))) -- tensor to table of tensors
 
--- simple recurrent neural network
-rnn = nn.Recurrent(
-   opt.hiddenSize, -- first step will use nn.Add
-   nn.Dictionary(ds:vocabularySize(), opt.hiddenSize, opt.accUpdate), -- input layer is a lookup table
-   nn.Linear(opt.hiddenSize, opt.hiddenSize), -- feedback layer (recurrence)
-   nn.Sigmoid(), -- transfer function 
-   99999 -- maximum number of time-steps per sequence
-)
-if opt.zeroFirst then
-   -- this is equivalent to forwarding a zero vector through the feedback layer
-   rnn.startModule:share(rnn.feedbackModule, 'bias')
+local inputSize = opt.hiddenSize[1]
+for i,hiddenSize in ipairs(opt.hiddenSize) do 
+
+   -- input layer
+   if i == 1 then
+      -- first layer uses the above nn.Dictionary, i.e. word embedding space
+      lm:add(nn.Dictionary(ds:vocabularySize(), inputSize, opt.accUpdate))
+      
+      if opt.dropout then
+         lm:add(nn.Dropout())
+      end
+      
+      lm:add(nn.SplitTable(1,2)) -- tensor to table of tensors
+   elseif not opt.lstm then
+      lm:add(nn.Sequencer(nn.Linear(inputSize, hiddenSize)))
+   end
+   
+   -- recurrent layer
+   local rnn
+   if opt.lstm then
+      -- Long Short Term Memory
+      rnn = Sequencer(nn.LSTM(inputSize, hiddenSize))
+   else
+      -- simple recurrent neural network
+      rnn = nn.Recurrent(
+         hiddenSize, -- first step will use nn.Add
+         nn.Identity(), -- for efficiency (see above input layer) 
+         nn.Linear(hiddenSize, hiddenSize), -- feedback layer (recurrence)
+         nn.Sigmoid(), -- transfer function 
+         99999 -- maximum number of time-steps per sequence
+      )
+      if opt.zeroFirst then
+         -- this is equivalent to forwarding a zero vector through the feedback layer
+         rnn.startModule:share(rnn.feedbackModule, 'bias')
+      end
+      rnn = Sequencer(rnn)
+   end
+
+   if not opt.dataset == 'BillionWords' then
+      -- evaluation will recurse a single continuous sequence
+      rnn:remember()
+   end
+   
+   lm:add(rnn)
+   
+   if opt.dropout then -- dropout it applied between recurrent layers
+      lm:add(nn.Sequencer(nn.Dropout()))
+   end
+   
+   inputSize = opt.bidirectional and hiddenSize*2 or hiddenSize
 end
-seq = nn.Sequencer(rnn)
-if not opt.dataset == 'BillionWords' then
-   -- evaluation will recurse a single continuous sequence
-   seq:remember()
-end
-lm:add(seq)
 
 -- output layer
 if opt.softmaxforest or opt.softmaxtree then
@@ -155,11 +192,11 @@ if opt.softmaxforest or opt.softmaxtree then
    if opt.softmaxforest then -- requires a lot more memory
       local trees = {ds:hierarchy('word_tree1.th7'), ds:hierarchy('word_tree2.th7'), ds:hierarchy('word_tree3.th7')}
       local rootIds = {880542,880542,880542}
-      softmax = nn.SoftMaxForest(opt.hiddenSize, trees, rootIds, opt.forestGaterSize, nn.Tanh(), opt.accUpdate)
+      softmax = nn.SoftMaxForest(inputSize, trees, rootIds, opt.forestGaterSize, nn.Tanh(), opt.accUpdate)
       opt.softmaxtree = true
    elseif opt.softmaxtree then -- uses frequency based tree
       local tree, root = ds:frequencyTree()
-      softmax = nn.SoftMaxTree(opt.hiddenSize, tree, root, opt.accUpdate)
+      softmax = nn.SoftMaxTree(inputSize, tree, root, opt.accUpdate)
    end
 else
    if #ds:vocabulary() > 50000 then
@@ -168,7 +205,7 @@ else
          "per example. Try --softmaxtree instead.")
    end
    softmax = nn.Sequential()
-   softmax:add(nn.Linear(opt.hiddenSize, ds:vocabularySize()))
+   softmax:add(nn.Linear(inputSize, ds:vocabularySize()))
    softmax:add(nn.LogSoftMax())
 end
 lm:add(nn.Sequencer(softmax))

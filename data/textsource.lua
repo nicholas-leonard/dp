@@ -15,8 +15,8 @@ function TextSource:__init(config)
    assert(torch.type(config) == 'table' and not config[1], 
       "Constructor requires key-value arguments")
    local args, train, valid, test
-   args, self._name, self._context_size, self._recurrent,
-         train, valid, test, 
+   args, self._name, self._context_size, self._recurrent, 
+         self._bidirectional, train, valid, test, 
          self._data_path, self._download_url, self._string
       = xlua.unpack(
       {config},
@@ -29,6 +29,9 @@ function TextSource:__init(config)
       {arg='recurrent', type='number', default=false,
        help='For RNN training, set this to true. In which case, '..
        'outputs a target word for each input word'},
+      {arg='bidirectional', type='boolean', default=false,
+       help='For BiDirectionalLM, i.e. Bidirectional RNN/LSTMs, '..
+       'set this to true. In which case, target = input'},
       {arg='train', type='string', 
        help='training text data or name of training file'},
       {arg='valid', type='string',
@@ -120,7 +123,8 @@ function TextSource:createTextSet(file_name, which_set)
    -- words to your recurrent model (like RNN and LSTM).
    return dp.TextSet{
       data=x, which_set=which_set, context_size=self._context_size,
-      recurrent=self._recurrent, words=self._classes
+      recurrent=self._recurrent, bidirectional=self._bidirectional, 
+      words=self._classes
    }
 end
 

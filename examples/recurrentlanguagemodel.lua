@@ -21,6 +21,7 @@ cmd:option('--decayFactor', 0.1, 'factor by which learning rate is decayed.')
 cmd:option('--maxOutNorm', 2, 'max l2-norm each layers output neuron weights')
 cmd:option('--cutoffNorm', -1, 'max l2-norm of contatenation of all gradParam tensors')
 cmd:option('--batchSize', 64, 'number of examples per batch')
+cmd:option('--evalSize', 100, 'size of context used for evaluation (more means more memory). With --bidirectional, specifies number of steps between each bwd rnn forget() (more means longer bwd recursions)')
 cmd:option('--cuda', false, 'use CUDA')
 cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
 cmd:option('--maxEpoch', 400, 'maximum number of epochs to run')
@@ -65,7 +66,14 @@ if not opt.silent then
    table.print(opt)
 end
 
-Sequencer = opt.bidirectional and nn.BiSequencer or nn.Sequencer
+Sequencer = opt.bidirectional and nn.BiSequencerLM or nn.Sequencer
+
+if opt.bidirectional and not opt.silent then
+   print("Warning : the Perplexity of a bidirectional RNN/LSTM isn't "..
+      "necessarily mathematically valid as it uses P(x_t|x_{/neq t}) "..
+      "instead of P(x_t|x_{<t}), which is used for unidirectional RNN/LSTMs. "..
+      "You can however still use predictions to measure pseudo-likelood.")
+end
 
 if opt.xpPath ~= '' then
    -- check that saved model exists
@@ -81,6 +89,7 @@ elseif opt.tiny then
 end
 
 if opt.dataset == 'BillionWords' then
+   assert(not opt.bidirectional, "--bidirectional not yet supported with BillionWords")
    ds = dp.BillionWords{
       train_file=train_file, load_all=false, 
       context_size=opt.rho, recurrent=true
@@ -91,13 +100,17 @@ if opt.dataset == 'BillionWords' then
       ds:loadTest()
    end
 elseif opt.dataset == 'PennTreeBank' then
-   ds = dp.PennTreeBank{context_size=opt.rho, recurrent=true}
+   ds = dp.PennTreeBank{
+      context_size=opt.bidirectional and opt.rho+1 or opt.rho, 
+      recurrent=true, bidirectional=true
+   }
    ds:testSet():contextSize(1) -- so that it works with dp.Sampler
    ds:validSet():contextSize(1)
    assert(not opt.softmaxforest, "SoftMaxForest not supported with PennTreeBank")
 elseif opt.dataset == 'TextSource' then
    ds = dp.TextSource{
-      context_size=opt.rho, recurrent=true,
+      context_size=opt.bidirectional and opt.rho+1 or opt.rho, 
+      recurrent=true, bidirectional=true,
       name='rnnlm', data_path = opt.dataPath,
       train=opt.trainFile, valid=opt.validFile, test=opt.testFile
    }
@@ -170,6 +183,9 @@ for i,hiddenSize in ipairs(opt.hiddenSize) do
    if not opt.dataset == 'BillionWords' then
       -- evaluation will recurse a single continuous sequence
       rnn:remember()
+      if opt.bidirectional then
+         rnn.bwdSeq:remember(false)
+      end
    end
    
    lm:add(rnn)
@@ -261,13 +277,15 @@ train = dp.Optimizer{
 if not opt.trainOnly then
    valid = dp.Evaluator{
       feedback = dp.Perplexity(),  
-      sampler = torch.isTypeOf(ds, 'dp.TextSource') and dp.Sampler{batch_size = opt.contextSize} 
+      sampler = torch.isTypeOf(ds, 'dp.TextSource') 
+         and dp.Sampler{epoch_size = opt.validEpochSize, batch_size = opt.evalSize} 
          or dp.SentenceSampler{epoch_size = opt.validEpochSize, batch_size = 1, max_size = 100},
       progress = opt.progress
    }
    tester = dp.Evaluator{
       feedback = dp.Perplexity(),  
-      sampler = torch.isTypeOf(ds, 'dp.TextSource') and dp.Sampler{batch_size = opt.contextSize} 
+      sampler = torch.isTypeOf(ds, 'dp.TextSource') 
+         and dp.Sampler{epoch_size = opt.validEpochSize, batch_size = opt.evalSize} 
          or dp.SentenceSampler{batch_size = 1, max_size = 100}  -- Note : remove max_size for exact test set perplexity (will cost more memory)
    }
 end

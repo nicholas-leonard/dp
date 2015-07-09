@@ -16,7 +16,8 @@ TextSet.isTextSet = true
 
 function TextSet:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, which_set, data, context_size, words, recurrent = xlua.unpack(
+   local args, which_set, data, context_size, words, recurrent, bidirectional 
+      = xlua.unpack(
       {config},
       'TextSet', 
       'Stores a sequence of words where each word is represented as an integer.',
@@ -30,7 +31,10 @@ function TextSet:__init(config)
        help='A table mapping word_ids to the original word strings'},
       {arg='recurrent', type='number', default=false,
        help='For RNN training, set this to true. In which case, '..
-       'outputs a target word for each input word'}
+       'outputs a target word for each input word'},
+      {arg='bidirectional', type='boolean', default=false,
+       help='For BiDirectionalLM, i.e. Bidirectional RNN/LSTMs, '..
+       'set this to true. In which case, target = input'}
    )
    self:whichSet(which_set)
    assert(torch.type(data) == 'torch.IntTensor')
@@ -38,6 +42,7 @@ function TextSet:__init(config)
    self._context_size = context_size
    self._words = words
    self._recurrent = recurrent
+   self._bidirectional = bidirectional
 end
 
 function TextSet:contextSize(context_size)
@@ -52,7 +57,7 @@ function TextSet:vocabulary()
 end
 
 function TextSet:nSample()
-   return self._data:size(1)-self._context_size
+   return self._bidirectional and self._data:size(1) and self._data:size(1)-self._context_size
 end
 
 function TextSet:batch(batch_size)
@@ -79,7 +84,13 @@ function TextSet:sub(batch, start, stop)
       targets = target_v:input()
    end  
    
-   if self._recurrent then
+   if self._bidirectional then
+      assert(self._context_size == 1, "can only use sub with contextSize = 1 for recurrent networks")
+      local data = self._data:sub(start, stop)
+      inputs:resize(1,data:size(1)):copy(data)
+      targets:set(inputs)
+      target_v:forward('bt', targets)
+   elseif self._recurrent then
       assert(self._context_size == 1, "can only use sub with contextSize = 1 for recurrent networks")
       local data = self._data:sub(start, stop+1)
       inputs:resize(1,data:size(1)):copy(data)
@@ -140,7 +151,10 @@ function TextSet:index(batch, indices)
    end
    
    indices:add(self._context_size) -- offset by contextsize
-   if self._recurrent then
+   if self._bidirectional then
+      inputs:resize(indices:size(1), self._context_size)
+      inputs:select(2,self._context_size):index(self._data, 1, indices) -- last targets
+   elseif self._recurrent then
       inputs:resize(indices:size(1), self._context_size+1)
       inputs:select(2,self._context_size+1):index(self._data, 1, indices) -- last targets
    else
@@ -154,7 +168,10 @@ function TextSet:index(batch, indices)
    end
    
    -- targets
-   if self._recurrent then
+   if self._bidirectional then
+      targets:set(inputs)
+      target_v:forward('bt', targets)
+   elseif self._recurrent then
       targets:set(inputs:narrow(2,2,self._context_size))
       target_v:forward('bt', targets)
       inputs = inputs:narrow(2,1,self._context_size)

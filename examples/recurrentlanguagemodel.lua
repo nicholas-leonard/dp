@@ -66,8 +66,6 @@ if not opt.silent then
    table.print(opt)
 end
 
-Sequencer = opt.bidirectional and nn.BiSequencerLM or nn.Sequencer
-
 if opt.bidirectional and not opt.silent then
    print("Warning : the Perplexity of a bidirectional RNN/LSTM isn't "..
       "necessarily mathematically valid as it uses P(x_t|x_{/neq t}) "..
@@ -142,20 +140,11 @@ end
 -- language model
 lm = nn.Sequential()
 
+local first
 local inputSize = opt.hiddenSize[1]
 for i,hiddenSize in ipairs(opt.hiddenSize) do 
 
-   -- input layer
-   if i == 1 then
-      -- first layer uses the above nn.Dictionary, i.e. word embedding space
-      lm:add(nn.Dictionary(ds:vocabularySize(), inputSize, opt.accUpdate))
-      
-      if opt.dropout then
-         lm:add(nn.Dropout())
-      end
-      
-      lm:add(nn.SplitTable(1,2)) -- tensor to table of tensors
-   elseif not opt.lstm then
+   if i~= 1 and not opt.lstm then
       lm:add(nn.Sequencer(nn.Linear(inputSize, hiddenSize)))
    end
    
@@ -163,7 +152,7 @@ for i,hiddenSize in ipairs(opt.hiddenSize) do
    local rnn
    if opt.lstm then
       -- Long Short Term Memory
-      rnn = Sequencer(nn.LSTM(inputSize, hiddenSize))
+      rnn = nn.Sequencer(nn.LSTM(inputSize, hiddenSize))
    else
       -- simple recurrent neural network
       rnn = nn.Recurrent(
@@ -183,9 +172,6 @@ for i,hiddenSize in ipairs(opt.hiddenSize) do
    if not opt.dataset == 'BillionWords' then
       -- evaluation will recurse a single continuous sequence
       rnn:remember()
-      if opt.bidirectional then
-         rnn.bwdSeq:remember(false)
-      end
    end
    
    lm:add(rnn)
@@ -194,8 +180,27 @@ for i,hiddenSize in ipairs(opt.hiddenSize) do
       lm:add(nn.Sequencer(nn.Dropout()))
    end
    
-   inputSize = opt.bidirectional and hiddenSize*2 or hiddenSize
+   inputSize = hiddenSize
 end
+
+if opt.bidirectional then
+   -- initialize BRNN with fwd, bwd RNN/LSTMs
+   local brnn = nn.BiSequencerLM(lm, lm:clone():reset():remember(false))
+   
+   local lm = nn.Sequential()
+   lm:add(brnn)
+   
+   inputSize = inputSize*2
+end
+
+-- input layer (i.e. word embedding space)
+lm:insert(nn.SplitTable(1,2), 1) -- tensor to table of tensors
+
+if opt.dropout then
+   lm:insert(nn.Dropout(), 1)
+end
+
+lm:insert(nn.Dictionary(ds:vocabularySize(), opt.hiddenSize[1], opt.accUpdate), 1)
 
 -- output layer
 if opt.softmaxforest or opt.softmaxtree then

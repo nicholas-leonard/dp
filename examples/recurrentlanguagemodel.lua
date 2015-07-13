@@ -30,6 +30,7 @@ cmd:option('--accUpdate', false, 'accumulate updates inplace using accUpdateGrad
 cmd:option('--progress', false, 'print progress bar')
 cmd:option('--silent', false, 'dont print anything to stdout')
 cmd:option('--xpPath', '', 'path to a previously saved model')
+cmd:option('--uniform', -1, 'initialize parameters using uniform distribution between -uniform and uniform. -1 means default initialization')
 
 --[[ recurrent layer ]]--
 cmd:option('--lstm', false, 'use Long Short Term Memory (nn.LSTM instead of nn.Recurrent)')
@@ -38,6 +39,8 @@ cmd:option('--rho', 5, 'back-propagate through time (BPTT) for rho time-steps')
 cmd:option('--hiddenSize', '{200}', 'number of hidden units used at output of each recurrent layer. When more than one is specified, RNN/LSTMs are stacked')
 cmd:option('--zeroFirst', false, 'first step will forward zero through recurrence (i.e. add bias of recurrence). As opposed to learning bias specifically for first step.')
 cmd:option('--dropout', false, 'apply dropout after each recurrent layer')
+cmd:option('--dropoutProb', 0.5, 'probability of zeroing a neuron (dropout probability)')
+
 
 --[[ output layer ]]--
 cmd:option('--softmaxtree', false, 'use SoftmaxTree instead of the inefficient (full) softmax')
@@ -166,7 +169,7 @@ for i,hiddenSize in ipairs(opt.hiddenSize) do
          -- this is equivalent to forwarding a zero vector through the feedback layer
          rnn.startModule:share(rnn.feedbackModule, 'bias')
       end
-      rnn = Sequencer(rnn)
+      rnn = nn.Sequencer(rnn)
    end
 
    if not opt.dataset == 'BillionWords' then
@@ -177,7 +180,7 @@ for i,hiddenSize in ipairs(opt.hiddenSize) do
    lm:add(rnn)
    
    if opt.dropout then -- dropout it applied between recurrent layers
-      lm:add(nn.Sequencer(nn.Dropout()))
+      lm:add(nn.Sequencer(nn.Dropout(opt.dropoutProb)))
    end
    
    inputSize = hiddenSize
@@ -185,9 +188,12 @@ end
 
 if opt.bidirectional then
    -- initialize BRNN with fwd, bwd RNN/LSTMs
-   local brnn = nn.BiSequencerLM(lm, lm:clone():reset():remember(false))
+   local bwd = lm:clone()
+   bwd:reset()
+   bwd:remember(false)
+   local brnn = nn.BiSequencerLM(lm, bwd)
    
-   local lm = nn.Sequential()
+   lm = nn.Sequential()
    lm:add(brnn)
    
    inputSize = inputSize*2
@@ -197,7 +203,7 @@ end
 lm:insert(nn.SplitTable(1,2), 1) -- tensor to table of tensors
 
 if opt.dropout then
-   lm:insert(nn.Dropout(), 1)
+   lm:insert(nn.Dropout(opt.dropoutProb), 1)
 end
 
 lm:insert(nn.Dictionary(ds:vocabularySize(), opt.hiddenSize[1], opt.accUpdate), 1)
@@ -230,6 +236,12 @@ else
    softmax:add(nn.LogSoftMax())
 end
 lm:add(nn.Sequencer(softmax))
+
+if opt.uniform > 0 then
+   for k,params in ipairs(lm:parameters()) do
+      params:uniform(-opt.uniform, opt.uniform)
+   end
+end
 
 --[[Propagators]]--
 if opt.adaptiveDecay then

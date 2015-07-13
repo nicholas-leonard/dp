@@ -57,7 +57,7 @@ function TextSet:vocabulary()
 end
 
 function TextSet:nSample()
-   return self._bidirectional and self._data:size(1) and self._data:size(1)-self._context_size
+   return self._data:size(1)-self._context_size + (self._bidirectional and -1 or 0)
 end
 
 function TextSet:batch(batch_size)
@@ -153,7 +153,6 @@ function TextSet:index(batch, indices)
    indices:add(self._context_size) -- offset by contextsize
    if self._bidirectional then
       inputs:resize(indices:size(1), self._context_size)
-      inputs:select(2,self._context_size):index(self._data, 1, indices) -- last targets
    elseif self._recurrent then
       inputs:resize(indices:size(1), self._context_size+1)
       inputs:select(2,self._context_size+1):index(self._data, 1, indices) -- last targets

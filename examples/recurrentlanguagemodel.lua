@@ -102,7 +102,7 @@ if opt.dataset == 'BillionWords' then
 elseif opt.dataset == 'PennTreeBank' then
    ds = dp.PennTreeBank{
       context_size=opt.bidirectional and opt.rho+1 or opt.rho, 
-      recurrent=true, bidirectional=true
+      recurrent=true, bidirectional=opt.bidirectional
    }
    ds:testSet():contextSize(1) -- so that it works with dp.Sampler
    ds:validSet():contextSize(1)
@@ -110,7 +110,7 @@ elseif opt.dataset == 'PennTreeBank' then
 elseif opt.dataset == 'TextSource' then
    ds = dp.TextSource{
       context_size=opt.bidirectional and opt.rho+1 or opt.rho, 
-      recurrent=true, bidirectional=true,
+      recurrent=true, bidirectional=opt.bidirectional,
       name='rnnlm', data_path = opt.dataPath,
       train=opt.trainFile, valid=opt.validFile, test=opt.testFile
    }

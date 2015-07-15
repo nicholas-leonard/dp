@@ -199,7 +199,10 @@ function DataSource:name()
    return self._name
 end
 
-function DataSource:classes()
+function DataSource:classes(classes)
+   if classes then
+      self._classes = classes
+   end
    return self._classes
 end
 
@@ -297,7 +300,7 @@ function DataSource.getDataPath(config)
          'Check locally and download datasource if not found. ' ..
          'Returns the path to the resulting data file. ' ..
          'Decompress if data_dir/name/decompress_file is not found',
-         {arg='name', type='string', req=true, 
+         {arg='name', type='string', default='', 
           help='name of the DataSource (e.g. "mnist", "svhn", etc). ' ..
           'A directory with this name is created within ' ..
           'data_dir to contain the downloaded files. Or is ' ..

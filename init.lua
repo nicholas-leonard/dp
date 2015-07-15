@@ -55,13 +55,14 @@ torch.include('dp', 'view/classview.lua')
 torch.include('dp', 'view/sequenceview.lua')
 torch.include('dp', 'view/listview.lua')
 
---[[ data ]]--
+--[[ dataset ]]--
 torch.include('dp', 'data/baseset.lua')
 torch.include('dp', 'data/dataset.lua')
 torch.include('dp', 'data/sentenceset.lua')
 torch.include('dp', 'data/imageclassset.lua')
 torch.include('dp', 'data/batch.lua')
 
+--[[ datasource ]]--
 torch.include('dp', 'data/datasource.lua')
 torch.include('dp', 'data/mnist.lua')
 torch.include('dp', 'data/cifar10.lua')
@@ -72,6 +73,7 @@ torch.include('dp', 'data/billionwords.lua')
 torch.include('dp', 'data/svhn.lua')
 torch.include('dp', 'data/imagenet.lua')
 torch.include('dp', 'data/imagesource.lua')
+torch.include('dp', 'data/smallimagesource.lua')
 
 --[[ sampler ]]--
 torch.include('dp', 'sampler/sampler.lua')

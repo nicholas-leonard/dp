@@ -1,8 +1,8 @@
 # Data Tutorial #
 
 Most of the theory related to deep learning seems to focus on the models and training algorithms.
-In this tutorial, we will explore how to prepare the data. We will show you how to build 
-DataSources for image classification and language modeling. 
+In this tutorial, we will explore how to prepare the data, which some may argue, is the most important *pratical* aspect of DL. 
+We will show you how to build DataSources for image classification and language modeling. 
 
 ## Object Structure ##
 
@@ -24,45 +24,74 @@ Ultimately, we want to use the dataset to train a classifier to discriminate bet
 The dataset is provided as a compressed zip file made available by the University of Purdue at : 
 [https://engineering.purdue.edu/elab/files/face-dataset.zip](https://engineering.purdue.edu/elab/files/face-dataset.zip).
 Once downloaded and uncompressed, we find a directory or PNG images for each class : *bg/* and *face/*.
-The images 
+The images look like they have been preprocessed (maybe with local contrast normalization):
+
+![Face Detection - Background (upscaled)](image/bg_370.png) 
+![Face Detection - Face (upscaled)](image/face_28164.png)
 
 ### The Easy Way ###
 
 If all we want to do is quickly prepare the data for our personal use, 
-then we can create a function that will return a DataSource.
-
-First,  we need to fill an `input` and a `target` Tensor with the data.
+then we can create a function that will return a DataSource which we 
+can then use to train a model :
 
 ```lua
 require 'dp'
-function facedetection(dataPath)
-   local bgPaths = paths.indexdir(paths.concat(dataPath, 'bg'))
-   facePaths = pathds.indexDir(paths.concat(dataPath, 'face'))
+require 'torchx' -- for paths.indexdir
+
+function facedetection(dataPath, validRatio)
+   validRatio = validRatio or 0.15
+
+   -- 1. load images into input and target Tensors
+   local bg = paths.indexdir(paths.concat(dataPath, 'bg')) -- 1
+   local face = paths.indexdir(paths.concat(dataPath, 'face')) -- 2
+   local size = bg:size() + face:size()
+   local shuffle = torch.randperm(size) -- shuffle the data
+   local input = torch.FloatTensor(size, 3, 32, 32)
+   local target = torch.IntTensor(size):fill(2)
    
-   for i = 
-   trData = torch.load('train_data.t7','ascii')
-   trLabel = torch.load('train_label.t7','ascii')
+   for i=1,bg:size() do
+      local img = image.load(bg:filename(i))
+      local idx = shuffle[i]
+      input[idx]:copy(img)
+      target[idx] = 1
+      collectgarbage()
+   end
+   
+   for i=1,face:size() do
+      local img = image.load(face:filename(i))
+      local idx = shuffle[i+bg:size()]
+      input[idx]:copy(img)
+      collectgarbage()
+   end
 
+   -- 2. divide into train and valid set and wrap into dp.Views
 
-   local input_v, target_v = dp.ImageView(), dp.ClassView()
-   input_v:forward('bchw', trData)
+   local nValid = math.floor(size*validRatio)
+   local nTrain = size - nValid
+   
+   local trainInput = dp.ImageView('bchw', input:narrow(1, 1, nTrain))
+   local trainTarget = dp.ClassView('b', target:narrow(1, 1, nTrain))
+   local validInput = dp.ImageView('bchw', input:narrow(1, nTrain+1, nValid))
+   local validTarget = dp.ClassView('b', target:narrow(1, nTrain+1, nValid))
 
-   targets = trLabel
-   targets:add(1)
-   targets = targets:type('torch.DoubleTensor')
-
-   --print(trData[1])
-   --print(trLabel[1])
-   --print(trLabel)
-   target_v:forward('bt',trLabel)
-   target_v:setClasses({0,1,2,3,4})
-
-   local ds = dp.DataSet{inputs=input_v,targets=target_v,which_set=which_set}
-   ds:ioShapes('bchw', 'b')
+   trainTarget:setClasses({'bg', 'face'})
+   validTarget:setClasses({'bg', 'face'})
+   
+   -- 3. wrap views into datasets
+   
+   local train = dp.DataSet{inputs=trainInput,targets=trainTarget,which_set='train'}
+   local valid = dp.DataSet{inputs=validInput,targets=validTarget,which_set='valid'}
+   
+   -- 4. wrap datasets into datasource
+   
+   local ds = dp.DataSource{train_set=train,valid_set=valid}
+   ds:classes{'bg', 'face'}
+   return ds
 end
 ```
 
-### Planning ###
+### The Open-Source Way (or Hard Way) ###
 
 We want to build a DataSource that will auto-magically download the data 
 (i.e. the *face-dataset.zip* file) from the Web if not found locally (on the user's hard disk), and uncompress it.
@@ -70,6 +99,7 @@ Since we don't have a means of hosting our own version of the dataset on the Web
 This implies that our DataSource will need to build `input` and `target` Tensors from the PNG files,
 and divide the data into a training and validation set. We omit the test set since it isn't provided.
 
-### Execution ###
+In this case, we want to be able to call `dp.FaceDetection()`, a DataSource constructor. 
 
-The
+```lua
+

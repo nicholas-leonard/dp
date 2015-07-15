@@ -32,7 +32,6 @@ end
 
 function AdaptiveDecay:errorMinima(found_minima)
    self._wait = found_minima and 0 or self._wait + 1
-   
    if self._max_wait < self._wait then
       self._wait = 0  
       self.decay = self._decay_factor

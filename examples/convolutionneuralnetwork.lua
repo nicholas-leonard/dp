@@ -74,6 +74,7 @@ if opt.lecunlcn then
 end
 
 --[[data]]--
+
 local ds
 if opt.dataset == 'Mnist' then
    ds = dp.Mnist{input_preprocess = input_preprocess}

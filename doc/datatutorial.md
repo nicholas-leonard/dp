@@ -29,7 +29,7 @@ The images look like they have been preprocessed (maybe with local contrast norm
 ![Face Detection - Background (upscaled)](image/bg_370.png) 
 ![Face Detection - Face (upscaled)](image/face_28164.png)
 
-### The Easy Way ###
+### The Lazy Way ###
 
 If all we want to do is quickly prepare the data for our personal use, 
 then we can create a function that will return a DataSource which we 
@@ -91,9 +91,26 @@ function facedetection(dataPath, validRatio)
 end
 ```
 
-### The Open-Source Way (or Hard Way) ###
+A couple things that merit mentioning concerning the above code :
+ 
+ * `dataPath` is the path to a directory containing a directory for each class;
+ * `validRatio` is the ratio of the training set used for cross validation (i.e. early-stopping);
+ * `paths.indexdir` is a [torchx](https://github.com/nicholas-leonard/torchx) function that provides a list of all images in a path (including those in any nested sub-directories);
+ * `shuffle` is a 1D Tensor of shuffled indices. Its a good practive to shuffle your training examples;
+ * `collectgarbage()` is necessary if you don't want your computer to freeze as `image.load` allocates memory for every call;
+ * [ImageView](view.md#dp.ImageView) and [ClassView](view.md#dp.ClassView) are used for encapsulating images and classes (indices), respectively: 
+  * `bchw` and `b` specifies the ordering of image and class axes respectively. For example `bchw` stands for `batch x channel x height x width`;
+  * [Views](view.md#dp.View) where implemented to allow for easily converting inputs between different views. This was most useful back in the day when SpatialConvolutionCUDA requires views `bchw`;
+ * `which_set` can be *train*, *valid* or *test* and specifies the purpose of each [dp.DataSet](data.md#dp.DataSet);
+ 
+The interface may seem a little complicated, but it simplifies a lot of things like cross-validation, preprocessing and training.
+It also provides a standard means of accessing most types of datasets (as we will see later).
+ 
+### The Open Source Way ###
 
-We want to build a DataSource that will auto-magically download the data 
+Ok so in the above scenario, we just encapsulated our data into a generic DataSource and assumed it 
+would be stored on disk at `dataPath`. 
+In this section, we will  We want to build a DataSource that will auto-magically download the data 
 (i.e. the *face-dataset.zip* file) from the Web if not found locally (on the user's hard disk), and uncompress it.
 Since we don't have a means of hosting our own version of the dataset on the Web, we will use Purdue's URI.
 This implies that our DataSource will need to build `input` and `target` Tensors from the PNG files,
@@ -102,4 +119,9 @@ and divide the data into a training and validation set. We omit the test set sin
 In this case, we want to be able to call `dp.FaceDetection()`, a DataSource constructor. 
 
 ```lua
+
+```
+
+## Accessing Your Data ##
+
 

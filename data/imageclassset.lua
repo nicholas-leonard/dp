@@ -494,7 +494,7 @@ function ImageClassSet:sampleTrain(dst, path)
    end
    
    local input = self:loadImage(path)
-   iW, iH = input:size()
+   local iW, iH = input:size()
    -- do random crop
    local oW = self._sample_size[3]
    local oH = self._sample_size[2]

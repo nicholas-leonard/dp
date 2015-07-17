@@ -206,7 +206,7 @@ if opt.dropout then
    lm:insert(nn.Dropout(opt.dropoutProb), 1)
 end
 
-lm:insert(nn.Dictionary(ds:vocabularySize(), opt.hiddenSize[1], opt.accUpdate), 1)
+lm:insert(nn.LookupTable(ds:vocabularySize(), opt.hiddenSize[1], opt.accUpdate), 1)
 
 -- output layer
 if opt.softmaxforest or opt.softmaxtree then
@@ -257,7 +257,7 @@ train = dp.Optimizer{
          ),
    callback = function(model, report) 
       -- learning rate decay
-      if opt.lastEpoch < report.epoch and ad and ad.decay ~= 1 or opt.schedule[report.epoch] then
+      if opt.lastEpoch < report.epoch and (ad and ad.decay ~= 1 or opt.schedule[report.epoch]) then
          opt.learningRate = ad and opt.learningRate*ad.decay or opt.schedule[report.epoch]
          if ad then ad.decay = 1 end
          if not opt.silent then

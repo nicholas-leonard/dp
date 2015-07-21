@@ -155,7 +155,7 @@ for i,hiddenSize in ipairs(opt.hiddenSize) do
    local rnn
    if opt.lstm then
       -- Long Short Term Memory
-      rnn = nn.Sequencer(nn.LSTM(inputSize, hiddenSize))
+      rnn = nn.Sequencer(nn.FastLSTM(inputSize, hiddenSize))
    else
       -- simple recurrent neural network
       rnn = nn.Recurrent(
@@ -173,8 +173,8 @@ for i,hiddenSize in ipairs(opt.hiddenSize) do
    end
 
    if not opt.dataset == 'BillionWords' then
-      -- evaluation will recurse a single continuous sequence
-      rnn:remember()
+      -- will recurse a single continuous sequence
+      rnn:remember(opt.lstm and 'both' or 'eval')
    end
    
    lm:add(rnn)

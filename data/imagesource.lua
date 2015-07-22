@@ -59,7 +59,7 @@ function ImageSource:loadTrain()
    local dataset = dp.ImageClassSet{
       data_path=self._train_path, load_size=self._load_size,
       which_set='train', sample_size=self._sample_size,
-      carry=dp.Carry(), verbose=self._verbose
+      verbose=self._verbose
    }
    if self._classes == nil then
       self._classes = dataset:classes()
@@ -72,7 +72,7 @@ function ImageSource:loadValid()
    local dataset = dp.ImageClassSet{
       data_path=self._valid_path, load_size=self._load_size,
       which_set='valid', sample_size=self._sample_size,
-      carry=dp.Carry(), verbose=self._verbose, sample_func='sampleTest',
+      verbose=self._verbose, sample_func='sampleTest',
       sort_func=function(x,y)
          return tonumber(x:match('[0-9]+')) < tonumber(y:match('[0-9]+'))
       end

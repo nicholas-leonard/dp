@@ -73,7 +73,7 @@ if opt.bidirectional and not opt.silent then
    print("Warning : the Perplexity of a bidirectional RNN/LSTM isn't "..
       "necessarily mathematically valid as it uses P(x_t|x_{/neq t}) "..
       "instead of P(x_t|x_{<t}), which is used for unidirectional RNN/LSTMs. "..
-      "You can however still use predictions to measure pseudo-likelood.")
+      "You can however still use predictions to measure pseudo-likelihood.")
 end
 
 if opt.xpPath ~= '' then
@@ -100,24 +100,23 @@ if opt.dataset == 'BillionWords' then
       ds:loadValid()
       ds:loadTest()
    end
-elseif opt.dataset == 'PennTreeBank' then
-   ds = dp.PennTreeBank{
-      context_size=opt.bidirectional and opt.rho+1 or opt.rho, 
-      recurrent=true, bidirectional=opt.bidirectional
-   }
-   ds:testSet():contextSize(1) -- so that it works with dp.Sampler
-   ds:validSet():contextSize(1)
-   assert(not opt.softmaxforest, "SoftMaxForest not supported with PennTreeBank")
-elseif opt.dataset == 'TextSource' then
-   ds = dp.TextSource{
-      context_size=opt.bidirectional and opt.rho+1 or opt.rho, 
-      recurrent=true, bidirectional=opt.bidirectional,
-      name='rnnlm', data_path = opt.dataPath,
-      train=opt.trainFile, valid=opt.validFile, test=opt.testFile
-   }
-   ds:testSet():contextSize(1) -- so that it works with dp.Sampler
-   ds:validSet():contextSize(1)
-   assert(not opt.softmaxforest, "SoftMaxForest not supported with TextSource")
+elseif opt.dataset == 'PennTreeBank' or opt.dataset == 'TextSource' then
+   if opt.dataset == 'PennTreeBank' then
+      ds = dp.PennTreeBank{
+         context_size=opt.bidirectional and opt.rho+1 or opt.rho, 
+         recurrent=true, bidirectional=opt.bidirectional
+      }
+   elseif opt.dataset == 'TextSource' then
+      ds = dp.TextSource{
+         context_size=opt.bidirectional and opt.rho+1 or opt.rho, 
+         recurrent=true, bidirectional=opt.bidirectional,
+         name='rnnlm', data_path = opt.dataPath,
+         train=opt.trainFile, valid=opt.validFile, test=opt.testFile
+      }
+   end
+   assert(not opt.softmaxforest, "SoftMaxForest only supported with BillionWords")
+   ds:validSet():contextSize(opt.evalSize)
+   ds:testSet():contextSize(opt.evalSize)
 else
    error"Unrecognized --dataset"
 end
@@ -286,9 +285,9 @@ train = dp.Optimizer{
       opt.lastEpoch = report.epoch
    end,
    feedback = dp.Perplexity(),  
-   sampler = dp.RandomSampler{
-      epoch_size = opt.trainEpochSize, batch_size = opt.batchSize
-   },
+   sampler = torch.isTypeOf(ds, 'dp.TextSource')
+      and dp.TextSampler{epoch_size = opt.trainEpochSize, batch_size = opt.batchSize}
+      or dp.RandomSampler{epoch_size = opt.trainEpochSize, batch_size = opt.batchSize}, 
    acc_update = opt.accUpdate,
    progress = opt.progress
 }
@@ -297,14 +296,14 @@ if not opt.trainOnly then
    valid = dp.Evaluator{
       feedback = dp.Perplexity(),  
       sampler = torch.isTypeOf(ds, 'dp.TextSource') 
-         and dp.Sampler{epoch_size = opt.validEpochSize, batch_size = opt.evalSize} 
+         and dp.TextSampler{epoch_size = opt.validEpochSize, batch_size = 1} 
          or dp.SentenceSampler{epoch_size = opt.validEpochSize, batch_size = 1, max_size = 100},
       progress = opt.progress
    }
    tester = dp.Evaluator{
       feedback = dp.Perplexity(),  
       sampler = torch.isTypeOf(ds, 'dp.TextSource') 
-         and dp.Sampler{epoch_size = opt.validEpochSize, batch_size = opt.evalSize} 
+         and dp.TextSampler{epoch_size = opt.validEpochSize, batch_size = 1} 
          or dp.SentenceSampler{batch_size = 1, max_size = 100}  -- Note : remove max_size for exact test set perplexity (will cost more memory)
    }
 end

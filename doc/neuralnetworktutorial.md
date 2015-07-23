@@ -10,7 +10,7 @@ The first line loads the __dp__ package, whose first matter of business is to lo
 require 'dp'
 ```
 
-Note : package [Moses](https://github.com/Yonaba/Moses/blob/master/docs/moses.md) is imported as `_`. 
+Note : package [Moses](https://github.com/Yonaba/Moses) is imported as `_`. 
 So `_` shouldn't be used for dummy variables. 
 Instead use the much more annoying `__`, or whatnot. 
 

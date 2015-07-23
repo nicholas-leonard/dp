@@ -607,6 +607,80 @@ function dptest.SentenceSampler()
    mytester:assert(table.length(sampled) == nIndice-nSentence, "not all words were sampled")
 end
 
+function dptest.TextSampler()
+   local nIndice = 1000
+   local batchSize = 3
+   local dictSize = 200
+   local contextSize = 20
+   
+   -- create dummy sentence dataset
+   local data = torch.IntTensor(nIndice):random(1,dictSize)
+   local dataset = dp.TextSet{data=data,which_set='train',context_size=contextSize,recurrent=true}
+   
+   local epochSize = 10*batchSize*contextSize
+   local sampler = dp.TextSampler{batch_size=batchSize,epoch_size=epochSize}
+   
+   local slicedData = torch.IntTensor(batchSize, math.floor(nIndice/batchSize))
+   local j = 1
+   for i=1,batchSize do
+      slicedData[i]:copy(data:narrow(1,j, math.floor(nIndice/batchSize)))
+      j = j + math.floor(nIndice/batchSize)
+   end
+   
+   local batchSampler = sampler:sampleEpoch(dataset)
+   local sampled = {}
+   local nSampled = 0
+   local batch
+   local i = 1
+   while true do
+      batch = batchSampler(batch)
+      if not batch then
+         break
+      end
+      mytester:assert(torch.isTypeOf(batch, 'dp.Batch'))
+      local inputs = batch:inputs():input()
+      local targets = batch:targets():input()
+      mytester:assert(inputs:dim() == 2)
+      mytester:assert(targets:dim() == 2)
+      mytester:assert(inputs:isSameSizeAs(targets))
+      mytester:assertTensorEq(inputs, slicedData:narrow(2,i,contextSize), 0.0000001)
+      nSampled = nSampled + inputs:nElement()
+      i = i + contextSize
+   end 
+   mytester:assert(nSampled == epochSize, "iterator not stoping "..nSampled.." ~= "..epochSize)
+   
+   local epochSize = dataset:nSample()
+   local sampler = dp.TextSampler{batch_size=batchSize,epoch_size=-1}
+   local batchSampler = sampler:sampleEpoch(dataset)
+   local sampled = {}
+   local nSampled = 0
+   local i = 1
+   while nSampled < epochSize do
+      batch = batchSampler(batch)
+      mytester:assert(torch.isTypeOf(batch, 'dp.Batch'))
+      local inputs = batch:inputs():input()
+      local targets = batch:targets():input()
+      mytester:assert(inputs:dim() == 2)
+      mytester:assert(targets:dim() == 2)
+      mytester:assert(inputs:isSameSizeAs(targets))
+      local stop = i+contextSize-1
+      local slice
+      if stop > slicedData:size(2) then
+         stop = slicedData:size(2)
+         slice = slicedData[{{1,batchSize-1},{i,stop}}]
+      else
+         slice = slicedData[{{},{i,stop}}]
+      end
+      mytester:assertTensorEq(inputs, slice, 0.0000001, "TextSampler full epoch sample "..i.." "..nSampled)
+      nSampled = nSampled + inputs:nElement()
+      i = i + contextSize
+   end
+   
+   mytester:assert(not batchSampler(batch), "iterator not stoping")
+   mytester:assert(nSampled == 986, "not all words were sampled "..nSampled.." ~= 986")
+   
+end
+
 function dptest.ErrorMinima()
    local report={validator={loss=11},epoch=1}
    local mediator = dp.Mediator()

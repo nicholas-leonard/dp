@@ -1,56 +1,58 @@
 ------------------------------------------------------------------------
 --[[ TextSampler ]]--
--- Used for training recurrent modules
+-- Used for training recurrent modules on TextSets
 ------------------------------------------------------------------------
 local TextSampler, parent = torch.class("dp.TextSampler", "dp.Sampler")
 
-function TextSampler:__init(config)
-   config = config or {}
-   assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, context_size = xlua.unpack(
-      {config},
-      'Sampler', 
-      'Samples batches from a set of examples in a dataset. '..
-      'Iteration ends after an epoch (sampler-dependent) ',
-      {arg='context_size', type='number', req=true,
-       help='Size of each sequence (context)'},
-   )
-   self._context_size = context_size
-   parent.__init(self, config)
-end
-
 function TextSampler:sampleEpoch(dataset)
    dataset = dp.Sampler.toDataset(dataset)
-   local nSample = dataset:nSample()
+   assert(torch.isTypeOf(dataset, 'dp.TextSet'), "Expecting TextSet dataset")
+   local nSample = dataset:data():nElement()
    local sliceSize = math.floor(nSample/self._batch_size)
-   nSample = sliceSize*self._batch_size
+   nSample = dataset:nSample()
    local epochSize = self._epoch_size or nSample
-   self._start = self._start or 1
    local nSampled = 0
+   local nStep = 0
+   
    -- shuffle before each epoch
    local batch_indices = torch.range(1,self._batch_size):long()
    batch_indices:add(-1):mul(sliceSize):add(1)
+   local contextSize = dataset:contextSize()
+   
    -- build iterator
    return function(batch)
       if nSampled >= epochSize then
          return
       end
+      nStep = math.min(sliceSize, nStep + contextSize)
       batch = batch or dataset:batch(self._batch_size)
+      
+      if batch_indices:max() > nSample then
+         -- try removing the last row :
+         batch_indices = batch_indices:narrow(1,1,batch_indices:size(1)-1)
+         if batch_indices:max() > nSample then
+            -- if that doesn't work (because it worked for the prev batch)
+            -- then reset the indices to their starting position
+            batch_indices = torch.range(1,self._batch_size):long()
+            batch_indices:add(-1):mul(sliceSize):add(1)
+         end
+      end
+
       -- inputs and targets
+      local cs = nStep % contextSize
+      cs = (cs == 0) and contextSize or cs
+      dataset:contextSize(cs)
       dataset:index(batch, batch_indices)
+      dataset:contextSize(contextSize)
       -- metadata
       batch:setup{
-         batch_iter=stop, batch_size=self._batch_size,
-         n_sample=self._batch_size
+         batch_iter=nStep, batch_size=self._batch_size,
+         n_sample=batch_indices:size(1)
       }
       batch = self._ppf(batch)
-      nSampled = nSampled + (self._batch_size*self._context_size)
+      nSampled = nSampled + (batch_indices:size(1)*cs)
       -- move cursors to next context
-      batch_indices:add(self._context_size)
-      if batch_indices:max() >= nSample then
-         batch_indices = torch.range(1,self._batch_size):long()
-         batch_indices:add(-1):mul(sliceSize):add(1)
-      end
+      batch_indices:add(contextSize)
       self:collectgarbage() 
       return batch, math.min(nSampled, epochSize), epochSize
    end

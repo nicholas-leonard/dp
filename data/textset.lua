@@ -38,6 +38,7 @@ function TextSet:__init(config)
    )
    self:whichSet(which_set)
    assert(torch.type(data) == 'torch.IntTensor')
+   assert(data:dim() == 1)
    self._data = data
    self._context_size = context_size
    self._words = words
@@ -58,6 +59,10 @@ end
 
 function TextSet:nSample()
    return self._data:size(1)-self._context_size + (self._bidirectional and -1 or 0)
+end
+
+function TextSet:data()
+   return self._data
 end
 
 function TextSet:batch(batch_size)

@@ -6,7 +6,7 @@ version = 5
 --[[command line arguments]]--
 cmd = torch.CmdLine()
 cmd:text()
-cmd:text('Train a Language Model on BillionWords dataset using a Simple Recurrent Neural Network')
+cmd:text('Train a Language Model on BillionWords or PennTreeBank (or your own) dataset using a Simple Recurrent Neural Network')
 cmd:text('Example:')
 cmd:text("$> th recurrentlanguagemodel.lua --dataset PennTreeBank --cuda --useDevice 2 --trainEpochSize -1 --trainEpochSize -1 --dropout --bidirectional --hiddenSize '{200,200}' --zeroFirst --batchSize 32 --progress")
 cmd:text('$> th recurrentlanguagemodel.lua --tiny --batchSize 64 ')
@@ -206,7 +206,9 @@ if opt.dropout then
    lm:insert(nn.Dropout(opt.dropoutProb), 1)
 end
 
-lm:insert(nn.LookupTable(ds:vocabularySize(), opt.hiddenSize[1], opt.accUpdate), 1)
+lookup = nn.LookupTable(ds:vocabularySize(), opt.hiddenSize[1], opt.accUpdate)
+lookup.maxOutNorm = -1 -- disable maxParamNorm on the lookup table
+lm:insert(lookup, 1)
 
 -- output layer
 if opt.softmaxforest or opt.softmaxtree then

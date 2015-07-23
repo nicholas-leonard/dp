@@ -84,6 +84,7 @@ torch.include('dp', 'sampler/sampler.lua')
 torch.include('dp', 'sampler/shufflesampler.lua')
 torch.include('dp', 'sampler/sentencesampler.lua')
 torch.include('dp', 'sampler/randomsampler.lua')
+torch.include('dp', 'sampler/textsampler.lua')
 
 --[[ preprocess ]]--
 torch.include('dp', 'preprocess/preprocess.lua')

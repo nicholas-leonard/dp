@@ -101,7 +101,7 @@ elseif opt.dataset == 'Cifar10' then
 elseif opt.dataset == 'Cifar100' then
    ds = dp.Cifar100{input_preprocess = input_preprocess}
    if not opt.lecunlcn then
-      print"You should probably try --lecunlcn with SVHN dataset"
+      print"You should probably try --lecunlcn with the Cifar100 dataset"
    end
 else
     error("Unknown Dataset")

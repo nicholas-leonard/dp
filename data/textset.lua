@@ -65,6 +65,14 @@ function TextSet:data()
    return self._data
 end
 
+function TextSet:textSize()
+   return self._data:nElement()
+end
+
+function TextSet:offset()
+   return self._bidirectional and 0 or 1
+end
+
 function TextSet:batch(batch_size)
    return self:index(torch.range(1,batch_size):type("torch.LongTensor"))
 end

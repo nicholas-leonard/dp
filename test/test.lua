@@ -629,6 +629,7 @@ function dptest.TextSampler()
    
    local batchSampler = sampler:sampleEpoch(dataset)
    local sampled = {}
+   local sampledTwice = 0
    local nSampled = 0
    local batch
    local i = 1
@@ -644,15 +645,26 @@ function dptest.TextSampler()
       mytester:assert(targets:dim() == 2)
       mytester:assert(inputs:isSameSizeAs(targets))
       mytester:assertTensorEq(inputs, slicedData:narrow(2,i,contextSize), 0.0000001)
+      for i=1,inputs:size(1) do
+         for j=1,inputs:size(2) do
+            local wordIdx = inputs[{i,j}]
+            if sampled[wordIdx] then
+               sampledTwice = sampledTwice + 1
+            end
+            sampled[wordIdx] = true
+         end
+      end
       nSampled = nSampled + inputs:nElement()
       i = i + contextSize
    end 
    mytester:assert(nSampled == epochSize, "iterator not stoping "..nSampled.." ~= "..epochSize)
+   mytester:assert(sampledTwice == 0, sampledTwice..' words sampled twice ')
    
    local epochSize = dataset:textSize()
    local sampler = dp.TextSampler{batch_size=batchSize,epoch_size=-1}
    local batchSampler = sampler:sampleEpoch(dataset)
    local sampled = {}
+   local sampledTwice = 0
    local nSampled = 0
    local i = 1
    while nSampled < 999 do
@@ -667,12 +679,22 @@ function dptest.TextSampler()
       if stop > slicedData:size(2) then
          stop = slicedData:size(2)
       end
+      for i=1,inputs:size(1) do
+         for j=1,inputs:size(2) do
+            local wordIdx = inputs[{i,j}]
+            if sampled[wordIdx] then
+               sampledTwice = sampledTwice + 1
+            end
+            sampled[wordIdx] = true
+         end
+      end
       local slice = slicedData[{{},{i,stop}}]
       mytester:assertTensorEq(inputs, slice, 0.0000001, "TextSampler full epoch sample "..i.." "..nSampled)
       nSampled = nSampled + inputs:nElement()
       i = i + contextSize
    end
    
+   mytester:assert(sampledTwice == 0, sampledTwice..' words sampled twice ')
    mytester:assert(not batchSampler(batch), "iterator not stoping")
    mytester:assert(nSampled == 999, "not all words were sampled "..nSampled.." ~= 999")
    
@@ -680,6 +702,7 @@ function dptest.TextSampler()
    local sampler = dp.TextSampler{batch_size=1,epoch_size=-1}
    local batchSampler = sampler:sampleEpoch(dataset)
    local sampled = {}
+   local sampledTwice = 0
    local nSampled = 0
    local i = 1
    local nBatch = 1
@@ -693,6 +716,15 @@ function dptest.TextSampler()
       mytester:assert(inputs:isSameSizeAs(targets))
       local stop = math.min(data:size(1)-1, i+contextSize-1)
       local slice = data[{{i,stop}}]
+      for i=1,inputs:size(1) do
+         for j=1,inputs:size(2) do
+            local wordIdx = inputs[{i,j}]
+            if sampled[wordIdx] then
+               sampledTwice = sampledTwice + 1
+            end
+            sampled[wordIdx] = true
+         end
+      end
       mytester:assertTensorEq(inputs, slice, 0.0000001, "TextSampler 1D full epoch sample "..i.." "..nSampled)
       nSampled = nSampled + inputs:nElement()
       i = i + contextSize
@@ -700,6 +732,7 @@ function dptest.TextSampler()
       nBatch = nBatch + 1
    end
    
+   mytester:assert(sampledTwice == 0, sampledTwice..' words sampled twice ')
    mytester:assert(nSampled == nIndice-1, "not all words were sampled "..nSampled.." ~= "..(nIndice-1))
    
    batchSize = 7
@@ -715,6 +748,8 @@ function dptest.TextSampler()
    local batchSampler = sampler:sampleEpoch(dataset)
    local nSampled = 0
    local i = 1
+   local sampled = {}
+   local sampledTwice = 0
    while nSampled < 994 do
       batch = batchSampler(batch)
       mytester:assert(torch.isTypeOf(batch, 'dp.Batch'))
@@ -727,18 +762,30 @@ function dptest.TextSampler()
       if stop > slicedData:size(2) then
          stop = slicedData:size(2)
       end
+      for i=1,inputs:size(1) do
+         for j=1,inputs:size(2) do
+            local wordIdx = inputs[{i,j}]
+            if sampled[wordIdx] then
+               sampledTwice = sampledTwice + 1
+            end
+            sampled[wordIdx] = true
+         end
+      end
       local slice = slicedData[{{},{i,stop}}]
       mytester:assertTensorEq(inputs, slice, 0.0000001, "TextSampler full epoch sample "..i.." "..nSampled)
       nSampled = nSampled + inputs:nElement()
       i = i + contextSize
    end
    
+   mytester:assert(sampledTwice == 0, sampledTwice..' words sampled twice ')
    mytester:assert(not batchSampler(batch), "iterator not stoping")
    mytester:assert(nSampled == 994, "not all words were sampled "..nSampled.." ~= 994")
    
    local batchSampler = sampler:sampleEpoch(dataset)
    local nSampled = 0
    local i = 1
+   local sampled = {}
+   local sampledTwice = 0
    while nSampled < 994 do
       batch = batchSampler(batch)
       mytester:assert(torch.isTypeOf(batch, 'dp.Batch'))
@@ -751,12 +798,22 @@ function dptest.TextSampler()
       if stop > slicedData:size(2) then
          stop = slicedData:size(2)
       end
+      for i=1,inputs:size(1) do
+         for j=1,inputs:size(2) do
+            local wordIdx = inputs[{i,j}]
+            if sampled[wordIdx] then
+               sampledTwice = sampledTwice + 1
+            end
+            sampled[wordIdx] = true
+         end
+      end
       local slice = slicedData[{{},{i,stop}}]
       mytester:assertTensorEq(inputs, slice, 0.0000001, "TextSampler full epoch sample "..i.." "..nSampled)
       nSampled = nSampled + inputs:nElement()
       i = i + contextSize
    end
    
+   mytester:assert(sampledTwice == 0, sampledTwice..' words sampled twice ')
    mytester:assert(not batchSampler(batch), "iterator not stoping")
    mytester:assert(nSampled == 994, "not all words were sampled "..nSampled.." ~= 994")
 end

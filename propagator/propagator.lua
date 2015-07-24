@@ -113,6 +113,10 @@ function Propagator:propagateEpoch(dataset, report)
          break 
       end
       
+      if self._model.forget then
+         self._model:forget() -- for recurrent modules
+      end
+      
       self.nSample = i
       self:propagateBatch(batch, report)
       

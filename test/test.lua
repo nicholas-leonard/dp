@@ -713,7 +713,30 @@ function dptest.TextSampler()
    local epochSize = dataset:textSize()
    local sampler = dp.TextSampler{batch_size=batchSize,epoch_size=-1}
    local batchSampler = sampler:sampleEpoch(dataset)
-   local sampled = {}
+   local nSampled = 0
+   local i = 1
+   while nSampled < 994 do
+      batch = batchSampler(batch)
+      mytester:assert(torch.isTypeOf(batch, 'dp.Batch'))
+      local inputs = batch:inputs():input()
+      local targets = batch:targets():input()
+      mytester:assert(inputs:dim() == 2)
+      mytester:assert(targets:dim() == 2)
+      mytester:assert(inputs:isSameSizeAs(targets))
+      local stop = i+contextSize-1
+      if stop > slicedData:size(2) then
+         stop = slicedData:size(2)
+      end
+      local slice = slicedData[{{},{i,stop}}]
+      mytester:assertTensorEq(inputs, slice, 0.0000001, "TextSampler full epoch sample "..i.." "..nSampled)
+      nSampled = nSampled + inputs:nElement()
+      i = i + contextSize
+   end
+   
+   mytester:assert(not batchSampler(batch), "iterator not stoping")
+   mytester:assert(nSampled == 994, "not all words were sampled "..nSampled.." ~= 994")
+   
+   local batchSampler = sampler:sampleEpoch(dataset)
    local nSampled = 0
    local i = 1
    while nSampled < 994 do

@@ -101,6 +101,7 @@ if opt.dataset == 'BillionWords' then
       ds:loadTest()
    end
 elseif opt.dataset == 'PennTreeBank' or opt.dataset == 'TextSource' then
+   assert(not opt.softmaxforest, "SoftMaxForest only supported with BillionWords")
    if opt.dataset == 'PennTreeBank' then
       ds = dp.PennTreeBank{
          context_size=opt.bidirectional and opt.rho+1 or opt.rho, 
@@ -114,7 +115,6 @@ elseif opt.dataset == 'PennTreeBank' or opt.dataset == 'TextSource' then
          train=opt.trainFile, valid=opt.validFile, test=opt.testFile
       }
    end
-   assert(not opt.softmaxforest, "SoftMaxForest only supported with BillionWords")
    ds:validSet():contextSize(opt.evalSize)
    ds:testSet():contextSize(opt.evalSize)
 else
@@ -303,7 +303,7 @@ if not opt.trainOnly then
    tester = dp.Evaluator{
       feedback = dp.Perplexity(),  
       sampler = torch.isTypeOf(ds, 'dp.TextSource') 
-         and dp.TextSampler{epoch_size = opt.validEpochSize, batch_size = 1} 
+         and dp.TextSampler{batch_size = 1} 
          or dp.SentenceSampler{batch_size = 1, max_size = 100}  -- Note : remove max_size for exact test set perplexity (will cost more memory)
    }
 end

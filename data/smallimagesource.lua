@@ -14,9 +14,9 @@ function SmallImageSource:__init(config)
    assert(torch.type(config) == 'table' and not config[1], 
       "Constructor requires key-value arguments")
    local load_all
-   self._args, self._image_size, self._valid_ratio, self._classes, 
+   self._args, self._name,self._image_size, self._valid_ratio, self._classes, 
          self._train_dir, self._test_dir, self._data_path, 
-         self._cache_path, self._cache_mode,
+          self._cache_mode,
          self._scale, self._binarize, self._download_url, load_all
       = xlua.unpack(
       {config},
@@ -36,8 +36,6 @@ function SmallImageSource:__init(config)
        help='name of test directory'},
       {arg='data_path', type='string', default=dp.DATA_DIR,
        help='path to data repository'},
-      {arg='cache_path', type='string', 
-       help='path to cache directory (defaults to data_path).'},
       {arg='cache_mode', type='string', default='writeonce',
        help='writeonce : read from cache if exists, else write to cache. '..
        'overwrite : write to cache, regardless if exists. '..
@@ -81,7 +79,8 @@ function SmallImageSource:loadTrainValid()
    -- train
    local start = 1
    local size = math.floor(inputs:size(1)*(1-self._valid_ratio))
-   self:trainSet(
+
+   self:setTrainSet(
       self:createDataSet(
          inputs:narrow(1, start, size), 
          targets:narrow(1, start, size), 
@@ -92,7 +91,7 @@ function SmallImageSource:loadTrainValid()
    -- valid
    start = size + 1
    size = inputs:size(1) - start
-   self:validSet(
+   self:setValidSet(
       self:createDataSet(
          inputs:narrow(1, start, size), 
          targets:narrow(1, start, size), 
@@ -104,7 +103,7 @@ end
 
 function SmallImageSource:loadTest()
    local inputs, targets = self:loadData(self._test_dir)
-   self:testSet(self:createDataSet(inputs, targets, 'test'))
+   self:setTestSet(self:createDataSet(inputs, targets, 'test'))
    return self:testSet()
 end
 
@@ -122,16 +121,21 @@ function SmallImageSource:createDataSet(inputs, targets, which_set)
    local input_v, target_v = dp.ImageView(), dp.ClassView()
    input_v:forward('bchw', inputs)
    target_v:forward('b', targets)
-   target_v:classes(self._classes)
+   target_v:setClasses(self._classes)
    
    -- construct dataset
-   return dp.DataSet{inputs=input_v,targets=target_v,which_set=which_set}
+  local ds = dp.DataSet{inputs=input_v,targets=target_v,which_set=which_set}
+   ds:ioShapes('bchw', 'b')
+   return ds
+         
+   
+   
 end
 
 function SmallImageSource:loadData(filename, download_url)
    -- use cache?
-   local cacheFile = name..table.concat(self._image_size[1],'x')..train_dir..'.t7'
-   local cachePath = paths.concat(self._cache_path, cacheFile)
+   local cacheFile='cache'..'.t7'
+   local cachePath = paths.concat(filename, cacheFile)
    if paths.filep(cachePath) then
       if not _.contains({'nocache','overwrite'}, self._cache_mode)  then
          return table.unpack(torch.load(cachePath))
@@ -140,10 +144,11 @@ function SmallImageSource:loadData(filename, download_url)
       error("SmallImageSource: No cache at "..cachePath)
    end
    
-   local data_path = DataSource.getDataPath{
-      name=self._name, url=download_url or self._download_url,
-      decompress_file=filename, data_dir=self._data_path
-   }
+  -- local data_path = DataSource.getDataPath{
+--      name=self._name, url=download_url or self._download_url,
+  --    decompress_file='/decompressed', data_dir=self._data_path
+ --  }
+      data_path=filename
    
    if (not self._classes) or _.isEmpty(self._classes) then
       -- extrapolate classes from directories
@@ -158,7 +163,7 @@ function SmallImageSource:loadData(filename, download_url)
    local n_example = 0
    for classidx, class in ipairs(self._classes) do
       local classpath = paths.concat(data_path, class)
-      for file in paths.iterfiles(data_path) do 
+      for file in paths.iterfiles(classpath) do 
          n_example = n_example + 1 
       end
    end
@@ -200,11 +205,10 @@ function SmallImageSource:loadData(filename, download_url)
       end
    end
    
-   if not self._cache_mode == 'nochache' then
+   if not( self._cache_mode == 'nochache') then
       torch.save(cachePath, {inputs, targets})
    end
   
    return inputs, targets
 end
-
 

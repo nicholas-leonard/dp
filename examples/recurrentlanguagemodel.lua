@@ -142,7 +142,6 @@ end
 -- language model
 lm = nn.Sequential()
 
-local first
 local inputSize = opt.hiddenSize[1]
 for i,hiddenSize in ipairs(opt.hiddenSize) do 
 
@@ -171,11 +170,6 @@ for i,hiddenSize in ipairs(opt.hiddenSize) do
       rnn = nn.Sequencer(rnn)
    end
 
-   if not opt.dataset == 'BillionWords' then
-      -- will recurse a single continuous sequence
-      rnn:remember(opt.lstm and 'both' or 'eval')
-   end
-   
    lm:add(rnn)
    
    if opt.dropout then -- dropout it applied between recurrent layers
@@ -239,15 +233,21 @@ end
 lm:add(nn.Sequencer(softmax))
 
 if opt.uniform > 0 then
-   for k,params in ipairs(lm:parameters()) do
-      params:uniform(-opt.uniform, opt.uniform)
+   for k,param in ipairs(lm:parameters()) do
+      param:uniform(-opt.uniform, opt.uniform)
    end
 end
+
+if opt.dataset ~= 'BillionWords' then
+   -- will recurse a single continuous sequence
+   lm:remember(opt.lstm and 'both' or 'eval')
+end
+   
 
 --[[Propagators]]--
 if opt.adaptiveDecay then
    ad = dp.AdaptiveDecay{max_wait = opt.maxWait, decay_factor=opt.decayFactor}
-end
+end nn.ModuleCriterion(nn.SequencerCriterion(nn.ClassNLLCriterion()), nil, nn.SplitTable(1,1))
 opt.lastEpoch = 0
 train = dp.Optimizer{
    loss = opt.softmaxtree and nn.SequencerCriterion(nn.TreeNLLCriterion())

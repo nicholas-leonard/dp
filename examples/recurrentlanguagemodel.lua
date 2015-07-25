@@ -247,8 +247,9 @@ end
 --[[Propagators]]--
 if opt.adaptiveDecay then
    ad = dp.AdaptiveDecay{max_wait = opt.maxWait, decay_factor=opt.decayFactor}
-end nn.ModuleCriterion(nn.SequencerCriterion(nn.ClassNLLCriterion()), nil, nn.SplitTable(1,1))
+end
 opt.lastEpoch = 0
+
 train = dp.Optimizer{
    loss = opt.softmaxtree and nn.SequencerCriterion(nn.TreeNLLCriterion())
          or nn.ModuleCriterion(

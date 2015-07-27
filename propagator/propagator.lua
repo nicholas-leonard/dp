@@ -96,6 +96,11 @@ function Propagator:propagateEpoch(dataset, report)
       print('==> epoch # '..(report.epoch + 1)..' for '..self:name()..' :')
    end
    
+   if self._model.forget then
+      -- for recurrent modules, forget between epochs
+      self._model:forget()
+   end
+   
    self._n_sample = 0
    local sampler = self._sampler:sampleEpoch(dataset)
    while true do

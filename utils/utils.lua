@@ -47,8 +47,10 @@ end
 -- If file doesn't exists at path, downloads it from url into path 
 function dp.check_and_download_file(path, url)
    if not paths.filep(path) then
+      local dirPath = paths.dirname(path)
+      dp.mkdir(dirPath)
       dp.do_with_cwd(
-         paths.dirname(path), 
+         dirPath, 
          function() dp.download_file(url) end
       )
    end

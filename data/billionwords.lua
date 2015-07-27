@@ -62,19 +62,19 @@ end
 
 function BillionWords:loadTrain()
    local data = self:loadData(self._train_file, self._download_url)
-   self:setTrainSet(self:createSentenceSet(data,'train'))
+   self:trainSet(self:createSentenceSet(data,'train'))
    return self:trainSet()
 end
 
 function BillionWords:loadValid()
    local data = self:loadData(self._valid_file, self._download_url)
-   self:setValidSet(self:createSentenceSet(data,'valid'))
+   self:validSet(self:createSentenceSet(data,'valid'))
    return self:validSet()
 end
 
 function BillionWords:loadTest()
    local data = self:loadData(self._test_file, self._download_url)
-   self:setTestSet(self:createSentenceSet(data,'test'))
+   self:testSet(self:createSentenceSet(data,'test'))
    return self:testSet()
 end
 

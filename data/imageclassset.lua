@@ -50,7 +50,7 @@ function ImageClassSet:__init(config)
    gm = require 'graphicsmagick'
    
    -- locals
-   self:setWhichSet(which_set)
+   self:whichSet(which_set)
    self._load_size = load_size
    assert(self._load_size[1] == 3, "ImageClassSet doesn't yet support greyscaling : load_size")
    self._sample_size = sample_size or self._load_size
@@ -328,8 +328,8 @@ function ImageClassSet:sub(batch, start, stop)
    inputView:forward('bchw', inputTensor)
    targetView:forward('b', targetTensor)
    targetView:setClasses(self._classes)
-   batch:setInputs(inputView)
-   batch:setTargets(targetView)  
+   batch:inputs(inputView)
+   batch:targets(targetView)  
 
    return batch
 end
@@ -369,9 +369,8 @@ function ImageClassSet:index(batch, indices)
    inputView:forward('bchw', inputTensor)
    targetView:forward('b', targetTensor)
    targetView:setClasses(self._classes)
-   batch:setInputs(inputView)
-   batch:setTargets(targetView)
-
+   batch:inputs(inputView)
+   batch:targets(targetView)
    return batch
 end
 
@@ -461,8 +460,8 @@ function ImageClassSet:sample(batch, nSample, sampleFunc)
    inputView:forward('bchw', inputTensor)
    targetView:forward('b', targetTensor)
    targetView:setClasses(self._classes)
-   batch:setInputs(inputView)
-   batch:setTargets(targetView)  
+   batch:inputs(inputView)
+   batch:targets(targetView)  
    
    collectgarbage()
    return batch
@@ -493,7 +492,7 @@ function ImageClassSet:sampleTrain(dst, path)
    end
    
    local input = self:loadImage(path)
-   iW, iH = input:size()
+   local iW, iH = input:size()
    -- do random crop
    local oW = self._sample_size[3]
    local oH = self._sample_size[2]

@@ -1,7 +1,7 @@
 require 'dp'
 require 'rnn'
 
-version = 5
+version = 9
 
 --[[command line arguments]]--
 cmd = torch.CmdLine()

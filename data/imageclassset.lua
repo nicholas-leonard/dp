@@ -371,8 +371,6 @@ function ImageClassSet:index(batch, indices)
    targetView:setClasses(self._classes)
    batch:inputs(inputView)
    batch:targets(targetView)
-   batch:carry():putObj('nSample', targetTensor:size(1))
-
    return batch
 end
 

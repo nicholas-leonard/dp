@@ -79,7 +79,7 @@ function FacialKeypoints:loadTrain()
    local start = 1
    local size = math.floor(data:size(1)*(1-self._valid_ratio))
    local train_data = data:narrow(1, start, size)
-   self:setTrainSet(self:createTrainSet(train_data, 'train'))
+   self:trainSet(self:createTrainSet(train_data, 'train'))
    return self:trainSet()
 end
 
@@ -92,7 +92,7 @@ function FacialKeypoints:loadValid()
    local start = math.ceil(data:size(1)*(1-self._valid_ratio))
    local size = data:size(1)-start
    local valid_data = data:narrow(1, start, size)
-   self:setValidSet(self:createTrainSet(valid_data, 'valid'))
+   self:validSet(self:createTrainSet(valid_data, 'valid'))
    return self:validSet()
 end
 
@@ -111,7 +111,7 @@ function FacialKeypoints:loadTest()
    target_v:forward('b', targets)
    local ds = dp.DataSet{inputs=input_v,targets=target_v,which_set=which_set}
    ds:ioShapes('bchw', 'b')
-   self:setTestSet(ds)
+   self:testSet(ds)
    return ds
 end
 

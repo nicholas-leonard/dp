@@ -83,7 +83,7 @@ function NotMnist:loadTrainValid()
    -- train
    local start = 1
    local size = math.floor(inputs:size(1)*(1-self._valid_ratio))
-   self:setTrainSet(
+   self:trainSet(
       self:createDataSet(
          inputs:narrow(1, start, size), 
          targets:narrow(1, start, size), 
@@ -93,7 +93,7 @@ function NotMnist:loadTrainValid()
    -- valid
    start = size + 1
    size = inputs:size(1) - start
-   self:setValidSet(
+   self:validSet(
       self:createDataSet(
          inputs:narrow(1, start, size), 
          targets:narrow(1, start, size), 
@@ -111,7 +111,7 @@ function NotMnist:loadTest()
    local inputs, targets = self:loadData(
       self._test_dir, self._download_url, bad_png
    )
-   self:setTestSet(self:createDataSet(inputs, targets, 'test'))
+   self:testSet(self:createDataSet(inputs, targets, 'test'))
    return self:testSet()
 end
 

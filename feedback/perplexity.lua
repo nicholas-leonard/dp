@@ -28,8 +28,9 @@ function Perplexity:setup(config)
    self._mediator:subscribe("doneEpoch", self, "doneEpoch")
 end
 
+-- exponential of the mean NLL
 function Perplexity:perplexity()
-   -- exponential of the mean NLL
+   -- divide by number of elements in sequence
    return math.exp(self._nll / self._n_sample)
 end
 
@@ -65,7 +66,6 @@ function Perplexity:add(batch, output, report)
             sum = sum + act:view(-1):sum()
          end
       end
-      -- divide by number of elements in sequence
       self._nll = self._nll - sum
    else
       self._n_sample = self._n_sample + batch:nSample()

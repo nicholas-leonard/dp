@@ -128,12 +128,13 @@ function Propagator:propagateEpoch(dataset, report)
       last_n = n
       n_batch = n_batch + 1
    end
-   
+      
+     batch_size=opt.batchSize
    -- time taken
    self._epoch_duration = sys.clock() - start_time
-   self._batch_duration = self._epoch_duration / last_n
+   self._batch_duration = self._epoch_duration / batch_size
    self._example_speed = last_n / self._epoch_duration
-   self._batch_speed = (n_batch / self._epoch_duration)
+   self._batch_speed = (n_batch / self._batch_duration)
    if self._stats and self._verbose then
       print("==> example speed = "..self._example_speed..' examples/s')
    end

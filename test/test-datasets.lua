@@ -22,6 +22,26 @@ function dptest.PennTreeBank()
    mytester:assert(table.length(ds.vocab) == 10000)
 end
 
+function dptest.Mnist()
+   local ds = dp.Mnist()
+   mytester:assert(ds:trainSet():nSample() == 50000)
+   local sampler = dp.ShuffleSampler()
+   local ds = ds:trainSet()
+   local batchSampler = sampler:sampleEpoch(ds)
+   local n = 0
+   local batch = batchSampler(batch)
+   while batch do
+      local binputs = batch:inputs():input()
+      local btargets = batch:targets():input()
+      mytester:assert(batch:nSample() == binputs:size(1))
+      mytester:assert(batch:nSample() == btargets:size(1))
+      n = n + batch:nSample()
+      batch = batchSampler(batch)
+      collectgarbage()
+   end
+   mytester:assert(ds:nSample() == n)
+end
+
 function dp.testDatasets(tests)
    math.randomseed(os.time())
    mytester = torch.Tester()

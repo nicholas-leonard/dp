@@ -16,7 +16,7 @@ function ShuffleSampler:__init(config)
       'Examples are shuffled at the start of the iteration. ',
       {arg='batch_size', type='number', default=128,
        help='Number of examples per sampled batches'},
-      {arg='random_seed', type='number', req=true,
+      {arg='random_seed', type='number', default=777,
        help='Used to initialize the shuffle generator.'}
    )
    self:randomSeed(random_seed)

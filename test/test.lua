@@ -479,6 +479,59 @@ function dptest.LeCunLCN()
    image.savePNG(paths.concat(dp.UNIT_DIR, 'lecunlcn.png'), input:forward('default')[1]) 
 end
 
+function dptest.Sampler()
+   local sampler = dp.Sampler{batch_size=64}
+   local inputs = torch.randn(1000,5)
+   local targets = torch.IntTensor(1000):random(1,10)
+   local inputs_v = dp.DataView('bf', inputs)
+   local targets_v = dp.ClassView('b', targets)
+   local ds = dp.DataSet{which_set='train',inputs=inputs_v, targets=targets_v}
+   local batchSampler = sampler:sampleEpoch(ds)
+   local n = 0
+   local batch = batchSampler(batch)
+   while batch do
+      local binputs = batch:inputs():input()
+      local btargets = batch:targets():input()
+      mytester:assert(batch:nSample() == binputs:size(1))
+      mytester:assert(batch:nSample() == btargets:size(1))
+      mytester:assertTensorEq(inputs:narrow(1,n+1,binputs:size(1)), binputs, 0.00001)
+      mytester:assertTensorEq(targets:narrow(1,n+1,btargets:size(1)), btargets, 0.00001)
+      n = n + batch:nSample()
+      batch = batchSampler(batch)
+   end
+   mytester:assert(ds:nSample() == n)
+end
+
+function dptest.ShuffleSampler()
+   torch.manualSeed(777)
+   local shuffle = torch.randperm(1000):long()
+   local inputs = torch.randn(1000,5)
+   local targets = torch.IntTensor(1000):random(1,10)
+   local inputs_v = dp.DataView('bf', inputs)
+   local targets_v = dp.ClassView('b', targets)
+   local ds = dp.DataSet{which_set='train',inputs=inputs_v, targets=targets_v}
+   mytester:assert(ds:nSample() == 1000)
+   local sampler = dp.ShuffleSampler{batch_size=64, random_seed=777}
+   local batchSampler = sampler:sampleEpoch(ds)
+   local n = 0
+   local batch = batchSampler(batch)
+   while batch do
+      local binputs = batch:inputs():input()
+      local btargets = batch:targets():input()
+      mytester:assert(batch:nSample() == binputs:size(1))
+      mytester:assert(batch:nSample() == btargets:size(1))
+      local indices = shuffle:narrow(1,n+1,binputs:size(1))
+      local inputs_ = inputs:index(1,indices)
+      local targets_ = targets:index(1,indices)
+      mytester:assertTensorEq(inputs_, binputs, 0.00001)
+      mytester:assertTensorEq(targets_, btargets, 0.00001)
+      n = n + batch:nSample()
+      batch = batchSampler(batch)
+      collectgarbage()
+   end
+   mytester:assert(ds:nSample() == n)
+end
+
 function dptest.SentenceSampler()
    local nIndice = 1000
    local batchSize = 3

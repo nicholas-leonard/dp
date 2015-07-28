@@ -207,7 +207,7 @@ lm:insert(lookup, 1)
 if opt.softmaxforest or opt.softmaxtree then
    -- input to nnlm is {inputs, targets} for nn.SoftMaxTree
    local para = nn.ParallelTable()
-   para:add(lm):add(nn.Sequencer(nn.Convert())) 
+   para:add(lm):add(opt.cuda and nn.Sequencer(nn.Convert()) or nn.Identity())
    lm = nn.Sequential()
    lm:add(para)
    lm:add(nn.ZipTable())

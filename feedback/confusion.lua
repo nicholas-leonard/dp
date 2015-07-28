@@ -51,9 +51,10 @@ function Confusion:_add(batch, output, report)
       else
          self._cm = optim.ConfusionMatrix(batch:targets():classes())
       end
+      self._cm:zero()
    end
    
-   local act = self._bce and output:view(1) or output:view(output:size(1), -1)
+   local act = self._bce and output:view(-1) or output:view(output:size(1), -1)
    local tgt = batch:targets():forward('b')
    
    if self._bce then
@@ -72,6 +73,7 @@ function Confusion:_add(batch, output, report)
       self._actf:resize(act:size()):copy(act)
       act = self._actf
    end
+   
    self._cm:batchAdd(act, tgt)
 end
 

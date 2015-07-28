@@ -49,7 +49,7 @@ function Feedback:id()
 end
 
 function Feedback:name()
-   return self._id:name()
+   return self._id and self._id:name() or self._name
 end
 
 function Feedback:savePath()
@@ -84,4 +84,8 @@ end
 
 function Feedback:silent()
    self:verbose(false)
+end
+
+function Feedback:nSample()
+   return self._n_sample or 0
 end

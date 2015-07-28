@@ -71,6 +71,6 @@ function Optimizer:backward(batch)
    else
       self.gradInput = self._model:backward(input, self.gradOutput)
    end
-   -- so that visitors can known whether or not gradParams where updated
+   -- so that visitors can known whether or not gradParams were updated
    self._model.dpnn_accGradParameters = not self._acc_update
 end

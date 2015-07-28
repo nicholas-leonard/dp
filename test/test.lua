@@ -971,6 +971,36 @@ function dptest.SaveToFile()
    mytester:assertTensorEq(subject.tensor, saved_subject.tensor, 0.000001, "tensor not re saved")
 end
 
+function dptest.Confusion()
+   local nSample = 100
+   local inputs = torch.randn(nSample,8,8,1)
+   local targets = torch.IntTensor(nSample):random(1,10)
+   local targetView = dp.ClassView('b', targets)
+   targetView:setClasses({0,1,2,3,4,5,6,7,8,9})
+   local inputView = dp.ImageView('bhwc', inputs)
+   local ds = dp.DataSet{inputs=inputView, targets=targetView}
+   local output = torch.randn(nSample,10)
+   local conf = dp.Confusion()
+   local sampler = dp.Sampler{batch_size=8}
+   local batchSampler = sampler:sampleEpoch(ds)
+   local batch = batchSampler()
+   local i = 1
+   while batch do
+      conf:add(batch, output:narrow(1,i,batch:nSample()), {epoch=1})
+      i = i + batch:nSample()
+      batch = batchSampler(batch)
+   end
+   mytester:assert(i-1 == nSample)
+   mytester:assert(conf:nSample() == nSample)
+   mytester:assert(conf._cm.mat:sum() == nSample)
+   local report = conf:report()
+   local acc = report[conf:name()].accuracy
+   local vals, preds = output:max(2)
+   preds = preds:select(2,1):int()
+   local acc2 = torch.eq(preds, targets):float():mean()
+   mytester:assert(acc == acc2)
+end
+
 function dptest.TopCrop()
    local fb = dp.TopCrop{n_top={1,3}, n_crop=3,center=1,verbose=false}
    fb._id = dp.ObjectID('topcrop')

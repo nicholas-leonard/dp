@@ -183,7 +183,7 @@ if opt.bidirectional then
    -- initialize BRNN with fwd, bwd RNN/LSTMs
    local bwd = lm:clone()
    bwd:reset()
-   bwd:remember(false)
+   bwd:remember('neither')
    local brnn = nn.BiSequencerLM(lm, bwd)
    
    lm = nn.Sequential()

@@ -62,7 +62,7 @@ function Perplexity:add(batch, output, report)
                sum = sum + act[i][target[i]]
             end
          else
-            -- assume output originates from SoftMaxTree
+            -- assume output originates from SoftMaxTree (which is loglikelihood)
             sum = sum + act:view(-1):sum()
          end
       end

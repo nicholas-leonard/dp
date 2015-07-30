@@ -31,7 +31,7 @@ end
 -- exponential of the mean NLL
 function Perplexity:perplexity()
    -- divide by number of elements in sequence
-   return math.exp(self._nll / self._n_sample)
+   return torch.exp(self._nll / self._n_sample)
 end
 
 function Perplexity:doneEpoch(report)
@@ -51,7 +51,7 @@ function Perplexity:add(batch, output, report)
       for i=1,#output do
          local target = targets:select(2,i)
          local act = output[i]
-         if torch.type(act) ~= torch.FloatTensor() then
+         if not (torch.isTypeOf(act, 'torch.FloatTensor') or torch.isTypeOf(act, 'torch.DoubleTensor')) then
             self._act = self._act or torch.FloatTensor()
             self._act:resize(act:size()):copy(act)
             act = self._act
@@ -70,7 +70,7 @@ function Perplexity:add(batch, output, report)
    else
       self._n_sample = self._n_sample + batch:nSample()
       local act = output
-      if torch.type(act) ~= torch.FloatTensor() then
+      if not (torch.isTypeOf(act, 'torch.FloatTensor') or torch.isTypeOf(act, 'torch.DoubleTensor')) then
          self._act = self._act or torch.FloatTensor()
          self._act:resize(act:size()):copy(act)
          act = self._act
@@ -84,7 +84,7 @@ function Perplexity:add(batch, output, report)
          end
          self._nll = self._nll - sum
       else
-         -- assume output originates from SoftMaxTree
+         -- assume output originates from SoftMaxTree (which is loglikelihood)
          -- accumulate the sum of negative log likelihoods
          self._nll = self._nll - act:view(-1):sum()
       end

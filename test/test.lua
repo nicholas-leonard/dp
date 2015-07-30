@@ -1001,6 +1001,63 @@ function dptest.Confusion()
    mytester:assert(acc == acc2)
 end
 
+function dptest.Perplexity()
+   local nSample = 100
+   local inputs = torch.randn(nSample,8,8,1)
+   local targets = torch.IntTensor(nSample, 10):random(1,10)
+   local targetView = dp.ClassView('bt', targets)
+   targetView:setClasses({0,1,2,3,4,5,6,7,8,9})
+   local inputView = dp.ImageView('bhwc', inputs)
+   local ds = dp.DataSet{inputs=inputView, targets=targetView}
+   local output = {}
+   for i=1,10 do
+      table.insert(output, torch.randn(nSample,10))
+   end
+   local ppl = dp.Perplexity()
+   local sampler = dp.Sampler{batch_size=8}
+   local batchSampler = sampler:sampleEpoch(ds)
+   local batch = batchSampler()
+   local i = 1
+   while batch do
+      local output_ = {}
+      for k=1,10 do
+         table.insert(output_, output[k]:narrow(1,i,batch:nSample()))
+      end
+      ppl:add(batch, output_, {epoch=1})
+      i = i + batch:nSample()
+      batch = batchSampler(batch)
+   end
+   mytester:assert(i-1 == nSample)
+   mytester:assert(ppl:nSample() == nSample*10)
+   local ppl_val = ppl:perplexity()
+   local nll = 0
+   for k=1,10 do
+      for i=1,nSample do
+         nll = nll - output[k][i][targets[{i,k}]]
+      end
+   end
+   mytester:assert(math.abs(ppl._nll - nll) < 0.0000001)
+   local ppl_val2 = torch.exp(nll/(nSample*10))
+   mytester:assert(math.abs(ppl_val - ppl_val2) < 0.0000001)
+   -- test after reset
+   ppl:reset()
+   local batchSampler = sampler:sampleEpoch(ds)
+   local batch = batchSampler()
+   local i = 1
+   while batch do
+      local output_ = {}
+      for k=1,10 do
+         table.insert(output_, output[k]:narrow(1,i,batch:nSample()))
+      end
+      ppl:add(batch, output_, {epoch=1})
+      i = i + batch:nSample()
+      batch = batchSampler(batch)
+   end
+   mytester:assert(i-1 == nSample)
+   mytester:assert(ppl:nSample() == nSample*10)
+   mytester:assert(math.abs(ppl_val - ppl:perplexity()) < 0.0000001)
+end
+
 function dptest.TopCrop()
    local fb = dp.TopCrop{n_top={1,3}, n_crop=3,center=1,verbose=false}
    fb._id = dp.ObjectID('topcrop')

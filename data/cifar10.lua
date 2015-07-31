@@ -70,7 +70,7 @@ function Cifar10:loadTrain()
    local data = self:loadData(self._download_url, 'train')
    local size = math.floor(data:size(1)*(1-self._valid_ratio))
    local train_data = data:narrow(1, 1, size)
-   self:setTrainSet(self:createDataSet(train_data, 'train'))
+   self:trainSet(self:createDataSet(train_data, 'train'))
    return self:trainSet()
 end
 
@@ -83,13 +83,13 @@ function Cifar10:loadValid()
    local start = math.ceil(data:size(1)*(1-self._valid_ratio))
    local size = data:size(1)-start
    local valid_data = data:narrow(1, start, size)
-   self:setValidSet(self:createDataSet(valid_data, 'valid'))
+   self:validSet(self:createDataSet(valid_data, 'valid'))
    return self:validSet()
 end
 
 function Cifar10:loadTest()
    local test_data = self:loadData(self._download_url, 'test')
-   self:setTestSet(self:createDataSet(test_data, 'test'))
+   self:testSet(self:createDataSet(test_data, 'test'))
    return self:testSet()
 end
 
@@ -181,7 +181,7 @@ local function cifar10test(num_images)
       img = dt:image():select(1,idx):transpose(1,3)
       image.savePNG('cifar10feature'..idx..'.png', img)
    end
-   c:setInputPreprocess(dp.LeCunLCN())
+   c:inputPreprocess(dp.LeCunLCN())
    c:preprocess()
    for idx = 1,num_images do
       img = dt:image():select(1,idx):transpose(1,3)

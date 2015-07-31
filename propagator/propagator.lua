@@ -90,10 +90,15 @@ function Propagator:propagateEpoch(dataset, report)
    -- local vars
    local start_time = sys.clock()
    local batch, i, n, last_n
-   local n_batch = 1
+   local n_batch = 0
    
    if self._stats and self._verbose then
       print('==> epoch # '..(report.epoch + 1)..' for '..self:name()..' :')
+   end
+   
+   if self._model.forget then
+      -- for recurrent modules, forget between epochs
+      self._model:forget()
    end
    
    self._n_sample = 0
@@ -126,9 +131,9 @@ function Propagator:propagateEpoch(dataset, report)
    
    -- time taken
    self._epoch_duration = sys.clock() - start_time
-   self._batch_duration = self._epoch_duration / last_n
+   self._batch_duration = self._epoch_duration / math.max(n_batch, 0.000001)
    self._example_speed = last_n / self._epoch_duration
-   self._batch_speed = (n_batch / self._epoch_duration)
+   self._batch_speed = n_batch / self._epoch_duration
    if self._stats and self._verbose then
       print("==> example speed = "..self._example_speed..' examples/s')
    end

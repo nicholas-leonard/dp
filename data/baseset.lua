@@ -24,33 +24,20 @@ function BaseSet:__init(config)
        'to a ListView. The indices of examples must be '..
        'in both inputs and targets must be aligned.'}
    )
-   self:setWhichSet(which_set)
-   if inputs then self:setInputs(inputs) end
-   if targets then self:setTargets(targets) end
+   self:whichSet(which_set)
+   if inputs then self:inputs(inputs) end
+   if targets then self:targets(targets) end
 end
 
-function BaseSet:setWhichSet(which_set)
-   self._which_set = which_set
-end
-
-function BaseSet:whichSet()
+function BaseSet:whichSet(which_set)
+   if which_set then
+      self._which_set = which_set
+   end
    return self._which_set
 end
 
 function BaseSet:isTrain()
    return (self._which_set == 'train')
-end
-
-function BaseSet:setInputs(inputs)
-   assert(inputs.isView, 
-      "Error : invalid inputs. Expecting type dp.View")
-   self._inputs = inputs
-end
-
-function BaseSet:setTargets(targets)
-   assert(targets.isView,
-      "Error : invalid targets. Expecting type dp.View")
-   self._targets = targets
 end
 
 -- Returns the number of samples in the BaseSet.
@@ -66,17 +53,25 @@ function BaseSet:nSample()
    end
 end
 
---Returns input dp.View
-function BaseSet:inputs()
+-- get/set input dp.View
+function BaseSet:inputs(inputs)
+   if inputs then
+      assert(inputs.isView, "Error : invalid inputs. Expecting type dp.View")
+      self._inputs = inputs
+   end
    return self._inputs
 end
 
---Returns target dp.View
-function BaseSet:targets()
+-- get/set target dp.View
+function BaseSet:targets(targets)
+   if targets then
+      assert(targets.isView, "Error : invalid targets. Expecting type dp.View")
+      self._targets = targets
+   end
    return self._targets
 end
 
---Preprocesses are applied to DataViews
+-- Preprocesses are applied to Views
 function BaseSet:preprocess(config)
    config = config or {}
    assert(torch.type(config) == 'table' and not config[1], 
@@ -109,3 +104,22 @@ function BaseSet:preprocess(config)
       target_preprocess:apply(self._targets, can_fit)
    end
 end
+
+-- BEGIN DEPRECATED (June 13, 2015)
+function BaseSet:setInputs(inputs)
+   assert(inputs.isView, 
+      "Error : invalid inputs. Expecting type dp.View")
+   self._inputs = inputs
+end
+
+function BaseSet:setTargets(targets)
+   assert(targets.isView,
+      "Error : invalid targets. Expecting type dp.View")
+   self._targets = targets
+end
+
+function BaseSet:setWhichSet(which_set)
+   self._which_set = which_set
+end
+-- END DEPRECATED
+

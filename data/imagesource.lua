@@ -62,7 +62,8 @@ function ImageSource:loadTrain()
       which_set='train', sample_size=self._sample_size, 
       sort_func=function(x,y)
          return tonumber(x:match('[0-9]+')) < tonumber(y:match('[0-9]+'))
-      end
+      end,
+      verbose=self._verbose
    }
    self._classes = self._classes or dataset:classes()
    self:trainSet(dataset)   

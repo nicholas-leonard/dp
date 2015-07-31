@@ -5,7 +5,7 @@
 ------------------------------------------------------------------------
 local ShuffleSampler, parent = torch.class("dp.ShuffleSampler", "dp.Sampler")
 
-function ShuffleSampler:_init(config)
+function ShuffleSampler:__init(config)
    config = config or {}
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, batch_size, random_seed = xlua.unpack(
@@ -16,11 +16,10 @@ function ShuffleSampler:_init(config)
       'Examples are shuffled at the start of the iteration. ',
       {arg='batch_size', type='number', default=128,
        help='Number of examples per sampled batches'},
-      {arg='random_seed', type='number', req=true,
-       help='Used to initialize the shuffle generator.' ..
-       'Not yet supported'}
+      {arg='random_seed', type='number', default=777,
+       help='Used to initialize the shuffle generator.'}
    )
-   self:setRandomSeed(random_seed)
+   self:randomSeed(random_seed)
    config.batch_size = batch_size
    parent.__init(self, config)
 end
@@ -40,15 +39,15 @@ function ShuffleSampler:setup(config)
    config.overwrite = overwrite
    parent.setup(self, config)
    if random_seed and ((not self._random_seed) or overwrite) then
-      self:setRandomSeed(random_seed)
+      self:randomSeed(random_seed)
    end
 end
 
-function ShuffleSampler:setRandomSeed(random_seed)
-   self._random_seed = random_seed
-end
-
-function ShuffleSampler:randomSeed()
+function ShuffleSampler:randomSeed(seed)
+   if seed then
+      self._random_seed = seed
+      torch.manualSeed(seed)
+   end
    return self._random_seed
 end
    

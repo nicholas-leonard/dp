@@ -6,7 +6,6 @@
 -- We recommend using it for small datasets of small images.
 -- For large datasets, use ImageSource instead.
 ------------------------------------------------------------------------
-
 local SmallImageSource, DataSource = torch.class("dp.SmallImageSource", "dp.DataSource")
 
 function SmallImageSource:__init(config) 
@@ -14,9 +13,10 @@ function SmallImageSource:__init(config)
    assert(torch.type(config) == 'table' and not config[1], 
       "Constructor requires key-value arguments")
    local load_all
-   self._args, self._name,self._image_size, self._valid_ratio, self._classes, 
+   self._args, self._name, self._image_size, self._valid_ratio, 
+         self._classes, 
          self._train_dir, self._test_dir, self._data_path, 
-          self._cache_mode,
+         self._cache_mode, self._cache_path,
          self._scale, self._binarize, self._download_url, load_all
       = xlua.unpack(
       {config},
@@ -41,6 +41,8 @@ function SmallImageSource:__init(config)
        'overwrite : write to cache, regardless if exists. '..
        'nocache : dont read or write from cache. '..
        'readonly : only read from cache, fail otherwise.'},
+      {arg='cache_path', type='string', 
+       help='path to cache directory (defaults to data_path).'},
       {arg='scale', type='table', 
        help='bounds to scale the values between', default={0,1}},
       {arg='binarize', type='boolean', 
@@ -80,7 +82,7 @@ function SmallImageSource:loadTrainValid()
    local start = 1
    local size = math.floor(inputs:size(1)*(1-self._valid_ratio))
 
-   self:setTrainSet(
+   self:trainSet(
       self:createDataSet(
          inputs:narrow(1, start, size), 
          targets:narrow(1, start, size), 
@@ -91,7 +93,7 @@ function SmallImageSource:loadTrainValid()
    -- valid
    start = size + 1
    size = inputs:size(1) - start
-   self:setValidSet(
+   self:validSet(
       self:createDataSet(
          inputs:narrow(1, start, size), 
          targets:narrow(1, start, size), 
@@ -102,8 +104,11 @@ function SmallImageSource:loadTrainValid()
 end
 
 function SmallImageSource:loadTest()
+   if self._test_dir == '' then
+      return
+   end
    local inputs, targets = self:loadData(self._test_dir)
-   self:setTestSet(self:createDataSet(inputs, targets, 'test'))
+   self:testSet(self:createDataSet(inputs, targets, 'test'))
    return self:testSet()
 end
 
@@ -124,18 +129,19 @@ function SmallImageSource:createDataSet(inputs, targets, which_set)
    target_v:setClasses(self._classes)
    
    -- construct dataset
-  local ds = dp.DataSet{inputs=input_v,targets=target_v,which_set=which_set}
+   local ds = dp.DataSet{inputs=input_v,targets=target_v,which_set=which_set}
    ds:ioShapes('bchw', 'b')
    return ds
-         
-   
    
 end
 
-function SmallImageSource:loadData(filename, download_url)
+function SmallImageSource:loadData(set_dir, download_url)
    -- use cache?
-   local cacheFile='cache'..'.t7'
-   local cachePath = paths.concat(filename, cacheFile)
+   local cacheFile = self._name..'_'..set_dir
+   cacheFile = cacheFile .. table.concat(self._image_size,'x')
+   cacheFile = cacheFile ..'_cache.t7'
+   
+   local cachePath = paths.concat(self._cache_path, cacheFile)
    if paths.filep(cachePath) then
       if not _.contains({'nocache','overwrite'}, self._cache_mode)  then
          return table.unpack(torch.load(cachePath))
@@ -144,44 +150,47 @@ function SmallImageSource:loadData(filename, download_url)
       error("SmallImageSource: No cache at "..cachePath)
    end
    
-  -- local data_path = DataSource.getDataPath{
---      name=self._name, url=download_url or self._download_url,
-  --    decompress_file='/decompressed', data_dir=self._data_path
- --  }
-      data_path=filename
+   local data_path = DataSource.getDataPath{
+      name=self._name, url=download_url or self._download_url,
+      decompress_file=set_dir, data_dir=self._data_path
+   }
    
    if (not self._classes) or _.isEmpty(self._classes) then
       -- extrapolate classes from directories
       self._classes = {}
+      print(data_path)
       for class in paths.iterdirs(data_path) do
          table.insert(self._classes, class)
       end
-      _.sort(self._classes) -- make indexing it consistent
+      _.sort(self._classes) -- make indexing consistent
    end
    
    -- count images
    local n_example = 0
+   local classfiles= {}
    for classidx, class in ipairs(self._classes) do
       local classpath = paths.concat(data_path, class)
-      for file in paths.iterfiles(classpath) do 
-         n_example = n_example + 1 
-      end
+      local files = paths.indexdir(classpath)
+      assert(files:size() > 0, "class dir is empty : "..classpath)
+      n_example = n_example + files:size()
+      table.insert(classfiles, files)
    end
+   assert(n_example > 0, "no examples found for at data_path :"..data_path)
    
    -- allocate tensors
    local inputs = torch.FloatTensor(n_example, unpack(self._image_size)):zero()
    local targets = torch.Tensor(n_example):fill(1)
    local shuffle = torch.randperm(n_example) -- useless for test set
-
+   
    -- load images
    local example_idx = 1
    local buffer
    for classidx, class in ipairs(self._classes) do
-      local classpath = paths.concat(data_path, class)
+      local files = classfiles[classidx]
       
-      for file in paths.iterfiles(classpath) do         
+      for i=1,files:size() do
          local success, img = pcall(function()
-            return image.load(paths.concat(classpath, file))
+            return image.load(paths.concat(classpath, files:filename(i)))
          end)
       
          if success then
@@ -205,7 +214,7 @@ function SmallImageSource:loadData(filename, download_url)
       end
    end
    
-   if not( self._cache_mode == 'nochache') then
+   if self._cache_mode ~= 'nochache' then
       torch.save(cachePath, {inputs, targets})
    end
   

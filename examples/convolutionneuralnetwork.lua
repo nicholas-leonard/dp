@@ -86,6 +86,8 @@ elseif opt.dataset == 'Cifar100' then
    ds = dp.Cifar100{input_preprocess = input_preprocess}
 elseif opt.dataset == 'Svhn' then
    ds = dp.Svhn{input_preprocess = input_preprocess}
+elseif opt.dataset == 'FaceDetection' then
+   ds = dp.FaceDetection{input_preprocess = input_process}
 elseif opt.dataset == 'ImageSource' then
    ds = dp.ImageSource{load_size = opt.loadSize, sample_size = opt.sampleSize, train_path = opt.trainPath, valid_path = opt.validPath, meta_path = opt.metaPath, verbose = not opt.silent}
 else

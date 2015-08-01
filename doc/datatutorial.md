@@ -91,7 +91,7 @@ function facedetection(dataPath, validRatio)
 end
 ```
 
-A couple things that merit mentioning concerning the above code :
+A couple things that merit mentioning in the above code :
  
  * `dataPath` is the path to a directory containing a directory for each class;
  * `validRatio` is the ratio of the training set used for cross validation (i.e. early-stopping);
@@ -110,7 +110,7 @@ It also provides a standard means of accessing most types of datasets (as we wil
 
 Ok so in the above scenario, we just encapsulated our data into a generic DataSource and assumed it 
 would be stored on disk at `dataPath`. 
-In this section, we will  We want to build a DataSource that will auto-magically download the data 
+In this section, we will build a DataSource that will auto-magically download the data 
 (i.e. the *face-dataset.zip* file) from the Web if not found locally (on the user's hard disk), and uncompress it.
 Since we don't have a means of hosting our own version of the dataset on the Web, we will use Purdue's URI.
 This implies that our DataSource will need to build `input` and `target` Tensors from the PNG files,

@@ -13,11 +13,13 @@ cmd:text('$> th recurrentlanguagemodel.lua --tiny --batchSize 64 ')
 cmd:text('$> th recurrentlanguagemodel.lua --tiny --batchSize 64 --rho 5 --validEpochSize 10000 --trainEpochSize 100000 --softmaxtree')
 cmd:text('Options:')
 cmd:option('--learningRate', 0.1, 'learning rate at t=0')
-cmd:option('--schedule', '{[250]=0.01, [350]=0.001}', 'learning rate schedule')
-cmd:option('--momentum', 0, 'momentum')
-cmd:option('--adaptiveDecay', false, 'use adaptive learning rate')
+cmd:option('--lrDecay', 'linear', 'type of learning rate decay : adaptive | linear | schedule | none')
+cmd:option('--minLR', 0.00001, 'minimum learning rate')
+cmd:option('--saturateEpoch', 300, 'epoch at which linear decayed LR will reach minLR')
+cmd:option('--schedule', '{}', 'learning rate schedule')
 cmd:option('--maxWait', 4, 'maximum number of epochs to wait for a new minima to be found. After that, the learning rate is decayed by decayFactor.')
-cmd:option('--decayFactor', 0.1, 'factor by which learning rate is decayed.')
+cmd:option('--decayFactor', 0.001, 'factor by which learning rate is decayed for adaptive decay.')
+cmd:option('--momentum', 0, 'momentum')
 cmd:option('--maxOutNorm', 2, 'max l2-norm each layers output neuron weights')
 cmd:option('--cutoffNorm', -1, 'max l2-norm of contatenation of all gradParam tensors')
 cmd:option('--batchSize', 64, 'number of examples per batch')
@@ -245,10 +247,11 @@ end
    
 
 --[[Propagators]]--
-if opt.adaptiveDecay then
+if opt.lrDecay == 'adaptive' then
    ad = dp.AdaptiveDecay{max_wait = opt.maxWait, decay_factor=opt.decayFactor}
+elseif opt.lrDecay == 'linear' then
+   opt.decayFactor = (opt.minLR - opt.learningRate)/opt.saturateEpoch
 end
-opt.lastEpoch = 0
 
 train = dp.Optimizer{
    loss = opt.softmaxtree and nn.SequencerCriterion(nn.TreeNLLCriterion())
@@ -257,16 +260,23 @@ train = dp.Optimizer{
             nn.Identity(), 
             opt.cuda and nn.Sequencer(nn.Convert()) or nn.Identity()
          ),
-   callback = function(model, report) 
-      -- learning rate decay
-      if opt.lastEpoch < report.epoch and (ad and ad.decay ~= 1 or opt.schedule[report.epoch]) then
-         opt.learningRate = ad and opt.learningRate*ad.decay or opt.schedule[report.epoch]
-         if ad then ad.decay = 1 end
+   epoch_callback = function(model, report) -- called every epoch
+      if report.epoch > 0 then
+         if opt.lrDecay == 'adaptive' then
+            opt.learningRate = opt.learningRate*ad.decay
+            ad.decay = 1
+         elseif opt.lrDecay == 'schedule' and opt.schedule[report.epoch] then
+            opt.learningRate = opt.schedule[report.epoch]
+         elseif opt.lrDecay == 'linear' then 
+            opt.learningRate = opt.learningRate + opt.decayFactor
+         end
+         opt.learningRate = math.max(opt.minLR, opt.learningRate)
          if not opt.silent then
             print("learningRate", opt.learningRate)
          end
       end
-      
+   end,
+   callback = function(model, report) -- called every batch
       if opt.accUpdate then
          model:accUpdateGradParameters(model.dpnn_input, model.output, opt.learningRate)
       else
@@ -282,8 +292,6 @@ train = dp.Optimizer{
       end
       model:maxParamNorm(opt.maxOutNorm) -- affects params
       model:zeroGradParameters() -- affects gradParams 
-      
-      opt.lastEpoch = report.epoch
    end,
    feedback = dp.Perplexity(),  
    sampler = torch.isTypeOf(ds, 'dp.TextSource')

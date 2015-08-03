@@ -11,8 +11,8 @@ Propagator.isPropagator = true
 
 function Propagator:__init(config)   
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, loss, callback, sampler, observer, feedback, progress,
-      verbose, stats, include_target = xlua.unpack(
+   local args, loss, callback, epoch_callback, sampler, observer, 
+      feedback, progress, verbose, stats = xlua.unpack(
       {config},
       'Propagator', 
       'Propagates Batches sampled from a DataSet using a Sampler '..
@@ -23,6 +23,8 @@ function Propagator:__init(config)
       {arg='callback', type='function',
        help='function(model, report) that does things like'..
        'update model, gather statistics, decay learning rate, etc.'},
+      {arg='epoch_callback', type='function', 
+       help='function(model, report) that is called between epochs'},
       {arg='sampler', type='dp.Sampler', 
        help='Iterates through a DataSet. [Default=dp.Sampler()]'},
       {arg='observer', type='dp.Observer', 
@@ -43,6 +45,7 @@ function Propagator:__init(config)
    self:observer(observer)
    self:feedback(feedback)
    self:callback(callback)
+   self:epochCallback(epoch_callback or function() return end)
    self._progress = progress
    self._verbose = verbose
    self._stats = stats
@@ -100,6 +103,8 @@ function Propagator:propagateEpoch(dataset, report)
       -- for recurrent modules, forget between epochs
       self._model:forget()
    end
+   
+   self._epoch_callback(self._model, report)
    
    self._n_sample = 0
    local sampler = self._sampler:sampleEpoch(dataset)
@@ -256,6 +261,15 @@ function Propagator:callback(callback)
       return
    end
    return self._callback
+end
+
+function Propagator:epochCallback(callback)
+   if callback then
+      assert(torch.type(callback) == 'function', "expecting function")
+      self._epoch_callback = callback
+      return
+   end
+   return self._epoch_callback
 end
 
 function Propagator:feedback(feedback)

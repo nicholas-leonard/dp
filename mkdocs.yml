@@ -10,6 +10,7 @@ pages:
   - Neural Network: neuralnetworktutorial.md
   - Facial Keypoints: facialkeypointstutorial.md
   - Language Model: languagemodeltutorial.md
+  - Data Source: datatutorial.md 
 - Data Library:
   - View: view.md
   - Data: data.md

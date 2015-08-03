@@ -29,6 +29,8 @@ A [Facial Keypoints tutorial](facialkeypointstutorial.md) involving the case stu
 
 The [Language Model tutorial](languagemodeltutorial.md) examines the implementation of a neural network language model trained on the Billion Words dataset.
 
+In the [Data tutorial](datatutorial.md), we explore different ways to wrap your own data into a DataSource so that it may be used with dp.
+
 <a name="dp.packages"/>
 []()
 ## dp Packages ##
@@ -75,14 +77,3 @@ $> sudo luarocks install cunnx
 ## Contributions ##
 
 We appreciate [issues](https://github.com/nicholas-leonard/dp/issues) and [pull requests](https://github.com/nicholas-leonard/dp/pulls?q=is%3Apr+is%3Aclosed) of all kind.
-
-
-## Notice : June 2nd, 2015
-
-A major [pull request](https://github.com/nicholas-leonard/dp/pull/127) was recently merged which breaks backward compatibility. 
-Basically, all the dp.Model, dp.Loss and dp.Visitor were removed to reduce the complexity of the library.
-You can now use nn.Modules and nn.Criterions directly. 
-As for the dp.Visitors, these were refactored as [Module methods](https://github.com/nicholas-leonard/dpnn/blob/master/Module.lua)
-made available via the [dpnn](https://github.com/nicholas-leonard/dpnn/blob/master/README.md) library.
-Using the [Serial](https://github.com/nicholas-leonard/dpnn#nn.Serial) decorator, saved experiments 
-now require significantly less disk space.

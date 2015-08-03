@@ -4,23 +4,27 @@ One of the most important aspects of any machine learning problem is the data. T
   * [BaseSet](#dp.BaseSet) : abstract class;
      * [DataSet](#dp.DataSet) : a dataset for input and target [Views](view.md#dp.View);
        * [SentenceSet](#dp.SentenceSet) : container of sentences (used for language modeling);
+       * [TextSet](#dp.TextSet) : container of text (used for language modeling);
        * [ImageClassSet](#dp.ImageClassSet) : container for large-scale image-classification datasets;
      * [Batch](#dp.Batch) : a mini-batch of inputs and targets;
   * [DataSource](#dp.DataSource) : a container of train, valid and test DataSets;
     * [Mnist](#dp.Mnist) : the ubiquitous MNIST dataset;
     * [NotMnist](#dp.NotMnist) : the lesser known NotMNIST dataset;
+    * [FaceDetection](#dp.FaceDetection) : the Purdue face detection dataset;
     * [Cifar10](#dp.Cifar10) : the CIFAR-10 dataset;
     * [Cifar100](#dp.Cifar100) : the very difficult to generalize CIFAR-100 dataset;
     * [Svhn](#dp.Svhn) : the Google Street View House Numbers dataset;
     * [ImageNet](#dp.ImageNet) : the Large Scale Visual Recognition Challenge 2014 (ILSVRC2014) dataset;
-    * [ImageSource](#dp.ImageSource) :
-    * [TextSource](#dp.TextSource) :
-    * [PennTreeBank](#dp.PennTreeBank) :
+    * [PennTreeBank](#dp.PennTreeBank) : the Penn Tree Bank language model dataset;
     * [BillionWords](#dp.BillionWords) : the Google 1-Billion Words language model dataset;
+    * [ImageSource](#dp.ImageSource) : generic large image classification data wrapper;
+    * [SmallImageSource](#dp.SmallImageSource) : generic small image classification data wrapper;
+    * [TextSource](#dp.TextSource) : generic text language model dataset wrapper;
   * [Sampler](#dp.Sampler) : ordered dataset iterator;
     * [ShuffleSampler](#dp.ShuffleSampler) : shuffled dataset iterator;
     * [SentenceSampler](#dp.SentenceSampler) : samples sentences for recurrent models;
     * [RandomSampler](#dp.RandomSampler) : iterates through batches of random examples;
+    * [TextSampler](#dp.TextSampler) : iterates through a text (a single contiguous sequence of words) dataset;
 
 <a name="dp.BaseSet"></a>
 ## BaseSet ##
@@ -84,13 +88,24 @@ intent is to modify the original DataSet.
 
 <a name="dp.SentenceSet"></a>
 ## SentenceSet ##
-A subclass of [DataSet](#dp.DataSet) used for language modeling. 
+A [DataSet](#dp.DataSet) used for language modeling. 
 Takes a sequence of words stored as a tensor of word IDs and a [Tensor](https://github.com/torch/torch7/blob/master/doc/tensor.md#tensor) 
 holding the start index of the sentence of its commensurate word id (the one at the same index).
 Unlike DataSets, for memory efficiency reasons, this class does not store its data in [Views](view.md#dp.View).
 However, the outputs of factory methods [batch](#dp.DataSet.batch), [sub](#dp.DataSet.sub), and
 [index](#dp.DataSet.index) are [Batches](#dp.Batch) containing input and target [ClassViews](view.md#dp.ClassView).
 The returned [batch:inputs()](#dp.BaseSet.inputs) are filled according to [Google 1-Billion Words guidelines](https://code.google.com/p/1-billion-word-language-modeling-benchmark/source/browse/trunk/README.perplexity_and_such).
+
+<a name='dp.TextSet'></a>
+## TextSet ##
+A [DataSet](#dp.DataSet) used for language modeling. 
+Takes a sequence of words stored as a tensor of word ids.
+Contrary to [SentenceSet](#dp.SentenceSet), this wrapper assumes a continuous stream of words. 
+If consecutive sentences are completely unrelated, you might be better off using SentenceSet, 
+unless your model can learn to forget (like [LSTMs](https://github.com/Element-Research/rnn#rnn.LSTM)). 
+Like SentenceSet, this class does not store its data in [Views](view.md#dp.View).
+However, the outputs of `batch()`, `sub()`, `index()` are [Batches](#dp.Batch)
+containing [ClassViews](view.md#dp.ClassView) of inputs and targets.
 
 <a name="dp.ImageClassSet"></a>
 ## ImageClassSet ##
@@ -288,6 +303,28 @@ Returns the `path` to the resulting data file.
   * `data_dir` is a string specifying the path to the directory containing directory `name`, which is expected to contain the data, or where it will be downloaded.
   * `decompress_file` is a string that when non-nil, decompresses the downloaded data if `data_dir/name/decompress_file` is not found. In which case, returns `data_dir/name/decompress_file`.
  
+<a name="dp.TextSource"></a>
+## dp.TextSource ##
+A generic text language model dataset wrapper. 
+Creates a DataSource out of 1 to 3 strings or text files.
+Text files are assumed to be arranged one sentence per line, each
+line beginning with a space and ending with a space and a newline.
+ 
+<a name="dp.ImageSource"></a>
+## dp.ImageSource ##
+A generic version of the [ImageNet](#dp.ImageNet) DataSource used for wrapping
+large image classification datasets. Each class is a directory of image files.
+The images can be asynchronously loaded into memory in one ore many different threads 
+to speedup training.
+
+<a name="dp.SmallImageSource"></a>
+## dp.SmallImageSource ##
+A generic DataSource used for wrapping small image classification datasets.
+Each class is a directory of image files. The loaded input (images) and target (classes) 
+tensors are cached to disk the first time the constuctor is called. 
+The next time it is called, these cached files will be loaded instead of the directory of images,
+thereby speeding up the loading process.
+
 <a name="dp.Mnist"></a>
 ## Mnist ##
 A [DataSource](#dp.DataSource) subclass wrapping the simple but widely used handwritten digits 
@@ -327,6 +364,11 @@ The DataSource inclues data for building hierarchical softmaxes to accelerate tr
 As usual the actual data is downloaded automatically when not found on disk.
 It is stored as a serialized `torch.Tensor` (see code for details).
 
+<a name="dp.PennTreeBank"></a>
+## Penn Tree Bank ##
+A small [TextSource](#dp.TextSource) used to train and evaluate language models. 
+It has a relatively small vocabulary of 10000 words. 
+
 <a name="dp.Svhn"></a>
 ## Svhn ##
 The Google Street View House Numbers (SVHN) DataSource wraps 
@@ -336,6 +378,9 @@ If not found on the local machine, the object downloads the dataset from
 It contains 73257 digits for training, 26032 digits for testing, and 531131 additional, 
 somewhat less difficult samples, to use as extra training data. 
 Like [CIFAR](#dp.Cifar10), the images are of size `3x32x32`.
+
+<a name="dp.FaceDetection"></a>
+A Purdue face detection dataset used in the [data tutorial](datatutorial.md).
 
 <a name="dp.ImageNet"></a>
 ## ImageNet ##
@@ -458,3 +503,11 @@ Unlike the [ShuffleSampler](#dp.ShuffleSampler), this iterator is not garanteed
 to sample each example in the dataset during a complete epoch.
 You can see this Sampler in action via the [alexnet.lua](https://github.com/nicholas-leonard/dp/blob/master/examples/alexnet.lua)
 training script
+
+<a name='dp.TextSampler'></a>
+## TextSampler ##
+A [TextSet](#dp.TextSet) iterator which is used mostly for recurrent language models.
+Successive sampled batches are contiguous to each other. 
+So sample `i` of the `j`th sampled batch is the sequence of words preceding the 
+sequence of words in sample `i` of the `j+1`th batch. 
+When `batch_size=1`, the entire text will be sampled one sequence at a time in order of appearence in the text.

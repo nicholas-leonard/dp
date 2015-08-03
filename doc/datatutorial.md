@@ -1,4 +1,4 @@
-# Data Tutorial #
+# Data Source Tutorial #
 
 Most of the theory related to deep learning seems to focus on the models and training algorithms.
 In this tutorial, we will explore how to prepare the data, which some may argue, is the most important *pratical* aspect of DL. 

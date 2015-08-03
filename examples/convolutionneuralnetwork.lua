@@ -8,6 +8,12 @@ cmd:text('Example:')
 cmd:text('$> th convolutionneuralnetwork.lua --batchSize 128 --momentum 0.5')
 cmd:text('Options:')
 cmd:option('--learningRate', 0.1, 'learning rate at t=0')
+cmd:option('--lrDecay', 'linear', 'type of learning rate decay : adaptive | linear | schedule | none')
+cmd:option('--minLR', 0.00001, 'minimum learning rate')
+cmd:option('--saturateEpoch', 300, 'epoch at which linear decayed LR will reach minLR')
+cmd:option('--schedule', '{}', 'learning rate schedule')
+cmd:option('--maxWait', 4, 'maximum number of epochs to wait for a new minima to be found. After that, the learning rate is decayed by decayFactor.')
+cmd:option('--decayFactor', 0.001, 'factor by which learning rate is decayed for adaptive decay.')
 cmd:option('--maxOutNorm', 1, 'max norm each layers output neuron weights')
 cmd:option('--momentum', 0, 'momentum')
 cmd:option('--channelSize', '{64,128}', 'Number of output channels for each convolution layer.')
@@ -161,10 +167,33 @@ cnn:add(nn.Linear(inputSize, #(ds:classes())))
 cnn:add(nn.LogSoftMax())
 
 --[[Propagators]]--
+if opt.lrDecay == 'adaptive' then
+   ad = dp.AdaptiveDecay{max_wait = opt.maxWait, decay_factor=opt.decayFactor}
+elseif opt.lrDecay == 'linear' then
+   opt.decayFactor = (opt.minLR - opt.learningRate)/opt.saturateEpoch
+end
+
+
 train = dp.Optimizer{
    acc_update = opt.accUpdate,
    loss = nn.ModuleCriterion(nn.ClassNLLCriterion(), nil, nn.Convert()),
-   callback = function(model, report) 
+   epoch_callback = function(model, report) -- called every epoch
+      if report.epoch > 0 then
+         if opt.lrDecay == 'adaptive' then
+            opt.learningRate = opt.learningRate*ad.decay
+            ad.decay = 1
+         elseif opt.lrDecay == 'schedule' and opt.schedule[report.epoch] then
+            opt.learningRate = opt.schedule[report.epoch]
+         elseif opt.lrDecay == 'linear' then 
+            opt.learningRate = opt.learningRate + opt.decayFactor
+         end
+         opt.learningRate = math.max(opt.minLR, opt.learningRate)
+         if not opt.silent then
+            print("learningRate", opt.learningRate)
+         end
+      end
+   end,
+   callback = function(model, report) -- called every batch
       -- the ordering here is important
       if opt.accUpdate then
          model:accUpdateGradParameters(model.dpnn_input, model.output, opt.learningRate)

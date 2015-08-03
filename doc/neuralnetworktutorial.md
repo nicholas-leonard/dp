@@ -10,7 +10,7 @@ The first line loads the __dp__ package, whose first matter of business is to lo
 require 'dp'
 ```
 
-Note : package [Moses](https://github.com/Yonaba/Moses/blob/master/docs/moses.md) is imported as `_`. 
+Note : package [Moses](https://github.com/Yonaba/Moses) is imported as `_`. 
 So `_` shouldn't be used for dummy variables. 
 Instead use the much more annoying `__`, or whatnot. 
 
@@ -30,7 +30,12 @@ cmd:text('Example:')
 cmd:text('$> th neuralnetwork.lua --batchSize 128 --momentum 0.5')
 cmd:text('Options:')
 cmd:option('--learningRate', 0.1, 'learning rate at t=0')
-cmd:option('--schedule', '{[200]=0.01, [400]=0.001}', 'learning rate schedule')
+cmd:option('--lrDecay', 'linear', 'type of learning rate decay : adaptive | linear | schedule | none')
+cmd:option('--minLR', 0.00001, 'minimum learning rate')
+cmd:option('--saturateEpoch', 300, 'epoch at which linear decayed LR will reach minLR')
+cmd:option('--schedule', '{}', 'learning rate schedule')
+cmd:option('--maxWait', 4, 'maximum number of epochs to wait for a new minima to be found. After that, the learning rate is decayed by decayFactor.')
+cmd:option('--decayFactor', 0.001, 'factor by which learning rate is decayed for adaptive decay.')
 cmd:option('--maxOutNorm', 1, 'max norm each layers output neuron weights')
 cmd:option('--momentum', 0, 'momentum')
 cmd:option('--hiddenSize', '{200,200}', 'number of hidden units per layer')
@@ -120,7 +125,7 @@ The third is used for publishing papers and comparing results across different m
 ## Model of Modules ##
 
 Ok so we have a DataSource, now we need a model. Let's build a 
-multi-layer perceptron (MLP) with on or more parameterized non-linear layers
+multi-layer perceptron (MLP) with one or more parameterized non-linear layers
 (note that in the case of hidden layers being ommitted (`--hiddenSize '{}'`), 
 the model is just a linear classifier):
 
@@ -186,12 +191,33 @@ Each such Propagator will propagate examples from a different [DataSet](data.md#
 generate [Batches](data.md#dp.Batch) of examples (inputs and targets) to propagate through the `model`:
 ```lua
 --[[Propagators]]--
+if opt.lrDecay == 'adaptive' then
+   ad = dp.AdaptiveDecay{max_wait = opt.maxWait, decay_factor=opt.decayFactor}
+elseif opt.lrDecay == 'linear' then
+   opt.decayFactor = (opt.minLR - opt.learningRate)/opt.saturateEpoch
+end
 
 train = dp.Optimizer{
    acc_update = opt.accUpdate,
-   loss = nn.ModuleCriterion(nn.ClassNLLCriterion(), nn.Convert()),
-   callback = function(model, report) 
-      opt.learningRate = opt.schedule[report.epoch] or opt.learningRate
+   loss = nn.ModuleCriterion(nn.ClassNLLCriterion(), nil, nn.Convert()),
+   epoch_callback = function(model, report) -- called every epoch
+      -- learning rate decay
+      if report.epoch > 0 then
+         if opt.lrDecay == 'adaptive' then
+            opt.learningRate = opt.learningRate*ad.decay
+            ad.decay = 1
+         elseif opt.lrDecay == 'schedule' and opt.schedule[report.epoch] then
+            opt.learningRate = opt.schedule[report.epoch]
+         elseif opt.lrDecay == 'linear' then 
+            opt.learningRate = opt.learningRate + opt.decayFactor
+         end
+         opt.learningRate = math.max(opt.minLR, opt.learningRate)
+         if not opt.silent then
+            print("learningRate", opt.learningRate)
+         end
+      end
+   end,
+   callback = function(model, report) -- called every batch
       if opt.accUpdate then
          model:accUpdateGradParameters(model.dpnn_input, model.output, opt.learningRate)
       else
@@ -265,6 +291,30 @@ Depending on what is specified in the command-line, it can also be used to
 [weightDecay](https://github.com/nicholas-leonard/dpnn#nn.Module.weightDecay) or 
 [maxParamNorm](https://github.com/nicholas-leonard/dpnn#nn.Module.maxParamNorm), (personally, I prefer the latter to the former). 
 In any case, the `callback` is a function that you can define to fit your needs.
+
+### `epoch_callback` ###
+
+While the `callback` argument is called every batch, the `epoch_callback` is called between epochs.
+This is useful for decaying hyper-parameters such as the learning rate, which is what we do in this example.
+Since the learning rate is the most important hyper-parameters, it is a good idea to try 
+different learning rate decay schedules during hyper-optimization. 
+
+The `--lrDecay 'linear'` decay is the easiest to use (the default cmd-line argument). 
+It involves specifying a starting learning rate `--learningRate`, a minimum learning rate `--minLR` and the 
+epoch at which that minimum will be reached : `--saturateEpoch`. 
+
+The `--lrDecay 'adaptive'` uses an exponentially decaying learning rate. 
+By default this mode only decays the learning rate when a minima hasn't been found for `--maxWait` epochs. 
+But by using `--maxWait -1`, we can decay the learning rate 
+every epoch with the following rule : `lr = lr*decayFactor`. This will the decay 
+the learning rate much faster than a linear decay. 
+
+Another option is to specify the learning rate `--schedule` manually by specifying a table 
+mapping learning rates to epochs like '{[200] = 0.01, [300] = 0.001}', 
+which will decay the learning rate to the given value at the given epoch.
+
+Of course, because this argument is just another callback function, you can use it however you please 
+by coding your own function.
 
 ### `acc_update` ###
 

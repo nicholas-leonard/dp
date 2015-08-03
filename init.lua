@@ -28,19 +28,19 @@ torch.include('dp', 'utils/torch.lua')
 --[[ directory structure ]]--
 dp.DATA_DIR = os.getenv('DEEP_DATA_PATH') 
    or paths.concat(dp.TORCH_DIR, 'data')
-dp.check_and_mkdir(dp.DATA_DIR)
+dp.mkdir(dp.DATA_DIR)
 
 dp.SAVE_DIR = os.getenv('DEEP_SAVE_PATH') 
    or paths.concat(dp.TORCH_DIR, 'save')
-dp.check_and_mkdir(dp.SAVE_DIR)
+dp.mkdir(dp.SAVE_DIR)
 
 dp.LOG_DIR = os.getenv('DEEP_LOG_PATH') 
    or paths.concat(dp.TORCH_DIR, 'log')
-dp.check_and_mkdir(dp.LOG_DIR)
+dp.mkdir(dp.LOG_DIR)
 
 dp.UNIT_DIR = os.getenv('DEEP_UNIT_PATH') 
    or paths.concat(dp.TORCH_DIR, 'unit')
-dp.check_and_mkdir(dp.UNIT_DIR)
+dp.mkdir(dp.UNIT_DIR)
    
 --[[ misc ]]--
 torch.include('dp', 'xplog.lua')
@@ -56,28 +56,35 @@ torch.include('dp', 'view/sequenceview.lua')
 torch.include('dp', 'view/listview.lua')
 
 --[[ data ]]--
-torch.include('dp', 'data/baseset.lua')
+-- datasets
+torch.include('dp', 'data/baseset.lua') -- abstract class
 torch.include('dp', 'data/dataset.lua')
 torch.include('dp', 'data/sentenceset.lua')
+torch.include('dp', 'data/textset.lua')
 torch.include('dp', 'data/imageclassset.lua')
 torch.include('dp', 'data/batch.lua')
-
+-- generic datasources
 torch.include('dp', 'data/datasource.lua')
+torch.include('dp', 'data/imagesource.lua')
+torch.include('dp', 'data/textsource.lua')
+-- specific image datasources
 torch.include('dp', 'data/mnist.lua')
 torch.include('dp', 'data/cifar10.lua')
 torch.include('dp', 'data/cifar100.lua')
 torch.include('dp', 'data/notmnist.lua')
 torch.include('dp', 'data/facialkeypoints.lua')
-torch.include('dp', 'data/billionwords.lua')
 torch.include('dp', 'data/svhn.lua')
 torch.include('dp', 'data/imagenet.lua')
-torch.include('dp', 'data/imagesource.lua')
+-- specific text datasources
+torch.include('dp', 'data/billionwords.lua')
+torch.include('dp', 'data/penntreebank.lua')
 
 --[[ sampler ]]--
 torch.include('dp', 'sampler/sampler.lua')
 torch.include('dp', 'sampler/shufflesampler.lua')
 torch.include('dp', 'sampler/sentencesampler.lua')
 torch.include('dp', 'sampler/randomsampler.lua')
+torch.include('dp', 'sampler/textsampler.lua')
 
 --[[ preprocess ]]--
 torch.include('dp', 'preprocess/preprocess.lua')

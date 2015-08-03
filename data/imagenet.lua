@@ -74,7 +74,7 @@ function ImageNet:loadTrain()
          return tonumber(x:match('[0-9]+')) < tonumber(y:match('[0-9]+'))
       end, cache_mode=self._cache_mode
    }
-   self:setTrainSet(dataset)
+   self:trainSet(dataset)
    return dataset
 end
 
@@ -87,7 +87,7 @@ function ImageNet:loadValid()
          return tonumber(x:match('[0-9]+')) < tonumber(y:match('[0-9]+'))
       end, cache_mode=self._cache_mode
    }
-   self:setValidSet(dataset)
+   self:validSet(dataset)
    return dataset
 end
 

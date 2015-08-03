@@ -75,7 +75,7 @@ function Mnist:loadTrainValid()
    -- train
    local start = 1
    local size = math.floor(data[1]:size(1)*(1-self._valid_ratio))
-   self:setTrainSet(
+   self:trainSet(
       self:createDataSet(
          data[1]:narrow(1, start, size), data[2]:narrow(1, start, size), 
          'train'
@@ -88,7 +88,7 @@ function Mnist:loadTrainValid()
    end
    start = size
    size = data[1]:size(1)-start
-   self:setValidSet(
+   self:validSet(
       self:createDataSet(
          data[1]:narrow(1, start, size), data[2]:narrow(1, start, size), 
          'valid'
@@ -99,7 +99,7 @@ end
 
 function Mnist:loadTest()
    local test_data = self:loadData(self._test_file, self._download_url)
-   self:setTestSet(
+   self:testSet(
       self:createDataSet(test_data[1], test_data[2], 'test')
    )
    return self:testSet()

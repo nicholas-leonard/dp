@@ -214,7 +214,7 @@ function Svhn:loadTrainValid()
    assert(self._input_tensor:min() > -1)
    assert(self._target_tensor:min() > -1)
    
-   self:setTrainSet(
+   self:trainSet(
       self:createDataSet(
          self._input_tensor:narrow(1, 1, nSample-nValid),
          self._target_tensor:narrow(1, 1, nSample-nValid),
@@ -223,7 +223,7 @@ function Svhn:loadTrainValid()
    )
    
    -- valid
-   self:setValidSet(
+   self:validSet(
       self:createDataSet(
          self._input_tensor:narrow(1, nSample-nValid+1, nValid),
          self._target_tensor:narrow(1, nSample-nValid+1, nValid),
@@ -243,7 +243,7 @@ function Svhn:loadTest()
    local inputs = data.X:transpose(3,4):float()
    local targets = data.y:view(-1)
    
-   self:setTestSet(self:createDataSet(inputs, targets, 'test'))
+   self:testSet(self:createDataSet(inputs, targets, 'test'))
    return self:testSet()
 end
 

@@ -1,9 +1,9 @@
 ------------------------------------------------------------------------
 --[[ SentenceSampler ]]--
 -- Iterates over parallel sentences of equal size one word at a time.
--- The sentences sizes are iterated through randomly.
+-- The sentences size are iterated through randomly.
 -- Used for Recurrent Neural Network Language Models.
--- Note that it epoch_size is the minimum samples per epoch.
+-- Note that epoch_size is the minimum number of samples per epoch.
 ------------------------------------------------------------------------
 local SentenceSampler, parent = torch.class("dp.SentenceSampler", "dp.Sampler")
 

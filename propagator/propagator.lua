@@ -11,8 +11,8 @@ Propagator.isPropagator = true
 
 function Propagator:__init(config)   
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, loss, callback, sampler, observer, feedback, progress,
-      verbose, stats, include_target = xlua.unpack(
+   local args, loss, callback, epoch_callback, sampler, observer, 
+      feedback, progress, verbose, stats = xlua.unpack(
       {config},
       'Propagator', 
       'Propagates Batches sampled from a DataSet using a Sampler '..
@@ -23,6 +23,8 @@ function Propagator:__init(config)
       {arg='callback', type='function',
        help='function(model, report) that does things like'..
        'update model, gather statistics, decay learning rate, etc.'},
+      {arg='epoch_callback', type='function', 
+       help='function(model, report) that is called between epochs'},
       {arg='sampler', type='dp.Sampler', 
        help='Iterates through a DataSet. [Default=dp.Sampler()]'},
       {arg='observer', type='dp.Observer', 
@@ -43,6 +45,7 @@ function Propagator:__init(config)
    self:observer(observer)
    self:feedback(feedback)
    self:callback(callback)
+   self:epochCallback(epoch_callback or function() return end)
    self._progress = progress
    self._verbose = verbose
    self._stats = stats
@@ -90,11 +93,18 @@ function Propagator:propagateEpoch(dataset, report)
    -- local vars
    local start_time = sys.clock()
    local batch, i, n, last_n
-   local n_batch = 1
+   local n_batch = 0
    
    if self._stats and self._verbose then
       print('==> epoch # '..(report.epoch + 1)..' for '..self:name()..' :')
    end
+   
+   if self._model.forget then
+      -- for recurrent modules, forget between epochs
+      self._model:forget()
+   end
+   
+   self._epoch_callback(self._model, report)
    
    self._n_sample = 0
    local sampler = self._sampler:sampleEpoch(dataset)
@@ -126,9 +136,9 @@ function Propagator:propagateEpoch(dataset, report)
    
    -- time taken
    self._epoch_duration = sys.clock() - start_time
-   self._batch_duration = self._epoch_duration / last_n
+   self._batch_duration = self._epoch_duration / math.max(n_batch, 0.000001)
    self._example_speed = last_n / self._epoch_duration
-   self._batch_speed = (n_batch / self._epoch_duration)
+   self._batch_speed = n_batch / self._epoch_duration
    if self._stats and self._verbose then
       print("==> example speed = "..self._example_speed..' examples/s')
    end
@@ -251,6 +261,15 @@ function Propagator:callback(callback)
       return
    end
    return self._callback
+end
+
+function Propagator:epochCallback(callback)
+   if callback then
+      assert(torch.type(callback) == 'function', "expecting function")
+      self._epoch_callback = callback
+      return
+   end
+   return self._epoch_callback
 end
 
 function Propagator:feedback(feedback)

@@ -9,6 +9,7 @@ function dptest.uniqueID()
    mytester:assertne(uid1, uid2, 'uid1 ~= uid2')
    mytester:assertne(uid2, uid3, 'uid2 ~= uid3')
 end
+
 function dptest.DataView()
    local data = torch.rand(3,4)
    local sizes = {3, 4}
@@ -51,6 +52,7 @@ function dptest.DataView()
    v:sub(v6, 1, 2)
    mytester:assertTensorEq(v6:forward('bf', 'torch.DoubleTensor'), data:sub(1,2), 0.000001)
 end
+
 function dptest.ImageView()
    local size = {8,32,32,3}
    local feature_size = {8,32*32*3}
@@ -95,6 +97,7 @@ function dptest.ImageView()
    local v5 = v:index(nil, indices)
    mytester:assertTensorEq(v5:forward('bhwc', 'torch.DoubleTensor'), v._input:index(1, indices), 0.0000001)
 end
+
 function dptest.SequenceView()
    local size = {8,10,50}
    local feature_size = {8,10*50}
@@ -125,6 +128,7 @@ function dptest.SequenceView()
    local v5 = v:index(nil, indices)
    mytester:assertTensorEq(v4:forward('bf', 'torch.DoubleTensor'), v5:forward('bf', 'torch.DoubleTensor'), 0.0000001)
 end
+
 function dptest.ClassView()
    local size = {48,4}
    local data = torch.rand(unpack(size))
@@ -151,6 +155,7 @@ function dptest.ClassView()
    mytester:assertTensorEq(v5:forward('bt', 'torch.DoubleTensor'), v2:forward('bt', 'torch.DoubleTensor'), 0.0000001)
    mytester:assertTableEq(v:classes(), v5:classes())
 end
+
 function dptest.ListView()
    -- image tensor
    local image_size = {8,32,32,3}
@@ -237,6 +242,7 @@ function dptest.DataSet()
    mytester:assertTensorEq(batch3:inputs():forward('bhwc'), batch:inputs():forward('bhwc'), 0.00001)
    mytester:assertTensorEq(batch3:targets():forward('bt'), batch:targets():forward('bt'), 0.00001)
 end
+
 function dptest.SentenceSet()
    local tensor = torch.IntTensor(80, 2):zero()
    for i=1,8 do
@@ -268,6 +274,118 @@ function dptest.SentenceSet()
    mytester:assertTensorEq(batch3:inputs():forward('bt'), batch:inputs():forward('bt'), 0.00001)
    mytester:assertTensorEq(batch3:targets():forward('b'), batch:targets():forward('b'), 0.00001)
 end 
+
+function dptest.TextSet()
+   local data = torch.IntTensor(200):random(1,40)
+   data[1] = 41 -- 41st word in vocabulary
+   data[200] = 42 -- 42nd word in vocabulary
+   local inputFreq, targetFreq = {}, {}
+   data:narrow(1,1,190):apply(function(x) inputFreq[x] = (inputFreq[x] or 0) + 1 end)
+   data:narrow(1,11,190):apply(function(x) targetFreq[x] = (targetFreq[x] or 0) + 1 end)
+   local ts = dp.TextSet{data=data,which_set='train',context_size=10,recurrent=true}
+   -- test TextSet:index() for recurrent = true
+   local sampler = dp.ShuffleSampler{batch_size=4}
+   local inputWC, targetWC = {}, {}
+   local batch
+   local sampleBatch = sampler:sampleEpoch(ts)
+   local nSample = 0
+   while true do
+      batch = sampleBatch(batch)
+      if not batch then
+         break
+      end
+      local inputs = batch:inputs():forward('bt')
+      local targets = batch:targets():forward('bt')
+      mytester:assert(inputs:isSameSizeAs(targets))
+      mytester:assert(inputs:size(1) <= 4)
+      mytester:assert(inputs:size(2) == 10)
+      mytester:assertTensorEq(inputs:narrow(2,2,inputs:size(2)-1), targets:narrow(2,1,targets:size(2)-1), 0.000001)
+      inputs:select(2,1):apply(function(x) inputWC[x] = (inputWC[x] or 0) + 1 end)
+      targets:select(2,10):apply(function(x) targetWC[x] = (targetWC[x] or 0) + 1 end)
+      nSample = nSample + targets:size(1)
+   end
+   mytester:assert(nSample == 200-10)
+   mytester:assertTableEq(inputFreq, inputWC, 0.00001)
+   mytester:assertTableEq(targetFreq, targetWC, 0.00001)
+   
+   -- test TextSet:sub() for recurrent = true
+   local inputFreq, targetFreq = {}, {}
+   data:narrow(1,1,199):apply(function(x) inputFreq[x] = (inputFreq[x] or 0) + 1 end)
+   data:narrow(1,2,199):apply(function(x) targetFreq[x] = (targetFreq[x] or 0) + 1 end)
+   ts:contextSize(1)
+   local sampler = dp.Sampler{batch_size=10}
+   local inputWC, targetWC = {}, {}
+   local batch = nil
+   local sampleBatch = sampler:sampleEpoch(ts)
+   local nSample = 0
+   while true do
+      batch = sampleBatch(batch)
+      if not batch then
+         break
+      end
+      local inputs = batch:inputs():forward('bt')
+      local targets = batch:targets():forward('bt')
+      mytester:assert(inputs:isSameSizeAs(targets))
+      mytester:assert(inputs:size(1) == 1)
+      mytester:assert(inputs:size(2) <= 10)
+      mytester:assertTensorEq(inputs:narrow(2,2,inputs:size(2)-1), targets:narrow(2,1,targets:size(2)-1), 0.000001)
+      inputs:apply(function(x) inputWC[x] = (inputWC[x] or 0) + 1 end)
+      targets:apply(function(x) targetWC[x] = (targetWC[x] or 0) + 1 end)
+      nSample = nSample + targets:nElement()
+   end
+   
+   mytester:assert(nSample == 200-1)
+   mytester:assertTableEq(inputFreq, inputWC, 0.00001)
+   mytester:assertTableEq(targetFreq, targetWC, 0.00001)
+end
+
+function dptest.TextSource()
+   local trainStr = [[ no it was n't black monday 
+ but while the new york stock exchange did n't fall apart friday as the dow jones industrial average plunged N points most of it in the final hour it barely managed to stay this side of chaos 
+ some circuit breakers installed after the october N crash failed their first test traders say unable to cool the selling panic in both stocks and futures 
+ the N stock specialist firms on the big board floor the buyers and sellers of last resort who were criticized after the N crash once again could n't handle the selling pressure 
+ big investment banks refused to step up to the plate to support the beleaguered floor traders by buying big blocks of stock traders say 
+ heavy selling of standard & poor 's 500-stock index futures in chicago <unk> beat stocks downward 
+]]
+   local validStr = [[ no it was n't black monday 
+ but while the new york stock exchange did n't fall apart friday as the dow jones industrial average plunged N points most of it in the final hour it barely managed to stay this side of chaos 
+]]
+   local testStr = [[ big investment banks refused to step up to the plate to support the beleaguered floor traders by buying big blocks of stock traders say 
+ heavy selling of standard & poor 's 500-stock index futures in chicago <unk> beat stocks downward 
+]]
+   local ts = dp.TextSource{
+      name='unit-test', context_size=5, string=true, recurrent=true,
+      train=trainStr, valid=validStr, test=testStr
+   }
+   local train = trainStr..validStr
+   local stringx = require('pl.stringx')
+   train = stringx.replace(train, '\n', '<eos>')
+   train = stringx.split(train)
+   local vocab = {}
+   local wordFreq = {}
+   local word_seq = 0
+   for i,word in ipairs(train) do
+      local word_id = vocab[word]
+      if not word_id then 
+         word_seq = word_seq + 1
+         vocab[word] = word_seq
+         word_id = word_seq
+      end
+      wordFreq[word_id] = (wordFreq[word_id] or 0) + 1
+   end
+   local wordFreq2 = ts:wordFrequency()
+   mytester:assertTableEq(wordFreq2, wordFreq, 0.000001)
+   
+   local nTrain = ts:trainSet():nSample() + 5
+   local nValid = ts:validSet():nSample() + 5
+   local nTest = ts:testSet():nSample() + 5
+   
+   local test = stringx.replace(testStr, '\n', '<eos>')
+   test = stringx.split(test)
+   mytester:assert(nTrain+nValid == #train)
+   mytester:assert(nTest == #test)
+end
+
 function dptest.GCN()
    --[[ zero_vector ]]--
    -- Global Contrast Normalization
@@ -300,6 +418,7 @@ function dptest.GCN()
    local max_norm_error = torch.abs(norms:add(-1)):max()
    mytester:assert(max_norm_error < 3e-5)
 end
+
 function dptest.ZCA()
    -- Confirm that ZCA.inv_P_ is the correct inverse of ZCA._P.
    local dv = dp.DataView('bf', torch.randn(15,10))
@@ -316,6 +435,7 @@ function dptest.ZCA()
    mytester:assert(not is_identity(preprocess._P))
    mytester:assert(is_identity(preprocess._P*preprocess._inv_P))
 end
+
 function dptest.LeCunLCN()
    -- Test on a random image to confirm that it loads without error
    -- and it doesn't result in any NaN or Inf values
@@ -357,6 +477,59 @@ function dptest.LeCunLCN()
    pp = dp.LeCunLCN{batch_size=1,progress=false}
    pp:apply(input)
    image.savePNG(paths.concat(dp.UNIT_DIR, 'lecunlcn.png'), input:forward('default')[1]) 
+end
+
+function dptest.Sampler()
+   local sampler = dp.Sampler{batch_size=64}
+   local inputs = torch.randn(1000,5)
+   local targets = torch.IntTensor(1000):random(1,10)
+   local inputs_v = dp.DataView('bf', inputs)
+   local targets_v = dp.ClassView('b', targets)
+   local ds = dp.DataSet{which_set='train',inputs=inputs_v, targets=targets_v}
+   local batchSampler = sampler:sampleEpoch(ds)
+   local n = 0
+   local batch = batchSampler(batch)
+   while batch do
+      local binputs = batch:inputs():input()
+      local btargets = batch:targets():input()
+      mytester:assert(batch:nSample() == binputs:size(1))
+      mytester:assert(batch:nSample() == btargets:size(1))
+      mytester:assertTensorEq(inputs:narrow(1,n+1,binputs:size(1)), binputs, 0.00001)
+      mytester:assertTensorEq(targets:narrow(1,n+1,btargets:size(1)), btargets, 0.00001)
+      n = n + batch:nSample()
+      batch = batchSampler(batch)
+   end
+   mytester:assert(ds:nSample() == n)
+end
+
+function dptest.ShuffleSampler()
+   torch.manualSeed(777)
+   local shuffle = torch.randperm(1000):long()
+   local inputs = torch.randn(1000,5)
+   local targets = torch.IntTensor(1000):random(1,10)
+   local inputs_v = dp.DataView('bf', inputs)
+   local targets_v = dp.ClassView('b', targets)
+   local ds = dp.DataSet{which_set='train',inputs=inputs_v, targets=targets_v}
+   mytester:assert(ds:nSample() == 1000)
+   local sampler = dp.ShuffleSampler{batch_size=64, random_seed=777}
+   local batchSampler = sampler:sampleEpoch(ds)
+   local n = 0
+   local batch = batchSampler(batch)
+   while batch do
+      local binputs = batch:inputs():input()
+      local btargets = batch:targets():input()
+      mytester:assert(batch:nSample() == binputs:size(1))
+      mytester:assert(batch:nSample() == btargets:size(1))
+      local indices = shuffle:narrow(1,n+1,binputs:size(1))
+      local inputs_ = inputs:index(1,indices)
+      local targets_ = targets:index(1,indices)
+      mytester:assertTensorEq(inputs_, binputs, 0.00001)
+      mytester:assertTensorEq(targets_, btargets, 0.00001)
+      n = n + batch:nSample()
+      batch = batchSampler(batch)
+      collectgarbage()
+   end
+   mytester:assert(ds:nSample() == n)
 end
 
 function dptest.SentenceSampler()
@@ -487,6 +660,217 @@ function dptest.SentenceSampler()
    mytester:assert(table.length(sampled) == nIndice-nSentence, "not all words were sampled")
 end
 
+function dptest.TextSampler()
+   local nIndice = 1000
+   local batchSize = 3
+   local dictSize = 200
+   local contextSize = 20
+   
+   -- create dummy sentence dataset
+   local data = torch.IntTensor(nIndice):range(1,nIndice)
+   local dataset = dp.TextSet{data=data,which_set='train',context_size=contextSize,recurrent=true}
+   
+   local epochSize = 10*batchSize*contextSize
+   local sampler = dp.TextSampler{batch_size=batchSize,epoch_size=epochSize}
+   
+   local slicedData = torch.IntTensor(batchSize, math.floor(nIndice/batchSize))
+   local j = 1
+   for i=1,batchSize do
+      slicedData[i]:copy(data:narrow(1,j, math.floor(nIndice/batchSize)))
+      j = j + math.floor(nIndice/batchSize)
+   end
+   
+   local batchSampler = sampler:sampleEpoch(dataset)
+   local sampled = {}
+   local sampledTwice = 0
+   local nSampled = 0
+   local batch
+   local i = 1
+   while true do
+      batch = batchSampler(batch)
+      if not batch then
+         break
+      end
+      mytester:assert(torch.isTypeOf(batch, 'dp.Batch'))
+      local inputs = batch:inputs():input()
+      local targets = batch:targets():input()
+      mytester:assert(inputs:dim() == 2)
+      mytester:assert(targets:dim() == 2)
+      mytester:assert(inputs:isSameSizeAs(targets))
+      mytester:assertTensorEq(inputs, slicedData:narrow(2,i,contextSize), 0.0000001)
+      for i=1,inputs:size(1) do
+         for j=1,inputs:size(2) do
+            local wordIdx = inputs[{i,j}]
+            if sampled[wordIdx] then
+               sampledTwice = sampledTwice + 1
+            end
+            sampled[wordIdx] = true
+         end
+      end
+      nSampled = nSampled + inputs:nElement()
+      i = i + contextSize
+   end 
+   mytester:assert(nSampled == epochSize, "iterator not stoping "..nSampled.." ~= "..epochSize)
+   mytester:assert(sampledTwice == 0, sampledTwice..' words sampled twice ')
+   
+   local epochSize = dataset:textSize()
+   local sampler = dp.TextSampler{batch_size=batchSize,epoch_size=-1}
+   local batchSampler = sampler:sampleEpoch(dataset)
+   local sampled = {}
+   local sampledTwice = 0
+   local nSampled = 0
+   local i = 1
+   while nSampled < 999 do
+      batch = batchSampler(batch)
+      mytester:assert(torch.isTypeOf(batch, 'dp.Batch'))
+      local inputs = batch:inputs():input()
+      local targets = batch:targets():input()
+      mytester:assert(inputs:dim() == 2)
+      mytester:assert(targets:dim() == 2)
+      mytester:assert(inputs:isSameSizeAs(targets))
+      local stop = i+contextSize-1
+      if stop > slicedData:size(2) then
+         stop = slicedData:size(2)
+      end
+      for i=1,inputs:size(1) do
+         for j=1,inputs:size(2) do
+            local wordIdx = inputs[{i,j}]
+            if sampled[wordIdx] then
+               sampledTwice = sampledTwice + 1
+            end
+            sampled[wordIdx] = true
+         end
+      end
+      local slice = slicedData[{{},{i,stop}}]
+      mytester:assertTensorEq(inputs, slice, 0.0000001, "TextSampler full epoch sample "..i.." "..nSampled)
+      nSampled = nSampled + inputs:nElement()
+      i = i + contextSize
+   end
+   
+   mytester:assert(sampledTwice == 0, sampledTwice..' words sampled twice ')
+   mytester:assert(not batchSampler(batch), "iterator not stoping")
+   mytester:assert(nSampled == 999, "not all words were sampled "..nSampled.." ~= 999")
+   
+   local epochSize = dataset:nSample()
+   local sampler = dp.TextSampler{batch_size=1,epoch_size=-1}
+   local batchSampler = sampler:sampleEpoch(dataset)
+   local sampled = {}
+   local sampledTwice = 0
+   local nSampled = 0
+   local i = 1
+   local nBatch = 1
+   batch = batchSampler(batch)
+   while batch do
+      mytester:assert(torch.isTypeOf(batch, 'dp.Batch'))
+      local inputs = batch:inputs():input()
+      local targets = batch:targets():input()
+      mytester:assert(inputs:dim() == 2)
+      mytester:assert(targets:dim() == 2)
+      mytester:assert(inputs:isSameSizeAs(targets))
+      local stop = math.min(data:size(1)-1, i+contextSize-1)
+      local slice = data[{{i,stop}}]
+      for i=1,inputs:size(1) do
+         for j=1,inputs:size(2) do
+            local wordIdx = inputs[{i,j}]
+            if sampled[wordIdx] then
+               sampledTwice = sampledTwice + 1
+            end
+            sampled[wordIdx] = true
+         end
+      end
+      mytester:assertTensorEq(inputs, slice, 0.0000001, "TextSampler 1D full epoch sample "..i.." "..nSampled)
+      nSampled = nSampled + inputs:nElement()
+      i = i + contextSize
+      batch = batchSampler(batch)
+      nBatch = nBatch + 1
+   end
+   
+   mytester:assert(sampledTwice == 0, sampledTwice..' words sampled twice ')
+   mytester:assert(nSampled == nIndice-1, "not all words were sampled "..nSampled.." ~= "..(nIndice-1))
+   
+   batchSize = 7
+   local slicedData = torch.IntTensor(batchSize, math.floor(nIndice/batchSize))
+   local j = 1
+   for i=1,batchSize do
+      slicedData[i]:copy(data:narrow(1,j, math.floor(nIndice/batchSize)))
+      j = j + math.floor(nIndice/batchSize)
+   end
+   
+   local epochSize = dataset:textSize()
+   local sampler = dp.TextSampler{batch_size=batchSize,epoch_size=-1}
+   local batchSampler = sampler:sampleEpoch(dataset)
+   local nSampled = 0
+   local i = 1
+   local sampled = {}
+   local sampledTwice = 0
+   while nSampled < 994 do
+      batch = batchSampler(batch)
+      mytester:assert(torch.isTypeOf(batch, 'dp.Batch'))
+      local inputs = batch:inputs():input()
+      local targets = batch:targets():input()
+      mytester:assert(inputs:dim() == 2)
+      mytester:assert(targets:dim() == 2)
+      mytester:assert(inputs:isSameSizeAs(targets))
+      local stop = i+contextSize-1
+      if stop > slicedData:size(2) then
+         stop = slicedData:size(2)
+      end
+      for i=1,inputs:size(1) do
+         for j=1,inputs:size(2) do
+            local wordIdx = inputs[{i,j}]
+            if sampled[wordIdx] then
+               sampledTwice = sampledTwice + 1
+            end
+            sampled[wordIdx] = true
+         end
+      end
+      local slice = slicedData[{{},{i,stop}}]
+      mytester:assertTensorEq(inputs, slice, 0.0000001, "TextSampler full epoch sample "..i.." "..nSampled)
+      nSampled = nSampled + inputs:nElement()
+      i = i + contextSize
+   end
+   
+   mytester:assert(sampledTwice == 0, sampledTwice..' words sampled twice ')
+   mytester:assert(not batchSampler(batch), "iterator not stoping")
+   mytester:assert(nSampled == 994, "not all words were sampled "..nSampled.." ~= 994")
+   
+   local batchSampler = sampler:sampleEpoch(dataset)
+   local nSampled = 0
+   local i = 1
+   local sampled = {}
+   local sampledTwice = 0
+   while nSampled < 994 do
+      batch = batchSampler(batch)
+      mytester:assert(torch.isTypeOf(batch, 'dp.Batch'))
+      local inputs = batch:inputs():input()
+      local targets = batch:targets():input()
+      mytester:assert(inputs:dim() == 2)
+      mytester:assert(targets:dim() == 2)
+      mytester:assert(inputs:isSameSizeAs(targets))
+      local stop = i+contextSize-1
+      if stop > slicedData:size(2) then
+         stop = slicedData:size(2)
+      end
+      for i=1,inputs:size(1) do
+         for j=1,inputs:size(2) do
+            local wordIdx = inputs[{i,j}]
+            if sampled[wordIdx] then
+               sampledTwice = sampledTwice + 1
+            end
+            sampled[wordIdx] = true
+         end
+      end
+      local slice = slicedData[{{},{i,stop}}]
+      mytester:assertTensorEq(inputs, slice, 0.0000001, "TextSampler full epoch sample "..i.." "..nSampled)
+      nSampled = nSampled + inputs:nElement()
+      i = i + contextSize
+   end
+   
+   mytester:assert(sampledTwice == 0, sampledTwice..' words sampled twice ')
+   mytester:assert(not batchSampler(batch), "iterator not stoping")
+   mytester:assert(nSampled == 994, "not all words were sampled "..nSampled.." ~= 994")
+end
+
 function dptest.ErrorMinima()
    local report={validator={loss=11},epoch=1}
    local mediator = dp.Mediator()
@@ -585,6 +969,93 @@ function dptest.SaveToFile()
    mediator:publish("doneExperiment")
    local saved_subject = torch.load(path)
    mytester:assertTensorEq(subject.tensor, saved_subject.tensor, 0.000001, "tensor not re saved")
+end
+
+function dptest.Confusion()
+   local nSample = 100
+   local inputs = torch.randn(nSample,8,8,1)
+   local targets = torch.IntTensor(nSample):random(1,10)
+   local targetView = dp.ClassView('b', targets)
+   targetView:setClasses({0,1,2,3,4,5,6,7,8,9})
+   local inputView = dp.ImageView('bhwc', inputs)
+   local ds = dp.DataSet{inputs=inputView, targets=targetView}
+   local output = torch.randn(nSample,10)
+   local conf = dp.Confusion()
+   local sampler = dp.Sampler{batch_size=8}
+   local batchSampler = sampler:sampleEpoch(ds)
+   local batch = batchSampler()
+   local i = 1
+   while batch do
+      conf:add(batch, output:narrow(1,i,batch:nSample()), {epoch=1})
+      i = i + batch:nSample()
+      batch = batchSampler(batch)
+   end
+   mytester:assert(i-1 == nSample)
+   mytester:assert(conf:nSample() == nSample)
+   mytester:assert(conf._cm.mat:sum() == nSample)
+   local report = conf:report()
+   local acc = report[conf:name()].accuracy
+   local vals, preds = output:max(2)
+   preds = preds:select(2,1):int()
+   local acc2 = torch.eq(preds, targets):float():mean()
+   mytester:assert(acc == acc2)
+end
+
+function dptest.Perplexity()
+   local nSample = 100
+   local inputs = torch.randn(nSample,8,8,1)
+   local targets = torch.IntTensor(nSample, 10):random(1,10)
+   local targetView = dp.ClassView('bt', targets)
+   targetView:setClasses({0,1,2,3,4,5,6,7,8,9})
+   local inputView = dp.ImageView('bhwc', inputs)
+   local ds = dp.DataSet{inputs=inputView, targets=targetView}
+   local output = {}
+   for i=1,10 do
+      table.insert(output, torch.randn(nSample,10))
+   end
+   local ppl = dp.Perplexity()
+   local sampler = dp.Sampler{batch_size=8}
+   local batchSampler = sampler:sampleEpoch(ds)
+   local batch = batchSampler()
+   local i = 1
+   while batch do
+      local output_ = {}
+      for k=1,10 do
+         table.insert(output_, output[k]:narrow(1,i,batch:nSample()))
+      end
+      ppl:add(batch, output_, {epoch=1})
+      i = i + batch:nSample()
+      batch = batchSampler(batch)
+   end
+   mytester:assert(i-1 == nSample)
+   mytester:assert(ppl:nSample() == nSample*10)
+   local ppl_val = ppl:perplexity()
+   local nll = 0
+   for k=1,10 do
+      for i=1,nSample do
+         nll = nll - output[k][i][targets[{i,k}]]
+      end
+   end
+   mytester:assert(math.abs(ppl._nll - nll) < 0.0000001)
+   local ppl_val2 = torch.exp(nll/(nSample*10))
+   mytester:assert(math.abs(ppl_val - ppl_val2) < 0.0000001)
+   -- test after reset
+   ppl:reset()
+   local batchSampler = sampler:sampleEpoch(ds)
+   local batch = batchSampler()
+   local i = 1
+   while batch do
+      local output_ = {}
+      for k=1,10 do
+         table.insert(output_, output[k]:narrow(1,i,batch:nSample()))
+      end
+      ppl:add(batch, output_, {epoch=1})
+      i = i + batch:nSample()
+      batch = batchSampler(batch)
+   end
+   mytester:assert(i-1 == nSample)
+   mytester:assert(ppl:nSample() == nSample*10)
+   mytester:assert(math.abs(ppl_val - ppl:perplexity()) < 0.0000001)
 end
 
 function dptest.TopCrop()

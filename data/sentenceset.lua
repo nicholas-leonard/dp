@@ -45,7 +45,7 @@ function SentenceSet:__init(config)
       {arg='words', type='table',
        help='A table mapping word_ids to the original word strings'}
    )
-   self:setWhichSet(which_set)
+   self:whichSet(which_set)
    self._data = data
    assert(data[data:size(1)][2] == end_id ,"data should be terminated with end_id")
    self._context_size = context_size
@@ -65,14 +65,6 @@ end
 
 function SentenceSet:nSample()
    return self._data:size(1)
-end
-
-function SentenceSet:setInputs(inputs)
-   error"Not Implemented"
-end
-
-function SentenceSet:setTargets(targets)
-   error"Not Implemented"
 end
 
 function SentenceSet:inputs()
@@ -194,7 +186,7 @@ function SentenceSet:index(batch, indices)
    -- indexSelect the data and reuse memory (optimization)
    self.__index_mem = self.__index_mem or torch.IntTensor()
    self.__index_mem:index(self._data, 1, indices)
-   local data = self.__index_mem
+   local data = self.__index_mem -- contains the batch of targets
    local words = self._data:select(2, 2)
    
    for i=1,data:size(1) do

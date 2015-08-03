@@ -295,7 +295,7 @@ end
 
 function Propagator:includeTarget(mode)
    -- forward propagates {input, target} instead of just input
-   self._include_target = (mode == nil) and true or false
+   self._include_target = (mode == nil) and true or mode
 end
 
 function Propagator:verbose(verbose)

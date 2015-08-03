@@ -40,12 +40,14 @@ The main method of the object. It is called for every `batch` propagated through
 <a name="dp.Confusion"/>
 []()
 ## Confusion ##
-Confusion is a wrapper for the [ConfusionMatrix](https://github.com/torch/optim/blob/master/ConfusionMatrix.lua) found in the [optim](https://github.com/torch/optim/blob/master/README.md) package.
+Confusion is a wrapper for the [ConfusionMatrix](https://github.com/torch/optim/blob/master/ConfusionMatrix.lua) 
+found in the [optim](https://github.com/torch/optim/blob/master/README.md) package.
 
 <a name="dp.Perplexity"/>
 []()
 ## Perplexity ##
-Computes perplexity for language models. For now, only works with the SoftmaxTree Model.
+Computes perplexity for language models. 
+Works for neural network language models and recurrent language models.
 
 <a name="dp.TopCrop"></a>
 ## TopCrop ##

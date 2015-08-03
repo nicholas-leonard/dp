@@ -31,6 +31,7 @@ cmd:option('--dataset', 'Mnist', 'which dataset to use : Mnist | NotMnist | Cifa
 cmd:option('--trainPath', '.', 'Where to look for training images')
 cmd:option('--validPath', '.', 'Where to look for validation images')
 cmd:option('--metaPath', '.', 'Where to cache meta data')
+cmd:option('--cacheMode', 'writeonce', 'cache mode of FaceDetection (see SmallImageSource constructor for details)')
 cmd:option('--loadSize', '', 'Image size')
 cmd:option('--sampleSize', '.', 'The size to use for cropped images')
 cmd:option('--standardize', false, 'apply Standardize preprocessing')
@@ -80,6 +81,7 @@ if opt.lecunlcn then
 end
 
 --[[data]]--
+
 local ds
 if opt.dataset == 'Mnist' then
    ds = dp.Mnist{input_preprocess = input_preprocess}
@@ -91,6 +93,8 @@ elseif opt.dataset == 'Cifar100' then
    ds = dp.Cifar100{input_preprocess = input_preprocess}
 elseif opt.dataset == 'Svhn' then
    ds = dp.Svhn{input_preprocess = input_preprocess}
+elseif opt.dataset == 'FaceDetection' then
+   ds = dp.FaceDetection{input_preprocess = input_process, cache_mode = opt.cacheMode}
 elseif opt.dataset == 'ImageSource' then
    ds = dp.ImageSource{load_size = opt.loadSize, sample_size = opt.sampleSize, train_path = opt.trainPath, valid_path = opt.validPath, meta_path = opt.metaPath, verbose = not opt.silent}
 else
@@ -170,7 +174,6 @@ elseif opt.lrDecay == 'linear' then
    opt.decayFactor = (opt.minLR - opt.learningRate)/opt.saturateEpoch
 end
 
-
 train = dp.Optimizer{
    acc_update = opt.accUpdate,
    loss = nn.ModuleCriterion(nn.ClassNLLCriterion(), nil, nn.Convert()),
@@ -203,13 +206,13 @@ train = dp.Optimizer{
    end,
    feedback = dp.Confusion(),
    sampler = dp.ShuffleSampler{batch_size = opt.batchSize},
-   progress = true
+   progress = opt.progress
 }
-valid = dp.Evaluator{
+valid = ds:validSet() and dp.Evaluator{
    feedback = dp.Confusion(),  
    sampler = dp.Sampler{batch_size = opt.batchSize}
 }
-test = dp.Evaluator{
+test = ds:testSet() and dp.Evaluator{
    feedback = dp.Confusion(),
    sampler = dp.Sampler{batch_size = opt.batchSize}
 }
@@ -218,8 +221,8 @@ test = dp.Evaluator{
 xp = dp.Experiment{
    model = cnn,
    optimizer = train,
-   validator = valid,
-   tester = test,
+   validator = ds:validSet() and valid,
+   tester = ds:testSet() and test,
    observer = {
       dp.FileLogger(),
       dp.EarlyStopper{

@@ -25,7 +25,10 @@ function DataSet:ioShapes(input_shape, output_shape)
       self._output_shape = output_shape or self._output_shape
       return
    end
-   return self._input_shape, self._output_shape
+   local iShape = self._input_shape or self:inputs() and self:inputs():view()
+   local oShape = self._output_shape or self:targets() and self:targets():view()
+   assert(iShape and oShape, "Missing input or output shape")
+   return iShape, oShape
 end
 
 -- builds a batch (factory method)

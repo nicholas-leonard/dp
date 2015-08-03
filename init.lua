@@ -8,6 +8,7 @@ require 'os'
 require 'sys'
 require 'image'
 require 'lfs'
+require 'torchx'
 ffi = require 'ffi'
 
 ------------------------------------------------------------------------
@@ -55,7 +56,7 @@ torch.include('dp', 'view/classview.lua')
 torch.include('dp', 'view/sequenceview.lua')
 torch.include('dp', 'view/listview.lua')
 
---[[ data ]]--
+--[[ dataset ]]--
 -- datasets
 torch.include('dp', 'data/baseset.lua') -- abstract class
 torch.include('dp', 'data/dataset.lua')
@@ -63,9 +64,13 @@ torch.include('dp', 'data/sentenceset.lua')
 torch.include('dp', 'data/textset.lua')
 torch.include('dp', 'data/imageclassset.lua')
 torch.include('dp', 'data/batch.lua')
+
+
+--[[ datasource ]]--
 -- generic datasources
 torch.include('dp', 'data/datasource.lua')
 torch.include('dp', 'data/imagesource.lua')
+torch.include('dp', 'data/smallimagesource.lua')
 torch.include('dp', 'data/textsource.lua')
 -- specific image datasources
 torch.include('dp', 'data/mnist.lua')
@@ -75,6 +80,7 @@ torch.include('dp', 'data/notmnist.lua')
 torch.include('dp', 'data/facialkeypoints.lua')
 torch.include('dp', 'data/svhn.lua')
 torch.include('dp', 'data/imagenet.lua')
+torch.include('dp', 'data/facedetection.lua')
 -- specific text datasources
 torch.include('dp', 'data/billionwords.lua')
 torch.include('dp', 'data/penntreebank.lua')

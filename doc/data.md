@@ -351,24 +351,6 @@ A [DataSource](#dp.DataSource) subclass wrapping the [CIFAR-100](http://www.cs.t
 dataset. It is a `3x32x32` color-image set of 100 different objects. Small dataset (even less images 
 per class than [Cifar-10](#dp.Cifar10)) size makes it hard to generalize from train to test set (Regime : overfitting). 
 
-<a name="dp.BillionWords"></a>
-## BillionWords ##
-A [DataSource](#dp.DataSource) subclass wrapping the corpus derived from the 
-`training-monolingual.tokenized/news.20??.en.shuffled.tokenized` data distributed for [WMT11](http://statmt.org/wmt11/translation-task.html). The preprocessing suggested by 
-the [Google 1-Billion Words language modeling benchmark](https://code.google.com/p/1-billion-word-language-modeling-benchmark) was used to prepare the data. 
-The task consists in predicting the next word given the `n` previous ones, 
-where `n` is the context size (it can be set in the constructor).
-The data consists in approximately 30 million sentences of an average length of about 25 words.
-In, there are about 800 thousand (unique) words in the vocabulary, which makes it a very memory intensive problem.
-The DataSource inclues data for building hierarchical softmaxes to accelerate training.
-As usual the actual data is downloaded automatically when not found on disk.
-It is stored as a serialized `torch.Tensor` (see code for details).
-
-<a name="dp.PennTreeBank"></a>
-## Penn Tree Bank ##
-A small [TextSource](#dp.TextSource) used to train and evaluate language models. 
-It has a relatively small vocabulary of 10000 words. 
-
 <a name="dp.Svhn"></a>
 ## Svhn ##
 The Google Street View House Numbers (SVHN) DataSource wraps 
@@ -380,6 +362,7 @@ somewhat less difficult samples, to use as extra training data.
 Like [CIFAR](#dp.Cifar10), the images are of size `3x32x32`.
 
 <a name="dp.FaceDetection"></a>
+## FaceDetection ##
 A Purdue face detection dataset used in the [data tutorial](datatutorial.md).
 
 <a name="dp.ImageNet"></a>
@@ -439,6 +422,24 @@ i.e. center, four corners and their horizontal flips, and their predictions are 
 You can test out your ImageNet datasource using the
 [alexnet.lua](https://github.com/nicholas-leonard/dp/blob/master/examples/alexnet.lua)
 training script.
+
+<a name="dp.BillionWords"></a>
+## BillionWords ##
+A [DataSource](#dp.DataSource) subclass wrapping the corpus derived from the 
+`training-monolingual.tokenized/news.20??.en.shuffled.tokenized` data distributed for [WMT11](http://statmt.org/wmt11/translation-task.html). The preprocessing suggested by 
+the [Google 1-Billion Words language modeling benchmark](https://code.google.com/p/1-billion-word-language-modeling-benchmark) was used to prepare the data. 
+The task consists in predicting the next word given the `n` previous ones, 
+where `n` is the context size (it can be set in the constructor).
+The data consists in approximately 30 million sentences of an average length of about 25 words.
+In, there are about 800 thousand (unique) words in the vocabulary, which makes it a very memory intensive problem.
+The DataSource inclues data for building hierarchical softmaxes to accelerate training.
+As usual the actual data is downloaded automatically when not found on disk.
+It is stored as a serialized `torch.Tensor` (see code for details).
+
+<a name="dp.PennTreeBank"></a>
+## Penn Tree Bank ##
+A small [TextSource](#dp.TextSource) used to train and evaluate language models. 
+It has a relatively small vocabulary of 10000 words. 
 
 <a name="dp.Sampler"></a>
 ## Sampler ##

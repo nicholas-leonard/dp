@@ -33,13 +33,23 @@ An Experiment constructor which takes key-value arguments:
 
 The only mandatory arguments are `model` and at least one `optimizer`, `validator` or `tester`.
 
-<a name="dp.Experiment.run"/>
-[]()
+<a name="dp.Experiment.run"></a>
 ## run(datasource) ##
 This method loops through the propagators until a doneExperiment is 
 received or experiment reaches `max_epoch` epochs. The `datasource` 
 is provided as an argument here, as opposed to being passed to the 
 constructor to keep it from being serialized with the Experiment. 
+
+<a name="dp.Experiment.includeTarget"></a>
+## includeTarget(mode) ##
+When mode is `true` (the default), the targets will be included in 
+the input to every `model`. Such that the input will have the form :
+```lua
+input = {input, target}
+```
+The default behavior for the Experiment is to not include the targets in the input. 
+This is useful for modules like [SoftMaxTree](https://github.com/clementfarabet/lua---nnx#nnx.SoftMaxTree) 
+which require the target be fed in as well as the input.
 
 <a name="dp.Experiment.report"/>
 []()

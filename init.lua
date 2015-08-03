@@ -8,6 +8,7 @@ require 'os'
 require 'sys'
 require 'image'
 require 'lfs'
+require 'torchx'
 ffi = require 'ffi'
 
 ------------------------------------------------------------------------

@@ -296,7 +296,7 @@ In any case, the `callback` is a function that you can define to fit your needs.
 
 While the `callback` argument is called every batch, the `epoch_callback` is called between epochs.
 This is useful for decaying hyper-parameters such as the learning rate, which is what we do in this example.
-Since the learning rate is the most important hyper-parameters, it is a good idea to try 
+Since the learning rate is the most important hyper-parameter, it is a good idea to try 
 different learning rate decay schedules during hyper-optimization. 
 
 The `--lrDecay 'linear'` decay is the easiest to use (the default cmd-line argument). 
@@ -306,11 +306,11 @@ epoch at which that minimum will be reached : `--saturateEpoch`.
 The `--lrDecay 'adaptive'` uses an exponentially decaying learning rate. 
 By default this mode only decays the learning rate when a minima hasn't been found for `--maxWait` epochs. 
 But by using `--maxWait -1`, we can decay the learning rate 
-every epoch with the following rule : `lr = lr*decayFactor`. This will the decay 
-the learning rate much faster than a linear decay. 
+every epoch with the following rule : `lr = lr*decayFactor`. 
+This will decay the learning rate much faster than a linear decay. 
 
-Another option is to specify the learning rate `--schedule` manually by specifying a table 
-mapping learning rates to epochs like '{[200] = 0.01, [300] = 0.001}', 
+Another option (`--lrDecay `schedule`) is to specify the learning rate 
+`--schedule` manually by specifying a table mapping learning rates to epochs like '{[200] = 0.01, [300] = 0.001}', 
 which will decay the learning rate to the given value at the given epoch.
 
 Of course, because this argument is just another callback function, you can use it however you please 

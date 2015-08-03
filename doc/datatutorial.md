@@ -116,12 +116,153 @@ Since we don't have a means of hosting our own version of the dataset on the Web
 This implies that our DataSource will need to build `input` and `target` Tensors from the PNG files,
 and divide the data into a training and validation set. We omit the test set since it isn't provided.
 
-In this case, we want to be able to call `dp.FaceDetection()`, a DataSource constructor. 
+In this case, we want to be able to call `dp.FaceDetection()`, a DataSource constructor: 
 
 ```lua
+ds = dp.FaceDetection()
+```
 
+The above is the ultimate abstraction as it requires almost no work on the part of the user.
+The data will be downloaded from the Web, uploaded into a Tensor, and cached back to disk such that
+the next time you use it from this computer, the loading will be that much faster. 
+And then you can just run an [Experiment](experiment.md) to train a face detector on the model.
+
+
+The code for building this is actually quite short as we will be inheriting the 
+[SmallImageSource](data.md#dp.SmallImageSource) DataSource. This is a generic image classification 
+DataSource which happens to do exactly what we need.
+
+```lua
+local FaceDetection, parent = torch.class("dp.FaceDetection", "dp.SmallImageSource")
+
+function FaceDetection:__init(config)
+   config = config or {}   
+   config.image_size = config.image_size or {3, 32, 32}
+   config.name = config.name or 'facedetection'
+   config.train_dir = config.train_dir or 'face-dataset'
+   config.test_dir = ''
+   config.download_url = config.download_url 
+      or 'https://engineering.purdue.edu/elab/files/face-dataset.zip'
+   parent.__init(self, config)
+end
+```
+
+Yup, that is all that is required to create a publicly accessible FaceDetection dataset.
+The SmallImageSource actually had much more code. 
+The auto-magical downloading and caching happens here (comments in-line):
+
+```lua
+function SmallImageSource:loadData(set_dir, download_url)
+   -- use cache?
+   local cacheFile = self._name..'_'..set_dir
+   cacheFile = cacheFile .. table.concat(self._image_size,'x')
+   cacheFile = cacheFile ..'_cache.t7'
+   
+   local cachePath = paths.concat(self._cache_path, cacheFile)
+   if paths.filep(cachePath) then
+      if not _.contains({'nocache','overwrite'}, self._cache_mode)  then
+         return table.unpack(torch.load(cachePath))
+      end
+   elseif self._cache_mode == 'readonly' then
+      error("SmallImageSource: No cache at "..cachePath)
+   end
+   
+   -- this method downloads and decompresses the file at url
+   -- when self._data_path/self._name/decompress_file doesn't exist.
+   local data_path = DataSource.getDataPath{
+      name=self._name, url=download_url or self._download_url,
+      decompress_file=set_dir, data_dir=self._data_path
+   }
+   
+   -- classes are directory names
+   if (not self._classes) or _.isEmpty(self._classes) then
+      -- extrapolate classes from directories
+      self._classes = {}
+      for class in paths.iterdirs(data_path) do
+         table.insert(self._classes, class)
+      end
+      _.sort(self._classes) -- make indexing consistent
+   end
+   
+   -- count images
+   local n_example = 0
+   local classfiles= {}
+   for classidx, class in ipairs(self._classes) do
+      local classpath = paths.concat(data_path, class)
+      -- found in torchx, this function indexes all images in a path
+      local files = paths.indexdir(classpath)
+      assert(files:size() > 0, "class dir is empty : "..classpath)
+      n_example = n_example + files:size()
+      table.insert(classfiles, files)
+   end
+   assert(n_example > 0, "no examples found for at data_path :"..data_path)
+   
+   -- allocate tensors
+   local inputs = torch.FloatTensor(n_example, unpack(self._image_size)):zero()
+   local targets = torch.Tensor(n_example):fill(1)
+   local shuffle = torch.randperm(n_example) -- useless for test set
+   
+   -- load images
+   local example_idx = 1
+   local buffer
+   for classidx, class in ipairs(self._classes) do
+      local files = classfiles[classidx]
+      
+      for i=1,files:size() do
+         local success, img = pcall(function()
+            return image.load(files:filename(i))
+         end)
+      
+         if success then
+            assert(img:size(1) == self._image_size[1], "Inconsistent number of channels/colors")
+            
+            if img:size(2) ~= self._image_size[2] or img:size(3) ~= self._image_size[3] then
+               -- rescale the image
+               buffer = buffer or torch.FloatTensor()
+               buffer:resize(table.unpack(self._image_size))
+               image.scale(buffer, img)
+               img = buffer
+            end
+            
+            local ds_idx = shuffle[example_idx]
+            inputs[ds_idx]:copy(img)
+            targets[ds_idx] = classidx
+         end
+         
+         example_idx = example_idx + 1
+         collectgarbage()
+      end
+   end
+   
+   if self._cache_mode ~= 'nochache' then
+      -- save a copy of the tensors and classes to disk for next run
+      torch.save(cachePath, {inputs, targets, self._classes})
+   end
+  
+   return inputs, targets, self._classes
+end
 ```
 
 ## Accessing Your Data ##
 
+Ok so all your data is encapsulated into a datasource. 
+Yes the Experiment knows how to access it, but how do we?
+Say you want to access the input tensor of the training set, you could call :
+```lua
+tensor = ds:trainSet():inputs():forward('default')
+```
+That is a lot of function calls. You can use the [get()](data.md#dp.DataSource.get) method instead:
+```lua
+tensor = ds:get('train', 'input', 'default')
+```
+These are also the default arguments, so the above are equivalent to :
+```lua
+tensor = ds:get()
+```
+
+All arguments are optional strings :
+ * `which_set` specifies which DataSet : *train*, *valid* or *test*. Defaults to *train*;
+ * `attribute` specifies which attribute of the DataSet : *input* or *target*. Defaults to *inputs*;
+ * `view` specifies the axis order of the tensor to get : *bwc*, *bchw*, *b*, etc. Defaults to *default*. See [Views](#dp.View);
+ * `type` specifies the type of the Tensor to get : *float*, *torch.FloatTensor*, *Float*, *cuda*, etc. 
 

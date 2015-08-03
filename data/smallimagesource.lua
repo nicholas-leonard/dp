@@ -76,7 +76,8 @@ function SmallImageSource:__init(config)
 end
 
 function SmallImageSource:loadTrainValid()
-   local inputs, targets = self:loadData(self._train_dir)
+   local inputs, targets, classes = self:loadData(self._train_dir)
+   self._classes = classes
    
    -- train
    local start = 1
@@ -107,7 +108,8 @@ function SmallImageSource:loadTest()
    if self._test_dir == '' then
       return
    end
-   local inputs, targets = self:loadData(self._test_dir)
+   local inputs, targets, classes = self:loadData(self._test_dir)
+   self._classes = classes
    self:testSet(self:createDataSet(inputs, targets, 'test'))
    return self:testSet()
 end
@@ -131,8 +133,8 @@ function SmallImageSource:createDataSet(inputs, targets, which_set)
    -- construct dataset
    local ds = dp.DataSet{inputs=input_v,targets=target_v,which_set=which_set}
    ds:ioShapes('bchw', 'b')
-   return ds
    
+   return ds
 end
 
 function SmallImageSource:loadData(set_dir, download_url)
@@ -158,7 +160,6 @@ function SmallImageSource:loadData(set_dir, download_url)
    if (not self._classes) or _.isEmpty(self._classes) then
       -- extrapolate classes from directories
       self._classes = {}
-      print(data_path)
       for class in paths.iterdirs(data_path) do
          table.insert(self._classes, class)
       end
@@ -190,7 +191,7 @@ function SmallImageSource:loadData(set_dir, download_url)
       
       for i=1,files:size() do
          local success, img = pcall(function()
-            return image.load(paths.concat(classpath, files:filename(i)))
+            return image.load(files:filename(i))
          end)
       
          if success then
@@ -215,9 +216,9 @@ function SmallImageSource:loadData(set_dir, download_url)
    end
    
    if self._cache_mode ~= 'nochache' then
-      torch.save(cachePath, {inputs, targets})
+      torch.save(cachePath, {inputs, targets, self._classes})
    end
   
-   return inputs, targets
+   return inputs, targets, self._classes
 end
 

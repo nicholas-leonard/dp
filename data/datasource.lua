@@ -217,8 +217,7 @@ function DataSource:iSize(idx)
                local batch = set:sub(1,2)
                local inputView = batch:inputs()
                local inputs = inputView:forward('bf')
-               local f_idx = inputView:findAxis('f')
-               return inputs:size(f_idx)
+               return inputs:size(2)
             end
          else
             error("Datasource has no axis '"..idx.."'")

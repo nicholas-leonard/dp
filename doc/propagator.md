@@ -22,6 +22,7 @@ A Propagator constructor which takes key-value arguments:
  
   * `loss` is a [Criterion](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.Criterion) which the Model output will need to evaluate or minimize.
   * `callback` is a user-defined function(model, report) that does things like update the `model` parameters, gather statistics, decay learning rate, etc.
+  * `epoch_callback` is a user-defined function(model, report) that is called between epochs. Typically used for learning rate decay and such;
   * `sampler` is, you guessed it, a [Sampler](data.md#dp.Sampler) instance which iterates through a [DataSet](data.md#dp.DataSet). Defaults to `dp.Sampler()`
   * `observer` is an [Observer](observer.md#dp.Observer) instance that is informed when an event occurs.
   * `feedback` is a [Feedback](feedback.md#dp.Feedback) instance that takes Model input, output and targets as input to provide I/O feedback to the user or system.

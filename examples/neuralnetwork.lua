@@ -63,8 +63,10 @@ elseif opt.dataset == 'Cifar10' then
    ds = dp.Cifar10{input_preprocess = input_preprocess}
 elseif opt.dataset == 'Cifar100' then
    ds = dp.Cifar100{input_preprocess = input_preprocess}
+elseif opt.dataset == 'FaceDetection' then
+   ds = dp.FaceDetection{input_preprocess = input_preprocess}
 else
-    error("Unknown Dataset")
+   error("Unknown Dataset")
 end
 
 --[[Model]]--

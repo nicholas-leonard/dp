@@ -273,6 +273,9 @@ train = dp.Optimizer{
          opt.learningRate = math.max(opt.minLR, opt.learningRate)
          if not opt.silent then
             print("learningRate", opt.learningRate)
+            if opt.meanNorm then
+               print("mean gradParam norm", opt.meanNorm)
+            end
          end
       end
    end,
@@ -283,9 +286,6 @@ train = dp.Optimizer{
          if opt.cutoffNorm > 0 then
             local norm = model:gradParamClip(opt.cutoffNorm) -- affects gradParams
             opt.meanNorm = opt.meanNorm and (opt.meanNorm*0.9 + norm*0.1) or norm
-            if opt.lastEpoch < report.epoch and not opt.silent then
-               print("mean gradParam norm", opt.meanNorm)
-            end
          end
          model:updateGradParameters(opt.momentum) -- affects gradParams
          model:updateParameters(opt.learningRate) -- affects params

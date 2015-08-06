@@ -219,7 +219,7 @@ torch.save(testDictFile, testDict)
 
 -- Save test images to disk
 if saveImage then
-   print("Saving train images to disk.")
+   print("Saving test images to disk.")
    local noOfSamples = testDict["images"]:size(1)
    local labelsDirs = {}
    local labelsDir

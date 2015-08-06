@@ -3,11 +3,11 @@
 -- Inherits DataSet
 -- Used for Language Modeling
 -- Takes a sequence of words stored as a tensor of word ids.
--- Contrary to TextSet, this wrapper assumes a continuous stream 
+-- Contrary to SentenceSet, this wrapper assumes a continuous stream 
 -- of words. If consecutive sentences are completely unrelated, you 
--- might be better off using TextSet, unless your model can learn 
+-- might be better off using SentenceSet, unless your model can learn 
 -- to forget (like LSTMs). 
--- Like TextSet, this class does not store its data in Views.
+-- Like SentenceSet, this class does not store its data in Views.
 -- However, the outputs of batch(), sub(), index() are dp.Batches
 -- containing ClassViews of inputs and targets.
 ------------------------------------------------------------------------

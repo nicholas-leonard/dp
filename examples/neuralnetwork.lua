@@ -17,6 +17,7 @@ cmd:option('--maxWait', 4, 'maximum number of epochs to wait for a new minima to
 cmd:option('--decayFactor', 0.001, 'factor by which learning rate is decayed for adaptive decay.')
 cmd:option('--maxOutNorm', 1, 'max norm each layers output neuron weights')
 cmd:option('--momentum', 0, 'momentum')
+cmd:option('--activation', 'Tanh', 'transfer function like ReLU, Tanh, Sigmoid')
 cmd:option('--hiddenSize', '{200,200}', 'number of hidden units per layer')
 cmd:option('--batchSize', 32, 'number of examples per batch')
 cmd:option('--cuda', false, 'use CUDA')
@@ -81,7 +82,7 @@ for i,hiddenSize in ipairs(opt.hiddenSize) do
    if opt.batchNorm then
       model:add(nn.BatchNormalization(hiddenSize))
    end
-   model:add(nn.Tanh())
+   model:add(nn[opt.activation]())
    if opt.dropout then
       model:add(nn.Dropout())
    end

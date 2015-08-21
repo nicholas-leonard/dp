@@ -31,7 +31,7 @@ function ImageSource:__init(config)
        ..' Defaults to 3x256x256.'},
       {arg='sample_size', type='table',
        help='a consistent size for cropped patches from loaded images.'
-       ..' Defaults to 3x224x244.'},
+       ..' Defaults to 3x224x224.'},
       {arg='train_path', type='string', help='path to training images',
        default=paths.concat(dp.DATA_DIR, 'img_train')},
       {arg='valid_path', type='string', help='path to validation images',

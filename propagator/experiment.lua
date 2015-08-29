@@ -66,7 +66,7 @@ function Experiment:__init(config)
    self._description = description
 end
 
-function Experiment:setup(datasource)
+function Experiment:setup()
    --publishing to this channel will terminate the experimental loop
    self._mediator:subscribe("doneExperiment", self, "doneExperiment")
    if self._optimizer then
@@ -97,7 +97,7 @@ end
 --experiment reaches max_epochs
 function Experiment:run(datasource, once)
    if not self._setup then
-      self:setup(datasource)
+      self:setup()
    end   
    local report = self:report()
    local train_set = datasource:trainSet()

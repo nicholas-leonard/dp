@@ -277,7 +277,7 @@ function Experiment:type(new_type)
    elseif new_type == 'torch.DoubleTensor' then
       self._model:mediumSerial('double')
    else
-      self._model:medumSerial(false)
+      self._model:mediumSerial(false)
    end
    if self._model then
       self._model:type(new_type)

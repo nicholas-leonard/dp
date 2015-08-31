@@ -134,7 +134,7 @@ end
 function table.channelValues(tbls, channel)
    local values = {}
    for key, tbl in pairs(tbls) do
-      table.insert(values, table.channelValue(tbl, channel))
+      values[key] = table.channelValue(tbl, channel)
    end
    return values
 end

@@ -5,7 +5,7 @@
 local HyperLog, parent = torch.class("dp.HyperLog", "dp.Logger")
 
 function HyperLog:__init()
-   parent.__init(self, {"doneExperiment", "errorMinima"})
+   parent.__init(self, {"doneEpoch", "errorMinima"})
    self.reports = {}
    self.minimaEpoch = -1
 end

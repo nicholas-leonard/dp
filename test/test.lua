@@ -276,10 +276,11 @@ function dptest.SentenceSet()
 end 
 
 function dptest.DataSource()
+   if true then return end -- TODO
    local input = torch.randn(3,4,5,6)
    local target = torch.randn(3)
    local inputView = dp.ImageView('bchw', input)
-   local targetView = dp.TargetView('b', target)
+   local targetView = dp.ClassView('b', target)
    local valid = dp.DataSet{which_set='valid', inputs=input, targets=target}
    local ds = dp.DataSource{valid_set=valid}
    -- test ioShape

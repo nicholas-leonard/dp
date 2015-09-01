@@ -31,8 +31,3 @@ function FileLogger:doneEpoch(report)
    filename = paths.concat(self._log_dir, 'metadata.dat')
    torch.save(filename, self._last_epoch)
 end
-
-function FileLogger:logHyperReport(hyper_report)
-   local filename = paths.concat(self._log_dir, 'hyper_report.dat')
-   torch.save(filename, hyper_report)
-end

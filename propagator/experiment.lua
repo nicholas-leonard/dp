@@ -163,6 +163,8 @@ function Experiment:model(model)
       if not torch.isTypeOf(model, 'nn.Serial') then
          self._model = nn.Serial(model)
          self._model:mediumSerial('double')
+      else
+         self._model = model
       end
       return
    end

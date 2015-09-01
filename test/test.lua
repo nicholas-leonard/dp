@@ -1101,6 +1101,29 @@ function dptest.TopCrop()
    mytester:assert(math.round(report.topcrop.center[3]) == 50, "topcrop center 3 error")
 end
 
+function dptest.HyperLog()
+   local hlog = dp.HyperLog()
+   local reports = {}
+   for i=1,3 do
+      local report = {
+         lr = 0.0001,
+         epoch = i,
+         feedback = {
+            confusion = {
+               accuracy = 3*i
+            }
+         }
+      }
+      table.insert(reports, report)
+      hlog:doneEpoch(report)
+      hlog:errorMinima(i==2, {minima=function() return 9, 2 end})
+   end
+   local accs = hlog:getResultByEpoch("feedback:confusion:accuracy")
+   local acc = hlog:getResultAtMinima("feedback:confusion:accuracy")
+   mytester:assertTableEq(accs, {3,6,9}, 0.0000001, "HyperLog getResultByEpoch err")
+   mytester:assert(acc == 6, "HyperLog getResultByMinima err")
+end
+
 function dp.test(tests)
    math.randomseed(os.time())
    mytester = torch.Tester()

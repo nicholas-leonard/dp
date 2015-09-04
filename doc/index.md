@@ -53,26 +53,30 @@ In the [Data tutorial](datatutorial.md), we explore different ways to wrap your 
 <a name="dp.install"/>
 []()
 ## Install ##
-To use this library, install it globally via luarocks:
+To use this library, install it via luarocks:
 ```shell
-$> sudo luarocks install dp
-```
-or install it locally:
-```shell
-$> luarocks install dp --local
+$> luarocks install dp
 ```
 or clone and make it (recommended):
 ```shell
 $> git clone git@github.com:nicholas-leonard/dp.git
 $> cd dp
-$> sudo luarocks make rocks/dp-scm-1.rockspec 
+$> luarocks make rocks/dp-scm-1.rockspec 
 ```
 
 ### Optional Dependencies ###
+
 For CUDA:
 ```shell
 $> sudo luarocks install cunnx
 ```
+
+## Other packages 
+
+These are some related package :
+ 
+  * [rnn](https://github.com/Element-Research/rnn) : Recurrent neural network library ;
+  * [hypero](https://github.com/Element-Research/hypero) : Simple distributed hyper-optimization library.
 
 ## Contributions ##
 

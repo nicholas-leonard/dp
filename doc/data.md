@@ -304,21 +304,21 @@ Returns the `path` to the resulting data file.
   * `decompress_file` is a string that when non-nil, decompresses the downloaded data if `data_dir/name/decompress_file` is not found. In which case, returns `data_dir/name/decompress_file`.
  
 <a name="dp.TextSource"></a>
-## dp.TextSource ##
+## TextSource ##
 A generic text language model dataset wrapper. 
 Creates a DataSource out of 1 to 3 strings or text files.
 Text files are assumed to be arranged one sentence per line, each
 line beginning with a space and ending with a space and a newline.
  
 <a name="dp.ImageSource"></a>
-## dp.ImageSource ##
+## ImageSource ##
 A generic version of the [ImageNet](#dp.ImageNet) DataSource used for wrapping
 large image classification datasets. Each class is a directory of image files.
 The images can be asynchronously loaded into memory in one ore many different threads 
 to speedup training.
 
 <a name="dp.SmallImageSource"></a>
-## dp.SmallImageSource ##
+## SmallImageSource ##
 A generic DataSource used for wrapping small image classification datasets.
 Each class is a directory of image files. The loaded input (images) and target (classes) 
 tensors are cached to disk the first time the constuctor is called. 

@@ -162,7 +162,7 @@ function Experiment:model(model)
       assert(torch.isTypeOf(model, 'nn.Module'), "Expecting nn.Module instance")
       if not torch.isTypeOf(model, 'nn.Serial') then
          self._model = nn.Serial(model)
-         self._model:mediumSerial('double')
+         self._model:mediumSerial(false)
       else
          self._model = model
       end
@@ -274,13 +274,7 @@ function Experiment:silent()
 end
 
 function Experiment:type(new_type)
-   if new_type == 'torch.FloatTensor' or new_type == 'torch.CudaTensor' then
-      self._model:mediumSerial('float')
-   elseif new_type == 'torch.DoubleTensor' then
-      self._model:mediumSerial('double')
-   else
-      self._model:mediumSerial(false)
-   end
+   self._model:mediumSerial(false)
    if self._model then
       self._model:type(new_type)
    end

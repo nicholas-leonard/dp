@@ -199,7 +199,7 @@ function SmallImageSource:loadData(set_dir, download_url)
             
             if img:size(2) ~= self._image_size[2] or img:size(3) ~= self._image_size[3] then
                -- rescale the image
-               buffer = buffer or torch.FloatTensor()
+               buffer = buffer or img.new()
                buffer:resize(table.unpack(self._image_size))
                image.scale(buffer, img)
                img = buffer

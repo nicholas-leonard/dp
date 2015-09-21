@@ -80,6 +80,7 @@ torch.include('dp', 'data/facialkeypoints.lua')
 torch.include('dp', 'data/svhn.lua')
 torch.include('dp', 'data/imagenet.lua')
 torch.include('dp', 'data/facedetection.lua')
+torch.include('dp', 'data/translatedmnist.lua')
 -- specific text datasources
 torch.include('dp', 'data/billionwords.lua')
 torch.include('dp', 'data/penntreebank.lua')

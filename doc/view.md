@@ -335,19 +335,19 @@ We can use forwardGet('b') for obtaining a representation suitable for use as ta
 The first index of each example vector represents the primary class:
 ```lua
 > =dv:forwardGet('b')
- 0
+ 4
  3
- 1
+ 2
  3
 [torch.IntTensor of dimension 4]
 ```
 However, this doesn't mean we can't retrieve a multiple-class view of the `input` for use in some esotheric [Criterion](https://github.com/torch/nn/blob/master/doc/criterion.md#nn.Criterion):
 ```lua
 > =dv:forwardGet('bt')
- 0  1
- 3  0
- 1  2
+ 4  2
  3  1
+ 2  3
+ 3  4
 [torch.IntTensor of dimension 4x2]
 
 ```

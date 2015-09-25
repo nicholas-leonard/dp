@@ -403,7 +403,7 @@ function ImageClassSet:loadImage(path)
    -- resize by imposing the smallest dimension (while keeping aspect ratio)
    local iW, iH = input:size()
    if iW/iH < lW/lH then
-      input:size(nil, lW)
+      input:size(lW, nil)
    else
       input:size(nil, lH)
    end

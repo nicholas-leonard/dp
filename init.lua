@@ -63,6 +63,7 @@ torch.include('dp', 'data/dataset.lua')
 torch.include('dp', 'data/sentenceset.lua')
 torch.include('dp', 'data/textset.lua')
 torch.include('dp', 'data/imageclassset.lua')
+torch.include('dp', 'data/cocoboxdetect.lua')
 torch.include('dp', 'data/batch.lua')
 
 --[[ datasource ]]--

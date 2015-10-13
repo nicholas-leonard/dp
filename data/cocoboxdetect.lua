@@ -229,7 +229,6 @@ function CocoBoxDetect:getSample(input, bbox, class, idx)
    local resImg = input:narrow(1,1,3):zero()
    local padW = torch.round((self._input_size - oW)/2)
    local padH = torch.round((self._input_size - oH)/2)
-   print(iW, iH, oW, oH, padH, padW)
    resImg:narrow(2,padH+1,oH):narrow(3,padW+1,oW):copy(img)
       
    -- mask padding
@@ -253,7 +252,6 @@ function CocoBoxDetect:getSample(input, bbox, class, idx)
    -- mask all known instance bounding box
    local imgData = self.imageMap[imageId]
    local iH, iW = imgData[3], imgData[4]
-   print(iW, iH)
    local sW, sH = oW/iW, oH/iH
    for i,knownId in ipairs(known) do
       local x,y,w,h = unpack(self.instanceMap[knownId][3])
@@ -267,7 +265,6 @@ function CocoBoxDetect:getSample(input, bbox, class, idx)
       local x1 = math.max(1, math.min(self._input_size, torch.round(x+1)))
       local y1 = math.max(1, math.min(self._input_size, torch.round(y+1)))
       resMask:narrow(2,y1,y2-y1+1):narrow(3,x1,x2-x1+1):fill(1)
-      print(i, y1, y2, x1, x2, unpack(resMask:narrow(2,y1,y2-y1+1):narrow(3,x1,x2-x1+1):size():totable()))
    end
    
    -- include unknown instance bounding box and classes as targets 
@@ -441,15 +438,26 @@ function CocoBoxDetect:subAsyncPut(batch, start, stop, callback)
       batch = (not self._buffer_batches:empty()) and self._buffer_batches:get() or self:batch(stop-start+1)
    end
    local input = batch:inputs():input()
-   local class, bbox = batch:targets():input()
+   local class, bbox = unpack(batch:targets():input())
    assert(input and class and bbox)
    
    self._send_batches:put(batch)
+   assert(not self._send_batches:empty())
    
-   assert(self._threads:acceptsjobs())
+   for i=1,1000 do
+      if self._threads:acceptsjob() then
+         break
+      else
+         sys.sleep(0.01)
+      end
+      if i==1000 then
+         error"infinit loop"
+      end
+   end
    self._threads:addjob(
       -- the job callback (runs in data-worker thread)
       function()
+         print"callback"
          tbatch:inputs():forward('bchw', input)
          tbatch:targets():forward({'bwc', 'bt'}, {class, bbox})
          
@@ -459,14 +467,16 @@ function CocoBoxDetect:subAsyncPut(batch, start, stop, callback)
       end,
       -- the endcallback (runs in the main thread)
       function(input, target)
+         print"endcallback"
          local batch = self._send_batches:get()
          batch:inputs():forward('bchw', input)
          batch:targets():forward({'bwc', 'bt'}, {class, bbox})
          
          callback(batch)
          
-         batch:targets():setClasses(self._classes)
+         batch:targets():components()[2]:setClasses(self._classes)
          self._recv_batches:put(batch)
+         print("end endcallback", self._recv_batches:empty(), batch)
       end
    )
 end
@@ -481,12 +491,12 @@ function CocoBoxDetect:sampleAsyncPut(batch, nSample, callback)
       batch = (not self._buffer_batches:empty()) and self._buffer_batches:get() or self:batch(nSample)
    end
    local input = batch:inputs():input()
-   local class, bbox = batch:targets():input()
+   local class, bbox = unpack(batch:targets():input())
    assert(input and class and bbox)
    
    self._send_batches:put(batch)
    
-   assert(self._threads:acceptsjobs())
+   assert(self._threads:acceptsjob())
    self._threads:addjob(
       -- the job callback (runs in data-worker thread)
       function()
@@ -505,7 +515,7 @@ function CocoBoxDetect:sampleAsyncPut(batch, nSample, callback)
          
          callback(batch)
          
-         batch:targets():setClasses(self._classes)
+         batch:targets():components()[1]:setClasses(self._classes)
          self._recv_batches:put(batch)
       end
    )
@@ -513,11 +523,23 @@ end
 
 -- recv results from worker : get results from queue
 function CocoBoxDetect:asyncGet()
+   print("asyncGet", self._recv_batches:empty())
    -- necessary because Threads:addjob sometimes calls dojob...
-   if self._recv_batches:empty() then
+   local i = 0
+   while self._recv_batches:empty() do
       self._threads:dojob()
+      if self._recv_batches:empty() then
+         print"sleeping"
+         sys.sleep(0.01)
+      else
+         break
+      end
+      i = i + 1
+      if i == 100 then 
+         error"infinit loop" 
+      end
    end
-   
+   print("get", self._recv_batches:empty())
    return self._recv_batches:get()
 end
 

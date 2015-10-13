@@ -157,7 +157,8 @@ xp = dp.Experiment{
          error_report = {'validator','feedback','confusion','accuracy'},
          maximize = true,
          max_epochs = opt.maxTries
-      }
+      },
+      ad
    },
    random_seed = os.time(),
    max_epoch = opt.maxEpoch

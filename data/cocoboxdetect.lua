@@ -39,7 +39,7 @@ function CocoBoxDetect:__init(config)
        'nocache : dont read or write from cache. '..
        'readonly : only read from cache, fail otherwise.'},
       {arg='cache_path', type='string',
-       help='Path to cache. Defaults to [image_path]/[which_set]_[input_size]_cache.t7'},
+       help='Path to cache. Defaults to [image_path]/[which_set]_cache.t7'},
       {arg='evaluate', type='boolean', default=false,
        help='set this to true for evaluation using the CocoEvaluator'}
    )
@@ -55,7 +55,7 @@ function CocoBoxDetect:__init(config)
    self._evaluate = evaluate
    
    self._cache_mode = cache_mode
-   self._cache_path = cache_path or paths.concat(self._image_path, which_set..'_'..self._input_size..'_cache.t7')
+   self._cache_path = cache_path or paths.concat(self._image_path, which_set..'_cache.t7')
    
    -- indexing and caching
    assert(_.find({'writeonce','overwrite','nocache','readonly'},cache_mode), 'invalid cache_mode :'..cache_mode)

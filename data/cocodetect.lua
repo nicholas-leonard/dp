@@ -40,7 +40,7 @@ function CocoDetect:__init(config)
        'readonly : only read from cache, fail otherwise.'}
    )
    
-   self._image_size = {3, self._input_size, self._input_size}
+   self._image_size = {4, self._input_size, self._input_size}
    
    if load_all then
       self:loadTrain()

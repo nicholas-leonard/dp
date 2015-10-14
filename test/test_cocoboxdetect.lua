@@ -12,6 +12,7 @@ cmd:option('--epochSize', 2000, 'number of train examples seen between each epoc
 cmd:option('--verbose', false, 'print verbose messages')
 cmd:option('--testAsyncSub', false, 'test asynchronous sub')
 cmd:option('--testAsyncSample', false, 'test asynchronous sample')
+cmd:option('--testClassMap', false, 'test that class map matches for train and test')
 cmd:option('--nThread', 2, 'number of threads')
 cmd:text()
 opt = cmd:parse(arg or {})
@@ -24,6 +25,9 @@ ds = dp.CocoDetect{
 if opt.testAsyncSample then
    ds:loadTrain()
    dataSet = ds:trainSet()
+elseif opt.testClassMap then
+   ds:loadTrain()
+   ds:loadValid()
 else
    ds:loadValid()
    dataSet = ds:validSet()
@@ -124,6 +128,11 @@ elseif opt.testAsyncSample then
       end
    end
    print("async", nBatch, (a:time().real)/nBatch)
+elseif opt.testClassMap then
+   print(unpack(ds:trainSet():classes()))
+   print(unpack(ds:validSet():classes()))
+   assert(_.same(ds:trainSet():classes(), ds:validSet():classes()))
+   print(unpack(_.map(ds:trainSet().classMap, function(k,v) return v[3] end)))
 else
    batch = dataSet:sample(32)
 

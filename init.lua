@@ -3,7 +3,6 @@ require 'dpnn'
 require 'string'
 _ = require 'moses'
 require 'xlua'
-require 'fs'
 require 'os'
 require 'sys'
 require 'image'
@@ -15,6 +14,8 @@ ffi = require 'ffi'
 --[[ dp ]]--
 -- deep learning library for torch7.
 ------------------------------------------------------------------------
+
+unpack = table.unpack -- lua 5.2
 
 dp = {}
 dp.TORCH_DIR = os.getenv('TORCH_DATA_PATH') or os.getenv('HOME')

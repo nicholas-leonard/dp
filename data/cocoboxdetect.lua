@@ -80,7 +80,7 @@ function CocoBoxDetect:buildIndex()
    local file = io.open(self._instance_path)
    local blocks = {}
    while true do
-      local block = file:read(10000000)
+      local block = file:read(1000000)
       if not block then break end
       table.insert(blocks, block)
    end

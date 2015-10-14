@@ -8,6 +8,7 @@
 -- For evaluation, all instances are unknown. The CocoEvaluator will 
 -- be responsible for iterating the model, updating the next input mask
 -- with the previous predicted bboxes.
+-- Note : some images have no instances
 ------------------------------------------------------------------------
 local CocoBoxDetect, parent = torch.class("dp.CocoBoxDetect", "dp.DataSet")
 
@@ -198,6 +199,7 @@ end
 function CocoBoxDetect:getSample(input, bbox, class, idx)
    assert(input and bbox and class and idx)
    class:zero()
+   bbox:zero()
    local imageId, instanceId, imagePath
    if self._evaluate then
       imageId = self.imageIds[idx]
@@ -239,7 +241,7 @@ function CocoBoxDetect:getSample(input, bbox, class, idx)
    -- and unknown instances (possible target classes and bboxes)   
    local unknown, known
    if self._evaluate then
-      unknown = _.clone(self.imageMap[imageid][2])
+      unknown = _.clone(self.imageMap[imageId][2])
       known = {} 
    else
       local instanceIds = _.shuffle(self.imageMap[imageId][2])
@@ -283,7 +285,9 @@ function CocoBoxDetect:getSample(input, bbox, class, idx)
    end
    
    -- rescale : -1 to 1 (0,0 is center)
-   bbox:div((self._input_size-1)/2):add(-1)
+   if #unknown > 0 then
+      bbox:narrow(1,1,#unknown):div((self._input_size-1)/2):add(-1)
+   end
    
    return input, bbox, class
 end
@@ -293,7 +297,7 @@ function CocoBoxDetect:batch(batch_size)
       which_set=self._which_set,
       inputs=dp.ImageView('bchw', torch.FloatTensor(batch_size, 4, self._input_size, self._input_size)),
       targets=dp.ListView{
-         dp.SequenceView('bwc', torch.IntTensor(batch_size, self._max_instance, 4)),
+         dp.SequenceView('bwc', torch.FloatTensor(batch_size, self._max_instance, 4)),
          dp.ClassView('bt', torch.IntTensor(batch_size, self._max_instance))
       }
    }
@@ -326,7 +330,7 @@ function CocoBoxDetect:index(batch, indices)
    
    -- target : {bboxes, classes}
    local targetView = batch and batch:targets() or dp.ListView{
-      dp.SequenceView('bwc', torch.IntTensor(batch_size, self._max_instance, 4)),
+      dp.SequenceView('bwc', torch.FloatTensor(batch_size, self._max_instance, 4)),
       dp.ClassView('bt', torch.IntTensor(batch_size, self._max_instance))
    }
    local bboxes, classes = unpack(targetView:input())
@@ -410,7 +414,7 @@ function CocoBoxDetect:multithread(nThread)
          if config.verbose then
             print(string.format('Starting worker thread with id: %d seed: %d', tid, seed))
          end
-         
+      
          dataset = dp.CocoBoxDetect(config)
          tbatch = dataset:batch(1)
       end
@@ -438,11 +442,10 @@ function CocoBoxDetect:subAsyncPut(batch, start, stop, callback)
       batch = (not self._buffer_batches:empty()) and self._buffer_batches:get() or self:batch(stop-start+1)
    end
    local input = batch:inputs():input()
-   local class, bbox = unpack(batch:targets():input())
+   local bbox, class = unpack(batch:targets():input())
    assert(input and class and bbox)
    
    self._send_batches:put(batch)
-   assert(not self._send_batches:empty())
    
    for i=1,1000 do
       if self._threads:acceptsjob() then
@@ -457,9 +460,8 @@ function CocoBoxDetect:subAsyncPut(batch, start, stop, callback)
    self._threads:addjob(
       -- the job callback (runs in data-worker thread)
       function()
-         print"callback"
          tbatch:inputs():forward('bchw', input)
-         tbatch:targets():forward({'bwc', 'bt'}, {class, bbox})
+         tbatch:targets():forward({'bwc', 'bt'}, {bbox, class})
          
          dataset:sub(tbatch, start, stop)
          
@@ -467,21 +469,20 @@ function CocoBoxDetect:subAsyncPut(batch, start, stop, callback)
       end,
       -- the endcallback (runs in the main thread)
       function(input, target)
-         print"endcallback"
          local batch = self._send_batches:get()
          batch:inputs():forward('bchw', input)
-         batch:targets():forward({'bwc', 'bt'}, {class, bbox})
+         batch:targets():forward({'bwc', 'bt'}, {bbox, class})
          
          callback(batch)
          
          batch:targets():components()[2]:setClasses(self._classes)
          self._recv_batches:put(batch)
-         print("end endcallback", self._recv_batches:empty(), batch)
       end
    )
 end
 
-function CocoBoxDetect:sampleAsyncPut(batch, nSample, callback)
+function CocoBoxDetect:sampleAsyncPut(batch, nSample, funcName, callback)
+   assert(not funcName)
    self._iter_mode = self._iter_mode or 'sample'
    if (self._iter_mode ~= 'sample') then
       error'can only use one Sampler per async CocoBoxDetect (for now)'
@@ -491,31 +492,40 @@ function CocoBoxDetect:sampleAsyncPut(batch, nSample, callback)
       batch = (not self._buffer_batches:empty()) and self._buffer_batches:get() or self:batch(nSample)
    end
    local input = batch:inputs():input()
-   local class, bbox = unpack(batch:targets():input())
+   local bbox, class = unpack(batch:targets():input())
    assert(input and class and bbox)
    
    self._send_batches:put(batch)
    
-   assert(self._threads:acceptsjob())
+   for i=1,1000 do
+      if self._threads:acceptsjob() then
+         break
+      else
+         print"sleep2"
+         sys.sleep(0.01)
+      end
+      if i==1000 then
+         error"infinite loop"
+      end
+   end
    self._threads:addjob(
       -- the job callback (runs in data-worker thread)
       function()
          tbatch:inputs():forward('bchw', input)
-         tbatch:targets():forward({'bwc', 'bt'}, {class, bbox})
+         tbatch:targets():forward({'bwc', 'bt'}, {bbox, class})
          
          dataset:sample(tbatch, nSample)
-         
          return input, target
       end,
       -- the endcallback (runs in the main thread)
       function(input, target)
          local batch = self._send_batches:get()
          batch:inputs():forward('bchw', input)
-         batch:targets():forward({'bwc', 'bt'}, {class, bbox})
-         
+         batch:targets():forward({'bwc', 'bt'}, {bbox, class})
+
          callback(batch)
-         
-         batch:targets():components()[1]:setClasses(self._classes)
+
+         batch:targets():components()[2]:setClasses(self._classes)
          self._recv_batches:put(batch)
       end
    )
@@ -523,23 +533,22 @@ end
 
 -- recv results from worker : get results from queue
 function CocoBoxDetect:asyncGet()
-   print("asyncGet", self._recv_batches:empty())
    -- necessary because Threads:addjob sometimes calls dojob...
    local i = 0
    while self._recv_batches:empty() do
       self._threads:dojob()
       if self._recv_batches:empty() then
-         print"sleeping"
+         print("sleep1", i)
          sys.sleep(0.01)
       else
          break
       end
       i = i + 1
       if i == 100 then 
-         error"infinit loop" 
+         error"infinite loop" 
       end
    end
-   print("get", self._recv_batches:empty())
+   
    return self._recv_batches:get()
 end
 

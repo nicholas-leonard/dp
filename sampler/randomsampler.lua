@@ -59,9 +59,8 @@ function RandomSampler:sampleEpochAsync(dataset)
          local uvstart = self._start
          dataset:sampleAsyncPut(batch, self._batch_size, nil,
             function(batch) 
-               local indices = batch:indices() or torch.Tensor()
                -- metadata
-               batch:setup{batch_iter=uvstop, batch_size=batch:nSample()}
+               batch:setup{batch_iter=uvstart, batch_size=batch:nSample()}
                batch = self._ppf(batch)
             end)
          

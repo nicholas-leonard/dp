@@ -22,7 +22,7 @@ function ImageNet:__init(config)
       error("ImageNet doesnt support Preprocesses. "..
             "Use Sampler ppf arg instead (for online preprocessing)")
    end
-   local load_all, input_preprocess, target_preprocess
+   local load_all
    self._args, self._load_size, self._sample_size, 
       self._train_path, self._valid_path, self._meta_path, 
       self._verbose, load_all, self._cache_mode

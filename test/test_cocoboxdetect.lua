@@ -4,8 +4,7 @@ cmd = torch.CmdLine()
 cmd:text()
 cmd:text('Test CocoBoxDetect')
 cmd:text('Options:')
-cmd:option('--imagePath', '/media/nicholas14/Nick/coco/val2014', 'path to Coco images')
-cmd:option('--instancePath', '/media/nicholas14/Nick/coco/annotations/instances_val2014.json', 'path to Coco annotations (instancnes)')
+cmd:option('--dataPath', '/media/nicholas14/Nick/coco')
 cmd:option('--debugPath', '/media/nicholas14/Nick/coco/debug', 'path to debug folder')
 cmd:option('--overwrite', false, 'overwrite cache')
 cmd:option('--batchSize', 32, 'number of examples per batch')
@@ -18,11 +17,17 @@ cmd:text()
 opt = cmd:parse(arg or {})
 
 
-validSet = dp.CocoBoxDetect{
-   image_path=opt.imagePath, evaluate=opt.testAsyncSub,
-   instance_path=opt.instancePath,
+ds = dp.CocoDetect{
+   data_path=opt.dataPath, load_all=false,
    cache_mode = opt.overwrite and 'overwrite' or 'writeonce'
 }
+if opt.testAsyncSample then
+   ds:loadTrain()
+   dataSet = ds:trainSet()
+else
+   ds:loadValid()
+   dataSet = ds:validSet()
+end
 print"dataset loaded"
 
 if opt.testAsyncSub then
@@ -34,7 +39,7 @@ if opt.testAsyncSub then
    print("testAsyncSub batches")
    for k=1,2 do
       local batch2, i, n
-      local sampler2 = samplerB:sampleEpoch(validSet)
+      local sampler2 = samplerB:sampleEpoch(dataSet)
       while true do
          batch2, i, n = sampler2(batch2)
          if not batch2 then
@@ -49,7 +54,7 @@ if opt.testAsyncSub then
    end
    print("sync", (a:time().real)/nBatch2)
    
-   validSet:multithread(opt.nThread)
+   dataSet:multithread(opt.nThread)
    print"multithread"
    samplerA = dp.Sampler{batch_size=math.floor(opt.batchSize), epoch_size=opt.epochSize}
    samplerA:async()
@@ -59,7 +64,7 @@ if opt.testAsyncSub then
    local isum, tsum, bsum = 0, 0, 0
    for k=1,2 do
       local batch, i, n
-      local sampler = samplerA:sampleEpoch(validSet)
+      local sampler = samplerA:sampleEpoch(dataSet)
       print(k)
       while true do
          batch, i, n = sampler(batch)
@@ -89,7 +94,7 @@ elseif opt.testAsyncSample then
    local nBatch2 = 0
    for k=1,2 do
       local batch2, i, n
-      local sampler2 = samplerB:sampleEpoch(validSet)
+      local sampler2 = samplerB:sampleEpoch(dataSet)
       while true do
          batch2, i, n = sampler2(batch2)
          if not batch2 then
@@ -100,7 +105,7 @@ elseif opt.testAsyncSample then
    end
    print("sync", nBatch2, (a:time().real)/nBatch2)
    
-   validSet:multithread(opt.nThread, opt.nThread*2)
+   dataSet:multithread(opt.nThread, opt.nThread*2)
    samplerA = dp.RandomSampler{batch_size=math.floor(opt.batchSize), epoch_size=opt.epochSize}
    samplerA:async()
    
@@ -108,7 +113,7 @@ elseif opt.testAsyncSample then
    local nBatch = 0
    for k=1,2 do
       local batch, i, n
-      local sampler = samplerA:sampleEpoch(validSet)
+      local sampler = samplerA:sampleEpoch(dataSet)
       while true do
          batch, i, n = sampler(batch)
          if not batch then
@@ -120,7 +125,7 @@ elseif opt.testAsyncSample then
    end
    print("async", nBatch, (a:time().real)/nBatch)
 else
-   batch = validSet:sample(32)
+   batch = dataSet:sample(32)
 
    input = batch:inputs():input()
    for i=1,input:size(1) do
@@ -128,16 +133,16 @@ else
       image.save(paths.concat(opt.debugPath, 'input'..i..'mask.png'), input[i]:narrow(1,4,1))
    end
 
-   batch = validSet:sample(128)
+   batch = dataSet:sample(128)
    print(batch:inputs():view(), batch:inputs():input():size(), batch:targets():input())
 
-   batch = validSet:index(torch.LongTensor(128):random(1,10000))
+   batch = dataSet:index(torch.LongTensor(128):random(1,10000))
    print(batch:inputs():view(), batch:inputs():input():size())
 
-   batch = validSet:sub(100, 200)
+   batch = dataSet:sub(100, 200)
    print("sub1", batch:inputs():view(), batch:inputs():input():size())
 
-   validSet:sub(batch, 200, 240)
+   dataSet:sub(batch, 200, 240)
    print("sub2", batch:inputs():view(), batch:inputs():input():size())
 end
 

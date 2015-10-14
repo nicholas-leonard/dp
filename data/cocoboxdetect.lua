@@ -39,7 +39,7 @@ function CocoBoxDetect:__init(config)
        'nocache : dont read or write from cache. '..
        'readonly : only read from cache, fail otherwise.'},
       {arg='cache_path', type='string',
-       help='Path to cache. Defaults to [image_path]/[which_set]_cache.th7'},
+       help='Path to cache. Defaults to [image_path]/[which_set]_[input_size]_cache.t7'},
       {arg='evaluate', type='boolean', default=false,
        help='set this to true for evaluation using the CocoEvaluator'}
    )
@@ -55,7 +55,7 @@ function CocoBoxDetect:__init(config)
    self._evaluate = evaluate
    
    self._cache_mode = cache_mode
-   self._cache_path = cache_path or paths.concat(self._image_path, which_set..'_cache.th7')
+   self._cache_path = cache_path or paths.concat(self._image_path, which_set..'_'..self._input_size..'_cache.t7')
    
    -- indexing and caching
    assert(_.find({'writeonce','overwrite','nocache','readonly'},cache_mode), 'invalid cache_mode :'..cache_mode)
@@ -130,9 +130,9 @@ function CocoBoxDetect:buildIndex()
       local class = self.classMap[class_id]
       table.insert(class[1], inst.id)
       
-      -- delete from data as we index (else out of memory error)
+      -- delete from data as we index
       data.annotations[i] = nil
-      if i % 1000 == 0 then
+      if i % 100000 == 0 then
          collectgarbage()
       end
       if self._verbose then
@@ -154,7 +154,6 @@ function CocoBoxDetect:buildIndex()
    print("Building instance key index")
    for instanceIdx=1,self.instanceIds:size(1) do
       local instanceId = self.instanceIds[instanceIdx]
-      print(instanceIdx, instanceId, not self.instanceMap[instanceId], self.instanceIds:min())
       self.instanceMap[instanceId][4] = instanceIdx
    end
    

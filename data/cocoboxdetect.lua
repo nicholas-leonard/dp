@@ -9,6 +9,8 @@
 -- be responsible for iterating the model, updating the next input mask
 -- with the previous predicted bboxes.
 -- Note : some images have no instances
+-- Note : we add a special STOP class which needs to be predicted when
+-- all instances are known. Helps the model learn to known when to stop.
 ------------------------------------------------------------------------
 local CocoBoxDetect, parent = torch.class("dp.CocoBoxDetect", "dp.DataSet")
 
@@ -72,6 +74,11 @@ function CocoBoxDetect:__init(config)
       end
    end
    
+   -- add the special STOP class at the end of the classes list
+   if self._classes[#self._classes] ~= 'STOP' then
+      table.insert(self._classes, 'STOP')
+   end
+   
    self._config = config 
 end
 
@@ -97,7 +104,7 @@ function CocoBoxDetect:buildIndex()
       self.imageMap[img.id] = {img.file_name, {}, img.height, img.width}
    end
    
-    -- category-id -> class-id
+   -- category-id -> class-id
    self.category = {} 
    -- class-id -> category_name
    local nClass = 0
@@ -204,9 +211,16 @@ function CocoBoxDetect:getSample(input, bbox, class, idx)
       imageId = self.imageIds[idx]
       nKnown = 0
    else
-      local instanceId = self.instanceIds[idx]
-      imageId = self.instanceMap[instanceId][2]
-      nKnown = torch.random(0,#self.imageMap[imageId][2]-1)
+      if idx > 0 then 
+         instanceId = self.instanceIds[idx]
+         imageId = self.instanceMap[instanceId][2]
+         nKnown = torch.random(0,math.max(#self.imageMap[imageId][2]-1,0))
+      else -- the special STOP class was sampled :
+         -- choose a random image
+         imageId = self.imageIds[math.random(1, self.imageIds:size(1))]
+         -- all instances are known
+         nKnown = #self.imageMap[imageId][2]
+      end
    end
    
    local imagePath = paths.concat(self._image_path, self.imageMap[imageId][1])
@@ -244,10 +258,14 @@ function CocoBoxDetect:getSample(input, bbox, class, idx)
       known = {} 
    else
       local instanceIds = _.shuffle(self.imageMap[imageId][2])
-      instanceIds = _.pull(instanceIds, instanceId) -- remove main instance Id
+      if idx > 0 then
+         instanceIds = _.pull(instanceIds, instanceId) -- remove main instance Id
+      end
       unknown =  _.first(instanceIds, #instanceIds - nKnown)
       known = _.last(instanceIds, #instanceIds - #unknown) or {}
-      table.insert(unknown, instanceId) -- put back main instance Id
+      if idx > 0 then
+         table.insert(unknown, instanceId) -- put back main instance Id
+      end
    end
    
    -- mask all known instance bounding box
@@ -281,6 +299,11 @@ function CocoBoxDetect:getSample(input, bbox, class, idx)
       bb[1], bb[2], bb[3], bb[4] = x, y, x+w, y+h
       -- instance class
       class[i] = unknownInstance[1]
+   end
+   
+   -- use the special STOP class when all instances are known
+   if #unknown == 0 then
+      class[1] = #self._classes
    end
    
    -- rescale : -1 to 1 (0,0 is center)
@@ -343,8 +366,7 @@ function CocoBoxDetect:index(batch, indices)
    inputView:forward('bchw', inputs)
    
    for i=1,batch_size do
-      local idx = indices[i]
-      self:getSample(inputs[i], bboxes[i], classes[i], idx)
+      self:getSample(inputs[i], bboxes[i], classes[i], indices[i])
    end
    
    targetView:forward({'bwc','bt'}, {bboxes, classes})
@@ -372,11 +394,16 @@ function CocoBoxDetect:sample(batch, nSample)
    for i=1,nSample do
       -- sample class
       local classId = torch.random(1, #self._classes)
-      -- sample instance from class
-      local classInstances = self.classMap[classId][1]
-      local instanceId = classInstances[torch.random(1, #classInstances)]
-      -- instanceId to instanceIdx
-      self._sample_index[i] = self.instanceMap[instanceId][4]
+      if classId == #self._classes then
+         -- the special STOP class applies to any image
+         self._sample_index[i] = 0
+      else
+         -- sample instance from class
+         local classInstances = self.classMap[classId][1]
+         local instanceId = classInstances[torch.random(1, #classInstances)]
+         -- instanceId to instanceIdx
+         self._sample_index[i] = self.instanceMap[instanceId][4]
+      end
    end
    return self:index(batch, self._sample_index)
 end

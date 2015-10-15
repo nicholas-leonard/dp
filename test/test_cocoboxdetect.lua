@@ -22,19 +22,10 @@ ds = dp.CocoDetect{
    data_path=opt.dataPath, load_all=false,
    cache_mode = opt.overwrite and 'overwrite' or 'writeonce'
 }
-if opt.testAsyncSample then
-   ds:loadTrain()
-   dataSet = ds:trainSet()
-elseif opt.testClassMap then
-   ds:loadTrain()
-   ds:loadValid()
-else
-   ds:loadValid()
-   dataSet = ds:validSet()
-end
-print"dataset loaded"
 
 if opt.testAsyncSub then
+   ds:loadValid()
+   dataSet = ds:validSet()
    samplerB = dp.Sampler{batch_size=math.floor(opt.batchSize), epoch_size=opt.epochSize}
    
    local isum2, tsum2, bsum2 = 0, 0, 0
@@ -92,6 +83,8 @@ if opt.testAsyncSub then
    assert(tsum == tsum2)
    assert(nBatch == nBatch2)
 elseif opt.testAsyncSample then
+   ds:loadTrain()
+   dataSet = ds:trainSet()
    samplerB = dp.RandomSampler{batch_size=math.floor(opt.batchSize), epoch_size=opt.epochSize}
       
    local a = torch.Timer()
@@ -129,23 +122,29 @@ elseif opt.testAsyncSample then
    end
    print("async", nBatch, (a:time().real)/nBatch)
 elseif opt.testClassMap then
+   ds:loadTrain()
+   ds:loadValid()
    print(unpack(ds:trainSet():classes()))
    print(unpack(ds:validSet():classes()))
    assert(_.same(ds:trainSet():classes(), ds:validSet():classes()))
    print(unpack(_.map(ds:trainSet().classMap, function(k,v) return v[3] end)))
 else
-   batch = dataSet:sample(32)
+   ds:loadTrain()
+   dataSet = ds:trainSet()
+   batch = dataSet:sample(opt.batchSize)
 
    input = batch:inputs():input()
    for i=1,input:size(1) do
       image.save(paths.concat(opt.debugPath, 'input'..i..'img.png'), input[i]:narrow(1,1,3))
       image.save(paths.concat(opt.debugPath, 'input'..i..'mask.png'), input[i]:narrow(1,4,1))
    end
+   
+   print("done saving")
 
-   batch = dataSet:sample(128)
+   batch = dataSet:sample(opt.batchSize)
    print(batch:inputs():view(), batch:inputs():input():size(), batch:targets():input())
 
-   batch = dataSet:index(torch.LongTensor(128):random(1,10000))
+   batch = dataSet:index(torch.LongTensor(opt.batchSize):random(1,10000))
    print(batch:inputs():view(), batch:inputs():input():size())
 
    batch = dataSet:sub(100, 200)

@@ -1125,6 +1125,73 @@ function dptest.HyperLog()
    mytester:assert(acc == 6, "HyperLog getResultByMinima err")
 end
 
+function dptest.BoundingBoxDetect()
+   local batchSize = 8
+   local nClass = 5 -- 4 classes + STOP class
+   local maxInstance = 7
+   
+   local bboxPred = torch.Tensor(batchSize, maxInstance, 4):zero()
+   bboxPred:select(3,1):uniform(-1,0)
+   bboxPred:select(3,2):uniform(-1,0)
+   bboxPred:select(3,3):uniform(0.00001, 1)
+   bboxPred:select(3,4):uniform(0.00001, 1)
+   bboxPred[batchSize][1]:copy(torch.Tensor{0.5,0.5,1,1})
+   local classPred = torch.Tensor(batchSize, maxInstance, nClass):uniform(-10,0)
+   
+   local output = {bboxPred, classPred}
+   
+   local bboxTarget = torch.Tensor(batchSize, maxInstance, 4)
+   bboxTarget:select(3,1):uniform(-1,0)
+   bboxTarget:select(3,2):uniform(-1,0)
+   bboxTarget:select(3,3):uniform(0.00001, 1)
+   bboxTarget:select(3,4):uniform(0.00001, 1)
+   for i=1,maxInstance do
+      bboxTarget[{batchSize,i,{}}]:copy(torch.Tensor{-1,-1,-0.5,-0.5})
+   end
+   bboxTarget[{batchSize,3,{}}]:copy(torch.Tensor{-0.5,-0.5,0,0}) -- nearest for IoU = 0
+   local classTarget = torch.IntTensor(batchSize, maxInstance):random(1,nClass-1)
+   for i=1,batchSize do
+      local classT = classTarget[i]
+      if i == 1 then
+         classT:zero()
+         classT[1] = 5 -- STOP
+      elseif i == batchSize then -- IoU=0
+         classT:narrow(1,maxInstance,1):zero()
+      else
+         local start = math.random(2,7)
+         classT:narrow(1,start,maxInstance-start+1):zero()
+      end
+   end
+   
+   local target = {bboxTarget, classTarget}
+   local input = torch.randn(batchSize,4,32,32)
+   input:select(2,4):zero()
+   
+   local batch = dp.Batch{
+      inputs=dp.ImageView('bchw', input),
+      targets=dp.ListView{dp.SequenceView('bwc', bboxTarget), dp.ClassView('bt', classTarget)}
+   }
+   
+   local model = nn.Module()
+   local i = 1
+   model.forward = function(self, input, indices)
+      local output = {bboxPred:select(2,i):index(1,indices), classPred:select(2,i):index(1,indices)}
+      i = i + 1
+      return output
+   end
+   
+   local bbd = dp.BoundingBoxDetect()
+   local eval = dp.CocoEvaluator{feedback=bbd}
+   eval:setup{
+      mediator = dp.Mediator(), id = dp.ObjectID('evaluator'),
+      model = model
+   }
+   eval.topN = maxInstance
+   eval.sumErr = 0
+   eval:propagateBatch(batch, {})
+  
+end
+
 function dp.test(tests)
    math.randomseed(os.time())
    mytester = torch.Tester()

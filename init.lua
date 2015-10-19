@@ -15,7 +15,7 @@ ffi = require 'ffi'
 -- deep learning library for torch7.
 ------------------------------------------------------------------------
 
-unpack = table.unpack -- lua 5.2
+unpack = unpack or table.unpack -- lua 5.2
 
 dp = {}
 dp.TORCH_DIR = os.getenv('TORCH_DATA_PATH') or os.getenv('HOME')
@@ -109,6 +109,7 @@ torch.include('dp', 'preprocess/lecunlcn.lua')
 torch.include('dp', 'propagator/propagator.lua')
 torch.include('dp', 'propagator/optimizer.lua')
 torch.include('dp', 'propagator/evaluator.lua')
+torch.include('dp', 'propagator/cocoevaluator.lua')
 torch.include('dp', 'propagator/experiment.lua')
 
 --[[ feedback ]]--
@@ -119,6 +120,7 @@ torch.include('dp', 'feedback/perplexity.lua')
 torch.include('dp', 'feedback/topcrop.lua')
 torch.include('dp', 'feedback/fkdkaggle.lua')
 torch.include('dp', 'feedback/facialkeypointfeedback.lua')
+torch.include('dp', 'feedback/boundingboxdetect.lua')
 
 --[[ observer ]]--
 torch.include('dp', 'observer/observer.lua')

@@ -1137,6 +1137,7 @@ function dptest.BoundingBoxDetect()
    bboxPred:select(3,4):uniform(0.00001, 1)
    bboxPred[batchSize][1]:copy(torch.Tensor{0.5,0.5,1,1})
    local classPred = torch.Tensor(batchSize, maxInstance, nClass):uniform(-10,0)
+   classPred[1][3][nClass] = 1 -- STOP after 3
    
    local output = {bboxPred, classPred}
    
@@ -1152,10 +1153,7 @@ function dptest.BoundingBoxDetect()
    local classTarget = torch.IntTensor(batchSize, maxInstance):random(1,nClass-1)
    for i=1,batchSize do
       local classT = classTarget[i]
-      if i == 1 then
-         classT:zero()
-         classT[1] = 5 -- STOP
-      elseif i == batchSize then -- IoU=0
+      if i == batchSize then -- IoU=0
          classT:narrow(1,maxInstance,1):zero()
       else
          local start = math.random(2,7)
@@ -1180,7 +1178,7 @@ function dptest.BoundingBoxDetect()
       return output
    end
    
-   local bbd = dp.BoundingBoxDetect()
+   local bbd = dp.BoundingBoxDetect{n_class=4}
    local eval = dp.CocoEvaluator{feedback=bbd}
    eval:setup{
       mediator = dp.Mediator(), id = dp.ObjectID('evaluator'),
@@ -1189,7 +1187,9 @@ function dptest.BoundingBoxDetect()
    eval.topN = maxInstance
    eval.sumErr = 0
    eval:propagateBatch(batch, {})
-  
+   print(bbd.precisionMatrix)
+   bbd:doneEpoch()
+   print(bbd.precisionMatrix)
 end
 
 function dp.test(tests)

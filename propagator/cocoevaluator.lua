@@ -32,9 +32,12 @@ function CocoEvaluator:forward(batch)
    self._classVal = self._classVal or torch.FloatTensor()
    
    -- for the 100 top-scoring predictions
+   local topN = self.topN or 100
    for i=1,self.topN or 100 do
       local output = self._model:forward(self._input, self._indices) -- second arg is for unit testing
       local bboxPred, classPred = unpack(output)
+      assert(bboxPred:min() >= -1)
+      assert(bboxPred:max() <= 1)
       
       if torch.type(bboxPred) ~= 'torch.FloatTensor' then
          self._bboxPred = self._bboxPred or torch.FloatTensor()
@@ -46,8 +49,8 @@ function CocoEvaluator:forward(batch)
       
       if i == 1 then
          self.output = self.output or {torch.FloatTensor(), torch.LongTensor()}
-         self.output[1]:resize(bboxPred:size(1), classTarget:size(2), bboxPred:size(2)):zero()
-         self.output[2]:resize(classPred:size(1), classTarget:size(2)):zero()
+         self.output[1]:resize(bboxPred:size(1), topN, bboxPred:size(2)):zero()
+         self.output[2]:resize(classPred:size(1), topN):zero()
       end
       
       local idx, offset = 1, 0
@@ -70,7 +73,7 @@ function CocoEvaluator:forward(batch)
             x1, y1 = math.max(1, math.min(s,x1)), math.max(1, math.min(s,y1))
             x2, y2 = math.max(1, math.min(s,x2)), math.max(1, math.min(s,y2))
             
-            -- add the predicted bounding box to the input mask
+            -- add the predicted bounding box to the input mask (inplace)
             local mask = input[{self._indices[idx],4,{},{}}]
             mask:narrow(1,y1,y2-y1+1):narrow(2,x1,x2-x1+1):fill(1)
             idx = idx + 1

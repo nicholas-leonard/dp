@@ -110,7 +110,6 @@ function BBD:averagePrecision(precisionMatrix, bboxPred, classPred, bboxTarget, 
    -- for each target class
    for classIdx, tblT in pairs(grpT) do
       local tblP = grpP[classIdx]
-      local tp, fp = 0, 0 -- true/false positive
       
       if tblP then
          local classIoU = {}
@@ -175,7 +174,7 @@ end
 function BBD:report()
    return { 
       [self:name()] = {
-         avgPrec = self.precisionMatrix:mean()
+         avgprec = self.precisionMatrix:mean()
       },
       n_sample = self._n_sample
    }

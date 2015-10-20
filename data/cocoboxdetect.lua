@@ -201,7 +201,7 @@ end
 -- and the number of known instances is sampled uniformly.
 -- The known instances are included in the input mask.
 -- The unkown instances are included as targets.
--- There are multiple target instances (classes + bbox).
+-- There are multiple target instances (classes + bbox) per image.
 function CocoBoxDetect:getSample(input, bbox, class, idx)
    assert(input and bbox and class and idx)
    class:zero()

@@ -1187,9 +1187,24 @@ function dptest.BoundingBoxDetect()
    eval.topN = maxInstance
    eval.sumErr = 0
    eval:propagateBatch(batch, {})
-   print(bbd.precisionMatrix)
+   bbd._verbose = false
    bbd:doneEpoch()
-   print(bbd.precisionMatrix)
+   mytester:assert(not _.isNaN(bbd.precisionMatrix:sum()))
+   bbd:reset()
+   mytester:assert(bbd.precisionMatrix:sum() == 0)
+   
+   local i = 1
+   model.forward = function(self, input, indices)
+      local output = {bboxPred:select(2,i):index(1,indices), classPred:select(2,i):index(1,indices)}
+      i = i + 1
+      return output
+   end
+   
+   classTarget:fill(1)
+   classPred:select(3, 1):fill(1)
+   eval:propagateBatch(batch, {})
+   mytester:assert(bbd.precisionMatrix[1]:sum() > 1)
+   mytester:assert(bbd.precisionMatrix:narrow(1,2,nClass-2):sum() == 0)
 end
 
 function dp.test(tests)

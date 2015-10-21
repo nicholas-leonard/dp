@@ -72,6 +72,11 @@ function CocoDetect:loadValid()
    return dataset
 end
 
+function CocoDetect:classes()
+	local ds = self:trainSet() or self:validSet()
+	return ds:classes()
+end
+
 -- Returns normalize preprocessing function (PPF)
 -- Estimate the per-channel mean/std on training set and caches results
 CocoDetect.normalizePPF = dp.ImageNet.normalizePPF

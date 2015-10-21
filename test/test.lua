@@ -1179,7 +1179,7 @@ function dptest.BoundingBoxDetect()
    end
    
    local bbd = dp.BoundingBoxDetect{n_class=4}
-   local eval = dp.CocoEvaluator{feedback=bbd}
+   local eval = dp.CocoEvaluator{feedback=bbd,stopClass=5}
    eval:setup{
       mediator = dp.Mediator(), id = dp.ObjectID('evaluator'),
       model = model
@@ -1205,6 +1205,76 @@ function dptest.BoundingBoxDetect()
    eval:propagateBatch(batch, {})
    mytester:assert(bbd.precisionMatrix[1]:sum() > 1)
    mytester:assert(bbd.precisionMatrix:narrow(1,2,nClass-2):sum() == 0)
+   
+   -- 1. perfect overlap, only one good class
+   -- 2. stop at second
+   -- 3. IoU = 1,1,0.75, perfect class
+   local bboxPred = torch.Tensor{
+      {{-1,-1,0,0},{0,0,1,1},{0,-1,1,0}},
+      {{-1,-1,0,0},{0,0,1,1},{0,-1,1,0}},
+      {{-1,-1,0,0},{0,0,1,1},{0,-1,0.87,-0.13}}
+   }
+   local classPred = torch.Tensor{
+      {{1,-1,-1,-1},{1,-1,-1,-1},{1,-1,-1,-1}}, -- 1, 1, 1
+      {{1,-1,-1,-1},{-1,-1,-1,1},{-1,-1,1,-1}}, -- 1, stop, 3
+      {{1,-1,-1,-1},{-1,1,-1,-1},{-1,-1,1,-1}} -- 1, 2, 3
+   }
+   
+   local bboxTarget = torch.Tensor{
+      {{-1,-1,0,0},{0,0,1,1},{0,-1,1,0}},
+      {{-1,-1,0,0},{0,0,1,1},{0,-1,1,0}},
+      {{-1,-1,0,0},{0,0,1,1},{0,-1,1,0}} -- 1, 1, 0.7569 IoU
+   }
+   local classTarget = torch.IntTensor{
+      {1,2,0},
+      {1,2,3},
+      {1,2,3}
+   }
+   
+   local pm2 = torch.FloatTensor(3,10):zero()
+   local cc2 = torch.FloatTensor(3):zero()
+   -- first sample
+   pm2[{1,{}}]:add(1/3); cc2:narrow(1,1,2):add(1)
+   -- second
+   pm2[{1,{}}]:add(1); cc2:add(1)
+   -- third
+   pm2[{1,{}}]:add(1); cc2:add(1)
+   pm2[{2,{}}]:add(1);
+   pm2[{3,{1,6}}]:add(1);
+   
+   
+   local target = {bboxTarget, classTarget}
+   local input = torch.randn(3,4,32,32)
+   input:select(2,4):zero()
+   
+   local batch = dp.Batch{
+      inputs=dp.ImageView('bchw', input),
+      targets=dp.ListView{dp.SequenceView('bwc', bboxTarget), dp.ClassView('bt', classTarget)}
+   }
+   
+   local model = nn.Module()
+   local i = 1
+   model.forward = function(self, input, indices)
+      local output = {bboxPred:select(2,i):index(1,indices), classPred:select(2,i):index(1,indices)}
+      i = i + 1
+      return output
+   end
+   
+   local bbd = dp.BoundingBoxDetect{n_class=3}
+   local eval = dp.CocoEvaluator{feedback=bbd,stopClass=4}
+   eval:setup{
+      mediator = dp.Mediator(), id = dp.ObjectID('evaluator'),
+      model = model
+   }
+   eval.topN = 3
+   eval.sumErr = 0
+   eval:propagateBatch(batch, {})
+   bbd._verbose = false
+   local pm = bbd.precisionMatrix
+   local cc = bbd.classCount
+   
+   mytester:assertTensorEq(pm, pm2, 0.00001)
+   mytester:assertTensorEq(cc, cc2, 0.00001)
 end
 
 function dp.test(tests)

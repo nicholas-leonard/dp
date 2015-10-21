@@ -126,7 +126,7 @@ function BBD:averagePrecision(precisionMatrix, bboxPred, classPred, bboxTarget, 
             -- for each remaining pred instance of that class
             for j=1,#predIds do
                -- find the pred instance (of same class) with the most IoU
-               local bboxP = bboxPred:select(1,predIds[j])
+               local bboxP = bboxPred:select(1,tblP.idx[predIds[j]])
                local iou = self.measureIoU(bboxP, bboxT)
                
                if iou > maxIoU then
@@ -134,7 +134,7 @@ function BBD:averagePrecision(precisionMatrix, bboxPred, classPred, bboxTarget, 
                   maxIdx = j
                end
             end
-            
+           
             -- add IoU to table, and delete prediction (so it can't be used twice)
             if maxIoU >= 0.5 then
                table.insert(classIoU, maxIoU)
@@ -156,6 +156,7 @@ function BBD:averagePrecision(precisionMatrix, bboxPred, classPred, bboxTarget, 
             
             -- true positive / (true positive + false positive)
             local precision = tp/tblP.idx:size(1)
+            
             pm:narrow(1,i,1):add(precision)
          end
       end

@@ -1,7 +1,13 @@
 ------------------------------------------------------------------------
 --[[ CocoEvaluator ]]--
 ------------------------------------------------------------------------
-local CocoEvaluator = torch.class("dp.CocoEvaluator", "dp.Evaluator")
+local CocoEvaluator, parent = torch.class("dp.CocoEvaluator", "dp.Evaluator")
+
+function CocoEvaluator:__init(config)
+   self.topN = config.topN or 100
+   self.stopClass = config.stopClass or 81
+   parent.__init(self, config)
+end
 
 -- During evaluation, all instances are unknown. 
 -- So the input mask only masks the padding.
@@ -26,14 +32,13 @@ function CocoEvaluator:forward(batch)
    self._indices:resize(input:size(1)):range(1,input:size(1))
    
    self._input = self._input or input.new()
-   self._input:resizeAs(self._input):copy(self._input)
+   self._input:resizeAs(input):copy(input)
    
    self._classIdx = self._classIdx or torch.LongTensor()
    self._classVal = self._classVal or torch.FloatTensor()
    
    -- for the 100 top-scoring predictions
-   local topN = self.topN or 100
-   for i=1,self.topN or 100 do
+   for i=1,self.topN do
       local output = self._model:forward(self._input, self._indices) -- second arg is for unit testing
       local bboxPred, classPred = unpack(output)
       assert(bboxPred:min() >= -1)
@@ -47,21 +52,28 @@ function CocoEvaluator:forward(batch)
          bboxPred, classPred = self._bboxPred, self._classPred
       end
       
+      self._classVal:max(self._classIdx, classPred, 2)
+      classPred = self._classIdx:select(2,1)
+      
       if i == 1 then
          self.output = self.output or {torch.FloatTensor(), torch.LongTensor()}
-         self.output[1]:resize(bboxPred:size(1), topN, bboxPred:size(2)):zero()
-         self.output[2]:resize(classPred:size(1), topN):zero()
+         self.output[1]:resize(bboxPred:size(1), self.topN, bboxPred:size(2)):zero()
+         self.output[2]:resize(classPred:size(1), self.topN):zero()
       end
       
       local idx, offset = 1, 0
       -- for each non-STOPed sample
       for j=1,self._indices:size(1) do
-         local classP = classPred:select(1,j)
-         local bboxP = bboxPred:select(1,j)
+         local classP = classPred:select(1,idx+offset)
+         local bboxP = bboxPred:select(1,idx+offset)
          
-         if classP ~= 81 then
+         if classP ~= self.stopClass then
             -- keep track of the indices of non-STOPep samples
-            self._indices[idx] = self._indices[idx+offset]
+            if offset > 0 then
+               self._indices[idx] = self._indices[idx+offset]
+               bboxPred[idx]:copy(bboxPred[idx+offset])
+               classPred[idx] = classPred[idx+offset]
+            end
             
             -- (-1,-1) top left corner, (1,1) bottom right corner of image
             local x1,y1,x2,y2 = bboxP[1], bboxP[2], bboxP[3], bboxP[4]
@@ -86,10 +98,11 @@ function CocoEvaluator:forward(batch)
          break -- stop when all samples predict STOP class
       end
       
-      self._classVal:max(self._classIdx, classPred, 2)
       self._indices:resize(idx-1)
+      bboxPred:resize(idx-1, 4)
+      classPred:resize(idx-1)
       self.output[1]:select(2,i):indexCopy(1, self._indices, bboxPred)
-      self.output[2]:select(2,i):indexCopy(1, self._indices, self._classIdx:select(2,1))
+      self.output[2]:select(2,i):indexCopy(1, self._indices, classPred)
       self._input:index(input, 1, self._indices)
    end
    

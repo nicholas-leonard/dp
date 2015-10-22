@@ -16,7 +16,7 @@ function CocoDetect:__init(config)
             "Use Sampler ppf arg instead (for online preprocessing)")
    end
    local load_all
-   self._args, self._data_path, self._input_size, 
+   self._args, self._data_path, self._input_size, self._single_class,
       self._verbose, load_all, self._cache_mode
       = xlua.unpack(
       {config},
@@ -29,6 +29,8 @@ function CocoDetect:__init(config)
       {arg='input_size', type='number', default=256 ,
        help='size (height=width) of the image. Padding will be added '..
        'around non-square images, which will be centered in the input'},
+      {arg='single_class', type='boolean', default=false,
+       help='sample a single class of instances per image during training'},
       {arg='verbose', type='boolean', default=true,
        help='Verbose mode during initialization'},
       {arg='load_all', type='boolean', default=true,
@@ -54,7 +56,7 @@ function CocoDetect:loadTrain()
       instance_path=paths.concat(self._data_path, 'annotations/instances_train2014.json'), 
       input_size=self._input_size, which_set='train', 
       verbose=self._verbose, cache_mode=self._cache_mode,
-      evaluate=false
+      evaluate=false, single_class=self._single_class
    }
    self:trainSet(dataset)
    return dataset

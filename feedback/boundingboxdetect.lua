@@ -19,18 +19,23 @@ function BBD:__init(config)
    config = config or {}
    assert(torch.type(config) == 'table' and not config[1], 
       "Constructor requires key-value arguments")
-   local args, n_class, name = xlua.unpack(
+   local iou_thresholds = torch.range(0.5,0.951,0.05):float():totable()
+   local args, n_class, iou_thresholds, name = xlua.unpack(
       {config},
       'Bounding box detection feedback', 
       'measures Precision averages over categories and IoUs',
       {arg='n_class', type='number', default=80,
        help='number of classes'},
+      {arg='iou_thresholds', type='torch.Tensor', default=iou_thresholds,
+       help='IoU thresholds to average over'},
       {arg='name', type='string', default='bbd',
        help='name identifying Feedback in reports'}
    )
    config.name = name
    self._n_class = n_class
-   self.precisionMatrix = torch.FloatTensor(self._n_class, 10):zero()
+   self._iou_thresholds = iou_thresholds
+   print(self._iou_thresholds)
+   self.precisionMatrix = torch.FloatTensor(self._n_class, #self._iou_thresholds):zero()
    self.classCount = torch.FloatTensor(self._n_class):zero()
    parent.__init(self, config)
 end
@@ -41,10 +46,11 @@ function BBD:setup(config)
 end
 
 function BBD:doneEpoch(report)
-   self.precisionMatrix:cdiv(self.classCount:view(self._n_class, 1):expand(self._n_class, 10))
+   self.precisionMatrix:cdiv(self.classCount:view(self._n_class, 1):expand(self._n_class, #self._iou_thresholds))
    self.precisionMatrix:apply(function(v) return _.isNaN(v) and 0 or v end)
    if self._verbose then
-      print(self._id:toString().." AvgPrec = "..self.precisionMatrix:mean())
+      print(self._id:toString().." avgPrec = "..self.precisionMatrix:mean())
+      print("("..table.concat(self.precisionMatrix:mean(1)[1]:totable(),',')..")")
    end
 end
 
@@ -93,7 +99,11 @@ function BBD:averagePrecision(precisionMatrix, bboxPred, classPred, bboxTarget, 
    assert(classPred:dim() == 1)
    assert(bboxTarget:dim() == 2)
    assert(classTarget:dim() == 1)
-   assert(classTarget:max() <= self._n_class)
+   
+   if classTarget[1] > self._n_class then
+      -- ignore images with no instances
+      return
+   end
    
    self._grpValP = self._grpValP or classPred.new()
    self._grpIdxP = self._grpIdxP or torch.LongTensor()
@@ -104,8 +114,6 @@ function BBD:averagePrecision(precisionMatrix, bboxPred, classPred, bboxTarget, 
    self._grpIdxT = self._grpIdxT or torch.LongTensor()
    local grpT = torch.group(self._grpValT, self._grpIdxT, classTarget)
    grpT[0] = nil -- remove zero-terminates
-   
-   self._iouThresholds = self._iouThresholds or torch.range(0.5,0.951,0.05):float()
    
    -- for each target class
    for classIdx, tblT in pairs(grpT) do
@@ -144,8 +152,8 @@ function BBD:averagePrecision(precisionMatrix, bboxPred, classPred, bboxTarget, 
          
          local pm = precisionMatrix[classIdx]
          
-         for i=1,10 do
-            local threshold = self._iouThresholds[i]
+         for i=1,#self._iou_thresholds do
+            local threshold = self._iou_thresholds[i]
             
             local tp = 0
             for j,iou in ipairs(classIoU) do

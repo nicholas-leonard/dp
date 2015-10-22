@@ -13,6 +13,7 @@ cmd:option('--verbose', false, 'print verbose messages')
 cmd:option('--testAsyncSub', false, 'test asynchronous sub')
 cmd:option('--testAsyncSample', false, 'test asynchronous sample')
 cmd:option('--testClassMap', false, 'test that class map matches for train and test')
+cmd:option('--singleClass', false, 'test the single_class option')
 cmd:option('--nThread', 2, 'number of threads')
 cmd:text()
 opt = cmd:parse(arg or {})
@@ -20,7 +21,8 @@ opt = cmd:parse(arg or {})
 
 ds = dp.CocoDetect{
    data_path=opt.dataPath, load_all=false,
-   cache_mode = opt.overwrite and 'overwrite' or 'writeonce'
+   cache_mode = opt.overwrite and 'overwrite' or 'writeonce',
+   single_class = opt.singleClass
 }
 
 if opt.testAsyncSub then

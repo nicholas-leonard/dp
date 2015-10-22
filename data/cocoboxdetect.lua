@@ -20,7 +20,8 @@ CocoBoxDetect._output_shape = {'bf', 'b'} -- bbox(x,y,w,h), class
 function CocoBoxDetect:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, image_path, instance_path, input_size, which_set,  
-      verbose, cache_mode, cache_path, evaluate = xlua.unpack(
+      verbose, cache_mode, cache_path, evaluate, single_class 
+      = xlua.unpack(
       {config},
       'CocoBoxDetect', 
       'A DataSet for the MS COCO detection challenge.',
@@ -43,7 +44,9 @@ function CocoBoxDetect:__init(config)
       {arg='cache_path', type='string',
        help='Path to cache. Defaults to [image_path]/[which_set]_cache.t7'},
       {arg='evaluate', type='boolean', default=false,
-       help='set this to true for evaluation using the CocoEvaluator'}
+       help='set this to true for evaluation using the CocoEvaluator'},
+      {arg='single_class', type='boolean', default=false,
+       help='sample a single class of instances per image during training'}
    )
    -- globals
    gm = require 'graphicsmagick'
@@ -55,6 +58,7 @@ function CocoBoxDetect:__init(config)
    self._input_size = input_size
    self._verbose = verbose
    self._evaluate = evaluate
+   self._single_class = single_class
    
    self._cache_mode = cache_mode
    self._cache_path = cache_path or paths.concat(self._image_path, which_set..'_cache.t7')
@@ -207,19 +211,45 @@ function CocoBoxDetect:getSample(input, bbox, class, idx)
    class:zero()
    bbox:zero()
    local imageId, instanceId, imagePath
+   local known, unknown = {}, {}
    if self._evaluate then
       imageId = self.imageIds[idx]
-      nKnown = 0
+      unknown = _.clone(self.imageMap[imageId][2])
+      known = {} 
    else
       if idx > 0 then 
          instanceId = self.instanceIds[idx]
          imageId = self.instanceMap[instanceId][2]
-         nKnown = torch.random(0,math.max(#self.imageMap[imageId][2]-1,0))
+         if self._single_class then
+            -- the class of that instance was sampled.
+            local classId = self.instanceMap[instanceId][1]
+            -- every other class' instances are known.
+            for i, otherId in ipairs(self.imageMap[imageId][2]) do
+               if self.instanceMap[otherId][1] == classId then
+                  table.insert(unknown, otherId)
+               else
+                  table.insert(known, otherId)
+               end
+            end
+         else
+            -- get known instances (previously found, masked in input)
+            -- and unknown instances (possible target classes and bboxes)   
+            local nKnown = torch.random(0,math.max(#self.imageMap[imageId][2]-1,0))
+            local instanceIds = _.shuffle(self.imageMap[imageId][2])
+            if idx > 0 then
+               instanceIds = _.pull(instanceIds, instanceId) -- remove main instance Id
+            end
+            unknown =  _.first(instanceIds, #instanceIds - nKnown)
+            known = _.last(instanceIds, #instanceIds - #unknown) or {}
+            if idx > 0 then
+               table.insert(unknown, instanceId) -- put back main instance Id
+            end
+         end
       else -- the special STOP class was sampled :
          -- choose a random image
          imageId = self.imageIds[math.random(1, self.imageIds:size(1))]
          -- all instances are known
-         nKnown = #self.imageMap[imageId][2]
+         known = _.clone(self.imageMap[imageId][2])
       end
    end
    
@@ -249,24 +279,6 @@ function CocoBoxDetect:getSample(input, bbox, class, idx)
    -- mask padding
    local resMask = input:narrow(1,4,1):fill(1)
    resMask:narrow(2,padH+1,oH):narrow(3,padW+1,oW):zero()
-   
-   -- get known instances (previously found, masked in input)
-   -- and unknown instances (possible target classes and bboxes)   
-   local unknown, known
-   if self._evaluate then
-      unknown = _.clone(self.imageMap[imageId][2])
-      known = {} 
-   else
-      local instanceIds = _.shuffle(self.imageMap[imageId][2])
-      if idx > 0 then
-         instanceIds = _.pull(instanceIds, instanceId) -- remove main instance Id
-      end
-      unknown =  _.first(instanceIds, #instanceIds - nKnown)
-      known = _.last(instanceIds, #instanceIds - #unknown) or {}
-      if idx > 0 then
-         table.insert(unknown, instanceId) -- put back main instance Id
-      end
-   end
    
    -- mask all known instance bounding box
    local imgData = self.imageMap[imageId]

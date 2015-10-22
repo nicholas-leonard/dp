@@ -1269,7 +1269,6 @@ function dptest.BoundingBoxDetect()
    eval.topN = 3
    eval.sumErr = 0
    eval:propagateBatch(batch, {})
-   bbd._verbose = false
    local pm = bbd.precisionMatrix
    local cc = bbd.classCount
    

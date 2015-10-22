@@ -71,8 +71,8 @@ function CocoEvaluator:forward(batch)
             -- keep track of the indices of non-STOPep samples
             if offset > 0 then
                self._indices[idx] = self._indices[idx+offset]
-               bboxPred[idx]:copy(bboxPred[idx+offset])
-               classPred[idx] = classPred[idx+offset]
+               bboxPred[idx]:copy(bboxP)
+               classPred[idx] = classP
             end
             
             -- (-1,-1) top left corner, (1,1) bottom right corner of image
@@ -83,7 +83,7 @@ function CocoEvaluator:forward(batch)
             local s = input:size(3); assert(s == input:size(4))
             x1, y1, x2, y2 = x1*(s-1)+1, y1*(s-1)+1, x2*(s-1)+1, y2*(s-1)+1
             x1, y1 = math.max(1, math.min(s,x1)), math.max(1, math.min(s,y1))
-            x2, y2 = math.max(1, math.min(s,x2)), math.max(1, math.min(s,y2))
+            x2, y2 = math.max(x1, math.min(s,x2)), math.max(y1, math.min(s,y2))
             
             -- add the predicted bounding box to the input mask (inplace)
             local mask = input[{self._indices[idx],4,{},{}}]

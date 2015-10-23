@@ -19,7 +19,7 @@ function BBD:__init(config)
    config = config or {}
    assert(torch.type(config) == 'table' and not config[1], 
       "Constructor requires key-value arguments")
-   local iou_thresholds = torch.range(0.5,0.951,0.05):float():totable()
+   local iou_thresholds = {0.5,0.55,0.6,0.65,0.7,0.75,0.8,0.85,0.9,0.95}
    local args, n_class, iou_thresholds, name = xlua.unpack(
       {config},
       'Bounding box detection feedback', 
@@ -34,7 +34,6 @@ function BBD:__init(config)
    config.name = name
    self._n_class = n_class
    self._iou_thresholds = iou_thresholds
-   print(self._iou_thresholds)
    self.precisionMatrix = torch.FloatTensor(self._n_class, #self._iou_thresholds):zero()
    self.classCount = torch.FloatTensor(self._n_class):zero()
    parent.__init(self, config)

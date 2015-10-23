@@ -220,6 +220,7 @@ function CocoBoxDetect:getSample(input, bbox, class, idx)
       if idx > 0 then 
          instanceId = self.instanceIds[idx]
          imageId = self.instanceMap[instanceId][2]
+         
          if self._single_class then
             -- the class of that instance was sampled.
             local classId = self.instanceMap[instanceId][1]
@@ -231,6 +232,7 @@ function CocoBoxDetect:getSample(input, bbox, class, idx)
                   table.insert(known, otherId)
                end
             end
+            assert(#unknown > 0)
          else
             -- get known instances (previously found, masked in input)
             -- and unknown instances (possible target classes and bboxes)   

@@ -17,7 +17,7 @@ function CocoDetect:__init(config)
    end
    local load_all
    self._args, self._data_path, self._input_size, self._single_class,
-      self._verbose, load_all, self._cache_mode
+      self._category_ids, self._verbose, load_all, self._cache_mode
       = xlua.unpack(
       {config},
       'CocoDetect',
@@ -31,6 +31,8 @@ function CocoDetect:__init(config)
        'around non-square images, which will be centered in the input'},
       {arg='single_class', type='boolean', default=false,
        help='sample a single class of instances per image during training'},
+      {arg='category_ids', type='table',
+       help='use a subset of categoryIds'},
       {arg='verbose', type='boolean', default=true,
        help='Verbose mode during initialization'},
       {arg='load_all', type='boolean', default=true,
@@ -56,7 +58,8 @@ function CocoDetect:loadTrain()
       instance_path=paths.concat(self._data_path, 'annotations/instances_train2014.json'), 
       input_size=self._input_size, which_set='train', 
       verbose=self._verbose, cache_mode=self._cache_mode,
-      evaluate=false, single_class=self._single_class
+      evaluate=false, single_class=self._single_class,
+      category_ids=self._category_ids
    }
    self:trainSet(dataset)
    return dataset
@@ -68,7 +71,7 @@ function CocoDetect:loadValid()
       instance_path=paths.concat(self._data_path, 'annotations/instances_val2014.json'), 
       input_size=self._input_size, which_set='valid', 
       verbose=self._verbose, cache_mode=self._cache_mode,
-	  evaluate=true
+      category_ids=self._category_ids, evaluate=true
    }
    self:validSet(dataset)
    return dataset

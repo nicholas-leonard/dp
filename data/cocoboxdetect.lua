@@ -20,7 +20,7 @@ CocoBoxDetect._output_shape = {'bf', 'b'} -- bbox(x,y,w,h), class
 function CocoBoxDetect:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
    local args, image_path, instance_path, input_size, which_set,  
-      verbose, cache_mode, cache_path, evaluate, single_class 
+      verbose, cache_mode, cache_path, evaluate, single_class, category_ids
       = xlua.unpack(
       {config},
       'CocoBoxDetect', 
@@ -46,7 +46,9 @@ function CocoBoxDetect:__init(config)
       {arg='evaluate', type='boolean', default=false,
        help='set this to true for evaluation using the CocoEvaluator'},
       {arg='single_class', type='boolean', default=false,
-       help='sample a single class of instances per image during training'}
+       help='sample a single class of instances per image during training'},
+      {arg='category_ids', type='table',
+       help='use a subset of categoryIds'}
    )
    -- globals
    gm = require 'graphicsmagick'
@@ -59,9 +61,10 @@ function CocoBoxDetect:__init(config)
    self._verbose = verbose
    self._evaluate = evaluate
    self._single_class = single_class
+   self._category_ids = category_ids
    
    self._cache_mode = cache_mode
-   self._cache_path = cache_path or paths.concat(self._image_path, which_set..'_cache.t7')
+   self._cache_path = cache_path or paths.concat(self._image_path, which_set..(category_ids and table.concat(category_ids,'-') or '')..'_cache.t7')
    
    -- indexing and caching
    assert(_.find({'writeonce','overwrite','nocache','readonly'},cache_mode), 'invalid cache_mode :'..cache_mode)
@@ -111,15 +114,16 @@ function CocoBoxDetect:buildIndex()
    -- category-id -> class-id
    self.category = {} 
    -- class-id -> category_name
-   local nClass = 0
-   self._classes = _.map(data.categories, 
-      function(class_id,category) 
-         self.category[category.id] = class_id
-         self.classMap[class_id] = {{}, 0, category.id}
-         nClass = nClass + 1
-         return category.name 
-      end)
-   assert(nClass == #self._classes)
+   local classId = 1
+   self._classes = {}
+   for i,category in ipairs(data.categories) do
+      if not (self._category_ids and not _.contains(self._category_ids, category.id)) then
+         self.category[category.id] = classId
+         self.classMap[classId] = {{}, 0, category.id}
+         self._classes[classId] = category.name 
+         classId = classId + 1
+      end
+   end
    data.categories = nil
    
    dp.vprint(self._verbose, "Building data indexes")
@@ -127,27 +131,35 @@ function CocoBoxDetect:buildIndex()
    for i,inst in ipairs(data.annotations) do
       -- class/category
       local class_id = self.category[inst.category_id]
-      assert(class_id)
-      -- frequency
-      self.classMap[class_id][2] = self.classMap[class_id][2] + 1
-      
-      -- add instance to map
-      self.instanceMap[inst.id] = {class_id, inst.image_id, inst.bbox}
-      
-      -- add instance to image
-      table.insert(self.imageMap[inst.image_id][2], inst.id)
-      
-      -- add instance to class
-      local class = self.classMap[class_id]
-      table.insert(class[1], inst.id)
-      
-      -- delete from data as we index
-      data.annotations[i] = nil
-      if i % 100000 == 0 then
-         collectgarbage()
+      if class_id then
+         -- frequency
+         self.classMap[class_id][2] = self.classMap[class_id][2] + 1
+         
+         -- add instance to map
+         self.instanceMap[inst.id] = {class_id, inst.image_id, inst.bbox}
+         
+         -- add instance to image
+         table.insert(self.imageMap[inst.image_id][2], inst.id)
+         
+         -- add instance to class
+         local class = self.classMap[class_id]
+         table.insert(class[1], inst.id)
+         
+         -- delete from data as we index
+         data.annotations[i] = nil
+         if i % 100000 == 0 then
+            collectgarbage()
+         end
+         if self._verbose then
+            xlua.progress(i, nInst)
+         end
       end
-      if self._verbose then
-         xlua.progress(i, nInst)
+   end
+   
+   -- remove images having no instances
+   for imageId, imageData in pairs(self.imageMap) do
+      if #imageData[2] == 0 then
+         self.imageMap[imageId] = nil
       end
    end
    

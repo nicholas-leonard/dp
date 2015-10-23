@@ -14,6 +14,7 @@ cmd:option('--testAsyncSub', false, 'test asynchronous sub')
 cmd:option('--testAsyncSample', false, 'test asynchronous sample')
 cmd:option('--testClassMap', false, 'test that class map matches for train and test')
 cmd:option('--singleClass', false, 'test the single_class option')
+cmd:option('--small', false, 'test 10 categories')
 cmd:option('--nThread', 2, 'number of threads')
 cmd:text()
 opt = cmd:parse(arg or {})
@@ -22,7 +23,8 @@ opt = cmd:parse(arg or {})
 ds = dp.CocoDetect{
    data_path=opt.dataPath, load_all=false,
    cache_mode = opt.overwrite and 'overwrite' or 'writeonce',
-   single_class = opt.singleClass
+   single_class = opt.singleClass, 
+   category_ids = opt.small and {10,11,12,13,14,15,16,17,18,19,20} or nil
 }
 
 if opt.testAsyncSub then
@@ -126,6 +128,7 @@ elseif opt.testAsyncSample then
 elseif opt.testClassMap then
    ds:loadTrain()
    ds:loadValid()
+   print("nClasses", #ds:trainSet():classes())
    print(unpack(ds:trainSet():classes()))
    print(unpack(ds:validSet():classes()))
    assert(_.same(ds:trainSet():classes(), ds:validSet():classes()))

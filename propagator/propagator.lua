@@ -93,7 +93,6 @@ function Propagator:propagateEpoch(dataset, report)
    -- local vars
    local start_time = sys.clock()
    local batch, i, n, last_n
-   local n_batch = 0
    
    if self._stats and self._verbose then
       print('==> epoch # '..(report.epoch + 1)..' for '..self:name()..' :')
@@ -106,7 +105,7 @@ function Propagator:propagateEpoch(dataset, report)
    
    self._epoch_callback(self._model, report)
    
-   self._n_sample = 0
+   self._n_batch = 0
    local sampler = self._sampler:sampleEpoch(dataset)
    while true do
       -- reuse the batch object
@@ -123,6 +122,7 @@ function Propagator:propagateEpoch(dataset, report)
          break 
       end
       
+      self._n_batch = self._n_batch + 1
       self.nSample = i
       self:propagateBatch(batch, report)
       
@@ -131,14 +131,13 @@ function Propagator:propagateEpoch(dataset, report)
          xlua.progress(i, n)
       end
       last_n = n
-      n_batch = n_batch + 1
    end
    
    -- time taken
    self._epoch_duration = sys.clock() - start_time
-   self._batch_duration = self._epoch_duration / math.max(n_batch, 0.000001)
+   self._batch_duration = self._epoch_duration / math.max(self._n_batch, 0.000001)
    self._example_speed = last_n / self._epoch_duration
-   self._batch_speed = n_batch / self._epoch_duration
+   self._batch_speed = self._n_batch / self._epoch_duration
    if self._stats and self._verbose then
       print("==> example speed = "..self._example_speed..' examples/s')
    end
@@ -169,7 +168,14 @@ function Propagator:forward(batch)
 end
 
 function Propagator:monitor(batch, report)
-   self.sumErr = self.sumErr + (self.err or 0)
+   if torch.isTensor(self.err) then
+      if not torch.isTensor(self.sumErr) then
+         self.sumErr = self.err:clone():zero()
+      end
+      self.sumErr:add(self.err)
+   else
+      self.sumErr = self.sumErr + (self.err or 0)
+   end
    -- monitor error and such
    if self._feedback then
       self._feedback:add(batch, self.output, report)
@@ -193,10 +199,19 @@ end
 function Propagator:report()
    local avgErr
    if self._loss and self.sumErr and self.nSample > 0 then
-      avgErr = self.sumErr/self.nSample
-      if self._verbose then
-         print(self:id():toString()..':loss avgErr '..avgErr)
+      -- the division by n_batch is actually a crude approximation.
+      if torch.isTensor(self.sumErr) then
+         avgErr = self.sumErr:clone():div(self._n_batch)
+         if self._verbose then
+            print(self:id():toString()..':loss avgErr '..table.concat(avgErr:float():totable(),','))
+         end
+      else
+         avgErr = self.sumErr/self._n_batch
+         if self._verbose then
+            print(self:id():toString()..':loss avgErr '..avgErr)
+         end
       end
+      
    end
    local report = {
       name = self:id():name(),      

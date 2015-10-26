@@ -7,13 +7,13 @@ end
 
 function Print:updateOutput(input)
    self.output = input
-   print(self.prefix..":input\n", input.size and input:size() or input, torch.type(input))
+   print(self.prefix..":input\n", input:sum())
    return self.output
 end
 
 
 function Print:updateGradInput(input, gradOutput)
-   print(self.prefix.."gradOutput\n", gradOutput.size and gradOutput:size() or gradOutput, torch.type(gradOutput))
+   print(self.prefix.."gradOutput\n", gradOutput:sum())
    self.gradInput = gradOutput
    return self.gradInput
 end

@@ -47,10 +47,6 @@ end
 function BBD:doneEpoch(report)
    self.precisionMatrix:cdiv(self.classCount:view(self._n_class, 1):expand(self._n_class, #self._iou_thresholds))
    self.precisionMatrix:apply(function(v) return _.isNaN(v) and 0 or v end)
-   if self._verbose then
-      print(self._id:toString().." avgPrec = "..self.precisionMatrix:mean())
-      print("("..table.concat(self.precisionMatrix:mean(1)[1]:totable(),',')..")")
-   end
 end
 
 function BBD:_add(batch, output, report)
@@ -180,6 +176,11 @@ function BBD:_reset()
 end
 
 function BBD:report()
+   if self._verbose then
+      print(self._id:toString().." avgPrec = "..self.precisionMatrix:mean())
+      print("("..table.concat(self.precisionMatrix:mean(1)[1]:totable(),',')..")")
+   end
+   
    return { 
       [self:name()] = {
          avgprec = self.precisionMatrix:mean()

@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------
 --[[ CocoDetect ]]--
 -- MS COCO box detection DataSource
--- Encapsulates CocoBoxDetect DataSets.
+-- Encapsulates CocoDetectSet DataSets.
 -- Note: install torch with Lua instead of LuaJIT to make this work...
 ------------------------------------------------------------------------
 local CocoDetect, DataSource = torch.class("dp.CocoDetect", "dp.DataSource")
@@ -16,7 +16,7 @@ function CocoDetect:__init(config)
             "Use Sampler ppf arg instead (for online preprocessing)")
    end
    local load_all
-   self._args, self._data_path, self._input_size, self._single_class,
+   self._args, self._data_path, self._load_size, self._sample_size,
       self._category_ids, self._verbose, load_all, self._cache_mode
       = xlua.unpack(
       {config},
@@ -26,11 +26,10 @@ function CocoDetect:__init(config)
        help='path to dir containing the following directories :'..
        'train2014, val2014 and annotations. The latter contains the'..
        'instances_[train,val]2014.json files'},
-      {arg='input_size', type='number', default=256 ,
-       help='size (height=width) of the image. Padding will be added '..
-       'around non-square images, which will be centered in the input'},
-      {arg='single_class', type='boolean', default=false,
-       help='sample a single class of instances per image during training'},
+      {arg='load_size', type='number', default=256,
+       help='a size to load the images to, initially'},
+      {arg='sample_size', type='number', default=224,
+       help='a consistent sample size to resize the images.'},
       {arg='category_ids', type='table',
        help='use a subset of categoryIds'},
       {arg='verbose', type='boolean', default=true,
@@ -44,7 +43,7 @@ function CocoDetect:__init(config)
        'readonly : only read from cache, fail otherwise.'}
    )
    
-   self._image_size = {4, self._input_size, self._input_size}
+   self._image_size = {3, self._sample_size, self._sample_size}
    
    if load_all then
       self:loadTrain()
@@ -53,24 +52,25 @@ function CocoDetect:__init(config)
 end
 
 function CocoDetect:loadTrain()
-   local dataset = dp.CocoBoxDetect{
+   local dataset = dp.CocoDetectSet{
       image_path=paths.concat(self._data_path, 'train2014'),
       instance_path=paths.concat(self._data_path, 'annotations/instances_train2014.json'), 
-      input_size=self._input_size, which_set='train', 
+      which_set='train', 
       verbose=self._verbose, cache_mode=self._cache_mode,
-      evaluate=false, single_class=self._single_class,
-      category_ids=self._category_ids
+      load_size=self._load_size, sample_size=self._sample_size,
+      category_ids=self._category_ids, evaluate=false
    }
    self:trainSet(dataset)
    return dataset
 end
 
 function CocoDetect:loadValid()
-   local dataset = dp.CocoBoxDetect{
+   local dataset = dp.CocoDetectSet{
       image_path=paths.concat(self._data_path, 'val2014'),
       instance_path=paths.concat(self._data_path, 'annotations/instances_val2014.json'), 
-      input_size=self._input_size, which_set='valid', 
+      which_set='valid', 
       verbose=self._verbose, cache_mode=self._cache_mode,
+      load_size=self._load_size, sample_size=self._sample_size,
       category_ids=self._category_ids, evaluate=true
    }
    self:validSet(dataset)

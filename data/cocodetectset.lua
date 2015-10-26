@@ -1,37 +1,30 @@
 ------------------------------------------------------------------------
---[[ CocoBoxDetect ]]--
+--[[ CocoDetectSet ]]--
 -- Wraps the MS COCO bounding box (bbox) detection dataset.
--- The input is 4 channel image : rgb + mask. The mask channel will 
--- contain all the previously detected (known) instance bboxes.
--- The target is the remaining (unknown) instance bboxes and classes.
--- For training, the instances are randomly split between known/unkown.
--- For evaluation, all instances are unknown. The CocoEvaluator will 
--- be responsible for iterating the model, updating the next input mask
--- with the previous predicted bboxes.
--- Note : some images have no instances
--- Note : we add a special STOP class which needs to be predicted when
--- all instances are known. Helps the model learn to known when to stop.
+-- The input is 3 channel image : rgb 
+-- The target contains many instance bboxes and classes.
 ------------------------------------------------------------------------
-local CocoBoxDetect, parent = torch.class("dp.CocoBoxDetect", "dp.DataSet")
+local CocoDetectSet, parent = torch.class("dp.CocoDetectSet", "dp.DataSet")
 
-CocoBoxDetect._input_shape = 'bchw' -- image
-CocoBoxDetect._output_shape = {'bf', 'b'} -- bbox(x,y,w,h), class
+CocoDetectSet._input_shape = 'bchw' -- image
+CocoDetectSet._output_shape = {'bf', 'b'} -- bbox(x,y,w,h), class
 
-function CocoBoxDetect:__init(config)
+function CocoDetectSet:__init(config)
    assert(type(config) == 'table', "Constructor requires key-value arguments")
-   local args, image_path, instance_path, input_size, which_set,  
-      verbose, cache_mode, cache_path, evaluate, single_class, category_ids
+   local args, image_path, instance_path, load_size, sample_size, which_set,  
+      verbose, cache_mode, cache_path, evaluate, category_ids
       = xlua.unpack(
       {config},
-      'CocoBoxDetect', 
+      'CocoDetectSet', 
       'A DataSet for the MS COCO detection challenge.',
       {arg='image_path', type='string', req=true,
        help='path to directory containing images'},
       {arg='instance_path', type='string', req=true,
        help='path to JSON instance (instance) file'},
-      {arg='input_size', type='number', default=256,
-       help='size (height=width) of the image. Padding will be added '..
-       'around non-square images, which will be centered in the input'},
+      {arg='load_size', type='number', default=256,
+       help='a size to load the images to, initially'},
+      {arg='sample_size', type='number', default=224,
+       help='a consistent sample size to resize the images.'},
       {arg='which_set', type='string', default='train',
        help='"train", "valid" or "test" set'},
       {arg='verbose', type='boolean', default=true,
@@ -45,8 +38,6 @@ function CocoBoxDetect:__init(config)
        help='Path to cache. Defaults to [image_path]/[which_set]_cache.t7'},
       {arg='evaluate', type='boolean', default=false,
        help='set this to true for evaluation using the CocoEvaluator'},
-      {arg='single_class', type='boolean', default=false,
-       help='sample a single class of instances per image during training'},
       {arg='category_ids', type='table',
        help='use a subset of categoryIds'}
    )
@@ -57,10 +48,10 @@ function CocoBoxDetect:__init(config)
    self:whichSet(which_set)
    self._image_path = image_path
    self._instance_path = instance_path
-   self._input_size = input_size
+   self._load_size = load_size
+   self._sample_size = sample_size
    self._verbose = verbose
    self._evaluate = evaluate
-   self._single_class = single_class
    self._category_ids = category_ids
    
    self._cache_mode = cache_mode
@@ -81,15 +72,10 @@ function CocoBoxDetect:__init(config)
       end
    end
    
-   -- add the special STOP class at the end of the classes list
-   if self._classes[#self._classes] ~= 'STOP' then
-      table.insert(self._classes, 'STOP')
-   end
-   
    self._config = config 
 end
 
-function CocoBoxDetect:buildIndex()
+function CocoDetectSet:buildIndex()
    -- load json instances
    local file = io.open(self._instance_path)
    local blocks = {}
@@ -187,7 +173,7 @@ function CocoBoxDetect:buildIndex()
    end
 end
 
-function CocoBoxDetect:saveIndex()
+function CocoDetectSet:saveIndex()
    local index = {}
    for i,k in ipairs{'imageMap','_classes','category','classMap','instanceMap','instanceIds', 'imageIds','_max_instance'} do
       index[k] = self[k]
@@ -195,7 +181,7 @@ function CocoBoxDetect:saveIndex()
    torch.save(self._cache_path, index)
 end
 
-function CocoBoxDetect:loadIndex()
+function CocoDetectSet:loadIndex()
    local index = torch.load(self._cache_path)
    for k,v in pairs(index) do
       self[k] = v
@@ -204,154 +190,162 @@ end
 
 -- evaluation iterates through images
 -- training iterates through instances
-function CocoBoxDetect:nSample()
+function CocoDetectSet:nSample()
    return self._evaluate and self.imageIds:size(1) or self.instanceIds:size(1)
 end
 
+function CocoDetectSet:loadImage(path)
+   -- load image with size hints
+   local input = gm.Image():load(path, self._load_size, self._load_size)
+   -- resize by imposing the smallest dimension (while keeping aspect ratio)
+   local iW, iH = input:size()
+   input:size(nil, self._load_size)
+   return input
+end
+
 -- Get a sample. 
--- Input is concatenation of mask (known instance + padding) with image.
--- Target includes unknown bboxes (x,y,w,h) and classes.
--- For evaluation, idx indexes image, 
--- and no instances are known, all are unknown.
--- For training, idx indexes instance, 
--- and the number of known instances is sampled uniformly.
--- The known instances are included in the input mask.
--- The unkown instances are included as targets.
+-- For evaluation, idx indexes image. 
+-- Input is 10 crops (corners, center, mirror).
+-- For training, idx indexes instance.
+-- Input is 1 crop around instance.
+-- Target includes bboxes (x,y,w,h) and classes.
+-- x,y is coordinate of the center of the patch
 -- There are multiple target instances (classes + bbox) per image.
-function CocoBoxDetect:getSample(input, bbox, class, idx)
+function CocoDetectSet:getSample(idx, input, bbox, class, offset, size)
    assert(input and bbox and class and idx)
    class:zero()
    bbox:zero()
+   
    local imageId, instanceId, imagePath
-   local known, unknown = {}, {}
    if self._evaluate then
-      imageId = self.imageIds[idx]
-      unknown = _.clone(self.imageMap[imageId][2])
-      known = {} 
+      offset:zero()
+      imageId = self.imageIds[idx]      
    else
-      if idx > 0 then 
-         instanceId = self.instanceIds[idx]
-         imageId = self.instanceMap[instanceId][2]
-         
-         if self._single_class then
-            -- the class of that instance was sampled.
-            local classId = self.instanceMap[instanceId][1]
-            -- every other class' instances are known.
-            for i, otherId in ipairs(self.imageMap[imageId][2]) do
-               if self.instanceMap[otherId][1] == classId then
-                  table.insert(unknown, otherId)
-               else
-                  table.insert(known, otherId)
-               end
-            end
-            assert(#unknown > 0)
-         else
-            -- get known instances (previously found, masked in input)
-            -- and unknown instances (possible target classes and bboxes)   
-            local nKnown = torch.random(0,math.max(#self.imageMap[imageId][2]-1,0))
-            local instanceIds = _.shuffle(self.imageMap[imageId][2])
-            if idx > 0 then
-               instanceIds = _.pull(instanceIds, instanceId) -- remove main instance Id
-            end
-            unknown =  _.first(instanceIds, #instanceIds - nKnown)
-            known = _.last(instanceIds, #instanceIds - #unknown) or {}
-            if idx > 0 then
-               table.insert(unknown, instanceId) -- put back main instance Id
-            end
-         end
-      else -- the special STOP class was sampled :
-         -- choose a random image
-         imageId = self.imageIds[math.random(1, self.imageIds:size(1))]
-         -- all instances are known
-         known = _.clone(self.imageMap[imageId][2])
-      end
+      instanceId = self.instanceIds[idx]
+      imageId = self.instanceMap[instanceId][2]
    end
    
    local imagePath = paths.concat(self._image_path, self.imageMap[imageId][1])
    
    -- load image with size hints
-   local gmImg = gm.Image():load(imagePath, self._input_size, self._input_size)
-   -- resize by imposing the largest dimension (while keeping aspect ratio)
-   local iW, iH = gmImg:size()
-   if iW/iH < 1 then
-      gmImg:size(self._input_size)
-   else
-      gmImg:size(self._input_size)
-   end
+   local gmImg = self:loadImage(imagePath)
    local oW, oH = gmImg:size()
-   assert(oW <= self._input_size)
-   assert(oH <= self._input_size)
+   assert(oW >= self._load_size)
+   assert(oH >= self._load_size)
    
-   local img = gmImg:toTensor('float','RGB','DHW', true)
-   
-   -- insert image
-   local resImg = input:narrow(1,1,3):zero()
-   local padW = torch.round((self._input_size - oW)/2)
-   local padH = torch.round((self._input_size - oH)/2)
-   resImg:narrow(2,padH+1,oH):narrow(3,padW+1,oW):copy(img)
-      
-   -- mask padding
-   local resMask = input:narrow(1,4,1):fill(1)
-   resMask:narrow(2,padH+1,oH):narrow(3,padW+1,oW):zero()
-   
-   -- mask all known instance bounding box
    local imgData = self.imageMap[imageId]
    local iH, iW = imgData[3], imgData[4]
    local sW, sH = oW/iW, oH/iH
-   for i,knownId in ipairs(known) do
-      local x,y,w,h = unpack(self.instanceMap[knownId][3])
-      -- rescale between 1 and (self._input_size - 1)
+   
+   local img = gmImg:toTensor('float','RGB','DHW', true)
+   
+   local xOffset, yOffset, hflip = 0, 0, 0
+   if self._evaluate then
+      assert(offset)
+      -- input is 10 crops       
+      local iW, iH = gmImg:size()
+      local oW, oH = self._sample_size, self._sample_size
+      
+      -- CocoEvaluator needs the original size in order to merge the 10 outputs
+      size[1], size[2] = oW, oH
+      
+      local dst = input:view(10, 3, oW, oH)
+
+      local w1 = math.ceil((iW-oW)/2)
+      local h1 = math.ceil((iH-oH)/2)
+      -- center
+      image.crop(dst[1], img, w1, h1)
+      offset[{1,1}], offset[{1,2}] = w1, h1 
+      image.hflip(dst[2], dst[1])
+      offset[{2,1}], offset[{2,2}], offset[{2,3}] = w1, h1, 1
+      -- top-left
+      h1 = 0; w1 = 0;
+      image.crop(dst[3], img, w1, h1) 
+      offset[{3,1}], offset[{3,2}] = w1, h1 
+      dst[4] = image.hflip(dst[3])
+      offset[{4,1}], offset[{4,2}], offset[{4,3}] = w1, h1, 1
+      -- top-right
+      h1 = 0; w1 = iW-oW;
+      image.crop(dst[5], img, w1, h1) 
+      offset[{5,1}], offset[{5,2}] = w1, h1 
+      image.hflip(dst[6], dst[5])
+      offset[{6,1}], offset[{6,2}], offset[{6,3}] = w1, h1, 1
+      -- bottom-left
+      h1 = iH-oH; w1 = 0;
+      image.crop(dst[7], img, w1, h1) 
+      offset[{7,1}], offset[{7,2}] = w1, h1 
+      image.hflip(dst[8], dst[7])
+      offset[{8,1}], offset[{8,2}], offset[{8,3}] = w1, h1, 1
+      -- bottom-right
+      h1 = iH-oH; w1 = iW-oW;
+      image.crop(dst[9], img, w1, h1) 
+      offset[{9,1}], offset[{9,2}] = w1, h1 
+      image.hflip(dst[10], dst[9])
+      offset[{10,1}], offset[{10,2}], offset[{10,3}] = w1, h1, 1
+   else   
+      -- crop around the instance 
+      local x,y,w,h = unpack(self.instanceMap[instanceId][3])
+      -- rescale between 0 and (size - 1)
       x,y,w,h = x*sW, y*sH, w*sW, h*sH
-      -- translate 
-      x, y = x + padW, y + padH
       -- make safe (+1 is because x,y are zero-indexed)
-      local x2 = math.max(1, math.min(self._input_size, torch.round(x+w+1)))
-      local y2 = math.max(1, math.min(self._input_size, torch.round(y+h+1)))
-      local x1 = math.max(1, math.min(self._input_size, torch.round(x+1)))
-      local y1 = math.max(1, math.min(self._input_size, torch.round(y+1)))
-      resMask:narrow(2,y1,y2-y1+1):narrow(3,x1,x2-x1+1):fill(1)
+      local x2 = math.max(1, math.min(oW, torch.round(x+w+1)))
+      local y2 = math.max(1, math.min(oH, torch.round(y+h+1)))
+      local x1 = math.max(1, math.min(oW, torch.round(x+1)))
+      local y1 = math.max(1, math.min(oH, torch.round(y+1)))
+      -- random crop coord (of top-left corner) that includes instance
+      local xCrop = torch.uniform(x2-self._sample_size+1, x1)
+      xCrop = math.max(1, math.min(oW-self._sample_size+1, xCrop)) 
+      local yCrop = torch.uniform(y2-self._sample_size+1, y1)
+      yCrop = math.max(1, math.min(oH-self._sample_size+1, yCrop))
+      -- crop it
+      local crop = img:narrow(2,yCrop,self._sample_size):narrow(3,xCrop,self._sample_size)
+      
+      xOffset, yOffset = xCrop-1, yCrop-1
+      hflip = math.random(0,1)
+      if hflip > 1/2 then
+         image.hflip(input, crop)
+      else
+         input:copy(crop)
+      end
    end
    
-   -- include unknown instance bounding box and classes as targets 
-   for i,unknownId in ipairs(unknown) do
-      local unknownInstance = self.instanceMap[unknownId]
-      local x,y,w,h = unpack(unknownInstance[3])
-      -- rescale
+   -- targets : bounding box and classes
+   for i,instanceId in ipairs(imgData[2]) do
+      local instance = self.instanceMap[instanceId]
+      local x,y,w,h = unpack(instance[3])
+      -- rescale between (0,0) and ((oW-1),(oH-1))
       x,y,w,h = x*sW, y*sH, w*sW, h*sH
-      -- translate
-      x, y = x + padW, y + padH
-      -- top left x,y, bottom right x,y, instead of x, y, w, h
+      -- center to cropped area (affects training only)
+      x,y = x-xOffset, y-yOffset
+      -- horizontal flip ?
+      if hflip > 1/2 then
+         assert(not self._evaluate)
+         x = self._sample_size - (x + w)
+      end
+      -- bounding box
       local bb = bbox[i]
-      bb[1], bb[2], bb[3], bb[4] = x, y, x+w, y+h
+      bb[1], bb[2], bb[3], bb[4] = x, y, w, h
       -- instance class
-      class[i] = unknownInstance[1]
+      class[i] = instance[1]
    end
    
-   -- use the special STOP class when all instances are known
-   if #unknown == 0 then
-      class[1] = #self._classes
-   end
-   
-   -- rescale : -1 to 1 (0,0 is center)
-   if #unknown > 0 then
-      bbox:narrow(1,1,#unknown):div((self._input_size-1)/2):add(-1)
-   end
-   
-   return input, bbox, class
+   return input, bbox, class, offset
 end
 
-function CocoBoxDetect:batch(batch_size)
+function CocoDetectSet:batch(batch_size)
    return dp.Batch{
       which_set=self._which_set,
-      inputs=dp.ImageView('bchw', torch.FloatTensor(batch_size, 4, self._input_size, self._input_size)),
+      inputs=dp.ImageView('bchw', torch.FloatTensor(batch_size, self._evaluate and 30 or 3, self._sample_size, self._sample_size)),
       targets=dp.ListView{
          dp.SequenceView('bwc', torch.FloatTensor(batch_size, self._max_instance, 4)),
-         dp.ClassView('bt', torch.IntTensor(batch_size, self._max_instance))
+         dp.ClassView('bt', torch.IntTensor(batch_size, self._max_instance)),
+         self._evaluate and dp.SequenceView('bwc', torch.FloatTensor(batch_size, 10, 3)) or nil,
+         self._evaluate and dp.DataView('bf', torch.FloatTensor(batch_size, 2)) or nil,
       }
    }
 end
 
-function CocoBoxDetect:sub(batch, start, stop)
+function CocoDetectSet:sub(batch, start, stop)
    if not stop then
       stop = start
       start = batch
@@ -366,8 +360,7 @@ end
 
 -- For evaluation, indices index images ;
 -- for training, they index instances.
--- The number of unknown instances is sampled uniformly
-function CocoBoxDetect:index(batch, indices)
+function CocoDetectSet:index(batch, indices)
    if not indices then
       indices = batch
       batch = nil
@@ -376,37 +369,46 @@ function CocoBoxDetect:index(batch, indices)
 
    local batch_size = indices:size(1)
    
-   -- target : {bboxes, classes}
-   local targetView = batch and batch:targets() or dp.ListView{
+   -- target : {bboxes, classes, [offsets]}
+   local targets = {
       dp.SequenceView('bwc', torch.FloatTensor(batch_size, self._max_instance, 4)),
       dp.ClassView('bt', torch.IntTensor(batch_size, self._max_instance))
    }
-   local bboxes, classes = unpack(targetView:input())
+   if self._evaluate then
+      table.insert(targets, dp.SequenceView('bwc', torch.FloatTensor(batch_size, 10, 3)))
+      table.insert(targets, dp.DataView('bf', torch.FloatTensor(batch_size, 2)))
+   end
+   local targetView = batch and batch:targets() or dp.ListView(targets)
+   local bboxes, classes, offsets, sizes = unpack(targetView:input())
    bboxes:resize(batch_size, self._max_instance, 4)
    classes:resize(batch_size, self._max_instance)
+   if self._evaluate then
+      offsets:resize(batch_size, 10, 3)
+      sizes:resize(batch_size, 2)
+   end
    
-   -- input : an rgb image concatenated with a mask
    local inputView = batch and batch:inputs() or dp.ImageView()
    local inputs = inputView:input() or torch.FloatTensor()
-   inputs:resize(batch_size, 4, self._input_size, self._input_size) -- rgb + mask
+   inputs:resize(batch_size, self._evaluate and 30 or 3, self._sample_size, self._sample_size) -- rgb
    inputView:forward('bchw', inputs)
    
    for i=1,batch_size do
-      self:getSample(inputs[i], bboxes[i], classes[i], indices[i])
+      self:getSample(indices[i], inputs[i], bboxes[i], classes[i], self._evaluate and offsets[i], self._evaluate and sizes[i])
    end
    
-   targetView:forward({'bwc','bt'}, {bboxes, classes})
+   if self._evaluate then
+      targetView:forward({'bwc','bt', 'bwc', 'bf'}, {bboxes, classes, offsets, sizes})
+   else
+      targetView:forward({'bwc','bt'}, {bboxes, classes})
+   end
    targetView:components()[2]:setClasses(self._classes)
    batch:inputs(inputView)
    batch:targets(targetView)  
    return batch
 end
 
--- Uniformly sample a class, then an instance of that class,
--- then the number of unknown instances (1->numInstance(instance.img))
--- This keeps the class distribution somewhat balanced.
--- "Somewhat" since the sampled instance will not necessarily be focused upon.
-function CocoBoxDetect:sample(batch, nSample)
+-- Uniformly sample a class, then an instance of that class
+function CocoDetectSet:sample(batch, nSample)
    assert(not self._evaluate, "sample only works with evaluate=false")
    if not nSample then
       nSample = batch
@@ -420,26 +422,21 @@ function CocoBoxDetect:sample(batch, nSample)
    for i=1,nSample do
       -- sample class
       local classId = torch.random(1, #self._classes)
-      if classId == #self._classes then
-         -- the special STOP class applies to any image
-         self._sample_index[i] = 0
-      else
-         -- sample instance from class
-         local classInstances = self.classMap[classId][1]
-         local instanceId = classInstances[torch.random(1, #classInstances)]
-         -- instanceId to instanceIdx
-         self._sample_index[i] = self.instanceMap[instanceId][4]
-      end
+      -- sample instance from class
+      local classInstances = self.classMap[classId][1]
+      local instanceId = classInstances[torch.random(1, #classInstances)]
+      -- instanceId to instanceIdx
+      self._sample_index[i] = self.instanceMap[instanceId][4]
    end
    return self:index(batch, self._sample_index)
 end
 
-function CocoBoxDetect:classes()
+function CocoDetectSet:classes()
    return self._classes
 end
 ------------------------ multithreading --------------------------------
 
-function CocoBoxDetect:multithread(nThread)
+function CocoDetectSet:multithread(nThread)
    nThread = nThread or 2
    if not paths.filep(self._cache_path) then
       -- workers will read a serialized index to speed things up
@@ -467,7 +464,7 @@ function CocoBoxDetect:multithread(nThread)
             print(string.format('Starting worker thread with id: %d seed: %d', tid, seed))
          end
       
-         dataset = dp.CocoBoxDetect(config)
+         dataset = dp.CocoDetectSet(config)
          tbatch = dataset:batch(1)
       end
    )
@@ -481,7 +478,7 @@ function CocoBoxDetect:multithread(nThread)
    self.isAsync = true
 end
 
-function CocoBoxDetect:synchronize()
+function CocoDetectSet:synchronize()
    self._threads:synchronize()
    while not self._recv_batches:empty() do
      self._buffer_batches:put(self._recv_batches:get())
@@ -489,12 +486,12 @@ function CocoBoxDetect:synchronize()
 end
 
 -- send request to worker : put request into queue
-function CocoBoxDetect:subAsyncPut(batch, start, stop, callback)   
+function CocoDetectSet:subAsyncPut(batch, start, stop, callback)   
    if not batch then
       batch = (not self._buffer_batches:empty()) and self._buffer_batches:get() or self:batch(stop-start+1)
    end
    local input = batch:inputs():input()
-   local bbox, class = unpack(batch:targets():input())
+   local bbox, class, offset, size = unpack(batch:targets():input())
    assert(input and class and bbox)
    
    self._send_batches:put(batch)
@@ -509,21 +506,31 @@ function CocoBoxDetect:subAsyncPut(batch, start, stop, callback)
          error"infinit loop"
       end
    end
+   
+   local evaluate = self._evaluate
    self._threads:addjob(
       -- the job callback (runs in data-worker thread)
       function()
          tbatch:inputs():forward('bchw', input)
-         tbatch:targets():forward({'bwc', 'bt'}, {bbox, class})
+         if evaluate then
+            tbatch:targets():forward({'bwc', 'bt', 'bwc', 'bf'}, {bbox, class, offset, size})
+         else
+            tbatch:targets():forward({'bwc', 'bt'}, {bbox, class})
+         end
          
          dataset:sub(tbatch, start, stop)
          
-         return input, target
+         return input, bbox, class, offset, size
       end,
       -- the endcallback (runs in the main thread)
-      function(input, target)
+      function(input, bbox, class, offset, size)
          local batch = self._send_batches:get()
          batch:inputs():forward('bchw', input)
-         batch:targets():forward({'bwc', 'bt'}, {bbox, class})
+         if evaluate then
+            batch:targets():forward({'bwc', 'bt', 'bwc', 'bf'}, {bbox, class, offset, size})
+         else
+            batch:targets():forward({'bwc', 'bt'}, {bbox, class})
+         end
          
          callback(batch)
          
@@ -533,11 +540,11 @@ function CocoBoxDetect:subAsyncPut(batch, start, stop, callback)
    )
 end
 
-function CocoBoxDetect:sampleAsyncPut(batch, nSample, funcName, callback)
+function CocoDetectSet:sampleAsyncPut(batch, nSample, funcName, callback)
    assert(not funcName)
    self._iter_mode = self._iter_mode or 'sample'
    if (self._iter_mode ~= 'sample') then
-      error'can only use one Sampler per async CocoBoxDetect (for now)'
+      error'can only use one Sampler per async CocoDetectSet (for now)'
    end  
    
    if not batch then
@@ -567,10 +574,10 @@ function CocoBoxDetect:sampleAsyncPut(batch, nSample, funcName, callback)
          tbatch:targets():forward({'bwc', 'bt'}, {bbox, class})
          
          dataset:sample(tbatch, nSample)
-         return input, target
+         return input, bbox, class
       end,
       -- the endcallback (runs in the main thread)
-      function(input, target)
+      function(input, bbox, class)
          local batch = self._send_batches:get()
          batch:inputs():forward('bchw', input)
          batch:targets():forward({'bwc', 'bt'}, {bbox, class})
@@ -584,7 +591,7 @@ function CocoBoxDetect:sampleAsyncPut(batch, nSample, funcName, callback)
 end
 
 -- recv results from worker : get results from queue
-function CocoBoxDetect:asyncGet()
+function CocoDetectSet:asyncGet()
    -- necessary because Threads:addjob sometimes calls dojob...
    local i = 0
    while self._recv_batches:empty() do

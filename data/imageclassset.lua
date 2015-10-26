@@ -402,11 +402,7 @@ function ImageClassSet:loadImage(path)
    local input = gm.Image():load(path, self._load_size[3], self._load_size[2])
    -- resize by imposing the smallest dimension (while keeping aspect ratio)
    local iW, iH = input:size()
-   if iW/iH < lW/lH then
-      input:size(lW, nil)
-   else
-      input:size(nil, lH)
-   end
+   input:size(nil, lW)
    return input
 end
 

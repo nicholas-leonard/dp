@@ -31,6 +31,8 @@ The [Language Model tutorial](languagemodeltutorial.md) examines the implementat
 
 In the [Data tutorial](datatutorial.md), we explore different ways to wrap your own data into a DataSource so that it may be used with dp.
 
+A brief overview of Torch7, which includes some details about *dp*, is available via this [NVIDIA GTC Webinar video](http://on-demand.gputechconf.com/gtc/2015/webinar/torch7-applied-deep-learning-for-vision-natural-language.mp4).
+
 <a name="dp.packages"/>
 []()
 ## dp Packages ##

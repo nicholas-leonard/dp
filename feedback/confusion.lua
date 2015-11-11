@@ -59,7 +59,7 @@ function Confusion:_add(batch, output, report)
    
    local act = self._bce and output:view(-1) or output:view(output:size(1), -1)
    local tgt = batch:targets():forward('b')
-   if self._target_dim then
+   if self._target_dim >0 then
       tgt=tgt[self._target_dim]
    end
    

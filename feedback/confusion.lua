@@ -12,7 +12,7 @@ function Confusion:__init(config)
    config = config or {}
    assert(torch.type(config) == 'table' and not config[1], 
       "Constructor requires key-value arguments")
-   local args, bce, name, output_module = xlua.unpack(
+   local args, bce, name, target_dim, output_module = xlua.unpack(
       {config},
       'Confusion', 
       'Adapter for optim.ConfusionMatrix',
@@ -20,12 +20,15 @@ function Confusion:__init(config)
        help='set true when using Binary Cross-Entropy (BCE)Criterion'},
       {arg='name', type='string', default='confusion',
        help='name identifying Feedback in reports'},
+      {arg='target_dim', default=-1, type='number',
+      help='row index of target label to be used to measure confusion'},
       {arg='output_module', type='nn.Module',
        help='module applied to output before measuring confusion matrix'}
    )
    config.name = name
    self._bce = bce
    self._output_module = output_module or nn.Identity()
+   self._target_dim = target_dim
    parent.__init(self, config)
 end
 
@@ -56,6 +59,9 @@ function Confusion:_add(batch, output, report)
    
    local act = self._bce and output:view(-1) or output:view(output:size(1), -1)
    local tgt = batch:targets():forward('b')
+   if self._target_dim >0 then
+      tgt=tgt[self._target_dim]
+   end
    
    if self._bce then
       self._act = self._act or act.new()

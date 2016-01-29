@@ -36,10 +36,10 @@ end
 -- Temporarily changes the current working directory to call fn, 
 -- returning its result.
 function dp.do_with_cwd(path, fn)
-   local cur_dir = fs.cwd()
-   fs.chdir(path)
+   local cur_dir = lfs.currentdir()
+   lfs.chdir(path)
    local res = fn()
-   fs.chdir(cur_dir)
+   lfs.chdir(cur_dir)
    return res
 end
 

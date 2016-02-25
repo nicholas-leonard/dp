@@ -522,6 +522,7 @@ load it and access the `model` with  :
 ```lua
 require 'dp'
 require 'cuda' -- if you used cmd-line argument --cuda
+require 'optim'
 
 xp = torch.load("/home/nicholas/save/xps:1432747515:1.dat")
 model = xp:model()

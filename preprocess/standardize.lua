@@ -47,7 +47,7 @@ function Standardize:apply(dv, can_fit)
       data:add(-self._mean:expandAs(data))
    end
    if self._global_std then
-      data:cdiv(self._std + self._std_eps)
+      data:div(self._std + self._std_eps)
    else
       data:cdiv(self._std:expandAs(data) + self._std_eps)
    end

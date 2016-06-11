@@ -95,7 +95,7 @@ end
 
 function Cifar10:createDataSet(data, which_set)
    local inputs = data:narrow(2, 1, self._feature_size):clone()
-   inputs = inputs:type('torch.DoubleTensor')
+   inputs = inputs:type('torch.FloatTensor')
    inputs:resize(inputs:size(1), unpack(self._image_size))
    if self._scale then
       parent.rescale(inputs, self._scale[1], self._scale[2])

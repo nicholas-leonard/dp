@@ -117,7 +117,7 @@ function Cifar100:loadTest()
 end
 
 function Cifar100:createDataSet(data, which_set)
-   local inputs = data:narrow(2, 3, self._feature_size):clone():double()
+   local inputs = data:narrow(2, 3, self._feature_size):clone():float()
    inputs:resize(inputs:size(1), unpack(self._image_size))
    if self._scale then
       parent.rescale(inputs, self._scale[1], self._scale[2])

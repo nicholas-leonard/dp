@@ -28,7 +28,7 @@ function ClassView:bt()
    if b_pos ~= 1 then
       modula = nn.Transpose({1, b_pos})
    end
-   if view ~= 'bt' or view ~= 'tb' then
+   if view ~= 'bt' and view ~= 'tb' then
       error("cannot convert view '"..view.."' to bt")
    end
    return modula or nn.Identity()

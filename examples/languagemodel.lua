@@ -68,7 +68,7 @@ nnlm = nn.Sequential()
 -- input layer
 -- lookuptable that contains the word embeddings that will be learned
 nnlm:extend(
-   nn.Dictionary(ds:vocabularySize(), opt.inputEmbeddingSize, opt.accUpdate),
+   nn.LookupTable(ds:vocabularySize(), opt.inputEmbeddingSize, opt.accUpdate),
    nn.Collapse(2)
 )
 
